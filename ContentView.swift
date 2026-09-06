@@ -201,7 +201,7 @@ struct ContentView: View {
             ControlDeckBackdrop()
                 .id(accentIndex)
                 .ignoresSafeArea()
-            FallingNeonParticles()
+            AnimatedAtmosphere()
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
@@ -222,6 +222,12 @@ struct ContentView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 28)
             }
+            FallingNeonParticles()
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .blendMode(.screen)
+                .opacity(0.92)
+                .zIndex(20)
         }
         .preferredColorScheme(.dark)
         .confirmationDialog("Remove app-owned traces from both Free Fire apps?", isPresented: $showRemoveTracesConfirmation, titleVisibility: .visible) {
@@ -1844,6 +1850,48 @@ private struct FallingNeonParticles: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct AnimatedAtmosphere: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { proxy in
+            if reduceMotion {
+                atmosphere(time: 0, size: proxy.size)
+            } else {
+                TimelineView(.animation) { timeline in
+                    atmosphere(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func atmosphere(time: TimeInterval, size: CGSize) -> some View {
+        let phase = time * 0.12
+        let driftX = CGFloat(sin(phase) * Double(size.width * 0.28))
+        let driftY = CGFloat(cos(phase * 0.83) * Double(size.height * 0.12))
+        return ZStack {
+            Circle()
+                .fill(Color.cyan.opacity(0.10))
+                .frame(width: 310, height: 310)
+                .blur(radius: 72)
+                .offset(x: -size.width * 0.34 + driftX, y: -size.height * 0.30 + driftY)
+            Circle()
+                .fill(Color.purple.opacity(0.12))
+                .frame(width: 270, height: 270)
+                .blur(radius: 76)
+                .offset(x: size.width * 0.34 - driftX, y: size.height * 0.18 - driftY)
+            Circle()
+                .fill(AppTheme.accent.opacity(0.07))
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: driftX * 0.5, y: size.height * 0.34)
+        }
+        .frame(width: size.width, height: size.height)
     }
 }
 
