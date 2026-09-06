@@ -1809,18 +1809,10 @@ private struct ParticleField: View {
 }
 
 private struct FallingNeonParticles: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         GeometryReader { proxy in
-            Group {
-                if reduceMotion {
-                    fallingCanvas(time: 0, size: proxy.size)
-                } else {
-                    TimelineView(.animation) { timeline in
-                        fallingCanvas(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
-                    }
-                }
+            TimelineView(.periodic(from: Date(), by: 0.05)) { timeline in
+                fallingCanvas(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
             }
         }
     }
@@ -1838,11 +1830,11 @@ private struct FallingNeonParticles: View {
                 let radius = 0.8 + seed.truncatingRemainder(dividingBy: 3.0) * 0.42
                 let pulse = 0.62 + 0.38 * sin(time * 0.9 + seed)
                 let color = index.isMultiple(of: 5) ? Color.white : (index.isMultiple(of: 2) ? Color.cyan : AppTheme.accent)
-                let alpha = (0.28 + seed.truncatingRemainder(dividingBy: 4.0) * 0.035) * pulse
+                let alpha = (0.42 + seed.truncatingRemainder(dividingBy: 4.0) * 0.045) * pulse
                 var streak = Path()
                 streak.move(to: CGPoint(x: x, y: y))
                 streak.addLine(to: CGPoint(x: x, y: y + length))
-                context.stroke(streak, with: .color(color.opacity(alpha * 0.8)), lineWidth: radius)
+                context.stroke(streak, with: .color(color.opacity(alpha * 0.95)), lineWidth: radius * 1.35)
                 let dot = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
                 context.fill(Path(ellipseIn: dot), with: .color(color.opacity(alpha)))
             }
@@ -1854,16 +1846,10 @@ private struct FallingNeonParticles: View {
 }
 
 private struct AnimatedAtmosphere: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         GeometryReader { proxy in
-            if reduceMotion {
-                atmosphere(time: 0, size: proxy.size)
-            } else {
-                TimelineView(.animation) { timeline in
-                    atmosphere(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
-                }
+            TimelineView(.periodic(from: Date(), by: 0.05)) { timeline in
+                atmosphere(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
             }
         }
         .allowsHitTesting(false)
