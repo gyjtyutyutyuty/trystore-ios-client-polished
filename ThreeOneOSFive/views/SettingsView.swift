@@ -96,29 +96,35 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    HStack {
-                        Text(language.text("settings.current_version"))
+                    HStack(spacing: 12) {
+                        Image(systemName: appState.isSupported ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(appState.isSupported ? .green : .orange)
+                            .frame(width: 44, height: 44)
+                            .background((appState.isSupported ? Color.green : Color.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(appState.isSupported ? "iOS SUPPORTED" : "iOS NOT VERIFIED")
+                                .font(.system(size: 12, weight: .black, design: .rounded))
+                            Text("Current device: \(AppInfo.osVersion)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
-                        Text(language.text(appState.isSupported ? "settings.supported" : "settings.unsupported"))
-                        .foregroundStyle(appState.isSupported ? Color.green : Color.red)
                     }
+                    .padding(.vertical, 4)
+
+                    Text("Verified compatibility")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.top, 4)
                     LabeledContent("iOS 17", value: ExploitSupportPolicy.verifiedIOS17Range)
                     LabeledContent("iOS 18", value: ExploitSupportPolicy.verifiedIOS18Range)
                     LabeledContent("iOS 26", value: ExploitSupportPolicy.verifiedIOS26Range)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("iOS 27.0")
-                            .font(.body)
-                        ForEach(ExploitSupportPolicy.verifiedIOS27Builds, id: \.build) { version in
-                            Text(versionLabel(version))
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 2)
+                    LabeledContent("iOS 27 beta", value: "Verified builds available")
+                    LabeledContent("Device integrity", value: appState.integrityStatus.label)
                 } header: {
-                    Text(language.text("settings.verified_versions"))
+                    Text("COMPATIBILITY")
                 } footer: {
-                    Text(language.text("settings.supported_versions_footer"))
+                    Text("Support is determined by the installed iOS version and device integrity check.")
                 }
 
             }

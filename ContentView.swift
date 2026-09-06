@@ -321,7 +321,7 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color(red: 0.05, green: 0.16, blue: 0.34), Color(red: 0.012, green: 0.024, blue: 0.055)],
+                        colors: [Color(red: 0.10, green: 0.08, blue: 0.30), Color(red: 0.018, green: 0.025, blue: 0.10), Color(red: 0.006, green: 0.012, blue: 0.035)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -330,12 +330,23 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .stroke(AppTheme.accent.opacity(0.42), lineWidth: 1)
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(LinearGradient(colors: [.cyan.opacity(0.35), .purple.opacity(0.12), .clear], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+                        .padding(2)
+                )
 
             Circle()
                 .fill(AppTheme.accent.opacity(0.13))
                 .frame(width: 160, height: 160)
                 .blur(radius: 2)
                 .offset(x: 70, y: -56)
+
+            Circle()
+                .fill(Color.purple.opacity(0.16))
+                .frame(width: 120, height: 120)
+                .blur(radius: 28)
+                .offset(x: -92, y: 74)
 
             AppLogo(size: 128)
                 .opacity(0.08)
@@ -352,7 +363,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("TRY STORE / CONTROL DECK")
+                        Text("TRY STORE / SECURE EDITION")
                             .font(.system(size: 10, weight: .black, design: .rounded))
                             .tracking(1.7)
                             .foregroundStyle(AppTheme.accent)
@@ -1748,6 +1759,11 @@ struct ControlDeckBackdrop: View {
                     .frame(width: 250, height: 250)
                     .blur(radius: 85)
                     .offset(x: animate ? -110 : 100, y: proxy.size.height * 0.26)
+                Circle()
+                    .fill(Color.purple.opacity(0.10))
+                    .frame(width: 220, height: 220)
+                    .blur(radius: 78)
+                    .offset(x: animate ? -80 : 120, y: -proxy.size.height * 0.08)
                 ParticleField()
                 GridOverlay()
             }
