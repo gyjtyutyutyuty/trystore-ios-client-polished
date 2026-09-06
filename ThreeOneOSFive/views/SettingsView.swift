@@ -55,9 +55,6 @@ struct SettingsView: View {
                     Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos?stkn=MTdqMGo2d200YmF3Yg%3D%3D&utm_source=qr")!) {
                         Label("Follow TryStore on Instagram", systemImage: "camera.fill")
                     }
-                    Link(destination: URL(string: "https://wa.me/13214970363")!) {
-                        Label("Contact support on WhatsApp", systemImage: "message.fill")
-                    }
                     NavigationLink {
                         ClientDiagnosticsView()
                     } label: {

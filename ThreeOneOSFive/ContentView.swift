@@ -213,6 +213,8 @@ struct ContentView: View {
                     sessionOverview
                     enterGamePanel
                     socialLinksPanel
+                    creditsPanel
+                    footerBar
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 14)
@@ -1093,16 +1095,10 @@ struct ContentView: View {
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 9) {
-                Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos?stkn=MTdqMGo2d200YmF3Yg%3D%3D&utm_source=qr")!) {
-                    supportLinkLabel(title: "INSTAGRAM", detail: "@guillenrmarcos", icon: "camera.fill", color: Color(red: 0.84, green: 0.22, blue: 0.56))
-                }
-                .buttonStyle(.plain)
-                Link(destination: URL(string: "https://wa.me/13214970363")!) {
-                    supportLinkLabel(title: "WHATSAPP", detail: "+1 (321) 497-0363", icon: "message.fill", color: .green)
-                }
-                .buttonStyle(.plain)
+            Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos?stkn=MTdqMGo2d200YmF3Yg%3D%3D&utm_source=qr")!) {
+                supportLinkLabel(title: "INSTAGRAM", detail: "@guillenrmarcos", icon: "camera.fill", color: Color(red: 0.84, green: 0.22, blue: 0.56))
             }
+            .buttonStyle(.plain)
         }
         .padding(15)
         .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
@@ -1321,7 +1317,7 @@ struct ContentView: View {
                         .font(.system(size: 11, weight: .black, design: .rounded))
                         .tracking(0.8)
                         .foregroundStyle(.white)
-                    Text("Designed by TryStore")
+                    Text("Developed by Jvztxn • TryStore")
                         .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.48))
                 }
@@ -1335,7 +1331,7 @@ struct ContentView: View {
             .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(AppTheme.accent.opacity(0.16), lineWidth: 1))
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Development credits: TryStore, designed and developed by Justin Burgoa")
+        .accessibilityLabel("Development credits: Developed by Jvztxn and TryStore")
     }
 
     private var footerBar: some View {
@@ -1349,7 +1345,7 @@ struct ContentView: View {
                 .tracking(1.1)
                 .foregroundStyle(.white.opacity(0.68))
             Spacer()
-            Text("TryStore / SECURE")
+            Text("DEVELOPED BY JVZTXN + TRYSTORE")
                 .font(.system(size: 8, weight: .black, design: .rounded))
                 .tracking(0.7)
                 .foregroundStyle(AppTheme.accent.opacity(0.82))
