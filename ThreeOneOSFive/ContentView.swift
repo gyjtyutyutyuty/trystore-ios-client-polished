@@ -213,6 +213,7 @@ struct ContentView: View {
                     referencePatchConsole
                     sessionOverview
                     enterGamePanel
+                    socialLinksPanel
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 14)
@@ -1230,6 +1231,82 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Launch \(title): \(subtitle)")
+    }
+
+    private var socialLinksPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundStyle(AppTheme.accent)
+                Text("FOLLOW TRYSTORE")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .tracking(1.25)
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("OFFICIAL LINKS")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.34))
+            }
+
+            HStack(spacing: 10) {
+                socialLinkCard(
+                    title: "TikTok",
+                    handle: "@vaal_goat",
+                    icon: "music.note",
+                    colors: [Color.black, Color(red: 0.12, green: 0.08, blue: 0.22)],
+                    url: "https://www.tiktok.com/@vaal_goat?_r=1&_t=ZS-99VyqChfs9J"
+                )
+                socialLinkCard(
+                    title: "Instagram",
+                    handle: "@guillenrmarcos",
+                    icon: "camera.fill",
+                    colors: [Color(red: 0.35, green: 0.06, blue: 0.28), Color(red: 0.08, green: 0.14, blue: 0.38)],
+                    url: "https://www.instagram.com/guillenrmarcos?stkn=MTdqMGo2d200YmF3Yg%3D%3D&utm_source=qr"
+                )
+            }
+        }
+        .padding(15)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(AppTheme.accent.opacity(0.22), lineWidth: 1))
+        .shadow(color: .black.opacity(0.20), radius: 16, y: 8)
+    }
+
+    private func socialLinkCard(title: String, handle: String, icon: String, colors: [Color], url: String) -> some View {
+        Link(destination: URL(string: url)!) {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(Color.white.opacity(0.13))
+                            .frame(width: 34, height: 34)
+                        Image(systemName: icon)
+                            .font(.system(size: 17, weight: .black))
+                            .foregroundStyle(.white)
+                    }
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundStyle(.white.opacity(0.62))
+                }
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .tracking(0.9)
+                    .foregroundStyle(.white)
+                Text(handle)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.56))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+            .background(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.15), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open TryStore \(title) profile \(handle)")
     }
 
     private var creditsPanel: some View {
