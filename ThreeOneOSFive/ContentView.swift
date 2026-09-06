@@ -335,19 +335,18 @@ struct ContentView: View {
                 .blur(radius: 2)
                 .offset(x: 70, y: -56)
 
-            Image("TryStoreCharacterBranded")
+            AppLogo(size: 128)
+                .opacity(0.09)
+                .blur(radius: 0.4)
+                .offset(x: 70, y: 28)
+
+            Image("CharacterPreview")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 190, height: 220)
-                .opacity(0.88)
-                .offset(x: 58, y: 21)
-                .mask(
-                    LinearGradient(
-                        colors: [.white, .white.opacity(0.92), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .frame(width: 156, height: 188)
+                .opacity(0.72)
+                .blendMode(.screen)
+                .offset(x: 58, y: 22)
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
@@ -441,13 +440,14 @@ struct ContentView: View {
                             .stroke((activeCharacterRegions.isEmpty ? AppTheme.accent : Color.green).opacity(0.34), lineWidth: 1)
                     }
 
-                Image("TryStoreCharacterBranded")
+                Image("CharacterPreview")
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: 260)
                     .padding(.horizontal, 18)
-                    .shadow(color: AppTheme.accent.opacity(0.30), radius: 18, y: 6)
-                    .opacity(activeCharacterRegions.isEmpty ? 0.82 : 1)
+                    .blendMode(.screen)
+                    .shadow(color: AppTheme.accent.opacity(0.24), radius: 18, y: 6)
+                    .opacity(activeCharacterRegions.isEmpty ? 0.78 : 0.92)
 
                 ForEach(CharacterRegion.allCases.filter { activeCharacterRegions.contains($0) }, id: \.self) { region in
                     characterRegionMarker(region)
