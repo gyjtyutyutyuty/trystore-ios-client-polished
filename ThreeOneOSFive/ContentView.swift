@@ -340,7 +340,7 @@ struct ContentView: View {
                 .blur(radius: 0.4)
                 .offset(x: 70, y: 28)
 
-            Image("CharacterPreview")
+            Image("CleanCharacter")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 156, height: 188)
@@ -426,36 +426,37 @@ struct ContentView: View {
 
             ZStack {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.black.opacity(0.62))
-                Image("TryStoreTheme")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.018, green: 0.07, blue: 0.15), Color(red: 0.004, green: 0.012, blue: 0.03)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                AppLogo(size: 220)
                     .opacity(0.28)
-                    .blur(radius: 0.4)
-                    .overlay(Color(red: 0.01, green: 0.04, blue: 0.10).opacity(0.34))
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke((activeCharacterRegions.isEmpty ? AppTheme.accent : Color.green).opacity(0.34), lineWidth: 1)
-                    }
-
-                Image("TryStoreTheme")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 208, height: 208)
-                    .opacity(0.26)
                     .blendMode(.screen)
-                    .offset(x: 62, y: 6)
-
-                Image("CharacterPreview")
+                    .blur(radius: 0.2)
+                    .offset(x: 64, y: 2)
+                Circle()
+                    .fill(AppTheme.accent.opacity(0.12))
+                    .frame(width: 190, height: 190)
+                    .blur(radius: 44)
+                    .offset(x: 58, y: -22)
+                ParticleField()
+                    .opacity(0.72)
+                Image("CleanCharacter")
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: 260)
                     .padding(.horizontal, 18)
-                    .opacity(activeCharacterRegions.isEmpty ? 0.84 : 0.96)
-                    .blendMode(.screen)
-                    .shadow(color: AppTheme.accent.opacity(0.24), radius: 18, y: 6)
+                    .opacity(activeCharacterRegions.isEmpty ? 0.88 : 1)
+                    .shadow(color: AppTheme.accent.opacity(0.28), radius: 18, y: 6)
+                    .accessibilityHidden(true)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke((activeCharacterRegions.isEmpty ? AppTheme.accent : Color.green).opacity(0.34), lineWidth: 1)
+                    }
 
                 ForEach(CharacterRegion.allCases.filter { activeCharacterRegions.contains($0) }, id: \.self) { region in
                     characterRegionMarker(region)
