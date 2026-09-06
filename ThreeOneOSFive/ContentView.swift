@@ -208,7 +208,6 @@ struct ContentView: View {
                     topBar
                     heroPanel
                     telemetryStrip
-                    quickStartPanel
                     characterPreviewPanel
                     referencePatchConsole
                     sessionOverview
