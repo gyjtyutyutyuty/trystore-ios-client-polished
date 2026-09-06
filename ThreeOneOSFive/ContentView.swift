@@ -1679,11 +1679,56 @@ struct ControlDeckBackdrop: View {
                     .frame(width: 250, height: 250)
                     .blur(radius: 85)
                     .offset(x: animate ? -110 : 100, y: proxy.size.height * 0.26)
+                ParticleField()
                 GridOverlay()
             }
             .onAppear {
                 withAnimation(.easeInOut(duration: 10).repeatForever(autoreverses: true)) {
                     animate = true
+                }
+            }
+        }
+    }
+}
+
+private struct ParticleField: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                particleCanvas(time: 0)
+            } else {
+                TimelineView(.animation) { timeline in
+                    particleCanvas(time: timeline.date.timeIntervalSinceReferenceDate)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func particleCanvas(time: TimeInterval) -> some View {
+        Canvas { context, size in
+            let particleCount = 34
+            for index in 0..<particleCount {
+                let seed = Double(index)
+                let baseX = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0)
+                let baseY = (seed * 0.38196601125 + 0.17).truncatingRemainder(dividingBy: 1.0)
+                let driftX = sin(time * (0.10 + seed * 0.003) + seed * 1.7) * 0.035
+                let driftY = cos(time * (0.08 + seed * 0.002) + seed * 1.2) * 0.045
+                let x = (baseX + driftX).truncatingRemainder(dividingBy: 1.0) * size.width
+                let y = (baseY + driftY + 1.0).truncatingRemainder(dividingBy: 1.0) * size.height
+                let pulse = 0.55 + 0.45 * sin(time * 0.7 + seed)
+                let radius = 1.0 + (seed.truncatingRemainder(dividingBy: 3.0) * 0.55)
+                let alpha = (0.10 + (seed.truncatingRemainder(dividingBy: 4.0) * 0.025)) * pulse
+                let color = index.isMultiple(of: 4) ? Color.cyan : AppTheme.accent
+                let rect = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
+                context.fill(Path(ellipseIn: rect), with: .color(color.opacity(alpha)))
+
+                if index.isMultiple(of: 7) {
+                    let glowRect = rect.insetBy(dx: -radius * 2.2, dy: -radius * 2.2)
+                    context.fill(Path(ellipseIn: glowRect), with: .color(color.opacity(alpha * 0.18)))
                 }
             }
         }
