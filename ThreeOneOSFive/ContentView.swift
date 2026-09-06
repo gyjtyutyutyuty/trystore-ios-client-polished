@@ -520,8 +520,9 @@ struct ContentView: View {
             compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HSSLA.3105", state: $hsslaEnabled)
         }
         .padding(13)
-        .background(Color.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(AppTheme.accent.opacity(0.34), lineWidth: 1))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(AppTheme.accent.opacity(0.30), lineWidth: 1))
+        .shadow(color: .black.opacity(0.22), radius: 16, y: 8)
     }
 
     private func compactPatchButton(title: String, subtitle: String, icon: String, color: Color, package: String, state: Binding<Bool>) -> some View {
@@ -529,10 +530,17 @@ struct ContentView: View {
             togglePatch(packageFilename: package, state: state)
         } label: {
             HStack(spacing: 11) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .black))
-                    .foregroundStyle(state.wrappedValue ? Color.black : color)
-                    .frame(width: 26)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(state.wrappedValue ? color : color.opacity(0.38))
+                    .frame(width: 4, height: 30)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(state.wrappedValue ? color.opacity(0.18) : Color.white.opacity(0.05))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundStyle(state.wrappedValue ? color : color.opacity(0.88))
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 10, weight: .black, design: .rounded))
@@ -549,8 +557,9 @@ struct ContentView: View {
             .foregroundStyle(state.wrappedValue ? Color.black : .white)
             .padding(.horizontal, 13)
             .frame(minHeight: 51)
-            .background(state.wrappedValue ? color : Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(state.wrappedValue ? color : Color.white.opacity(0.10), lineWidth: 1))
+            .background(state.wrappedValue ? color.opacity(0.92) : Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(state.wrappedValue ? color : Color.white.opacity(0.10), lineWidth: 1))
+            .shadow(color: state.wrappedValue ? color.opacity(0.18) : .clear, radius: 10, y: 4)
         }
         .buttonStyle(.plain)
         .disabled(patchOperationBusy)
@@ -737,8 +746,9 @@ struct ContentView: View {
             }
         }
         .padding(15)
-        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 23, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(sessionStateColor.opacity(0.20), lineWidth: 1))
+        .shadow(color: .black.opacity(0.20), radius: 16, y: 8)
         .accessibilityElement(children: .contain)
     }
 
