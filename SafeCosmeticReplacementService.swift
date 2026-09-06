@@ -63,9 +63,9 @@ enum SafeCosmeticReplacementService {
         guard sourceValues.isDirectory != true else { throw CosmeticReplacementError.sourceIsDirectory }
         guard sourceValues.isSymbolicLink != true else { throw CosmeticReplacementError.symbolicLinkUnsupported }
 
-        let backupName = ".jvztxnx-backup-\(UUID().uuidString)-\(target.lastPathComponent)"
+        let backupName = ".trystore-backup-\(UUID().uuidString)-\(target.lastPathComponent)"
         let backupURL = target.deletingLastPathComponent().appendingPathComponent(backupName)
-        let stagingURL = target.deletingLastPathComponent().appendingPathComponent(".jvztxnx-stage-\(UUID().uuidString)")
+        let stagingURL = target.deletingLastPathComponent().appendingPathComponent(".trystore-stage-\(UUID().uuidString)")
 
         do {
             try fileManager.copyItem(at: target, to: backupURL)

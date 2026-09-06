@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDisplayName</key>
-    <string>JVZTXNX</string>
+    <string>TryStore</string>
     <key>CFBundleIdentifier</key>
-    <string>com.jvztxnx.cosmeticpreview</string>
+    <string>com.trystore.cosmeticpreview</string>
     <key>CFBundleName</key>
-    <string>JVZTXNX</string>
+    <string>TryStore</string>
     <key>CFBundleExecutable</key>
-    <string>JVZTXNX</string>
+    <string>TryStore</string>
     <key>CFBundleSupportedPlatforms</key>
     <array>
         <string>iPhoneOS</string>

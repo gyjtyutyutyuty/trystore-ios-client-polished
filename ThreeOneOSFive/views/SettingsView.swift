@@ -6,11 +6,11 @@ struct SettingsView: View {
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var appState: AppState
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
-    @AppStorage("jvztxnx.compactPatchRows") private var compactPatchRows = false
-    @AppStorage("jvztxnx.hapticsEnabled") private var hapticsEnabled = true
-    @AppStorage("jvztxnx.expirationReminders") private var expirationReminders = true
-    @AppStorage("jvztxnx.updateNotices") private var updateNotices = true
-    @AppStorage("jvztxnx.themeMode") private var themeMode = "dark"
+    @AppStorage("trystore.compactPatchRows") private var compactPatchRows = false
+    @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
+    @AppStorage("trystore.expirationReminders") private var expirationReminders = true
+    @AppStorage("trystore.updateNotices") private var updateNotices = true
+    @AppStorage("trystore.themeMode") private var themeMode = "dark"
     @State private var diagnosticsCopied = false
 
     var body: some View {
@@ -49,8 +49,11 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Link(destination: URL(string: "https://t.me/jvztxn")!) {
-                        Label("Contact support on Telegram", systemImage: "paperplane.fill")
+                    Link(destination: URL(string: "https://www.tiktok.com/@vaal_goat?_r=1&_t=ZS-99VyqChfs9J")!) {
+                        Label("Follow TryStore on TikTok", systemImage: "music.note")
+                    }
+                    Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos?stkn=MTdqMGo2d200YmF3Yg%3D%3D&utm_source=qr")!) {
+                        Label("Follow TryStore on Instagram", systemImage: "camera.fill")
                     }
                     Link(destination: URL(string: "https://wa.me/13214970363")!) {
                         Label("Contact support on WhatsApp", systemImage: "message.fill")

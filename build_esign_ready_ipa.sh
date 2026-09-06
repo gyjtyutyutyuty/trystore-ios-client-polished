@@ -14,7 +14,7 @@ if [[ ! -f "$IPA" ]]; then
   "$ROOT/build_unsigned.sh"
 fi
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/jvztxnx-esign.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/trystore-esign.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 unzip -q "$IPA" -d "$WORK_DIR/unpacked"

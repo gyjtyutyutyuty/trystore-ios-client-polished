@@ -163,7 +163,7 @@ final class LicenseManager: ObservableObject {
                 lastCheckedAt = Date()
                 isOffline = false
                 message = isActive ? "KEY ACTIVATED" : "KEY EXPIRED"
-                if isActive && (UserDefaults.standard.object(forKey: "jvztxnx.activationConfirmations") as? Bool ?? true) {
+                if isActive && (UserDefaults.standard.object(forKey: "trystore.activationConfirmations") as? Bool ?? true) {
                     sendActivationConfirmation()
                 }
                 isBusy = false
@@ -184,7 +184,7 @@ final class LicenseManager: ObservableObject {
             content.title = "TryStore License Active"
             content.body = "Your client license was activated successfully."
             content.sound = .default
-            let request = UNNotificationRequest(identifier: "jvztxnx.activation.confirmation", content: content, trigger: nil)
+            let request = UNNotificationRequest(identifier: "trystore.activation.confirmation", content: content, trigger: nil)
             center.add(request)
         }
     }

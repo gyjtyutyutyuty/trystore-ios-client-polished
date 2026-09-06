@@ -5,8 +5,8 @@ import UIKit
 struct ThreeOneOSFiveApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var licenseManager = LicenseManager()
-    @AppStorage("jvztxnx.hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("jvztxnx.themeMode") private var themeMode = "dark"
+    @AppStorage("trystore.hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("trystore.themeMode") private var themeMode = "dark"
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
     @StateObject private var fileOperationCoordinator = FileOperationCoordinator();
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue

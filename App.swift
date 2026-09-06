@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct JVZTXNXApp: App {
+struct TryStoreApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

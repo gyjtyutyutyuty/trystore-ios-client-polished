@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class ProfileStore: ObservableObject {
     @Published private(set) var bookmarks: [String: Data] = [:]
-    private let defaultsKey = "jvztxnx.profile.bookmarks"
+    private let defaultsKey = "trystore.profile.bookmarks"
 
     init() {
         bookmarks = UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: Data] ?? [:]

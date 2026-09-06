@@ -137,9 +137,9 @@ struct ContentView: View {
     @State private var showViewControls = false
     @State private var showAppearance = false
     @State private var showQuickStart = true
-    @AppStorage("jvztxnx.compactPatchRows") private var compactPatchRows = false
-    @AppStorage("jvztxnx.showFileFragments") private var showFileFragments = true
-    @AppStorage("jvztxnx.hapticsEnabled") private var hapticsEnabled = true
+    @AppStorage("trystore.compactPatchRows") private var compactPatchRows = false
+    @AppStorage("trystore.showFileFragments") private var showFileFragments = true
+    @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
     private let totalPatchCount = 9
@@ -1094,8 +1094,8 @@ struct ContentView: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 9) {
-                Link(destination: URL(string: "https://t.me/jvztxn")!) {
-                    supportLinkLabel(title: "TELEGRAM", detail: "@jvztxn", icon: "paperplane.fill", color: AppTheme.palette[1].color)
+                Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos?stkn=MTdqMGo2d200YmF3Yg%3D%3D&utm_source=qr")!) {
+                    supportLinkLabel(title: "INSTAGRAM", detail: "@guillenrmarcos", icon: "camera.fill", color: Color(red: 0.84, green: 0.22, blue: 0.56))
                 }
                 .buttonStyle(.plain)
                 Link(destination: URL(string: "https://wa.me/13214970363")!) {
@@ -1788,13 +1788,16 @@ private struct ParticleField: View {
                 let baseX = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0)
                 let baseY = (seed * 0.38196601125 + 0.17).truncatingRemainder(dividingBy: 1.0)
                 let x = (baseX + sin(time * 0.10 + seed * 1.7) * 0.035).truncatingRemainder(dividingBy: 1.0) * size.width
-                let y = (baseY + cos(time * 0.08 + seed * 1.2) * 0.045 + 1.0).truncatingRemainder(dividingBy: 1.0) * size.height
+                let fall = time * (0.014 + seed.truncatingRemainder(dividingBy: 5.0) * 0.0015)
+                let y = (baseY + fall + cos(time * 0.08 + seed * 1.2) * 0.025 + 1.0).truncatingRemainder(dividingBy: 1.0) * size.height
                 let radius = 1.0 + seed.truncatingRemainder(dividingBy: 3.0) * 0.55
                 let pulse = 0.55 + 0.45 * sin(time * 0.7 + seed)
                 let color = index.isMultiple(of: 4) ? Color.cyan : AppTheme.accent
-                let alpha = (0.10 + seed.truncatingRemainder(dividingBy: 4.0) * 0.025) * pulse
+                let alpha = (0.16 + seed.truncatingRemainder(dividingBy: 4.0) * 0.035) * pulse
                 let rect = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
                 context.fill(Path(ellipseIn: rect), with: .color(color.opacity(alpha)))
+                let glow = rect.insetBy(dx: -radius * 2.8, dy: -radius * 2.8)
+                context.fill(Path(ellipseIn: glow), with: .color(color.opacity(alpha * 0.16)))
             }
         }
     }

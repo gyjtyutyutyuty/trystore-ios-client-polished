@@ -1,4 +1,4 @@
-# JVZTXNX — Cosmetic Chest Preview
+# TryStore — Cosmetic Chest Preview
 
 This revision turns the supplied 3105 project into a normal SwiftUI iOS app with a Files/document-picker workflow.
 
@@ -30,7 +30,7 @@ If Files exposes the `Documents` directory itself, the app uses it as the root a
 ## macOS + Xcode
 
 1. Open `ThreeOneOSFive.xcodeproj` in Xcode.
-2. Select the `JVZTXNX` target.
+2. Select the `TryStore` target.
 3. In **Signing & Capabilities**, choose the owner's Apple Developer Team and keep automatic signing enabled.
 4. Select a physical iPhone/iPad or a generic iOS device destination.
 5. Build with **Product → Build**.
@@ -47,8 +47,8 @@ chmod +x ./build_unsigned.sh
 
 It creates:
 
-- `build/JVZTXNX.xcarchive`
-- `build/JVZTXNX-unsigned.ipa`
+- `build/TryStore.xcarchive`
+- `build/TryStore-unsigned.ipa`
 
 The IPA is intentionally unsigned. This is the correct input for a re-signing utility such as **eSign**: the selected Apple certificate (`.p12`) and matching provisioning profile (`.mobileprovision`) are applied by eSign for the target device and Apple Developer account.
 
@@ -63,9 +63,9 @@ The validator confirms that the IPA contains exactly one `Payload/*.app`, has th
 
 ### eSign installation workflow
 
-1. Build `build/JVZTXNX-unsigned.ipa` on macOS using the command above.
+1. Build `build/TryStore-unsigned.ipa` on macOS using the command above.
 2. Transfer the IPA to the iPhone or iPad, then open it from the Files app or import it into eSign.
-3. In eSign, import the owner’s `.p12` certificate and matching `.mobileprovision` profile. The profile must authorize the app’s bundle identifier, `com.jvztxnx.cosmeticpreview`, or the identifier must be changed during signing to one authorized by that profile.
+3. In eSign, import the owner’s `.p12` certificate and matching `.mobileprovision` profile. The profile must authorize the app’s bundle identifier, `com.trystore.cosmeticpreview`, or the identifier must be changed during signing to one authorized by that profile.
 4. Sign the IPA without injecting additional tweaks or dynamic libraries, then install it from eSign.
 5. Trust the developer profile in **Settings → General → VPN & Device Management** if iOS requests it. Installation still depends on a valid certificate, a matching profile, registered device UDID where applicable, and the iOS version supported by that certificate/profile.
 
