@@ -115,7 +115,6 @@ struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var patchStore = PatchProjectStore()
-    @State private var showSettings = false
         @State private var patchOperationBusy = false
     @State private var patchMessage = "READY — SELECT A PATCH"
     @State private var aimDragEnabled = false
@@ -202,6 +201,9 @@ struct ContentView: View {
             ControlDeckBackdrop()
                 .id(accentIndex)
                 .ignoresSafeArea()
+            FallingNeonParticles()
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
@@ -222,9 +224,6 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-        }
         .confirmationDialog("Remove app-owned traces from both Free Fire apps?", isPresented: $showRemoveTracesConfirmation, titleVisibility: .visible) {
             Button("Remove traces", role: .destructive) {
                 removeTraces()
@@ -284,18 +283,6 @@ struct ContentView: View {
 
             Spacer(minLength: 8)
             systemStatusPill
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 17, weight: .black))
-                    .foregroundStyle(.white.opacity(0.82))
-                    .frame(width: 42, height: 42)
-                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open settings")
         }
     }
 
@@ -1812,6 +1799,51 @@ private struct ParticleField: View {
                 context.fill(Path(ellipseIn: glow), with: .color(color.opacity(alpha * 0.16)))
             }
         }
+    }
+}
+
+private struct FallingNeonParticles: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { proxy in
+            Group {
+                if reduceMotion {
+                    fallingCanvas(time: 0, size: proxy.size)
+                } else {
+                    TimelineView(.animation) { timeline in
+                        fallingCanvas(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
+                    }
+                }
+            }
+        }
+    }
+
+    private func fallingCanvas(time: TimeInterval, size: CGSize) -> some View {
+        Canvas { context, canvasSize in
+            let width = max(canvasSize.width, size.width)
+            let height = max(canvasSize.height, size.height)
+            for index in 0..<44 {
+                let seed = Double(index)
+                let x = (seed * 0.754877666 + sin(seed * 2.1) * 0.025).truncatingRemainder(dividingBy: 1.0) * width
+                let speed = 0.010 + seed.truncatingRemainder(dividingBy: 5.0) * 0.0014
+                let y = (seed * 0.413731 + time * speed).truncatingRemainder(dividingBy: 1.0) * height
+                let length = 3.0 + seed.truncatingRemainder(dividingBy: 5.0) * 2.0
+                let radius = 0.8 + seed.truncatingRemainder(dividingBy: 3.0) * 0.42
+                let pulse = 0.62 + 0.38 * sin(time * 0.9 + seed)
+                let color = index.isMultiple(of: 5) ? Color.white : (index.isMultiple(of: 2) ? Color.cyan : AppTheme.accent)
+                let alpha = (0.28 + seed.truncatingRemainder(dividingBy: 4.0) * 0.035) * pulse
+                var streak = Path()
+                streak.move(to: CGPoint(x: x, y: y))
+                streak.addLine(to: CGPoint(x: x, y: y + length))
+                context.stroke(streak, with: .color(color.opacity(alpha * 0.8)), lineWidth: radius)
+                let dot = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
+                context.fill(Path(ellipseIn: dot), with: .color(color.opacity(alpha)))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
