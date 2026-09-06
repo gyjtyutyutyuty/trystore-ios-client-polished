@@ -204,19 +204,19 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
+                VStack(spacing: 16) {
                     topBar
                     heroPanel
                     telemetryStrip
                     quickStartPanel
                     characterPreviewPanel
                     referencePatchConsole
+                    sessionOverview
                     enterGamePanel
-                    statusFooter
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 30)
+                .padding(.horizontal, 18)
+                .padding(.top, 14)
+                .padding(.bottom, 28)
             }
         }
         .preferredColorScheme(.dark)
@@ -280,17 +280,7 @@ struct ContentView: View {
                     .foregroundStyle(AppTheme.accent)
             }
 
-            Spacer(minLength: 6)
-            if activePatchCount > 0 {
-                Text("\(activePatchCount) ACTIVE")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.7)
-                    .foregroundStyle(AppTheme.accent)
-                    .padding(.horizontal, 9)
-                    .frame(height: 30)
-                    .background(AppTheme.accent.opacity(0.08), in: Capsule())
-                    .overlay(Capsule().stroke(AppTheme.accent.opacity(0.18), lineWidth: 1))
-            }
+            Spacer(minLength: 8)
             systemStatusPill
             Button {
                 showSettings = true
@@ -346,7 +336,7 @@ struct ContentView: View {
                 .offset(x: 70, y: -56)
 
             AppLogo(size: 128)
-                .opacity(0.09)
+                .opacity(0.08)
                 .blur(radius: 0.4)
                 .offset(x: 70, y: 28)
 
@@ -360,15 +350,15 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("SECURE PATCH CONSOLE")
+                        Text("TRY STORE / CONTROL DECK")
                             .font(.system(size: 10, weight: .black, design: .rounded))
                             .tracking(1.7)
                             .foregroundStyle(AppTheme.accent)
-                        Text("Build your loadout.")
+                        Text("Patch smarter.\nPlay cleaner.")
                             .font(.system(size: 29, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
                             .minimumScaleFactor(0.72)
-                        Text("Select a module, watch the character link, then enter your game.")
+                        Text("Build a focused loadout, preview every link, then launch with confidence.")
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.58))
                             .lineLimit(2)
@@ -407,42 +397,8 @@ struct ContentView: View {
             .foregroundStyle(.white.opacity(0.68))
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
-    }
-
-    private var statusFooter: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(sessionStateColor)
-                .frame(width: 8, height: 8)
-                .shadow(color: sessionStateColor, radius: 6)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(sessionStateLabel)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .tracking(0.9)
-                    .foregroundStyle(.white)
-                Text(patchMessage)
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.42))
-                    .lineLimit(1)
-            }
-            Spacer()
-            Text("\(activePatchCount) / \(totalPatchCount)")
-                .font(.system(size: 10, weight: .black, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(sessionStateColor)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(sessionStateColor.opacity(0.10), in: Capsule())
-        }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(sessionStateColor.opacity(0.20), lineWidth: 1)
-        )
+            .background(Color.black.opacity(0.28), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.11), lineWidth: 1))
     }
 
     private var characterPreviewPanel: some View {
@@ -469,25 +425,19 @@ struct ContentView: View {
 
             ZStack {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(red: 0.018, green: 0.07, blue: 0.15), Color(red: 0.004, green: 0.012, blue: 0.03)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                AppLogo(size: 220)
-                    .opacity(0.28)
+                    .fill(LinearGradient(colors: [Color(red: 0.02, green: 0.08, blue: 0.17), Color(red: 0.004, green: 0.012, blue: 0.03)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                AppLogo(size: 216)
+                    .opacity(0.26)
                     .blendMode(.screen)
                     .blur(radius: 0.2)
                     .offset(x: 64, y: 2)
                 Circle()
-                    .fill(AppTheme.accent.opacity(0.12))
+                    .fill(AppTheme.accent.opacity(0.13))
                     .frame(width: 190, height: 190)
                     .blur(radius: 44)
-                    .offset(x: 58, y: -22)
+                    .offset(x: 58, y: -24)
                 ParticleField()
-                    .opacity(0.72)
+                    .opacity(0.68)
                 Image("CleanCharacter")
                     .resizable()
                     .scaledToFit()
@@ -495,10 +445,6 @@ struct ContentView: View {
                     .padding(.horizontal, 18)
                     .shadow(color: AppTheme.accent.opacity(0.28), radius: 18, y: 6)
                     .opacity(activeCharacterRegions.isEmpty ? 0.88 : 1)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke((activeCharacterRegions.isEmpty ? AppTheme.accent : Color.green).opacity(0.34), lineWidth: 1)
-                    }
 
                 ForEach(CharacterRegion.allCases.filter { activeCharacterRegions.contains($0) }, id: \.self) { region in
                     characterRegionMarker(region)
@@ -519,12 +465,8 @@ struct ContentView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(15)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 23, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .stroke((activeCharacterRegions.isEmpty ? AppTheme.accent : Color.green).opacity(0.24), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.24), radius: 18, y: 8)
+        .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke((activeCharacterRegions.isEmpty ? AppTheme.accent : Color.green).opacity(0.20), lineWidth: 1))
         .animation(.easeOut(duration: 0.22), value: activeCharacterRegions)
     }
 
@@ -572,12 +514,8 @@ struct ContentView: View {
             compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HSSLA.3105", state: $hsslaEnabled)
         }
         .padding(13)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(AppTheme.accent.opacity(0.28), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.20), radius: 16, y: 8)
+        .background(Color.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(AppTheme.accent.opacity(0.34), lineWidth: 1))
     }
 
     private func compactPatchButton(title: String, subtitle: String, icon: String, color: Color, package: String, state: Binding<Bool>) -> some View {
@@ -585,18 +523,10 @@ struct ContentView: View {
             togglePatch(packageFilename: package, state: state)
         } label: {
             HStack(spacing: 11) {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(state.wrappedValue ? color : color.opacity(0.35))
-                    .frame(width: 4, height: 30)
-
-                ZStack {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(state.wrappedValue ? color.opacity(0.16) : Color.white.opacity(0.045))
-                        .frame(width: 34, height: 34)
-                    Image(systemName: icon)
-                        .font(.system(size: 14, weight: .black))
-                        .foregroundStyle(state.wrappedValue ? color : color.opacity(0.86))
-                }
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundStyle(state.wrappedValue ? Color.black : color)
+                    .frame(width: 26)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 10, weight: .black, design: .rounded))
@@ -1764,10 +1694,10 @@ private struct ParticleField: View {
     var body: some View {
         Group {
             if reduceMotion {
-                particleCanvas(time: 0)
+                canvas(time: 0)
             } else {
                 TimelineView(.animation) { timeline in
-                    particleCanvas(time: timeline.date.timeIntervalSinceReferenceDate)
+                    canvas(time: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
         }
@@ -1775,26 +1705,20 @@ private struct ParticleField: View {
         .accessibilityHidden(true)
     }
 
-    private func particleCanvas(time: TimeInterval) -> some View {
+    private func canvas(time: TimeInterval) -> some View {
         Canvas { context, size in
             for index in 0..<34 {
                 let seed = Double(index)
                 let baseX = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0)
                 let baseY = (seed * 0.38196601125 + 0.17).truncatingRemainder(dividingBy: 1.0)
-                let driftX = sin(time * (0.10 + seed * 0.003) + seed * 1.7) * 0.035
-                let driftY = cos(time * (0.08 + seed * 0.002) + seed * 1.2) * 0.045
-                let x = (baseX + driftX).truncatingRemainder(dividingBy: 1.0) * size.width
-                let y = (baseY + driftY + 1.0).truncatingRemainder(dividingBy: 1.0) * size.height
+                let x = (baseX + sin(time * 0.10 + seed * 1.7) * 0.035).truncatingRemainder(dividingBy: 1.0) * size.width
+                let y = (baseY + cos(time * 0.08 + seed * 1.2) * 0.045 + 1.0).truncatingRemainder(dividingBy: 1.0) * size.height
+                let radius = 1.0 + seed.truncatingRemainder(dividingBy: 3.0) * 0.55
                 let pulse = 0.55 + 0.45 * sin(time * 0.7 + seed)
-                let radius = 1.0 + (seed.truncatingRemainder(dividingBy: 3.0) * 0.55)
-                let alpha = (0.10 + (seed.truncatingRemainder(dividingBy: 4.0) * 0.025)) * pulse
                 let color = index.isMultiple(of: 4) ? Color.cyan : AppTheme.accent
+                let alpha = (0.10 + seed.truncatingRemainder(dividingBy: 4.0) * 0.025) * pulse
                 let rect = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
                 context.fill(Path(ellipseIn: rect), with: .color(color.opacity(alpha)))
-                if index.isMultiple(of: 7) {
-                    let glowRect = rect.insetBy(dx: -radius * 2.2, dy: -radius * 2.2)
-                    context.fill(Path(ellipseIn: glowRect), with: .color(color.opacity(alpha * 0.18)))
-                }
             }
         }
     }
