@@ -65,8 +65,9 @@ struct ContentView: View {
             ControlDeckBackdrop().ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                VStack(spacing: 10) {
                     topBar
+                    commandStrip
                     characterHUD
                     archivosHUD
                     bottomStatus
@@ -98,7 +99,7 @@ struct ContentView: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.white.opacity(0.9))
                     .frame(width: 42, height: 42)
-                    .background(Color.white.opacity(0.055), in: Circle())
+                    .background(Color.white.opacity(0.075), in: Circle())
                     .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 1))
             }
             .buttonStyle(.plain)
@@ -140,6 +141,30 @@ struct ContentView: View {
         .padding(.bottom, 8)
     }
 
+    private var commandStrip: some View {
+        HStack(spacing: 7) {
+            hudMetric(icon: "shield.fill", title: "DEVICE", value: appState.canUseProtectedFeatures ? "READY" : "CHECK", color: appState.canUseProtectedFeatures ? .green : .orange)
+            hudMetric(icon: "square.stack.3d.up.fill", title: "ARCHIVOS", value: "\(activeArchivoCount)/\(totalArchivoCount)", color: AppTheme.accent)
+            hudMetric(icon: "scope", title: "ZONES", value: "\(activeCharacterRegions.count)", color: .cyan)
+            hudMetric(icon: "key.fill", title: "ACCESS", value: licenseManager.isActive ? "OPEN" : "LOCKED", color: licenseManager.isActive ? .green : .orange)
+        }
+        .padding(9)
+        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
+    }
+
+    private func hudMetric(icon: String, title: String, value: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 8, weight: .black)).foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.system(size: 5.5, weight: .black, design: .monospaced)).foregroundStyle(.white.opacity(0.32))
+                Text(value).font(.system(size: 7, weight: .black, design: .monospaced)).foregroundStyle(color)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private var characterHUD: some View {
         VStack(spacing: 0) {
             ZStack {
@@ -163,6 +188,7 @@ struct ContentView: View {
                     .padding(.top, 22)
                     .shadow(color: AppTheme.accent.opacity(0.18), radius: 18)
 
+                HUDScanLines().clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 hudTargetOverlay
             }
             .frame(height: 390)
@@ -591,6 +617,22 @@ private struct WaveformMark: Shape {
         path.addLine(to: CGPoint(x: step * 5.70, y: midY))
         path.addLine(to: CGPoint(x: rect.maxX, y: midY))
         return path
+    }
+}
+
+private struct HUDScanLines: View {
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            let spacing: CGFloat = 14
+            stride(from: CGFloat(0), through: size.height, by: spacing).forEach { y in
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            context.stroke(path, with: .color(Color.white.opacity(0.035)), lineWidth: 0.7)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
