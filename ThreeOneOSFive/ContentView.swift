@@ -37,6 +37,7 @@ struct ContentView: View {
     @State private var expiryRestoreCompleted = false
     @State private var licenseKeyInput = ""
     @State private var selectedRegion: CharacterRegion?
+    @State private var selectedHomeTab: HomeTab = .loadout
     @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
@@ -73,8 +74,13 @@ struct ContentView: View {
                 VStack(spacing: 10) {
                     topBar
                     commandStrip
-                    characterHUD
-                    archivosHUD
+                    homeTabSwitcher
+                    if selectedHomeTab == .visuals {
+                        visualTabPanel
+                    } else {
+                        characterHUD
+                        archivosHUD
+                    }
                     bottomStatus
                     keyAndSocialPanel
                 }
@@ -287,6 +293,79 @@ struct ContentView: View {
         .padding(.horizontal, 16)
     }
 
+    private enum HomeTab: String {
+        case loadout
+        case visuals
+    }
+
+    private var homeTabSwitcher: some View {
+        HStack(spacing: 8) {
+            homeTabButton(title: "LOADOUT", subtitle: "GAMEPLAY MODULES", icon: "scope", tab: .loadout, color: AppTheme.accent)
+            homeTabButton(title: "VISUALS", subtitle: "HOLO PERSONAJE", icon: "sparkles", tab: .visuals, color: .purple)
+        }
+        .padding(5)
+        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    private func homeTabButton(title: String, subtitle: String, icon: String, tab: HomeTab, color: Color) -> some View {
+        let isSelected = selectedHomeTab == tab
+        return Button {
+            withAnimation(.easeOut(duration: 0.18)) { selectedHomeTab = tab }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(isSelected ? .white : color)
+                    .frame(width: 30, height: 30)
+                    .background(isSelected ? color.opacity(0.32) : color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(0.8)
+                    Text(subtitle)
+                        .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .tracking(0.4)
+                        .foregroundStyle(.white.opacity(isSelected ? 0.72 : 0.38))
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 9)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(isSelected ? color.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(isSelected ? color.opacity(0.65) : Color.clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open \(title) tab")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var visualTabPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("VISUAL PERSONA")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .tracking(1.2)
+                        .foregroundStyle(.purple)
+                    Text("Tap a visual module to activate it")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.46))
+                }
+                Spacer()
+                Image(systemName: "person.crop.circle.badge.sparkles")
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(.pink)
+            }
+            hudRow(title: "HOLO ARMA", icon: "sparkles", color: .purple, package: holoPackageFilename, state: $hologramaArmasEnabled)
+            hudRow(title: "HOLO PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, package: holoPersonajePackageFilename, state: $holoPersonajeEnabled)
+        }
+        .padding(14)
+        .background(Color.purple.opacity(0.09), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.purple.opacity(0.34), lineWidth: 1))
+    }
+
     private var archivosHUD: some View {
         VStack(spacing: 0) {
             HStack {
@@ -308,37 +387,12 @@ struct ContentView: View {
             hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
             hudRow(title: "144 FPS", icon: "speedometer", color: .mint, package: fpsPackageFilename, state: $fpsEnabled)
 
-            visualOptionsHUD
-
             if !licenseManager.isActive { accessStrip }
         }
         .background(Color(red: 0.045, green: 0.035, blue: 0.075).opacity(0.92), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .padding(.horizontal, 2)
-    }
-
-    private var visualOptionsHUD: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("VISUAL OPTIONS")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .tracking(1.35)
-                    .foregroundStyle(.purple)
-                Spacer()
-                Text("SEPARATE")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(.white.opacity(0.42))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            hudRow(title: "HOLO ARMA", icon: "sparkles", color: .purple, package: holoPackageFilename, state: $hologramaArmasEnabled)
-            hudRow(title: "HOLO PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, package: holoPersonajePackageFilename, state: $holoPersonajeEnabled)
-        }
-        .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.purple.opacity(0.28), lineWidth: 1))
-        .padding(.top, 10)
     }
 
     private func hudRow(title: String, icon: String, color: Color, package: String, state: Binding<Bool>) -> some View {
