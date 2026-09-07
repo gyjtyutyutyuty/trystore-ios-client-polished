@@ -453,6 +453,13 @@ struct ContentView: View {
                     .shadow(color: AppTheme.accent.opacity(0.28), radius: 18, y: 6)
                     .opacity(activeCharacterRegions.isEmpty ? 0.88 : 1)
 
+                characterCallout(title: "DRAG", color: .cyan, flipped: false)
+                    .offset(x: -92, y: -78)
+                characterCallout(title: "NECK", color: .green, flipped: true)
+                    .offset(x: 95, y: -38)
+                characterCallout(title: "CHEST", color: AppTheme.accent, flipped: true)
+                    .offset(x: 96, y: 26)
+
                 ForEach(CharacterRegion.allCases.filter { activeCharacterRegions.contains($0) }, id: \.self) { region in
                     characterRegionMarker(region)
                         .transition(.scale.combined(with: .opacity))
@@ -500,6 +507,34 @@ struct ContentView: View {
                 .offset(y: region.diameter / 2 + 13)
         }
         .offset(y: region.offset)
+    }
+
+    private func characterCallout(title: String, color: Color, flipped: Bool) -> some View {
+        HStack(spacing: 5) {
+            if flipped { calloutLine(color: color) }
+            Text(title)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(color)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 5)
+                .background(Color.black.opacity(0.78), in: Capsule())
+                .overlay(Capsule().stroke(color.opacity(0.65), lineWidth: 1))
+            if !flipped { calloutLine(color: color) }
+        }
+        .shadow(color: color.opacity(0.55), radius: 8)
+    }
+
+    private func calloutLine(color: Color) -> some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(color.opacity(0.84))
+                .frame(width: 42, height: 1.5)
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+                .shadow(color: color, radius: 4)
+        }
     }
 
     private var licenseAccessPanel: some View {
