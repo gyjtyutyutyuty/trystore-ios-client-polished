@@ -2049,7 +2049,7 @@ private struct ParticleField: View {
 
     private func canvas(time: TimeInterval) -> some View {
         Canvas { context, size in
-            for index in 0..<34 {
+            for index in 0..<24 {
                 let seed = Double(index)
                 let baseX = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0)
                 let baseY = (seed * 0.38196601125 + 0.17).truncatingRemainder(dividingBy: 1.0)
@@ -2072,7 +2072,7 @@ private struct ParticleField: View {
 private struct FallingNeonParticles: View {
     var body: some View {
         GeometryReader { proxy in
-            TimelineView(.periodic(from: Date(), by: 0.05)) { timeline in
+            TimelineView(.periodic(from: Date(), by: 0.10)) { timeline in
                 fallingCanvas(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
             }
         }
@@ -2082,7 +2082,7 @@ private struct FallingNeonParticles: View {
         Canvas { context, canvasSize in
             let width = max(canvasSize.width, size.width)
             let height = max(canvasSize.height, size.height)
-            for index in 0..<44 {
+            for index in 0..<30 {
                 let seed = Double(index)
                 let x = (seed * 0.754877666 + sin(seed * 2.1) * 0.025).truncatingRemainder(dividingBy: 1.0) * width
                 let speed = 0.010 + seed.truncatingRemainder(dividingBy: 5.0) * 0.0014
@@ -2100,6 +2100,7 @@ private struct FallingNeonParticles: View {
                 context.fill(Path(ellipseIn: dot), with: .color(color.opacity(alpha)))
             }
         }
+        .drawingGroup(opaque: false, colorMode: .linear)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2109,7 +2110,7 @@ private struct FallingNeonParticles: View {
 private struct AnimatedAtmosphere: View {
     var body: some View {
         GeometryReader { proxy in
-            TimelineView(.periodic(from: Date(), by: 0.05)) { timeline in
+            TimelineView(.periodic(from: Date(), by: 0.12)) { timeline in
                 atmosphere(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
             }
         }
@@ -2125,17 +2126,17 @@ private struct AnimatedAtmosphere: View {
             Circle()
                 .fill(Color.cyan.opacity(0.10))
                 .frame(width: 310, height: 310)
-                .blur(radius: 72)
+                .blur(radius: 54)
                 .offset(x: -size.width * 0.34 + driftX, y: -size.height * 0.30 + driftY)
             Circle()
                 .fill(Color.purple.opacity(0.12))
                 .frame(width: 270, height: 270)
-                .blur(radius: 76)
+                .blur(radius: 56)
                 .offset(x: size.width * 0.34 - driftX, y: size.height * 0.18 - driftY)
             Circle()
                 .fill(AppTheme.accent.opacity(0.07))
                 .frame(width: 220, height: 220)
-                .blur(radius: 60)
+                .blur(radius: 46)
                 .offset(x: driftX * 0.5, y: size.height * 0.34)
         }
         .frame(width: size.width, height: size.height)
