@@ -206,13 +206,10 @@ struct ContentView: View {
             ControlDeckBackdrop()
                 .id(accentIndex)
                 .ignoresSafeArea()
-            AnimatedAtmosphere()
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     topBar
+                    compatibilityStatusCard
                     heroPanel
                     mainTabSwitcher
                     if selectedMainTab == .key {
@@ -235,12 +232,6 @@ struct ContentView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 28)
             }
-            FallingNeonParticles()
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-                .blendMode(.screen)
-                .opacity(0.92)
-                .zIndex(20)
         }
         .preferredColorScheme(.dark)
         .confirmationDialog("Remove app-owned traces from both Free Fire apps?", isPresented: $showRemoveTracesConfirmation, titleVisibility: .visible) {
@@ -313,15 +304,40 @@ struct ContentView: View {
                 .fill(appState.canUseProtectedFeatures ? Color.green : Color.red)
                 .frame(width: 7, height: 7)
                 .shadow(color: appState.canUseProtectedFeatures ? .green : .red, radius: 5)
-            Text(appState.canUseProtectedFeatures ? "READY" : "REVIEW")
-                .font(.system(size: 8, weight: .black, design: .rounded))
-                .tracking(0.8)
-                .foregroundStyle(appState.canUseProtectedFeatures ? .green : .red)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(appState.isSupported ? "PHONE COMPATIBLE" : "PHONE NOT COMPATIBLE")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .tracking(0.55)
+                Text(appState.canUseProtectedFeatures ? "READY" : "REVIEW REQUIRED")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .tracking(0.55)
+            }
+            .foregroundStyle(appState.canUseProtectedFeatures ? .green : .red)
         }
         .padding(.horizontal, 9)
         .frame(height: 30)
         .background(Color.black.opacity(0.36), in: Capsule())
         .overlay(Capsule().stroke((appState.canUseProtectedFeatures ? Color.green : Color.red).opacity(0.34), lineWidth: 1))
+    }
+
+    private var compatibilityStatusCard: some View {
+        HStack(spacing: 9) {
+            Image(systemName: appState.isSupported ? "checkmark.shield.fill" : "xmark.shield.fill")
+                .foregroundStyle(appState.isSupported ? .green : .red)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(appState.isSupported ? "PHONE COMPATIBLE" : "PHONE NOT COMPATIBLE")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                Text(appState.isSupported ? appState.integrityDetail : (appState.unsupportedMessage ?? "This iOS version is not supported"))
+                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.52))
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background((appState.canUseProtectedFeatures ? Color.green : Color.red).opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke((appState.canUseProtectedFeatures ? Color.green : Color.red).opacity(0.22), lineWidth: 1))
     }
 
     private var heroPanel: some View {
@@ -457,7 +473,6 @@ struct ContentView: View {
                     .frame(width: 190, height: 190)
                     .blur(radius: 44)
                     .offset(x: 58, y: -24)
-                ParticleField()
                     .opacity(0.68)
                 Image("CleanCharacter")
                     .resizable()
@@ -2024,7 +2039,6 @@ struct ControlDeckBackdrop: View {
                     .frame(width: 220, height: 220)
                     .blur(radius: 78)
                     .offset(x: animate ? -80 : 120, y: -proxy.size.height * 0.08)
-                ParticleField()
                 GridOverlay()
             }
             .onAppear {
