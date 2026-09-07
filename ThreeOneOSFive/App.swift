@@ -161,6 +161,10 @@ class AppState: ObservableObject {
     }
 
     private func maybeAutoRunKernelExploit() {
+        guard UIDevice.current.userInterfaceIdiom != .pad else {
+            log("app: iPad safety mode — automatic kernel exploit disabled")
+            return
+        }
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,
               !exploitStatus.isFailed,
@@ -189,6 +193,10 @@ class AppState: ObservableObject {
     }
 
     func runKernelExploitIfNeeded() {
+        guard UIDevice.current.userInterfaceIdiom != .pad else {
+            log("app: iPad safety mode — kernel exploit request blocked")
+            return
+        }
         refreshKernelExploitStatus()
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,

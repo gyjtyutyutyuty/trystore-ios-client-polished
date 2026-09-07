@@ -92,6 +92,7 @@ struct ContentView: View {
             if active { expiryRestoreCompleted = false } else { enforceLicenseExpiry() }
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            guard scenePhase == .active else { return }
             licenseManager.expireIfNeeded(); enforceLicenseExpiry()
         }
     }
