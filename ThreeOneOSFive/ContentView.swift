@@ -5,15 +5,15 @@ import Combine
 
 struct ContentView: View {
     private enum CharacterRegion: String, CaseIterable, Hashable {
-        case head, chest, body, drag
+        case head, neck, chest, drag
         var title: String {
-            switch self { case .head: return "NECK"; case .chest: return "CHEST"; case .body: return "BODY"; case .drag: return "DRAG" }
+            switch self { case .head: return "HEAD"; case .neck: return "NECK"; case .chest: return "CHEST"; case .drag: return "DRAG" }
         }
         var color: Color {
-            switch self { case .head: return .cyan; case .chest: return AppTheme.accent; case .body: return .indigo; case .drag: return .orange }
+            switch self { case .head: return .indigo; case .neck: return .cyan; case .chest: return AppTheme.accent; case .drag: return .orange }
         }
         var icon: String {
-            switch self { case .head: return "scope"; case .chest: return "scope"; case .body: return "viewfinder"; case .drag: return "arrow.up.right.and.arrow.down.left" }
+            switch self { case .head: return "viewfinder"; case .neck: return "scope"; case .chest: return "scope"; case .drag: return "arrow.up.right.and.arrow.down.left" }
         }
     }
 
@@ -46,9 +46,9 @@ struct ContentView: View {
     private var activeCharacterRegions: Set<CharacterRegion> {
         var regions = Set<CharacterRegion>()
         if aimDragEnabled { regions.insert(.drag) }
-        if aimNeckEnabled || hspEnabled { regions.insert(.head) }
+        if aimNeckEnabled { regions.insert(.neck) }
+        if hspEnabled { regions.insert(.head) }
         if aimbotPechoEnabled { regions.insert(.chest) }
-        if hologramaArmasEnabled { regions.insert(.body) }
         return regions
     }
     private var accessReady: Bool { licenseManager.isActive && appState.canUseProtectedFeatures }
@@ -219,9 +219,12 @@ struct ContentView: View {
                 hudTargetLine(color: aimDragEnabled ? .green : .orange,
                               from: CGPoint(x: proxy.size.width * 0.30, y: proxy.size.height * 0.27),
                               to: CGPoint(x: proxy.size.width * 0.47, y: proxy.size.height * 0.23))
-                hudTargetLine(color: (aimNeckEnabled || hspEnabled) ? .green : .cyan,
+                hudTargetLine(color: aimNeckEnabled ? .green : .cyan,
                               from: CGPoint(x: proxy.size.width * 0.70, y: proxy.size.height * 0.28),
-                              to: CGPoint(x: proxy.size.width * 0.56, y: proxy.size.height * 0.29))
+                              to: CGPoint(x: proxy.size.width * 0.56, y: proxy.size.height * 0.32))
+                hudTargetLine(color: hspEnabled ? .green : .indigo,
+                              from: CGPoint(x: proxy.size.width * 0.30, y: proxy.size.height * 0.43),
+                              to: CGPoint(x: proxy.size.width * 0.46, y: proxy.size.height * 0.25))
                 hudTargetLine(color: aimbotPechoEnabled ? .green : AppTheme.accent,
                               from: CGPoint(x: proxy.size.width * 0.70, y: proxy.size.height * 0.48),
                               to: CGPoint(x: proxy.size.width * 0.57, y: proxy.size.height * 0.47))
@@ -229,18 +232,15 @@ struct ContentView: View {
                 hudCallout(title: "DRAG", color: aimDragEnabled ? .green : .orange, active: aimDragEnabled)
                     .position(x: proxy.size.width * 0.19, y: proxy.size.height * 0.27)
 
-                hudCallout(title: "NECK", color: (aimNeckEnabled || hspEnabled) ? .green : .cyan, active: aimNeckEnabled || hspEnabled)
+                hudCallout(title: "NECK", color: aimNeckEnabled ? .green : .cyan, active: aimNeckEnabled)
                     .position(x: proxy.size.width * 0.81, y: proxy.size.height * 0.28)
+
+                hudCallout(title: "HEAD", color: hspEnabled ? .green : .indigo, active: hspEnabled)
+                    .position(x: proxy.size.width * 0.19, y: proxy.size.height * 0.43)
 
                 hudCallout(title: "CHEST", color: aimbotPechoEnabled ? .green : AppTheme.accent, active: aimbotPechoEnabled)
                     .position(x: proxy.size.width * 0.82, y: proxy.size.height * 0.48)
 
-                if activeCharacterRegions.contains(.body) {
-                    Circle()
-                        .stroke(Color.indigo, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                        .frame(width: 74, height: 74)
-                        .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.65)
-                }
             }
         }
         .allowsHitTesting(false)
@@ -300,7 +300,7 @@ struct ContentView: View {
             hudRow(title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, package: "DRAG.3105", state: $aimDragEnabled)
             hudRow(title: "NECK", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
             hudRow(title: "CHEST", icon: "scope", color: AppTheme.accent, package: "PECHO.3105", state: $aimbotPechoEnabled)
-            hudRow(title: "BODY", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
+            hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
 
             if !licenseManager.isActive { accessStrip }
         }
