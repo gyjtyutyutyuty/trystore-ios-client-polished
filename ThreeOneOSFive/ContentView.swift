@@ -7,7 +7,7 @@ struct ContentView: View {
     private enum CharacterRegion: String, CaseIterable, Hashable {
         case head, chest, body, drag
         var title: String {
-            switch self { case .head: return "HEAD"; case .chest: return "CHEST"; case .body: return "BODY"; case .drag: return "DRAG" }
+            switch self { case .head: return "NECK"; case .chest: return "CHEST"; case .body: return "BODY"; case .drag: return "DRAG" }
         }
         var color: Color {
             switch self { case .head: return .cyan; case .chest: return AppTheme.accent; case .body: return .indigo; case .drag: return .orange }
@@ -39,9 +39,9 @@ struct ContentView: View {
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
     private let licenseGateEnabled = true
-    private let totalArchivoCount = 5
+    private let totalArchivoCount = 4
 
-    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, hologramaArmasEnabled].filter { $0 }.count }
+    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled].filter { $0 }.count }
     private var activePatchCount: Int { activeArchivoCount }
     private var activeCharacterRegions: Set<CharacterRegion> {
         var regions = Set<CharacterRegion>()
@@ -229,7 +229,7 @@ struct ContentView: View {
                 hudCallout(title: "DRAG", color: aimDragEnabled ? .green : .orange, active: aimDragEnabled)
                     .position(x: proxy.size.width * 0.19, y: proxy.size.height * 0.27)
 
-                hudCallout(title: "HEAD", color: (aimNeckEnabled || hspEnabled) ? .green : .cyan, active: aimNeckEnabled || hspEnabled)
+                hudCallout(title: "NECK", color: (aimNeckEnabled || hspEnabled) ? .green : .cyan, active: aimNeckEnabled || hspEnabled)
                     .position(x: proxy.size.width * 0.81, y: proxy.size.height * 0.28)
 
                 hudCallout(title: "CHEST", color: aimbotPechoEnabled ? .green : AppTheme.accent, active: aimbotPechoEnabled)
@@ -298,10 +298,9 @@ struct ContentView: View {
             .padding(.vertical, 11)
 
             hudRow(title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, package: "DRAG.3105", state: $aimDragEnabled)
-            hudRow(title: "HEAD", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
+            hudRow(title: "NECK", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
             hudRow(title: "CHEST", icon: "scope", color: AppTheme.accent, package: "PECHO.3105", state: $aimbotPechoEnabled)
             hudRow(title: "BODY", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
-            hudRow(title: "HOLO ARM", icon: "sparkles", color: .purple, package: "HOLO ARM.3105", state: $hologramaArmasEnabled)
 
             if !licenseManager.isActive { accessStrip }
         }
