@@ -299,9 +299,6 @@
 "onboarding.versions_footer" = "This device: iOS %@ (%@)";
 "onboarding.versions_subtitle" = "3105 is verified on the ranges below. Unsupported builds are blocked.";
 "onboarding.versions_title" = "Supported iOS versions";
-"onboarding.welcome_badge" = "Official 3105 identity";
-"onboarding.welcome_message" = "Developed by YangJiii";
-"onboarding.welcome_title" = "Welcome to 3105";
 "patch.add" = "Add patch project";
 "patch.add_rule" = "Add Rule";
 "patch.add_selected" = "Add";
