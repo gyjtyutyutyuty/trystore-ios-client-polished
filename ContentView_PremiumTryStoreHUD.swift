@@ -28,6 +28,7 @@ struct ContentView: View {
     @State private var hspEnabled = false
     @State private var aimbotPechoEnabled = false
     @State private var hologramaArmasEnabled = false
+    @State private var holoPersonajeEnabled = false
     @State private var fpsEnabled = false
     @State private var hsslaEnabled = false
     @State private var aimBodyEnabled = false
@@ -43,6 +44,7 @@ struct ContentView: View {
     private let totalArchivoCount = 5
     private let fpsPackageFilename = "140 FPS FFMAX.3105"
     private let holoPackageFilename = "HOLO ARM.3105"
+    private let holoPersonajePackageFilename = "HOLO PERSONAJE.3105"
 
     private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, fpsEnabled].filter { $0 }.count }
     private var activePatchCount: Int { activeArchivoCount }
@@ -332,6 +334,7 @@ struct ContentView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
             hudRow(title: "HOLO ARMA", icon: "sparkles", color: .purple, package: holoPackageFilename, state: $hologramaArmasEnabled)
+            hudRow(title: "HOLO PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, package: holoPersonajePackageFilename, state: $holoPersonajeEnabled)
         }
         .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.purple.opacity(0.28), lineWidth: 1))
@@ -578,7 +581,7 @@ struct ContentView: View {
               !patchOperationBusy,
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -591,7 +594,7 @@ struct ContentView: View {
     private func restoreAllPatchesAfterExpiry() {
         guard !patchOperationBusy else { return }
         let packages = [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
@@ -624,6 +627,7 @@ struct ContentView: View {
         hspEnabled = isPatchActive("HEAD.3105")
         aimbotPechoEnabled = isPatchActive("PECHO.3105")
         hologramaArmasEnabled = isPatchActive(holoPackageFilename)
+        holoPersonajeEnabled = isPatchActive(holoPersonajePackageFilename)
         fpsEnabled = isPatchActive(fpsPackageFilename)
     }
 
@@ -645,6 +649,7 @@ struct ContentView: View {
         case "HEAD.3105": hspEnabled = enabled
         case "PECHO.3105": aimbotPechoEnabled = enabled
         case "HOLO ARM.3105": hologramaArmasEnabled = enabled
+        case "HOLO PERSONAJE.3105": holoPersonajeEnabled = enabled
         case "140 FPS FFMAX.3105": fpsEnabled = enabled
         default: break
         }
