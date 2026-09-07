@@ -1952,9 +1952,7 @@ private enum PatchAudioFeedback {
             activationPlayer?.prepareToPlay()
             activationPlayer?.play()
             // Always announce by voice as well as playing the bundled confirmation sound.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                speak("Patch activated")
-            }
+            speak("Patch activated")
         } catch {
             log("audio: activation sound unavailable: \(error)")
             speak("Patch activated")
@@ -1976,9 +1974,7 @@ private enum PatchAudioFeedback {
             deactivationPlayer?.prepareToPlay()
             deactivationPlayer?.play()
             // Always announce by voice as well as playing the bundled confirmation sound.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                speak("Patch deactivated")
-            }
+            speak("Patch deactivated")
         } catch {
             log("audio: deactivation sound unavailable: \(error)")
             speak("Patch deactivated")
