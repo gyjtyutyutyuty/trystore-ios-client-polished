@@ -686,8 +686,25 @@ struct ContentView: View {
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
-        patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame })
+        patchStore.items.first(where: { matchesPackageFilename($0.packageURL.lastPathComponent, requested: packageFilename) })
             .flatMap { DevicePatchService.latestReceipt(projectID: $0.id) } != nil
+    }
+
+    private func matchesPackageFilename(_ actual: String, requested: String) -> Bool {
+        let normalize: (String) -> String = { value in
+            value
+                .replacingOccurrences(of: ".3105", with: "", options: [.caseInsensitive])
+                .filter { $0.isLetter || $0.isNumber }
+                .lowercased()
+        }
+        let actualKey = normalize(actual)
+        let requestedKey = normalize(requested)
+        if actualKey == requestedKey { return true }
+
+        // Accept the uploaded V2 filename and the legacy bundled filename as
+        // aliases so an app update cannot make the visual button lose its package.
+        let holoPersonajeKeys = ["holopersonaje", "holopersonajev2"]
+        return holoPersonajeKeys.contains(actualKey) && holoPersonajeKeys.contains(requestedKey)
     }
 
     private enum PatchActionResult {
@@ -703,7 +720,7 @@ struct ContentView: View {
         case "HEAD.3105": hspEnabled = enabled
         case "PECHO.3105": aimbotPechoEnabled = enabled
         case "HOLO ARM.3105": hologramaArmasEnabled = enabled
-        case "HOLO PERSONAJE.3105": holoPersonajeEnabled = enabled
+        case "HOLO PERSONAJE.3105", "HOLOPERSONAJEV2.3105": holoPersonajeEnabled = enabled
         case "140 FPS FFMAX.3105": fpsEnabled = enabled
         default: break
         }
@@ -719,9 +736,12 @@ struct ContentView: View {
             patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
             return
         }
-        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
+        // Reload once before lookup so a freshly installed/update-copied bundle
+        // is immediately available when the user taps the visual module.
+        patchStore.reload()
+        guard let item = patchStore.items.first(where: { matchesPackageFilename($0.packageURL.lastPathComponent, requested: packageFilename) }) else {
             patchMessage = "ERROR — PACKAGE NOT FOUND"
-            log("patch: package not found: \(packageFilename)")
+            log("patch: package not found after reload: \(packageFilename)")
             return
         }
 
