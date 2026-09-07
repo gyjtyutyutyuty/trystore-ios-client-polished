@@ -779,9 +779,19 @@ struct ContentView: View {
                         .foregroundStyle(state.wrappedValue ? color : color.opacity(0.88))
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(0.8)
+                    HStack(spacing: 7) {
+                        Text(title)
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .tracking(0.8)
+                        Text(state.wrappedValue ? "ON" : "OFF")
+                            .font(.system(size: 7, weight: .black, design: .rounded))
+                            .tracking(0.55)
+                            .foregroundStyle(state.wrappedValue ? Color.black : color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background((state.wrappedValue ? Color.black : color).opacity(state.wrappedValue ? 0.14 : 0.12), in: Capsule())
+                            .overlay(Capsule().stroke((state.wrappedValue ? Color.black : color).opacity(0.28), lineWidth: 0.8))
+                    }
                     Text(state.wrappedValue ? "ACTIVE • LINKED TO CHARACTER" : subtitle.uppercased())
                         .font(.system(size: 7, weight: .bold, design: .rounded))
                         .tracking(0.35)
@@ -1773,10 +1783,12 @@ struct ContentView: View {
                         self.setPatchState(for: packageFilename, enabled: true)
                         self.patchMessage = "SUCCESS — BYPASS ACTIVATED"
                         PatchAudioFeedback.bypassActivated()
+                        PatchAudioFeedback.announce(packageFilename, enabled: true)
                     case .restored:
                         self.setPatchState(for: packageFilename, enabled: false)
                         self.patchMessage = "SUCCESS — BYPASS DEACTIVATED"
                         PatchAudioFeedback.originalRestored()
+                        PatchAudioFeedback.announce(packageFilename, enabled: false)
                     case .unavailable(let message):
                         self.patchMessage = message
                     }
@@ -1942,6 +1954,18 @@ private enum PatchAudioFeedback {
             log("audio: deactivation sound unavailable: \(error)")
             speak("Bypass deactivated")
         }
+    }
+
+    static func announce(_ packageFilename: String, enabled: Bool) {
+        let label: String
+        switch packageFilename {
+        case "DRAG.3105": label = "Drag"
+        case "CUELLO.3105": label = "Neck"
+        case "HEAD.3105": label = "Head"
+        case "PECHO.3105": label = "Chest"
+        default: label = packageFilename
+        }
+        speak("\(label) \(enabled ? "on" : "off")")
     }
 
     private static func speak(_ message: String) {
