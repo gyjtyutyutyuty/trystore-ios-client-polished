@@ -6,10 +6,12 @@ workflows:
     environment:
       xcode: latest
     scripts:
-      - name: Build unsigned iOS archive and IPA
+      - name: Validate Xcode project and build unsigned iOS archive
         script: |
+          set -euo pipefail
           chmod +x ./build_unsigned.sh
-          ./build_unsigned.sh
+          mkdir -p /tmp/xcodebuild_logs
+          ./build_unsigned.sh 2>&1 | tee /tmp/xcodebuild_logs/build.log
     artifacts:
       - build/3105-unsigned.ipa
       - build/3105.xcarchive

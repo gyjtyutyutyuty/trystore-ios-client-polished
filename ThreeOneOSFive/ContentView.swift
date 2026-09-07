@@ -569,7 +569,7 @@ struct ContentView: View {
         case "DRAG.3105": return .drag
         case "CUELLO.3105": return .head
         case "PECHO.3105": return .chest
-        case "HEAD.3105": return .body
+        case "HEAD.3105": return .head
         default: return nil
         }
     }
