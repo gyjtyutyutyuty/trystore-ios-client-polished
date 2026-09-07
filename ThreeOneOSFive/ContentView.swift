@@ -151,11 +151,11 @@ struct ContentView: View {
     @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
-    private let totalPatchCount = 4
+    private let totalPatchCount = 5
     private let licenseGateEnabled = true
 
     private var activePatchCount: Int {
-        [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled].filter { $0 }.count
+        [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, hologramaArmasEnabled].filter { $0 }.count
     }
 
     private var activeCharacterRegions: Set<CharacterRegion> {
@@ -755,6 +755,7 @@ struct ContentView: View {
             compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
             compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "PECHO.3105", state: $aimbotPechoEnabled)
             compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HEAD.3105", state: $hspEnabled)
+            compactPatchButton(title: "HOLO ARM", subtitle: "Weapon visual", icon: "sparkles", color: .purple, package: "HOLO ARM.3105", state: $hologramaArmasEnabled)
         }
         .padding(13)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -1196,7 +1197,9 @@ struct ContentView: View {
             }
         case .visual:
             sectionLabel("VISUAL OPTIONS", icon: "eye.fill")
-            LazyVStack(spacing: 10) { EmptyView() }
+            LazyVStack(spacing: 10) {
+                if isVisible(target: "FREE FIRE MAX") && matches("HOLO ARM") { patchCard(name: "HOLO ARM", target: "FREE FIRE MAX", fileExcerpt: "HOLO ARM.3105", package: "HOLO ARM.3105", color: .purple, state: $hologramaArmasEnabled) }
+            }
         }
     }
 
@@ -1654,7 +1657,7 @@ struct ContentView: View {
               !patchOperationBusy,
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "HOLO ARM.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -1667,7 +1670,7 @@ struct ContentView: View {
     private func restoreAllPatchesAfterExpiry() {
         guard !patchOperationBusy else { return }
         let packages = [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "HOLO ARM.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
@@ -1699,6 +1702,7 @@ struct ContentView: View {
         aimNeckEnabled = isPatchActive("CUELLO.3105")
         hspEnabled = isPatchActive("HEAD.3105")
         aimbotPechoEnabled = isPatchActive("PECHO.3105")
+        hologramaArmasEnabled = isPatchActive("HOLO ARM.3105")
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -1718,6 +1722,7 @@ struct ContentView: View {
         case "CUELLO.3105": aimNeckEnabled = enabled
         case "HEAD.3105": hspEnabled = enabled
         case "PECHO.3105": aimbotPechoEnabled = enabled
+        case "HOLO ARM.3105": hologramaArmasEnabled = enabled
         default: break
         }
     }
@@ -1963,6 +1968,7 @@ private enum PatchAudioFeedback {
         case "CUELLO.3105": label = "Neck"
         case "HEAD.3105": label = "Head"
         case "PECHO.3105": label = "Chest"
+        case "HOLO ARM.3105": label = "Holo Arm"
         default: label = packageFilename
         }
         speak("\(label) \(enabled ? "on" : "off")")

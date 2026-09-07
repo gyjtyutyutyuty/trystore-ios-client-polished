@@ -1,7 +1,7 @@
 import SwiftUI
 
 private enum OnboardingStep: Int, CaseIterable {
-    case language = 0, welcome, versions, install
+    case language = 0, versions, install
 
     var next: OnboardingStep? { Self(rawValue: rawValue + 1) }
     var prev: OnboardingStep? { Self(rawValue: rawValue - 1) }
@@ -72,7 +72,6 @@ struct OnboardingView: View {
     private func page(for s: OnboardingStep) -> some View {
         switch s {
         case .language: languagePage
-        case .welcome: welcomePage
         case .versions: versionsPage
         case .install: installPage
         }
@@ -135,41 +134,6 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 20)
             Spacer(minLength: 12)
-        }
-    }
-
-    private var welcomePage: some View {
-        VStack(spacing: 18) {
-            Spacer(minLength: 10)
-             ZStack {
-                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                     .fill(Color(uiColor: .secondarySystemBackground))
-                     .overlay(
-                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                             .stroke(AppTheme.accent.opacity(0.3), lineWidth: 1)
-                     )
-                     .frame(width: 72, height: 72)
-                 Image(systemName: "sparkles")
-                     .font(.system(size: 30, weight: .medium))
-                     .foregroundStyle(AppTheme.accent)
-             }
-            VStack(spacing: 10) {
-                Text(language.text("onboarding.welcome_title"))
-                    .font(.title2.weight(.bold))
-                    .multilineTextAlignment(.center)
-                Text(language.text("onboarding.welcome_message"))
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-            Label(language.text("onboarding.welcome_badge"), systemImage: "checkmark.seal.fill")
-                 .font(.footnote.weight(.semibold))
-                 .foregroundStyle(AppTheme.accent)
-                 .padding(.horizontal, 14)
-                 .padding(.vertical, 8)
-                 .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            Spacer(minLength: 10)
         }
     }
 
