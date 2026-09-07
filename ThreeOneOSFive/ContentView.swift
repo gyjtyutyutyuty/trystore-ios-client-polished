@@ -581,7 +581,7 @@ struct ContentView: View {
               !patchOperationBusy,
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "140 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -594,7 +594,7 @@ struct ContentView: View {
     private func restoreAllPatchesAfterExpiry() {
         guard !patchOperationBusy else { return }
         let packages = [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "140 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
