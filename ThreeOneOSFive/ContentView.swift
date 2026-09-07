@@ -529,7 +529,7 @@ struct ContentView: View {
         HStack(spacing: 0) {
             Rectangle()
                 .fill(color.opacity(0.84))
-                .frame(width: 42, height: 1.5)
+                .frame(width: 52, height: 1.5)
             Circle()
                 .fill(color)
                 .frame(width: 5, height: 5)
