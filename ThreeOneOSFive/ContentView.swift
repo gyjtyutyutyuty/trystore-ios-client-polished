@@ -41,7 +41,7 @@ struct ContentView: View {
 
         var title: String {
             switch self {
-            case .head: return "HEAD"
+            case .head: return "NECK"
             case .chest: return "CHEST"
             case .body: return "BODY"
             case .drag: return "DRAG"
@@ -453,6 +453,7 @@ struct ContentView: View {
                     .shadow(color: AppTheme.accent.opacity(0.28), radius: 18, y: 6)
                     .opacity(activeCharacterRegions.isEmpty ? 0.88 : 1)
 
+                // Fixed reference lines keep the open-arm character readable even before a patch is active.
                 characterCallout(title: "DRAG", color: .cyan, flipped: false)
                     .offset(x: -92, y: -78)
                 characterCallout(title: "NECK", color: .green, flipped: true)
@@ -484,31 +485,6 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.22), value: activeCharacterRegions)
     }
 
-    private func characterRegionMarker(_ region: CharacterRegion) -> some View {
-        ZStack {
-            Circle()
-                .stroke(region.color.opacity(0.92), lineWidth: 2.5)
-                .frame(width: region.diameter, height: region.diameter)
-                .shadow(color: region.color, radius: chestPulse ? 15 : 6)
-                .scaleEffect(chestPulse ? 1.05 : 0.96)
-            Circle()
-                .stroke(Color.white.opacity(0.82), lineWidth: 1)
-                .frame(width: region.diameter * 0.62, height: region.diameter * 0.62)
-            Image(systemName: region.icon)
-                .font(.system(size: 17, weight: .black))
-                .foregroundStyle(region.color)
-            Text(region.title)
-                .font(.system(size: 8, weight: .black, design: .rounded))
-                .tracking(0.55)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .background(Color.black.opacity(0.72), in: Capsule())
-                .offset(y: region.diameter / 2 + 13)
-        }
-        .offset(y: region.offset)
-    }
-
     private func characterCallout(title: String, color: Color, flipped: Bool) -> some View {
         HStack(spacing: 5) {
             if flipped { calloutLine(color: color) }
@@ -535,6 +511,38 @@ struct ContentView: View {
                 .frame(width: 5, height: 5)
                 .shadow(color: color, radius: 4)
         }
+    }
+
+    private func characterRegionMarker(_ region: CharacterRegion) -> some View {
+        ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: region.diameter / 2 + 37))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+            }
+            .stroke(region.color.opacity(0.92), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, dash: [4, 3]))
+            .frame(width: 2, height: region.diameter + 37)
+            .offset(y: -(region.diameter + 37) / 2)
+            Circle()
+                .stroke(region.color.opacity(0.92), lineWidth: 2.5)
+                .frame(width: region.diameter, height: region.diameter)
+                .shadow(color: region.color, radius: chestPulse ? 15 : 6)
+                .scaleEffect(chestPulse ? 1.05 : 0.96)
+            Circle()
+                .stroke(Color.white.opacity(0.82), lineWidth: 1)
+                .frame(width: region.diameter * 0.62, height: region.diameter * 0.62)
+            Image(systemName: region.icon)
+                .font(.system(size: 17, weight: .black))
+                .foregroundStyle(region.color)
+            Text(region.title)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.72), in: Capsule())
+                .offset(y: region.diameter / 2 + 13)
+        }
+        .offset(y: region.offset)
     }
 
     private var licenseAccessPanel: some View {
