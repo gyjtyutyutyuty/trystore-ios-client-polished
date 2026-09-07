@@ -229,6 +229,24 @@ final class LicenseManager: ObservableObject {
         let valid: Bool
         let outcome: String
         let expiresAt: Date?
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            valid = try container.decode(Bool.self, forKey: .valid)
+            outcome = try container.decode(String.self, forKey: .outcome)
+            if try container.decodeNil(forKey: .expiresAt) {
+                expiresAt = nil
+            } else if let date = try? container.decode(Date.self, forKey: .expiresAt) {
+                expiresAt = date
+            } else {
+                let raw = try container.decode(String.self, forKey: .expiresAt)
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                expiresAt = formatter.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+            }
+        }
+
+        private enum CodingKeys: String, CodingKey { case valid, outcome, expiresAt }
     }
 
     private struct APIError: Decodable { let error: String? }
