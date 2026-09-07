@@ -21,7 +21,7 @@ final class LicenseManager: ObservableObject {
     private let deviceAccount = "device-id"
     private let rememberedKeyAccount = "remembered-key"
     private let rememberPreferenceAccount = "remember-key-preference"
-    private let apiBaseURL = URL(string: "https://jvzctrlapi-4zmjpra2.manus.space/api/v1/keys/validate")!
+    private let apiBaseURL = URL(string: "https://3000-ilj4dxcgd5f8u0beggq72-09960f7b.us4.manus.computer/api/v1/keys/validate")!
 
     init() {
         expirationDate = keychainString(for: expirationAccount).flatMap { Date(timeIntervalSince1970: TimeInterval($0) ?? 0) }
