@@ -1,0 +1,16 @@
+workflows:
+  trystore_unsigned_ipa:
+    name: TryStore unsigned IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Build unsigned iOS archive and IPA
+        script: |
+          chmod +x ./build_unsigned.sh
+          ./build_unsigned.sh
+    artifacts:
+      - build/3105-unsigned.ipa
+      - build/3105.xcarchive
+      - /tmp/xcodebuild_logs/*.log
