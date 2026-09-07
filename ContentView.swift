@@ -123,6 +123,7 @@ struct ContentView: View {
     @State private var hspEnabled = false
     @State private var selectedGameFilter: GameFilter = .all
     @State private var patchSearchText = ""
+    @State private var licenseKeyInput = ""
     @State private var showRemoveTracesConfirmation = false
     @State private var aimBodyEnabled = false
     @State private var hyperBalamagicaEnabled = false
@@ -142,8 +143,7 @@ struct ContentView: View {
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
     private let totalPatchCount = 9
-    // Temporary local/demo mode: key access is disabled, but device-integrity checks remain enforced.
-    private let licenseGateEnabled = false
+    private let licenseGateEnabled = true
 
     private var activePatchCount: Int {
         [
@@ -209,6 +209,7 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     topBar
                     heroPanel
+                    licenseAccessPanel
                     telemetryStrip
                     characterPreviewPanel
                     referencePatchConsole
@@ -501,6 +502,117 @@ struct ContentView: View {
         .offset(y: region.offset)
     }
 
+    private var licenseAccessPanel: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill((licenseManager.isActive ? Color.green : AppTheme.accent).opacity(0.16))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: licenseManager.isActive ? "checkmark.seal.fill" : "key.fill")
+                        .font(.system(size: 17, weight: .black))
+                        .foregroundStyle(licenseManager.isActive ? .green : AppTheme.accent)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("TRYSTORE ACCESS PASS")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(1.2)
+                        .foregroundStyle(AppTheme.accent)
+                    Text(licenseManager.isActive ? "PATCH ZONE UNLOCKED" : "UNLOCK YOUR PATCH ZONE")
+                        .font(.system(size: 16, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+                Spacer(minLength: 0)
+                Text(licenseManager.isActive ? "ACTIVE" : "LOCKED")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(licenseManager.isActive ? .green : .orange)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background((licenseManager.isActive ? Color.green : Color.orange).opacity(0.12), in: Capsule())
+            }
+
+            if licenseManager.isActive {
+                HStack(spacing: 8) {
+                    Label(licenseManager.statusText, systemImage: "clock.fill")
+                    Spacer()
+                    Text(licenseManager.expirationText)
+                }
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.62))
+                .padding(11)
+                .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                Text(licenseManager.remainingText)
+                    .font(.system(size: 9, weight: .black, design: .monospaced))
+                    .tracking(0.2)
+                    .foregroundStyle(.green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("Enter your 30-day access key to activate Patch Zone. Your key is bound securely to this device on first activation.")
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.48))
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    TextField("TRY-XXXX-XXXX-XXXX-XXXX", text: $licenseKeyInput)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .frame(height: 45)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(AppTheme.accent.opacity(0.22), lineWidth: 1))
+                    Button {
+                        licenseManager.activate(key: licenseKeyInput)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if licenseManager.isBusy { ProgressView().tint(.black).scaleEffect(0.75) }
+                            Text(licenseManager.isBusy ? "CHECKING" : "ACTIVATE")
+                        }
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(0.5)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 13)
+                        .frame(height: 45)
+                        .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    }
+                    .disabled(licenseManager.isBusy || licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Toggle("Remember this key on this device", isOn: $licenseManager.rememberKey)
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .tint(AppTheme.accent)
+            }
+
+            if let message = licenseManager.message {
+                Text(message)
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(licenseManager.isOffline ? .orange : .white.opacity(0.52))
+            }
+
+            HStack(spacing: 8) {
+                Text("NEED A KEY?")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.34))
+                Spacer()
+                Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos")!) {
+                    Label("INSTAGRAM", systemImage: "camera.fill")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                }
+                Link(destination: URL(string: "https://www.tiktok.com/@vaal_goat")!) {
+                    Label("TIKTOK", systemImage: "play.rectangle.fill")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                }
+            }
+            .foregroundStyle(AppTheme.accent)
+        }
+        .padding(15)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke((licenseManager.isActive ? Color.green : AppTheme.accent).opacity(0.30), lineWidth: 1))
+        .shadow(color: .black.opacity(0.24), radius: 16, y: 8)
+    }
+
     private var referencePatchConsole: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -513,6 +625,23 @@ struct ContentView: View {
                     .font(.system(size: 8, weight: .black, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(.white.opacity(0.35))
+            }
+            if licenseManager.isActive {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("PATCH ZONE ACCESS UNTIL")
+                        .font(.system(size: 7, weight: .black, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(.white.opacity(0.36))
+                    Text(licenseManager.expirationText)
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(.green)
+                    Text(licenseManager.remainingText)
+                        .font(.system(size: 8, weight: .black, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.60))
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.07), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
             compactPatchButton(title: "DRAG", subtitle: "Aim drag", icon: "arrow.up.right.and.arrow.down.left", color: AppTheme.accent, package: "AimDragFreeFire.3105", state: $aimDragEnabled)
             compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "AimNeckFreeFire.3105", state: $aimNeckEnabled)
@@ -1495,6 +1624,10 @@ struct ContentView: View {
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
         guard !patchOperationBusy else { return }
+        guard !licenseGateEnabled || licenseManager.isActive else {
+            patchMessage = "LOCKED — ACTIVATE YOUR 30-DAY KEY ABOVE"
+            return
+        }
         guard appState.canUseProtectedFeatures else {
             patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
             return
@@ -1564,6 +1697,10 @@ struct ContentView: View {
     }
 
     private func openGame(scheme: String) {
+        guard !licenseGateEnabled || licenseManager.isActive else {
+            patchMessage = "LOCKED — ACTIVATE YOUR 30-DAY KEY ABOVE"
+            return
+        }
         guard appState.canUseProtectedFeatures else {
             patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
             return
