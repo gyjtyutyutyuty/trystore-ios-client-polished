@@ -74,10 +74,13 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 8)
-                .padding(.bottom, 28)
+                .padding(.bottom, 104)
             }
         }
         .preferredColorScheme(.dark)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            launchDock
+        }
         .onAppear { syncPatchStates(); enforceLicenseExpiry() }
         .onChange(of: scenePhase) { phase in
             guard phase == .active else { return }
@@ -211,6 +214,16 @@ struct ContentView: View {
     private var hudTargetOverlay: some View {
         GeometryReader { proxy in
             ZStack {
+                hudTargetLine(color: aimDragEnabled ? .green : .orange,
+                              from: CGPoint(x: proxy.size.width * 0.30, y: proxy.size.height * 0.27),
+                              to: CGPoint(x: proxy.size.width * 0.47, y: proxy.size.height * 0.23))
+                hudTargetLine(color: (aimNeckEnabled || hspEnabled) ? .green : .cyan,
+                              from: CGPoint(x: proxy.size.width * 0.70, y: proxy.size.height * 0.28),
+                              to: CGPoint(x: proxy.size.width * 0.56, y: proxy.size.height * 0.29))
+                hudTargetLine(color: aimbotPechoEnabled ? .green : AppTheme.accent,
+                              from: CGPoint(x: proxy.size.width * 0.70, y: proxy.size.height * 0.48),
+                              to: CGPoint(x: proxy.size.width * 0.57, y: proxy.size.height * 0.47))
+
                 hudCallout(title: "DRAG", color: aimDragEnabled ? .green : .orange, active: aimDragEnabled)
                     .position(x: proxy.size.width * 0.19, y: proxy.size.height * 0.27)
 
@@ -232,26 +245,28 @@ struct ContentView: View {
     }
 
     private func hudCallout(title: String, color: Color, active: Bool) -> some View {
-        HStack(spacing: 0) {
-            Text(title)
-                .font(.system(size: 8, weight: .black, design: .rounded))
-                .tracking(0.8)
-                .foregroundStyle(active ? .white : color)
-                .padding(.horizontal, 9)
-                .frame(height: 27)
-                .background(active ? color.opacity(0.20) : Color.black.opacity(0.62), in: Capsule())
-                .overlay(Capsule().stroke(color.opacity(active ? 0.85 : 0.48), lineWidth: 1))
-
-            Rectangle()
-                .fill(color.opacity(active ? 0.90 : 0.55))
-                .frame(width: 48, height: 1)
-
-            Circle()
-                .fill(color)
-                .frame(width: 5, height: 5)
-                .shadow(color: color, radius: active ? 6 : 2)
-        }
+        Text(title)
+            .font(.system(size: 8, weight: .black, design: .rounded))
+            .tracking(0.8)
+            .foregroundStyle(active ? .white : color)
+            .padding(.horizontal, 9)
+            .frame(height: 27)
+            .background(active ? color.opacity(0.20) : Color.black.opacity(0.62), in: Capsule())
+            .overlay(Capsule().stroke(color.opacity(active ? 0.85 : 0.48), lineWidth: 1))
         .shadow(color: color.opacity(active ? 0.34 : 0.10), radius: 8)
+    }
+
+    private func hudTargetLine(color: Color, from: CGPoint, to: CGPoint) -> some View {
+        Canvas { context, _ in
+            var path = Path()
+            path.move(to: from)
+            path.addLine(to: to)
+            context.stroke(path, with: .color(color.opacity(0.82)), lineWidth: 1.2)
+            let dot = CGRect(x: to.x - 3, y: to.y - 3, width: 6, height: 6)
+            context.fill(Path(ellipseIn: dot), with: .color(color))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
     }
 
     private var waveformDivider: some View {
@@ -416,6 +431,43 @@ struct ContentView: View {
         .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
         .padding(.top, 12)
+    }
+
+    private var launchDock: some View {
+        HStack(spacing: 8) {
+            launchDockButton(title: "FREE FIRE", scheme: "freefireth", color: AppTheme.accent)
+            launchDockButton(title: "FREE FIRE MAX", scheme: "freefiremax", color: .cyan)
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle().fill(AppTheme.accent.opacity(0.24)).frame(height: 1)
+        }
+    }
+
+    private func launchDockButton(title: String, scheme: String, color: Color) -> some View {
+        Button { openGame(scheme: scheme) } label: {
+            HStack(spacing: 6) {
+                Image(systemName: accessReady ? "arrow.up.right.square.fill" : "lock.fill")
+                    .font(.system(size: 13, weight: .bold))
+                Text(title)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.35)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .black))
+            }
+            .foregroundStyle(accessReady ? .black : .white.opacity(0.38))
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(accessReady ? color : Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(accessReady ? color.opacity(0.90) : Color.white.opacity(0.10), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(!accessReady)
+        .accessibilityLabel("Launch \(title)")
     }
 
     private func regionForPackage(_ package: String) -> CharacterRegion? {
@@ -774,6 +826,7 @@ private enum PatchAudioFeedback {
 
 struct ControlDeckBackdrop: View {
     @State private var animate = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -785,28 +838,29 @@ struct ControlDeckBackdrop: View {
                     .frame(width: proxy.size.width * 1.12, height: proxy.size.height * 0.74)
                     .opacity(0.18)
                     .blur(radius: 1.2)
-                    .scaleEffect(animate ? 1.04 : 1.0)
-                    .offset(y: animate ? -12 : 12)
+                    .scaleEffect(animate ? 1.02 : 1.0)
+                    .offset(y: animate ? -6 : 6)
                     .mask(LinearGradient(colors: [.clear, .white.opacity(0.72), .white.opacity(0.72), .clear], startPoint: .top, endPoint: .bottom))
                 Circle()
                     .fill(AppTheme.accent.opacity(0.12))
                     .frame(width: 310, height: 310)
-                    .blur(radius: 80)
+                    .blur(radius: 64)
                     .offset(x: animate ? 130 : -120, y: -proxy.size.height * 0.30)
                 Circle()
                     .fill(AppTheme.palette[4].color.opacity(0.08))
                     .frame(width: 250, height: 250)
-                    .blur(radius: 85)
+                    .blur(radius: 68)
                     .offset(x: animate ? -110 : 100, y: proxy.size.height * 0.26)
                 Circle()
                     .fill(Color.purple.opacity(0.10))
                     .frame(width: 220, height: 220)
-                    .blur(radius: 78)
+                    .blur(radius: 62)
                     .offset(x: animate ? -80 : 120, y: -proxy.size.height * 0.08)
                 GridOverlay()
             }
             .onAppear {
-                withAnimation(.easeInOut(duration: 10).repeatForever(autoreverses: true)) {
+                guard !reduceMotion, UIDevice.current.userInterfaceIdiom != .pad else { return }
+                withAnimation(.easeInOut(duration: 14).repeatForever(autoreverses: true)) {
                     animate = true
                 }
             }
