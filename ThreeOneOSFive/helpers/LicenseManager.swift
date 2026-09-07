@@ -21,7 +21,7 @@ final class LicenseManager: ObservableObject {
     private let deviceAccount = "device-id"
     private let rememberedKeyAccount = "remembered-key"
     private let rememberPreferenceAccount = "remember-key-preference"
-    private let apiBaseURL = URL(string: "https://trystore-license-service.manus.space/api/v1/keys/validate")!
+    private let apiBaseURL = URL(string: "https://trystoreapi-ygszmmh4.manus.space/api/v1/keys/validate")!
 
     init() {
         expirationDate = keychainString(for: expirationAccount).flatMap { Date(timeIntervalSince1970: TimeInterval($0) ?? 0) }
