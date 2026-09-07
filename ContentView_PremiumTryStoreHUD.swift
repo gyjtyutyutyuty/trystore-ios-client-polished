@@ -480,9 +480,6 @@ struct ContentView: View {
                     .tracking(0.9)
                     .foregroundStyle(.white.opacity(0.35))
                 Spacer()
-                Link(destination: URL(string: "https://t.me/+EdvrAFwQbyg2ZDFh")!) {
-                    socialLinkLabel(title: "TELEGRAM", icon: "paperplane.fill", color: .cyan)
-                }
                 Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos")!) {
                     socialLinkLabel(title: "INSTAGRAM", icon: "camera.fill", color: Color(red: 0.92, green: 0.28, blue: 0.62))
                 }
@@ -490,6 +487,11 @@ struct ContentView: View {
                     socialLinkLabel(title: "TIKTOK", icon: "play.rectangle.fill", color: .white)
                 }
             }
+            Text("DEVELOPED BY JVZTXN  •  TRYSTORE")
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(1.0)
+                .foregroundStyle(AppTheme.accent.opacity(0.72))
+                .frame(maxWidth: .infinity)
         }
         .padding(13)
         .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
