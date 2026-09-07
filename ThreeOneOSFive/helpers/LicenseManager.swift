@@ -241,7 +241,14 @@ final class LicenseManager: ObservableObject {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            // Preserve a useful user-facing state for DNS, TLS, ATS, timeout, and offline failures.
+            throw LicenseError.network
+        }
         guard let http = response as? HTTPURLResponse else { throw LicenseError.network }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -249,7 +256,11 @@ final class LicenseManager: ObservableObject {
             let apiError = try? decoder.decode(APIError.self, from: data)
             throw LicenseError.server(apiError?.error ?? "license request failed")
         }
-        return try decoder.decode(Response.self, from: data)
+        do {
+            return try decoder.decode(Response.self, from: data)
+        } catch {
+            throw LicenseError.server("Invalid license server response")
+        }
     }
 
     private func userMessage(for error: Error) -> String {
