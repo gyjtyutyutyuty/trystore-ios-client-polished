@@ -55,10 +55,17 @@ enum PatchProjectLibrary {
 
         for sourceURL in bundledURLs {
             let destinationURL = root.appendingPathComponent(sourceURL.lastPathComponent)
-            guard !fileManager.fileExists(atPath: destinationURL.path) else { continue }
             do {
                 let data = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
                 _ = try PatchPackageCodec.inspect(data)
+                if fileManager.fileExists(atPath: destinationURL.path),
+                   let existing = try? Data(contentsOf: destinationURL, options: .mappedIfSafe),
+                   existing == data {
+                    continue
+                }
+                // Refresh bundled packages when an app update ships a corrected
+                // package with the same filename. This prevents stale cached
+                // copies from causing PACKAGE NOT FOUND or activation failures.
                 try data.write(to: destinationURL, options: [.atomic, .completeFileProtection])
             } catch {
                 log("patch: skipped bundled package \(sourceURL.lastPathComponent): \(error)")
