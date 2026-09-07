@@ -41,7 +41,7 @@ struct ContentView: View {
 
         var title: String {
             switch self {
-            case .head: return "HEAD"
+            case .head: return "NECK"
             case .chest: return "CHEST"
             case .body: return "BODY"
             case .drag: return "DRAG"
@@ -479,6 +479,13 @@ struct ContentView: View {
 
     private func characterRegionMarker(_ region: CharacterRegion) -> some View {
         ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: region.diameter / 2 + 37))
+                path.addLine(to: CGPoint(x: 0, y: 0))
+            }
+            .stroke(region.color.opacity(0.92), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, dash: [4, 3]))
+            .frame(width: 2, height: region.diameter + 37)
+            .offset(y: -(region.diameter + 37) / 2)
             Circle()
                 .stroke(region.color.opacity(0.92), lineWidth: 2.5)
                 .frame(width: region.diameter, height: region.diameter)
