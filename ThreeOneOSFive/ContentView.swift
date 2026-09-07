@@ -1951,9 +1951,13 @@ private enum PatchAudioFeedback {
             activationPlayer = try AVAudioPlayer(contentsOf: url)
             activationPlayer?.prepareToPlay()
             activationPlayer?.play()
+            // Always announce by voice as well as playing the bundled confirmation sound.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                speak("Patch activated")
+            }
         } catch {
             log("audio: activation sound unavailable: \(error)")
-            speak("Bypass activated")
+            speak("Patch activated")
         }
     }
 
@@ -1971,9 +1975,13 @@ private enum PatchAudioFeedback {
             deactivationPlayer = try AVAudioPlayer(contentsOf: url)
             deactivationPlayer?.prepareToPlay()
             deactivationPlayer?.play()
+            // Always announce by voice as well as playing the bundled confirmation sound.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                speak("Patch deactivated")
+            }
         } catch {
             log("audio: deactivation sound unavailable: \(error)")
-            speak("Bypass deactivated")
+            speak("Patch deactivated")
         }
     }
 
