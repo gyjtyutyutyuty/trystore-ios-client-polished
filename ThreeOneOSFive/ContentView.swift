@@ -753,8 +753,8 @@ struct ContentView: View {
             }
             compactPatchButton(title: "DRAG", subtitle: "Aim drag", icon: "arrow.up.right.and.arrow.down.left", color: AppTheme.accent, package: "DRAG.3105", state: $aimDragEnabled)
             compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
-            compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "PECHO.3105", state: $aimBodyEnabled)
-            compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HEAD.3105", state: $hsslaEnabled)
+            compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "PECHO.3105", state: $aimbotPechoEnabled)
+            compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HEAD.3105", state: $hspEnabled)
         }
         .padding(13)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
