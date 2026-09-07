@@ -41,7 +41,7 @@ struct ContentView: View {
 
     private let licenseGateEnabled = true
     private let totalArchivoCount = 5
-    private let fpsPackageFilename = "144 FPS FFMAX.3105"
+    private let fpsPackageFilename = "140 FPS FFMAX.3105"
     private let holoPackageFilename = "HOLO ARM.3105"
 
     private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, fpsEnabled].filter { $0 }.count }
@@ -304,7 +304,7 @@ struct ContentView: View {
             hudRow(title: "NECK", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
             hudRow(title: "CHEST", icon: "scope", color: AppTheme.accent, package: "PECHO.3105", state: $aimbotPechoEnabled)
             hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
-            hudRow(title: "144FPS", icon: "speedometer", color: .mint, package: fpsPackageFilename, state: $fpsEnabled)
+            hudRow(title: "144 FPS", icon: "speedometer", color: .mint, package: fpsPackageFilename, state: $fpsEnabled)
 
             visualOptionsHUD
 
@@ -645,7 +645,7 @@ struct ContentView: View {
         case "HEAD.3105": hspEnabled = enabled
         case "PECHO.3105": aimbotPechoEnabled = enabled
         case "HOLO ARM.3105": hologramaArmasEnabled = enabled
-        case "144 FPS FFMAX.3105": fpsEnabled = enabled
+        case "140 FPS FFMAX.3105": fpsEnabled = enabled
         default: break
         }
     }
