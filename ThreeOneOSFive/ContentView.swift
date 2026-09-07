@@ -85,6 +85,14 @@ struct ContentView: View {
         }
     }
 
+    private enum MainTab: String, CaseIterable {
+        case key
+        case patch
+
+        var title: String { rawValue.uppercased() }
+        var icon: String { self == .key ? "key.fill" : "scope" }
+    }
+
     private enum PatchSection: String, CaseIterable {
         case aim
         case visual
@@ -133,6 +141,7 @@ struct ContentView: View {
     @State private var expiryRestoreCompleted = false
     @State private var removeTracesBusy = false
     @State private var selectedPatchSection: PatchSection = .aim
+    @State private var selectedMainTab: MainTab = .key
     @State private var chestPulse = false
     @State private var showViewControls = false
     @State private var showAppearance = false
@@ -142,15 +151,11 @@ struct ContentView: View {
     @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
-    private let totalPatchCount = 9
+    private let totalPatchCount = 4
     private let licenseGateEnabled = true
 
     private var activePatchCount: Int {
-        [
-            aimDragEnabled, aimNeckEnabled, hsslaEnabled, hspEnabled,
-            aimBodyEnabled, hyperBalamagicaEnabled, aimbotPechoEnabled,
-            aimbotPechoMaxEnabled, hologramaArmasEnabled
-        ].filter { $0 }.count
+        [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled].filter { $0 }.count
     }
 
     private var activeCharacterRegions: Set<CharacterRegion> {
@@ -171,15 +176,15 @@ struct ContentView: View {
 
     private var activeModules: [ActiveModuleSummary] {
         var modules: [ActiveModuleSummary] = []
-        if aimDragEnabled { modules.append(.init(id: "AimDragFreeFire.3105", name: "MIRA ARRASTRE HS ALTO✅", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
-        if aimNeckEnabled { modules.append(.init(id: "AimNeckFreeFire.3105", name: "MIRA CUELLO", target: "FREE FIRE NORMAL", color: .cyan)) }
-        if hsslaEnabled { modules.append(.init(id: "HSSLA.3105", name: "HSLA", target: "FREE FIRE MAX", color: AppTheme.accent)) }
-        if hspEnabled { modules.append(.init(id: "HSPESCOSEMANTENA.3105", name: "CUELLO SIN ANTENA", target: "FREE FIRE MAX", color: AppTheme.palette[1].color)) }
-        if aimBodyEnabled { modules.append(.init(id: "AimBody.3105", name: "HS PECHO HYPER", target: "FREE FIRE MAX", color: AppTheme.palette[4].color)) }
-        if hyperBalamagicaEnabled { modules.append(.init(id: "HYPERBALAMAGICA.3105", name: "HYPER BALAMÁGICA", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
-        if aimbotPechoEnabled { modules.append(.init(id: "AimbotPecho.3105", name: "AIMBOT PECHO", target: "FREE FIRE NORMAL", color: AppTheme.palette[2].color)) }
-        if aimbotPechoMaxEnabled { modules.append(.init(id: "AimbotPechoMax.3105", name: "AIMBOT PECHO MAX", target: "FREE FIRE MAX", color: AppTheme.palette[2].color)) }
-        if hologramaArmasEnabled { modules.append(.init(id: "Shaders.3105", name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", color: AppTheme.palette[5].color)) }
+        if aimDragEnabled { modules.append(.init(id: "DRAG.3105", name: "MIRA ARRASTRE HS ALTO✅", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
+        if aimNeckEnabled { modules.append(.init(id: "CUELLO.3105", name: "MIRA CUELLO", target: "FREE FIRE NORMAL", color: .cyan)) }
+        if hsslaEnabled { modules.append(.init(id: "HEAD.3105", name: "HSLA", target: "FREE FIRE MAX", color: AppTheme.accent)) }
+        if hspEnabled { modules.append(.init(id: "HEAD.3105", name: "CUELLO SIN ANTENA", target: "FREE FIRE MAX", color: AppTheme.palette[1].color)) }
+        if aimBodyEnabled { modules.append(.init(id: "PECHO.3105", name: "HS PECHO HYPER", target: "FREE FIRE MAX", color: AppTheme.palette[4].color)) }
+        if hyperBalamagicaEnabled { modules.append(.init(id: "PECHO.3105", name: "HYPER BALAMÁGICA", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
+        if aimbotPechoEnabled { modules.append(.init(id: "PECHO.3105", name: "AIMBOT PECHO", target: "FREE FIRE NORMAL", color: AppTheme.palette[2].color)) }
+        if aimbotPechoMaxEnabled { modules.append(.init(id: "PECHO.3105", name: "AIMBOT PECHO MAX", target: "FREE FIRE MAX", color: AppTheme.palette[2].color)) }
+        if hologramaArmasEnabled { modules.append(.init(id: "HEAD.3105", name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", color: AppTheme.palette[5].color)) }
         return modules
     }
 
@@ -209,12 +214,19 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     topBar
                     heroPanel
-                    licenseAccessPanel
-                    telemetryStrip
-                    characterPreviewPanel
-                    referencePatchConsole
-                    sessionOverview
-                    enterGamePanel
+                    mainTabSwitcher
+                    if selectedMainTab == .key {
+                        licenseAccessPanel
+                        telemetryStrip
+                        keyTabGuidance
+                    } else if licenseManager.isActive {
+                        characterPreviewPanel
+                        referencePatchConsole
+                        sessionOverview
+                        enterGamePanel
+                    } else {
+                        lockedPatchTab
+                    }
                     socialLinksPanel
                     creditsPanel
                     footerBar
@@ -254,7 +266,9 @@ struct ContentView: View {
         .onChange(of: licenseManager.isActive) { active in
             if active {
                 expiryRestoreCompleted = false
+                selectedMainTab = .patch
             } else {
+                selectedMainTab = .key
                 enforceLicenseExpiry()
             }
         }
@@ -545,6 +559,57 @@ struct ContentView: View {
         .offset(y: region.offset)
     }
 
+    private var mainTabSwitcher: some View {
+        HStack(spacing: 8) {
+            ForEach(MainTab.allCases, id: \.self) { tab in
+                let locked = tab == .patch && !licenseManager.isActive
+                Button {
+                    guard !locked else { return }
+                    withAnimation(.easeOut(duration: 0.18)) { selectedMainTab = tab }
+                } label: {
+                    Label(locked ? "PATCH LOCKED" : tab.title, systemImage: locked ? "lock.fill" : tab.icon)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(selectedMainTab == tab ? Color.black : (locked ? .white.opacity(0.26) : .white.opacity(0.62)))
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(selectedMainTab == tab ? AppTheme.accent : Color.white.opacity(locked ? 0.025 : 0.06), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(locked)
+                .accessibilityLabel(locked ? "Patch tab locked until key activation" : "Open \(tab.title) tab")
+            }
+        }
+        .padding(4)
+        .background(Color.black.opacity(0.30), in: Capsule())
+        .overlay(Capsule().stroke(AppTheme.accent.opacity(0.22), lineWidth: 1))
+    }
+
+    private var keyTabGuidance: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle.fill").foregroundStyle(AppTheme.accent)
+            Text("Activate your key above, then open the PATCH tab to use the four working patch buttons.")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.58))
+        }
+        .padding(11)
+        .background(AppTheme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+
+    private var lockedPatchTab: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("PATCH TAB LOCKED", systemImage: "lock.fill")
+                .font(.system(size: 11, weight: .black, design: .rounded))
+                .foregroundStyle(.orange)
+            Text("Open the KEY tab and activate a valid access key before opening patches.")
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.56))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.orange.opacity(0.28), lineWidth: 1))
+    }
+
     private var licenseAccessPanel: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(spacing: 10) {
@@ -686,10 +751,10 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.green.opacity(0.07), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
-            compactPatchButton(title: "DRAG", subtitle: "Aim drag", icon: "arrow.up.right.and.arrow.down.left", color: AppTheme.accent, package: "AimDragFreeFire.3105", state: $aimDragEnabled)
-            compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "AimNeckFreeFire.3105", state: $aimNeckEnabled)
-            compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "AimBody.3105", state: $aimBodyEnabled)
-            compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HSSLA.3105", state: $hsslaEnabled)
+            compactPatchButton(title: "DRAG", subtitle: "Aim drag", icon: "arrow.up.right.and.arrow.down.left", color: AppTheme.accent, package: "DRAG.3105", state: $aimDragEnabled)
+            compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
+            compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "PECHO.3105", state: $aimBodyEnabled)
+            compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HEAD.3105", state: $hsslaEnabled)
         }
         .padding(13)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
