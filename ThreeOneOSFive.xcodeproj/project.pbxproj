@@ -70,18 +70,13 @@
 		3105A234 /* AppDataBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A105; };
 		3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
-		3105P201 /* AimDragFreeFire.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P101; };
-	3105P202 /* AimNeckFreeFire.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P102; };
-		3105P205 /* HSSLA.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P105; };
-		3105P206 /* HSPESCOSEMANTENA.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P106; };
-		3105P207 /* AimBody.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P107; };
-		3105P208 /* HYPERBALAMAGICA.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P108; };
-		3105P209 /* AimbotPecho.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P109; };
-					3105P210 /* Shaders.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P110; };
-			3105P211 /* AimbotPechoMax.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P111; };
 				3105P212 /* PatchActivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P112; };
 				3105P213 /* PatchDeactivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P113; };
 
+		3105P201 /* CUELLO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P101; };
+		3105P202 /* DRAG.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P102; };
+		3105P203 /* HEAD.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P103; };
+		3105P204 /* PECHO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P104; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -167,18 +162,13 @@
 		3105A122 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 3105A123 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-		3105P101 /* AimDragFreeFire.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/AimDragFreeFire.3105; sourceTree = "<group>"; };
-	3105P102 /* AimNeckFreeFire.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/AimNeckFreeFire.3105; sourceTree = "<group>"; };
-		3105P105 /* HSSLA.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSSLA.3105; sourceTree = "<group>"; };
-		3105P106 /* HSPESCOSEMANTENA.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSPESCOSEMANTENA.3105; sourceTree = "<group>"; };
-		3105P107 /* AimBody.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/AimBody.3105; sourceTree = "<group>"; };
-		3105P108 /* HYPERBALAMAGICA.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HYPERBALAMAGICA.3105; sourceTree = "<group>"; };
-		3105P109 /* AimbotPecho.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/AimbotPecho.3105; sourceTree = "<group>"; };
-					3105P110 /* Shaders.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/Shaders.3105; sourceTree = "<group>"; };
-			3105P111 /* AimbotPechoMax.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/AimbotPechoMax.3105; sourceTree = "<group>"; };
 			3105P112 /* PatchActivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchActivated.mp3; sourceTree = "<group>"; };
 			3105P113 /* PatchDeactivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchDeactivated.mp3; sourceTree = "<group>"; };
 
+		3105P101 /* CUELLO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/CUELLO.3105; sourceTree = "<group>"; };
+		3105P102 /* DRAG.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/DRAG.3105; sourceTree = "<group>"; };
+		3105P103 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = "<group>"; };
+		3105P104 /* PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/PECHO.3105; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -381,16 +371,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				3105A211,
-				3105A228,
 				3105P201,
 				3105P202,
-				3105P205,
-				3105P206,
-				3105P207,
-				3105P208,
-				3105P209,
-				3105P210,
-				3105P211,
+				3105P203,
+				3105P204,
+				3105A228,
 							3105P212,
 			3105P213,
 		);
