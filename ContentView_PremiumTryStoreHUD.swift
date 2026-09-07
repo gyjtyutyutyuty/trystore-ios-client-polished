@@ -28,6 +28,7 @@ struct ContentView: View {
     @State private var hspEnabled = false
     @State private var aimbotPechoEnabled = false
     @State private var hologramaArmasEnabled = false
+    @State private var fpsEnabled = false
     @State private var hsslaEnabled = false
     @State private var aimBodyEnabled = false
     @State private var hyperBalamagicaEnabled = false
@@ -39,9 +40,11 @@ struct ContentView: View {
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
     private let licenseGateEnabled = true
-    private let totalArchivoCount = 4
+    private let totalArchivoCount = 5
+    private let fpsPackageFilename = "144 FPS FFMAX.3105"
+    private let holoPackageFilename = "HOLO ARM.3105"
 
-    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled].filter { $0 }.count }
+    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, fpsEnabled].filter { $0 }.count }
     private var activePatchCount: Int { activeArchivoCount }
     private var activeCharacterRegions: Set<CharacterRegion> {
         var regions = Set<CharacterRegion>()
@@ -301,6 +304,9 @@ struct ContentView: View {
             hudRow(title: "NECK", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
             hudRow(title: "CHEST", icon: "scope", color: AppTheme.accent, package: "PECHO.3105", state: $aimbotPechoEnabled)
             hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
+            hudRow(title: "144FPS", icon: "speedometer", color: .mint, package: fpsPackageFilename, state: $fpsEnabled)
+
+            visualOptionsHUD
 
             if !licenseManager.isActive { accessStrip }
         }
@@ -308,6 +314,28 @@ struct ContentView: View {
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .padding(.horizontal, 2)
+    }
+
+    private var visualOptionsHUD: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("VISUAL OPTIONS")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .tracking(1.35)
+                    .foregroundStyle(.purple)
+                Spacer()
+                Text("SEPARATE")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.42))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            hudRow(title: "HOLO ARMA", icon: "sparkles", color: .purple, package: holoPackageFilename, state: $hologramaArmasEnabled)
+        }
+        .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.purple.opacity(0.28), lineWidth: 1))
+        .padding(.top, 10)
     }
 
     private func hudRow(title: String, icon: String, color: Color, package: String, state: Binding<Bool>) -> some View {
@@ -550,7 +578,7 @@ struct ContentView: View {
               !patchOperationBusy,
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "HOLO ARM.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -563,7 +591,7 @@ struct ContentView: View {
     private func restoreAllPatchesAfterExpiry() {
         guard !patchOperationBusy else { return }
         let packages = [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "HOLO ARM.3105"
+            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "144 FPS FFMAX.3105", "HOLO ARM.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
@@ -595,7 +623,8 @@ struct ContentView: View {
         aimNeckEnabled = isPatchActive("CUELLO.3105")
         hspEnabled = isPatchActive("HEAD.3105")
         aimbotPechoEnabled = isPatchActive("PECHO.3105")
-        hologramaArmasEnabled = isPatchActive("HOLO ARM.3105")
+        hologramaArmasEnabled = isPatchActive(holoPackageFilename)
+        fpsEnabled = isPatchActive(fpsPackageFilename)
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -616,6 +645,7 @@ struct ContentView: View {
         case "HEAD.3105": hspEnabled = enabled
         case "PECHO.3105": aimbotPechoEnabled = enabled
         case "HOLO ARM.3105": hologramaArmasEnabled = enabled
+        case "144 FPS FFMAX.3105": fpsEnabled = enabled
         default: break
         }
     }
