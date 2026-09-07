@@ -71,6 +71,7 @@ struct ContentView: View {
                     characterHUD
                     archivosHUD
                     bottomStatus
+                    keyAndSocialPanel
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 8)
@@ -445,6 +446,66 @@ struct ContentView: View {
         .overlay(alignment: .top) {
             Rectangle().fill(AppTheme.accent.opacity(0.24)).frame(height: 1)
         }
+    }
+
+    private var keyAndSocialPanel: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: licenseManager.isActive ? "calendar.badge.checkmark" : "calendar.badge.exclamationmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(licenseManager.isActive ? .green : .orange)
+                    .frame(width: 32, height: 32)
+                    .background((licenseManager.isActive ? Color.green : Color.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("KEY EXPIRY")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundStyle(.white.opacity(0.42))
+                    Text(licenseManager.isActive ? licenseManager.expirationText : "ACTIVATE ACCESS TO VIEW EXPIRY")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(licenseManager.isActive ? .green : .orange)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if licenseManager.isActive {
+                    Text(licenseManager.remainingText)
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+            HStack(spacing: 8) {
+                Text("CONNECT")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.9)
+                    .foregroundStyle(.white.opacity(0.35))
+                Spacer()
+                Link(destination: URL(string: "https://t.me/+EdvrAFwQbyg2ZDFh")!) {
+                    socialLinkLabel(title: "TELEGRAM", icon: "paperplane.fill", color: .cyan)
+                }
+                Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos")!) {
+                    socialLinkLabel(title: "INSTAGRAM", icon: "camera.fill", color: Color(red: 0.92, green: 0.28, blue: 0.62))
+                }
+                Link(destination: URL(string: "https://www.tiktok.com/@vaal_goat")!) {
+                    socialLinkLabel(title: "TIKTOK", icon: "play.rectangle.fill", color: .white)
+                }
+            }
+        }
+        .padding(13)
+        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+    }
+
+    private func socialLinkLabel(title: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 9, weight: .bold))
+            Text(title).font(.system(size: 7, weight: .black, design: .rounded)).tracking(0.3)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .frame(height: 28)
+        .background(color.opacity(0.11), in: Capsule())
+        .overlay(Capsule().stroke(color.opacity(0.28), lineWidth: 1))
     }
 
     private func launchDockButton(title: String, scheme: String, color: Color) -> some View {
