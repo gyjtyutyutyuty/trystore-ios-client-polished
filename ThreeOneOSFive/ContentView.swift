@@ -483,12 +483,13 @@ struct ContentView: View {
                     .opacity(activeCharacterRegions.isEmpty ? 0.88 : 1)
 
                 // Fixed reference lines keep the open-arm character readable even before a patch is active.
+                // Anchors are calibrated to the visible character asset: head/hat, neck, and shirt chest.
                 characterCallout(title: "DRAG", color: .cyan, flipped: false)
-                    .offset(x: -92, y: -78)
+                    .offset(x: -62, y: -101)
                 characterCallout(title: "NECK", color: .green, flipped: true)
-                    .offset(x: 95, y: -38)
+                    .offset(x: 58, y: -78)
                 characterCallout(title: "CHEST", color: AppTheme.accent, flipped: true)
-                    .offset(x: 96, y: 26)
+                    .offset(x: 58, y: -22)
 
                 ForEach(CharacterRegion.allCases.filter { activeCharacterRegions.contains($0) }, id: \.self) { region in
                     characterRegionMarker(region)
@@ -534,7 +535,7 @@ struct ContentView: View {
         HStack(spacing: 0) {
             Rectangle()
                 .fill(color.opacity(0.84))
-                .frame(width: 52, height: 1.5)
+                .frame(width: 72, height: 1.5)
             Circle()
                 .fill(color)
                 .frame(width: 5, height: 5)
