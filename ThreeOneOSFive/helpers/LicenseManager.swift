@@ -193,10 +193,22 @@ final class LicenseManager: ObservableObject {
         keychainString(for: rememberedKeyAccount)
     }
 
+    /// Updates the device-only remember preference and keeps the remembered key in sync.
+    /// The active token is copied only when the user explicitly enables this option.
+    func setRememberKey(_ enabled: Bool) {
+        rememberKey = enabled
+        try? saveString(enabled ? "true" : "false", for: rememberPreferenceAccount)
+        guard enabled else {
+            deleteKeychainValue(for: rememberedKeyAccount)
+            return
+        }
+        if let token = keychainString(for: tokenAccount), !token.isEmpty {
+            try? saveString(token, for: rememberedKeyAccount)
+        }
+    }
+
     func forgetRememberedKey() {
-        deleteKeychainValue(for: rememberedKeyAccount)
-        try? saveString("false", for: rememberPreferenceAccount)
-        rememberKey = false
+        setRememberKey(false)
     }
 
     func clear() {

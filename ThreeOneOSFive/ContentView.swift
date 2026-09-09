@@ -93,7 +93,11 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             launchDock
         }
-        .onAppear { syncPatchStates(); enforceLicenseExpiry() }
+        .onAppear {
+            syncPatchStates()
+            enforceLicenseExpiry()
+            restoreRememberedLicenseKey()
+        }
         .onChange(of: scenePhase) { phase in
             guard phase == .active else { return }
             syncPatchStates(); enforceLicenseExpiry()
@@ -471,6 +475,23 @@ struct ContentView: View {
                 .disabled(licenseManager.isBusy || licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
+            Toggle(isOn: Binding(
+                get: { licenseManager.rememberKey },
+                set: { licenseManager.setRememberKey($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("REMEMBER KEY ON THIS DEVICE")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(0.55)
+                        .foregroundStyle(.white.opacity(0.82))
+                    Text("Securely save it so you do not re-enter it after opening the game")
+                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+            .tint(AppTheme.accent)
+            .padding(.top, 2)
+
             if let message = licenseManager.message {
                 Text(message)
                     .font(.system(size: 8, weight: .medium, design: .rounded))
@@ -480,6 +501,11 @@ struct ContentView: View {
         }
         .padding(12)
         .background(Color.orange.opacity(0.045))
+    }
+
+    private func restoreRememberedLicenseKey() {
+        guard licenseManager.rememberKey, licenseKeyInput.isEmpty else { return }
+        licenseKeyInput = licenseManager.rememberedKey() ?? ""
     }
 
     private var bottomStatus: some View {
