@@ -21,9 +21,13 @@ final class LicenseManager: ObservableObject {
     private let deviceAccount = "device-id"
     private let rememberedKeyAccount = "remembered-key"
     private let rememberPreferenceAccount = "remember-key-preference"
-    private let apiBaseURL = URL(string: "https://trystoreapi-ygszmmh4.manus.space/api/v1/keys/validate")!
+    private let apiBaseURL: URL
+    private let projectID: String
 
     init() {
+        let configuredURL = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_LICENSE_API_URL") as? String
+        apiBaseURL = URL(string: configuredURL ?? "https://trystoreapi-ygszmmh4.manus.space/api/v1/keys/validate")!
+        projectID = (Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PROJECT_ID") as? String) ?? "trystore"
         expirationDate = keychainString(for: expirationAccount).flatMap { Date(timeIntervalSince1970: TimeInterval($0) ?? 0) }
         isActive = expirationDate.map { $0 > Date() } ?? false
         rememberKey = keychainString(for: rememberPreferenceAccount) == "true"
@@ -109,7 +113,7 @@ final class LicenseManager: ObservableObject {
         Task {
             do {
                 let response: ValidationResponse = try await request(
-                    body: ["key": token, "deviceId": deviceID, "appVersion": appVersion]
+                    body: ["key": token, "deviceId": deviceID, "appVersion": appVersion, "projectId": projectID]
                 )
                 if let expiresAt = response.expiresAt { try saveExpiration(expiresAt) } else { expirationDate = nil; deleteKeychainValue(for: expirationAccount) }
                 isActive = response.valid && response.outcome == "active"
@@ -140,7 +144,8 @@ final class LicenseManager: ObservableObject {
                     body: [
                         "key": trimmed,
                         "deviceId": deviceID,
-                        "appVersion": appVersion
+                        "appVersion": appVersion,
+                        "projectId": projectID
                     ]
                 )
                 guard response.valid && response.outcome == "active" else {

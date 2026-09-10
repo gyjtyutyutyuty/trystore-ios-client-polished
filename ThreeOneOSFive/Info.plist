@@ -20,6 +20,10 @@
     <string>1.1.1</string>
     <key>CFBundleVersion</key>
     <string>7</string>
+    <key>TRYSTORE_PROJECT_ID</key>
+    <string>$(TRYSTORE_PROJECT_ID)</string>
+    <key>TRYSTORE_LICENSE_API_URL</key>
+    <string>$(TRYSTORE_LICENSE_API_URL)</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
