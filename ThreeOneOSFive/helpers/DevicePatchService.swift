@@ -1,22 +1,6 @@
 import Foundation
 
 enum DevicePatchService {
-    /// Applies the project currently stored in the local Store.
-    /// Workspace projects are snapshotted immediately before patching so Home
-    /// cannot apply an older in-memory copy after a Files edit.
-    static func apply(item: PatchLibraryItem) throws -> PatchTransactionReceipt {
-        let project: PatchProject
-        if item.summary.schemaVersion >= 2 {
-            project = try PatchProjectLibrary.synchronizeWorkspace(item: item)
-        } else {
-            guard let storedProject = item.project else {
-                throw PatchPackageError.invalidProject
-            }
-            project = storedProject
-        }
-        return try apply(project: project)
-    }
-
     static func apply(project: PatchProject) throws -> PatchTransactionReceipt {
         let bundleIDs = orderedBundleIdentifiers(in: project)
         return try withResolvedContainers(bundleIDs: bundleIDs) { roots in

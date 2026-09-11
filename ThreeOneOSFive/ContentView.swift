@@ -777,7 +777,7 @@ struct ContentView: View {
         }
         patchOperationBusy = true
         patchMessage = "PROCESSING — \(packageFilename)"
-        let storeItem = item
+        let project = item.project
         let projectID = item.id
 
         DispatchQueue.global(qos: .userInitiated).async {
@@ -795,14 +795,14 @@ struct ContentView: View {
                     try DevicePatchService.restore(receipt: receipt)
                     result = .restored
                 } else {
-                    guard storeItem.project != nil else {
+                    guard let project else {
                         DispatchQueue.main.async {
                             self.patchMessage = "LOCKED — PASSWORD REQUIRED"
                             self.patchOperationBusy = false
                         }
                         return
                     }
-                    _ = try DevicePatchService.apply(item: storeItem)
+                    _ = try DevicePatchService.apply(project: project)
                     result = .applied
                 }
             } catch {
