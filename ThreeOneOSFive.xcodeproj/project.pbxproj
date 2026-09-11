@@ -22,9 +22,8 @@
 		3105A223 /* kutils.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A083; };
 		3105A224 /* vnode.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A084; };
 		3105A225 /* sandbox_escape.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A085; };
-			3105A226 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A098; };
-			3105A227 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A099; };
-			3105A242 /* AccessGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A114; };
+		3105A226 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A098; };
+		3105A227 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A099; };
 		3105A235 /* AppIconHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A106; };
 		3105A208 /* KernelExploit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A202; };
 		3105J200 /* AntiDetection.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105J201; };
@@ -129,8 +128,7 @@
 		3105A110 /* FileReplacementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileReplacementService.swift; sourceTree = "<group>"; };
 		3105A111 /* FileManagerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerService.swift; sourceTree = "<group>"; };
 		3105A112 /* FileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserView.swift; sourceTree = "<group>"; };
-			3105A113 /* SupportPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPolicy.swift; sourceTree = "<group>"; };
-			3105A114 /* AccessGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessGateView.swift; sourceTree = "<group>"; };
+		3105A113 /* SupportPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPolicy.swift; sourceTree = "<group>"; };
 		3105B114 /* PatchProjectModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectModels.swift; sourceTree = "<group>"; };
 		3105B115 /* PatchPackageCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPackageCodec.swift; sourceTree = "<group>"; };
 		3105B116 /* PatchKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchKeyStore.swift; sourceTree = "<group>"; };
@@ -239,9 +237,8 @@
 		3105A404 /* views */ = {
 			isa = PBXGroup;
 			children = (
-					3105A098 /* DesignSystem.swift */,
-					3105A114 /* AccessGateView.swift */,
-					3105A023 /* SettingsView.swift */,
+				3105A098 /* DesignSystem.swift */,
+				3105A023 /* SettingsView.swift */,
 				3105A024 /* LogView.swift */,
 				3105A105 /* AppDataBrowserView.swift */,
 				3105A112 /* FileBrowserView.swift */,
@@ -405,10 +402,9 @@
 				3105A205, 3105A206, 3105A207, 3105A209,
 				3105A210, 3105A220, 3105A221, 3105A222, 3105A223,
 				3105A224, 3105A225,
-					3105A226,
-					3105A227,
-					3105A242 /* AccessGateView.swift in Sources */,
-					3105A233,
+				3105A226,
+				3105A227,
+				3105A233,
 				3105A234,
 				3105A235,
 				3105A236,
