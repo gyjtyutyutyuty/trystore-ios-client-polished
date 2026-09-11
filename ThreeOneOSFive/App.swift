@@ -34,6 +34,9 @@ struct ThreeOneOSFiveApp: App {
             Group {
                 if !hasCompletedOnboarding {
                     OnboardingView { hasCompletedOnboarding = true }
+                } else if !licenseManager.isActive {
+                    AccessGateView()
+                        .environmentObject(licenseManager)
                 } else {
                     ContentView()
                         .environmentObject(licenseManager)

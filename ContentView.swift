@@ -130,6 +130,8 @@ struct ContentView: View {
     @State private var aimbotPechoEnabled = false
     @State private var aimbotPechoMaxEnabled = false
     @State private var hologramaArmasEnabled = false
+    @State private var holoPersonajeEnabled = false
+    @State private var fpsEnabled = false
     @State private var expiryRestoreCompleted = false
     @State private var removeTracesBusy = false
     @State private var selectedPatchSection: PatchSection = .aim
@@ -142,14 +144,14 @@ struct ContentView: View {
     @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
-    private let totalPatchCount = 9
+    private let totalPatchCount = 7
     private let licenseGateEnabled = true
 
     private var activePatchCount: Int {
         [
             aimDragEnabled, aimNeckEnabled, hsslaEnabled, hspEnabled,
             aimBodyEnabled, hyperBalamagicaEnabled, aimbotPechoEnabled,
-            aimbotPechoMaxEnabled, hologramaArmasEnabled
+            aimbotPechoMaxEnabled, hologramaArmasEnabled, holoPersonajeEnabled, fpsEnabled
         ].filter { $0 }.count
     }
 
@@ -171,15 +173,13 @@ struct ContentView: View {
 
     private var activeModules: [ActiveModuleSummary] {
         var modules: [ActiveModuleSummary] = []
-        if aimDragEnabled { modules.append(.init(id: "AimDragFreeFire.3105", name: "MIRA ARRASTRE HS ALTO✅", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
-        if aimNeckEnabled { modules.append(.init(id: "AimNeckFreeFire.3105", name: "MIRA CUELLO", target: "FREE FIRE NORMAL", color: .cyan)) }
-        if hsslaEnabled { modules.append(.init(id: "HSSLA.3105", name: "HSLA", target: "FREE FIRE MAX", color: AppTheme.accent)) }
-        if hspEnabled { modules.append(.init(id: "HSPESCOSEMANTENA.3105", name: "CUELLO SIN ANTENA", target: "FREE FIRE MAX", color: AppTheme.palette[1].color)) }
-        if aimBodyEnabled { modules.append(.init(id: "AimBody.3105", name: "HS PECHO HYPER", target: "FREE FIRE MAX", color: AppTheme.palette[4].color)) }
-        if hyperBalamagicaEnabled { modules.append(.init(id: "HYPERBALAMAGICA.3105", name: "HYPER BALAMÁGICA", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
-        if aimbotPechoEnabled { modules.append(.init(id: "AimbotPecho.3105", name: "AIMBOT PECHO", target: "FREE FIRE NORMAL", color: AppTheme.palette[2].color)) }
-        if aimbotPechoMaxEnabled { modules.append(.init(id: "AimbotPechoMax.3105", name: "AIMBOT PECHO MAX", target: "FREE FIRE MAX", color: AppTheme.palette[2].color)) }
-        if hologramaArmasEnabled { modules.append(.init(id: "Shaders.3105", name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", color: AppTheme.palette[5].color)) }
+        if aimDragEnabled { modules.append(.init(id: "DRAG.3105", name: "MIRA ARRASTRE HS ALTO✅", target: "FREE FIRE NORMAL", color: AppTheme.accent)) }
+        if aimNeckEnabled { modules.append(.init(id: "CUELLO.3105", name: "MIRA CUELLO", target: "FREE FIRE NORMAL", color: .cyan)) }
+        if hspEnabled { modules.append(.init(id: "HEAD.3105", name: "CUELLO SIN ANTENA", target: "FREE FIRE MAX", color: AppTheme.palette[1].color)) }
+        if aimBodyEnabled { modules.append(.init(id: "PECHO.3105", name: "HS PECHO HYPER", target: "FREE FIRE MAX", color: AppTheme.palette[4].color)) }
+        if fpsEnabled { modules.append(.init(id: "140 FPS FFMAX.3105", name: "140 FPS", target: "FREE FIRE MAX", color: .mint)) }
+        if hologramaArmasEnabled { modules.append(.init(id: "HOLO ARM.3105", name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", color: AppTheme.palette[5].color)) }
+        if holoPersonajeEnabled { modules.append(.init(id: "HOLO PERSONAJE.3105", name: "HOLOGRAMA PERSONAJE", target: "FREE FIRE MAX", color: .pink)) }
         return modules
     }
 
@@ -686,10 +686,10 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.green.opacity(0.07), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
-            compactPatchButton(title: "DRAG", subtitle: "Aim drag", icon: "arrow.up.right.and.arrow.down.left", color: AppTheme.accent, package: "AimDragFreeFire.3105", state: $aimDragEnabled)
-            compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "AimNeckFreeFire.3105", state: $aimNeckEnabled)
-            compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "AimBody.3105", state: $aimBodyEnabled)
-            compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HSSLA.3105", state: $hsslaEnabled)
+            compactPatchButton(title: "DRAG", subtitle: "Aim drag", icon: "arrow.up.right.and.arrow.down.left", color: AppTheme.accent, package: "DRAG.3105", state: $aimDragEnabled)
+            compactPatchButton(title: "NECK", subtitle: "Head link", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
+            compactPatchButton(title: "CHEST", subtitle: "Chest link", icon: "scope", color: AppTheme.palette[2].color, package: "PECHO.3105", state: $aimBodyEnabled)
+            compactPatchButton(title: "BODY", subtitle: "Body link", icon: "viewfinder", color: AppTheme.palette[4].color, package: "HEAD.3105", state: $hspEnabled)
         }
         .padding(13)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -1114,19 +1114,19 @@ struct ContentView: View {
         case .aim:
             sectionLabel("AIM OPTIONS", icon: "scope")
             LazyVStack(spacing: 10) {
-                if isVisible(target: "FREE FIRE NORMAL") && matches("MIRA ARRASTRE HS ALTO") { patchCard(name: "MIRA ARRASTRE HS ALTO✅", target: "FREE FIRE NORMAL", fileExcerpt: "cache_res…", package: "AimDragFreeFire.3105", color: AppTheme.accent, state: $aimDragEnabled) }
-                if isVisible(target: "FREE FIRE NORMAL") && matches("MIRA CUELLO") { patchCard(name: "MIRA CUELLO", target: "FREE FIRE NORMAL", fileExcerpt: "cache_res…", package: "AimNeckFreeFire.3105", color: .cyan, state: $aimNeckEnabled) }
-                if isVisible(target: "FREE FIRE MAX") && matches("HSLA") { patchCard(name: "HSLA", target: "FREE FIRE MAX", fileExcerpt: "assetindexer…", package: "HSSLA.3105", color: AppTheme.accent, state: $hsslaEnabled) }
-                if isVisible(target: "FREE FIRE MAX") && matches("CUELLO SIN ANTENA") { patchCard(name: "CUELLO SIN ANTENA", target: "FREE FIRE MAX", fileExcerpt: "assetindexer…", package: "HSPESCOSEMANTENA.3105", color: AppTheme.palette[1].color, state: $hspEnabled) }
-                if isVisible(target: "FREE FIRE MAX") && matches("HS PECHO HYPER") { patchCard(name: "HS PECHO HYPER", target: "FREE FIRE MAX", fileExcerpt: "cache_res…", package: "AimBody.3105", color: AppTheme.palette[4].color, state: $aimBodyEnabled) }
-                if isVisible(target: "FREE FIRE NORMAL") && matches("HYPER BALAMÁGICA") { patchCard(name: "HYPER BALAMÁGICA", target: "FREE FIRE NORMAL", fileExcerpt: "cache_res…", package: "HYPERBALAMAGICA.3105", color: AppTheme.accent, state: $hyperBalamagicaEnabled) }
-                if isVisible(target: "FREE FIRE NORMAL") && matches("AIMBOT PECHO") { patchCard(name: "AIMBOT PECHO", target: "FREE FIRE NORMAL", fileExcerpt: "assetindexer…", package: "AimbotPecho.3105", color: AppTheme.palette[2].color, state: $aimbotPechoEnabled) }
-                if isVisible(target: "FREE FIRE MAX") && matches("AIMBOT PECHO MAX") { patchCard(name: "AIMBOT PECHO MAX", target: "FREE FIRE MAX", fileExcerpt: "assetindexer…", package: "AimbotPechoMax.3105", color: AppTheme.palette[2].color, state: $aimbotPechoMaxEnabled) }
+                if isVisible(target: "FREE FIRE NORMAL") && matches("DRAG") { patchCard(name: "MIRA ARRASTRE HS ALTO✅", target: "FREE FIRE NORMAL", fileExcerpt: "cache_res…", package: "DRAG.3105", color: AppTheme.accent, state: $aimDragEnabled) }
+                if isVisible(target: "FREE FIRE NORMAL") && matches("CUELLO") { patchCard(name: "MIRA CUELLO", target: "FREE FIRE NORMAL", fileExcerpt: "cache_res…", package: "CUELLO.3105", color: .cyan, state: $aimNeckEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("HEAD") { patchCard(name: "CUELLO SIN ANTENA", target: "FREE FIRE MAX", fileExcerpt: "assetindexer…", package: "HEAD.3105", color: AppTheme.palette[1].color, state: $hspEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("PECHO") { patchCard(name: "HS PECHO HYPER", target: "FREE FIRE MAX", fileExcerpt: "cache_res…", package: "PECHO.3105", color: AppTheme.palette[4].color, state: $aimBodyEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("FPS") { patchCard(name: "140 FPS", target: "FREE FIRE MAX", fileExcerpt: "display…", package: "140 FPS FFMAX.3105", color: .mint, state: $fpsEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("HOLO ARMA") { patchCard(name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", fileExcerpt: "shaders…", package: "HOLO ARM.3105", color: AppTheme.palette[5].color, state: $hologramaArmasEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("HOLO PERSONAJE") { patchCard(name: "HOLOGRAMA PERSONAJE", target: "FREE FIRE MAX", fileExcerpt: "character…", package: "HOLO PERSONAJE.3105", color: .pink, state: $holoPersonajeEnabled) }
             }
         case .visual:
             sectionLabel("VISUAL OPTIONS", icon: "eye.fill")
             LazyVStack(spacing: 10) {
-                if isVisible(target: "FREE FIRE MAX") && matches("HOLOGRAMA ARMAS") { patchCard(name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", fileExcerpt: "shaders…", package: "Shaders.3105", color: AppTheme.palette[5].color, state: $hologramaArmasEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("HOLOGRAMA ARMAS") { patchCard(name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", fileExcerpt: "shaders…", package: "HOLO ARM.3105", color: AppTheme.palette[5].color, state: $hologramaArmasEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("HOLOGRAMA PERSONAJE") { patchCard(name: "HOLOGRAMA PERSONAJE", target: "FREE FIRE MAX", fileExcerpt: "character…", package: "HOLO PERSONAJE.3105", color: .pink, state: $holoPersonajeEnabled) }
             }
         }
     }
@@ -1585,8 +1585,8 @@ struct ContentView: View {
               !patchOperationBusy,
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
-            "AimDragFreeFire.3105", "AimNeckFreeFire.3105", "HSSLA.3105",
-            "HSPESCOSEMANTENA.3105", "AimBody.3105", "HYPERBALAMAGICA.3105", "AimbotPecho.3105", "AimbotPechoMax.3105", "Shaders.3105"
+            "DRAG.3105", "CUELLO.3105", "HEAD.3105", "PECHO.3105",
+            "140 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -1599,8 +1599,8 @@ struct ContentView: View {
     private func restoreAllPatchesAfterExpiry() {
         guard !patchOperationBusy else { return }
         let packages = [
-            "AimDragFreeFire.3105", "AimNeckFreeFire.3105", "HSSLA.3105",
-            "HSPESCOSEMANTENA.3105", "AimBody.3105", "HYPERBALAMAGICA.3105", "AimbotPecho.3105", "AimbotPechoMax.3105", "Shaders.3105"
+            "DRAG.3105", "CUELLO.3105", "HEAD.3105", "PECHO.3105",
+            "140 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
@@ -1628,15 +1628,13 @@ struct ContentView: View {
     }
 
     private func syncPatchStates() {
-        aimDragEnabled = isPatchActive("AimDragFreeFire.3105")
-        aimNeckEnabled = isPatchActive("AimNeckFreeFire.3105")
-        hsslaEnabled = isPatchActive("HSSLA.3105")
-        hspEnabled = isPatchActive("HSPESCOSEMANTENA.3105")
-        aimBodyEnabled = isPatchActive("AimBody.3105")
-        hyperBalamagicaEnabled = isPatchActive("HYPERBALAMAGICA.3105")
-        aimbotPechoEnabled = isPatchActive("AimbotPecho.3105")
-        aimbotPechoMaxEnabled = isPatchActive("AimbotPechoMax.3105")
-        hologramaArmasEnabled = isPatchActive("Shaders.3105")
+        aimDragEnabled = isPatchActive("DRAG.3105")
+        aimNeckEnabled = isPatchActive("CUELLO.3105")
+        hspEnabled = isPatchActive("HEAD.3105")
+        aimBodyEnabled = isPatchActive("PECHO.3105")
+        fpsEnabled = isPatchActive("140 FPS FFMAX.3105")
+        hologramaArmasEnabled = isPatchActive("HOLO ARM.3105")
+        holoPersonajeEnabled = isPatchActive("HOLO PERSONAJE.3105")
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -1652,15 +1650,13 @@ struct ContentView: View {
 
     private func setPatchState(for packageFilename: String, enabled: Bool) {
         switch packageFilename {
-        case "AimDragFreeFire.3105": aimDragEnabled = enabled
-        case "AimNeckFreeFire.3105": aimNeckEnabled = enabled
-        case "HSSLA.3105": hsslaEnabled = enabled
-        case "HSPESCOSEMANTENA.3105": hspEnabled = enabled
-        case "AimBody.3105": aimBodyEnabled = enabled
-        case "HYPERBALAMAGICA.3105": hyperBalamagicaEnabled = enabled
-        case "AimbotPecho.3105": aimbotPechoEnabled = enabled
-        case "AimbotPechoMax.3105": aimbotPechoMaxEnabled = enabled
-        case "Shaders.3105": hologramaArmasEnabled = enabled
+        case "DRAG.3105": aimDragEnabled = enabled
+        case "CUELLO.3105": aimNeckEnabled = enabled
+        case "HEAD.3105": hspEnabled = enabled
+        case "PECHO.3105": aimBodyEnabled = enabled
+        case "140 FPS FFMAX.3105": fpsEnabled = enabled
+        case "HOLO ARM.3105": hologramaArmasEnabled = enabled
+        case "HOLO PERSONAJE.3105": holoPersonajeEnabled = enabled
         default: break
         }
     }
@@ -1675,6 +1671,9 @@ struct ContentView: View {
             patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
             return
         }
+        // El contenido puede haberse instalado/actualizado al volver de Files; no
+        // dependemos de la instantánea tomada al crear el StateObject.
+        patchStore.reload()
         guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
             patchMessage = "ERROR — PACKAGE NOT FOUND"
             log("patch: package not found: \(packageFilename)")
