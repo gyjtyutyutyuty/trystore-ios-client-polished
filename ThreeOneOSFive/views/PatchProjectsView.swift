@@ -524,14 +524,11 @@ private struct PatchProjectDetailView: View {
     }
 
     private func apply() {
-        guard let item, let baseProject = item.project else { return }
+        guard let item, item.project != nil else { return }
         isWorking = true
         Task.detached(priority: .userInitiated) {
             do {
-                let project = item.summary.schemaVersion >= 2
-                    ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
-                    : baseProject
-                _ = try DevicePatchService.apply(project: project)
+                _ = try DevicePatchService.apply(item: item)
                 await MainActor.run {
                     store.reload()
                     isWorking = false
