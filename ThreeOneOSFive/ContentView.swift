@@ -42,12 +42,12 @@ struct ContentView: View {
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
     private let licenseGateEnabled = true
-    private let totalArchivoCount = 5
+    private let totalArchivoCount = 7
     private let fpsPackageFilename = "140 FPS FFMAX.3105"
     private let holoPackageFilename = "HOLO ARM.3105"
     private let holoPersonajePackageFilename = "HOLO PERSONAJE.3105"
 
-    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, fpsEnabled].filter { $0 }.count }
+    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, fpsEnabled, hologramaArmasEnabled, holoPersonajeEnabled].filter { $0 }.count }
     private var activePatchCount: Int { activeArchivoCount }
     private var activeCharacterRegions: Set<CharacterRegion> {
         var regions = Set<CharacterRegion>()
@@ -362,12 +362,61 @@ struct ContentView: View {
                     .font(.system(size: 23, weight: .semibold))
                     .foregroundStyle(.pink)
             }
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(LinearGradient(colors: [Color.purple.opacity(0.22), Color.black.opacity(0.42)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                Image("CleanCharacter")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 330)
+                    .padding(.vertical, 10)
+                    .shadow(color: Color.pink.opacity(0.34), radius: 20)
+                LinearGradient(colors: [.clear, .black.opacity(0.72)], startPoint: .center, endPoint: .bottom)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                Label("FULL CHARACTER PREVIEW", systemImage: "sparkles")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.9)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 11)
+            }
+            .frame(maxWidth: .infinity, minHeight: 350, maxHeight: 350)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.pink.opacity(0.38), lineWidth: 1))
+            keyExpiryPatchBadge
             hudRow(title: "HOLO ARMA", icon: "sparkles", color: .purple, package: holoPackageFilename, state: $hologramaArmasEnabled)
             hudRow(title: "HOLO PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, package: holoPersonajePackageFilename, state: $holoPersonajeEnabled)
         }
         .padding(14)
         .background(Color.purple.opacity(0.09), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.purple.opacity(0.34), lineWidth: 1))
+    }
+
+    private var keyExpiryPatchBadge: some View {
+        HStack(spacing: 9) {
+            Image(systemName: licenseManager.isActive ? "clock.badge.checkmark" : "clock.badge.exclamationmark")
+                .foregroundStyle(licenseManager.isActive ? .green : .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("PATCH ACCESS")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(.white.opacity(0.42))
+                Text(licenseManager.isActive ? licenseManager.expirationText : "KEY REQUIRED TO ACTIVATE VISUALS")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(licenseManager.isActive ? .green : .orange)
+            }
+            Spacer()
+            if licenseManager.isActive {
+                Text(licenseManager.remainingText)
+                    .font(.system(size: 8, weight: .black, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.68))
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 48)
+        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
     }
 
     private var archivosHUD: some View {
@@ -762,8 +811,9 @@ struct ContentView: View {
             patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
             return
         }
-        // Reload once before lookup so a freshly installed/update-copied bundle
-        // is immediately available when the user taps the visual module.
+        // Re-sync bundled packages before every activation so a fresh install or
+        // app update can never leave Visuals pointing at a stale local catalog.
+        PatchProjectLibrary.installBundledPackagesIfNeeded()
         patchStore.reload()
         guard let item = patchStore.items.first(where: { matchesPackageFilename($0.packageURL.lastPathComponent, requested: packageFilename) }) else {
             patchMessage = "ERROR — PACKAGE NOT FOUND"
