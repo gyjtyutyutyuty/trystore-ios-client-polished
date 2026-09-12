@@ -130,6 +130,7 @@ struct ContentView: View {
     @State private var aimbotPechoEnabled = false
     @State private var aimbotPechoMaxEnabled = false
     @State private var hologramaArmasEnabled = false
+    @State private var espFFMEnabled = false
     @State private var expiryRestoreCompleted = false
     @State private var removeTracesBusy = false
     @State private var selectedPatchSection: PatchSection = .aim
@@ -142,14 +143,14 @@ struct ContentView: View {
     @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
-    private let totalPatchCount = 9
+    private let totalPatchCount = 10
     private let licenseGateEnabled = true
 
     private var activePatchCount: Int {
         [
             aimDragEnabled, aimNeckEnabled, hsslaEnabled, hspEnabled,
             aimBodyEnabled, hyperBalamagicaEnabled, aimbotPechoEnabled,
-            aimbotPechoMaxEnabled, hologramaArmasEnabled
+            aimbotPechoMaxEnabled, hologramaArmasEnabled, espFFMEnabled
         ].filter { $0 }.count
     }
 
@@ -180,6 +181,7 @@ struct ContentView: View {
         if aimbotPechoEnabled { modules.append(.init(id: "AimbotPecho.3105", name: "AIMBOT PECHO", target: "FREE FIRE NORMAL", color: AppTheme.palette[2].color)) }
         if aimbotPechoMaxEnabled { modules.append(.init(id: "AimbotPechoMax.3105", name: "AIMBOT PECHO MAX", target: "FREE FIRE MAX", color: AppTheme.palette[2].color)) }
         if hologramaArmasEnabled { modules.append(.init(id: "Shaders.3105", name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", color: AppTheme.palette[5].color)) }
+        if espFFMEnabled { modules.append(.init(id: "EspFFM.3105", name: "ESP FFM", target: "FREE FIRE MAX", color: .mint)) }
         return modules
     }
 
@@ -1127,6 +1129,7 @@ struct ContentView: View {
             sectionLabel("VISUAL OPTIONS", icon: "eye.fill")
             LazyVStack(spacing: 10) {
                 if isVisible(target: "FREE FIRE MAX") && matches("HOLOGRAMA ARMAS") { patchCard(name: "HOLOGRAMA ARMAS", target: "FREE FIRE MAX", fileExcerpt: "shaders…", package: "Shaders.3105", color: AppTheme.palette[5].color, state: $hologramaArmasEnabled) }
+                if isVisible(target: "FREE FIRE MAX") && matches("ESP FFM") { patchCard(name: "ESP FFM", target: "FREE FIRE MAX", fileExcerpt: "EspFFM…", package: "EspFFM.3105", color: .mint, state: $espFFMEnabled) }
             }
         }
     }
@@ -1586,7 +1589,7 @@ struct ContentView: View {
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
             "AimDragFreeFire.3105", "AimNeckFreeFire.3105", "HSSLA.3105",
-            "HSPESCOSEMANTENA.3105", "AimBody.3105", "HYPERBALAMAGICA.3105", "AimbotPecho.3105", "AimbotPechoMax.3105", "Shaders.3105"
+            "HSPESCOSEMANTENA.3105", "AimBody.3105", "HYPERBALAMAGICA.3105", "AimbotPecho.3105", "AimbotPechoMax.3105", "Shaders.3105", "EspFFM.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -1600,7 +1603,7 @@ struct ContentView: View {
         guard !patchOperationBusy else { return }
         let packages = [
             "AimDragFreeFire.3105", "AimNeckFreeFire.3105", "HSSLA.3105",
-            "HSPESCOSEMANTENA.3105", "AimBody.3105", "HYPERBALAMAGICA.3105", "AimbotPecho.3105", "AimbotPechoMax.3105", "Shaders.3105"
+            "HSPESCOSEMANTENA.3105", "AimBody.3105", "HYPERBALAMAGICA.3105", "AimbotPecho.3105", "AimbotPechoMax.3105", "Shaders.3105", "EspFFM.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
@@ -1637,6 +1640,7 @@ struct ContentView: View {
         aimbotPechoEnabled = isPatchActive("AimbotPecho.3105")
         aimbotPechoMaxEnabled = isPatchActive("AimbotPechoMax.3105")
         hologramaArmasEnabled = isPatchActive("Shaders.3105")
+        espFFMEnabled = isPatchActive("EspFFM.3105")
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -1661,6 +1665,7 @@ struct ContentView: View {
         case "AimbotPecho.3105": aimbotPechoEnabled = enabled
         case "AimbotPechoMax.3105": aimbotPechoMaxEnabled = enabled
         case "Shaders.3105": hologramaArmasEnabled = enabled
+        case "EspFFM.3105": espFFMEnabled = enabled
         default: break
         }
     }
