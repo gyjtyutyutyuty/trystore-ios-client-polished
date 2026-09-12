@@ -42,3 +42,5 @@ DerivedData/
 *.tmp
 *.swp
 *~
+
+cloudflare/wrangler.toml
