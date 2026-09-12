@@ -27,8 +27,15 @@ final class LicenseManager: ObservableObject {
     init() {
         let configuredURL = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_LICENSE_API_URL") as? String
         let configuredProject = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PROJECT_ID") as? String
-        apiBaseURL = URL(string: configuredURL?.isEmpty == false ? configuredURL! : "https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate")!
-        projectID = configuredProject?.isEmpty == false ? configuredProject! : "trystore"
+        let fallbackURL = "https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate"
+        let usableURL = configuredURL.flatMap { value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("$(") else { return nil }
+            return trimmed
+        } ?? fallbackURL
+        apiBaseURL = URL(string: usableURL) ?? URL(string: fallbackURL)!
+        let usableProject = configuredProject?.trimmingCharacters(in: .whitespacesAndNewlines)
+        projectID = usableProject?.isEmpty == false && usableProject != "$(TRYSTORE_PROJECT_ID)" ? usableProject! : "trystore"
         expirationDate = keychainString(for: expirationAccount).flatMap { Date(timeIntervalSince1970: TimeInterval($0) ?? 0) }
         isActive = expirationDate.map { $0 > Date() } ?? false
         rememberKey = keychainString(for: rememberPreferenceAccount) == "true"
