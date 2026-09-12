@@ -4,10 +4,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      xcode: 16.4
-      vars:
-        TRYSTORE_LICENSE_API_URL: https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate
-        TRYSTORE_PROJECT_ID: trystore
+      xcode: latest
     scripts:
       - name: Validate Xcode project and build unsigned iOS archive
         script: |
