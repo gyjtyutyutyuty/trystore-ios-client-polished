@@ -46,12 +46,20 @@ enum PatchProjectLibrary {
             return
         }
 
-        // Resolve both the intended Patches directory and a flattened bundle
-        // layout so the main project remains compatible with prior archives.
+        // Resolve both the intended Patches directory and flattened bundle
+        // layouts. Xcode/CodeMagic may flatten resource paths in the final app,
+        // while older archives may preserve a Patches subdirectory.
         let nestedURLs = bundle.urls(forResourcesWithExtension: "3105", subdirectory: "Patches") ?? []
         let flattenedURLs = bundle.urls(forResourcesWithExtension: "3105", subdirectory: nil) ?? []
+        let directURLs = (bundle.resourceURL.map { root in
+            (try? fileManager.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+        } ?? []).filter { $0.pathExtension.lowercased() == "3105" }
         var seen = Set<String>()
-        let bundledURLs = (nestedURLs + flattenedURLs).filter { seen.insert($0.standardizedFileURL.path).inserted }
+        let bundledURLs = (nestedURLs + flattenedURLs + directURLs).filter { seen.insert($0.standardizedFileURL.path).inserted }
 
         for sourceURL in bundledURLs {
             let destinationURL = root.appendingPathComponent(sourceURL.lastPathComponent)
