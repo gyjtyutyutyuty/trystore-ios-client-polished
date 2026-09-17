@@ -73,14 +73,10 @@
 				3105P212 /* PatchActivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P112; };
 				3105P213 /* PatchDeactivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P113; };
 
-		3105P201 /* CUELLO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P101; };
-		3105P202 /* DRAG.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P102; };
-		3105P203 /* HEAD.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P103; };
-		3105P204 /* PECHO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P104; };
-		3105P205 /* HOLO ARM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P105; };
-		3105P206 /* HOLO PERSONAJE.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P106; };
-		3105P207 /* 140 FPS FFMAX.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P107; };
-		3105P208 /* EspFFM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P108; };
+		3105P401 /* HEAD.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P301; };
+		3105P402 /* NECK.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P302; };
+		3105P403 /* HSPESSCOSO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P303; };
+		3105P404 /* HS SLA PECHO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P304; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -169,14 +165,10 @@
 			3105P112 /* PatchActivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchActivated.mp3; sourceTree = "<group>"; };
 			3105P113 /* PatchDeactivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchDeactivated.mp3; sourceTree = "<group>"; };
 
-		3105P101 /* CUELLO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/CUELLO.3105; sourceTree = "<group>"; };
-		3105P102 /* DRAG.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/DRAG.3105; sourceTree = "<group>"; };
-		3105P103 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = "<group>"; };
-		3105P104 /* PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/PECHO.3105; sourceTree = "<group>"; };
-		3105P105 /* HOLO ARM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HOLO ARM.3105"; sourceTree = "<group>"; };
-		3105P106 /* HOLO PERSONAJE.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HOLO PERSONAJE.3105"; sourceTree = "<group>"; };
-		3105P107 /* 140 FPS FFMAX.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/140 FPS FFMAX.3105"; sourceTree = "<group>"; };
-		3105P108 /* EspFFM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/EspFFM.3105; sourceTree = "<group>"; };
+		3105P301 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = "<group>"; };
+		3105P302 /* NECK.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/NECK.3105; sourceTree = "<group>"; };
+		3105P303 /* HSPESSCOSO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSPESSCOSO.3105; sourceTree = "<group>"; };
+		3105P304 /* HS SLA PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HS SLA PECHO.3105"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -379,6 +371,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				3105A211,
+				3105P401,
+				3105P402,
+				3105P403,
+				3105P404,
+
 				3105P201,
 				3105P202,
 				3105P203,

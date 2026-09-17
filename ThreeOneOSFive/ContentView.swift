@@ -43,12 +43,12 @@ struct ContentView: View {
     @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
 
     private let licenseGateEnabled = true
-    private let totalArchivoCount = 8
+    private let totalArchivoCount = 4
     private let fpsPackageFilename = "140 FPS FFMAX.3105"
     private let holoPackageFilename = "HOLO ARM.3105"
     private let holoPersonajePackageFilename = "HOLO PERSONAJE.3105"
 
-    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, fpsEnabled, hologramaArmasEnabled, holoPersonajeEnabled, espFFMEnabled].filter { $0 }.count }
+    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled].filter { $0 }.count }
     private var activePatchCount: Int { activeArchivoCount }
     private var activeCharacterRegions: Set<CharacterRegion> {
         var regions = Set<CharacterRegion>()
@@ -306,7 +306,7 @@ struct ContentView: View {
     private var homeTabSwitcher: some View {
         HStack(spacing: 8) {
             homeTabButton(title: "LOADOUT", subtitle: "GAMEPLAY MODULES", icon: "scope", tab: .loadout, color: AppTheme.accent)
-            homeTabButton(title: "VISUALS", subtitle: "HOLO PERSONAJE", icon: "sparkles", tab: .visuals, color: .purple)
+            homeTabButton(title: "VISUALS", subtitle: "COMING SOON", icon: "sparkles", tab: .visuals, color: .purple)
         }
         .padding(5)
         .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
@@ -385,9 +385,21 @@ struct ContentView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.pink.opacity(0.38), lineWidth: 1))
             keyExpiryPatchBadge
-            hudRow(title: "HOLO ARMA", icon: "sparkles", color: .purple, package: holoPackageFilename, state: $hologramaArmasEnabled)
-            hudRow(title: "HOLO PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, package: holoPersonajePackageFilename, state: $holoPersonajeEnabled)
-            hudRow(title: "ESP FFM", icon: "eye.fill", color: .mint, package: "EspFFM.3105", state: $espFFMEnabled)
+            VStack(spacing: 8) {
+                Image(systemName: "hourglass")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.purple)
+                Text("COMING SOON")
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .tracking(1.2)
+                    .foregroundStyle(.white)
+                Text("Visual patches are currently unavailable.")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.52))
+            }
+            .frame(maxWidth: .infinity, minHeight: 170)
+            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.purple.opacity(0.26), lineWidth: 1))
         }
         .padding(14)
         .background(Color.purple.opacity(0.09), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -436,11 +448,10 @@ struct ContentView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
 
-            hudRow(title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, package: "DRAG.3105", state: $aimDragEnabled)
-            hudRow(title: "NECK", icon: "scope", color: .cyan, package: "CUELLO.3105", state: $aimNeckEnabled)
-            hudRow(title: "CHEST", icon: "scope", color: AppTheme.accent, package: "PECHO.3105", state: $aimbotPechoEnabled)
             hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
-            hudRow(title: "144 FPS", icon: "speedometer", color: .mint, package: fpsPackageFilename, state: $fpsEnabled)
+            hudRow(title: "NECK", icon: "scope", color: .cyan, package: "NECK.3105", state: $aimNeckEnabled)
+            hudRow(title: "HSPESSCOSO", icon: "scope", color: .orange, package: "HSPESSCOSO.3105", state: $aimDragEnabled)
+            hudRow(title: "HS SLA PECHO", icon: "scope", color: AppTheme.accent, package: "HS SLA PECHO.3105", state: $aimbotPechoEnabled)
 
             if !licenseManager.isActive { accessStrip }
         }
@@ -697,9 +708,9 @@ struct ContentView: View {
 
     private func regionForPackage(_ package: String) -> CharacterRegion? {
         switch package {
-        case "DRAG.3105": return .drag
-        case "CUELLO.3105": return .head
-        case "PECHO.3105": return .chest
+        case "HSPESSCOSO.3105": return .drag
+        case "NECK.3105": return .head
+        case "HS SLA PECHO.3105": return .chest
         case "HEAD.3105": return .head
         default: return nil
         }
@@ -712,7 +723,7 @@ struct ContentView: View {
               !patchOperationBusy,
               !expiryRestoreCompleted else { return }
         let hasActivePatch = activePatchCount > 0 || [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "140 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105", "EspFFM.3105"
+            "HEAD.3105", "NECK.3105", "HSPESSCOSO.3105", "HS SLA PECHO.3105"
         ].contains { isPatchActive($0) }
         guard hasActivePatch else {
             expiryRestoreCompleted = true
@@ -725,7 +736,7 @@ struct ContentView: View {
     private func restoreAllPatchesAfterExpiry() {
         guard !patchOperationBusy else { return }
         let packages = [
-            "CUELLO.3105", "DRAG.3105", "HEAD.3105", "PECHO.3105", "140 FPS FFMAX.3105", "HOLO ARM.3105", "HOLO PERSONAJE.3105", "EspFFM.3105"
+            "HEAD.3105", "NECK.3105", "HSPESSCOSO.3105", "HS SLA PECHO.3105"
         ]
         let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
             guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
@@ -753,14 +764,14 @@ struct ContentView: View {
     }
 
     private func syncPatchStates() {
-        aimDragEnabled = isPatchActive("DRAG.3105")
-        aimNeckEnabled = isPatchActive("CUELLO.3105")
+        aimDragEnabled = isPatchActive("HSPESSCOSO.3105")
+        aimNeckEnabled = isPatchActive("NECK.3105")
         hspEnabled = isPatchActive("HEAD.3105")
-        aimbotPechoEnabled = isPatchActive("PECHO.3105")
-        hologramaArmasEnabled = isPatchActive(holoPackageFilename)
-        holoPersonajeEnabled = isPatchActive(holoPersonajePackageFilename)
-        fpsEnabled = isPatchActive(fpsPackageFilename)
-        espFFMEnabled = isPatchActive("EspFFM.3105")
+        aimbotPechoEnabled = isPatchActive("HS SLA PECHO.3105")
+        hologramaArmasEnabled = false
+        holoPersonajeEnabled = false
+        fpsEnabled = false
+        espFFMEnabled = false
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -793,10 +804,10 @@ struct ContentView: View {
 
     private func setPatchState(for packageFilename: String, enabled: Bool) {
         switch packageFilename {
-        case "DRAG.3105": aimDragEnabled = enabled
-        case "CUELLO.3105": aimNeckEnabled = enabled
+        case "HSPESSCOSO.3105": aimDragEnabled = enabled
+        case "NECK.3105": aimNeckEnabled = enabled
         case "HEAD.3105": hspEnabled = enabled
-        case "PECHO.3105": aimbotPechoEnabled = enabled
+        case "HS SLA PECHO.3105": aimbotPechoEnabled = enabled
         case "HOLO ARM.3105": hologramaArmasEnabled = enabled
         case "HOLO PERSONAJE.3105", "HOLOPERSONAJEV2.3105": holoPersonajeEnabled = enabled
         case "140 FPS FFMAX.3105": fpsEnabled = enabled
@@ -820,8 +831,8 @@ struct ContentView: View {
         PatchProjectLibrary.installBundledPackagesIfNeeded()
         patchStore.reload()
         guard let item = patchStore.items.first(where: { matchesPackageFilename($0.packageURL.lastPathComponent, requested: packageFilename) }) else {
-            patchMessage = "ERROR — PACKAGE NOT FOUND"
-            log("patch: package not found after reload: \(packageFilename)")
+            patchMessage = "ERROR — AIM PACKAGE UNAVAILABLE"
+            log("patch: AIM package unavailable after reload: \(packageFilename)")
             return
         }
 

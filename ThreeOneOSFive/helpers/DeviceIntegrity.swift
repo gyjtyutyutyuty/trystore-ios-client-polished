@@ -79,7 +79,7 @@ struct DeviceIntegrityReport {
 
     private static func requiredPatchResourcesPresent() -> Bool {
         // Keep the integrity check aligned with the exact resources shipped by the current client.
-        let names = ["CUELLO", "DRAG", "HEAD", "PECHO", "HOLO ARM"]
+        let names = ["HEAD", "NECK", "HSPESSCOSO", "HS SLA PECHO"]
         return names.allSatisfy {
             Bundle.main.path(forResource: $0, ofType: "3105") != nil
                 || Bundle.main.path(forResource: $0, ofType: "3105", inDirectory: "Patches") != nil
