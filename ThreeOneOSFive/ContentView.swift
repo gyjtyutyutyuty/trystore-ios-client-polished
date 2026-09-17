@@ -450,8 +450,8 @@ struct ContentView: View {
 
             hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
             hudRow(title: "NECK", icon: "scope", color: .cyan, package: "NECK.3105", state: $aimNeckEnabled)
-            hudRow(title: "HSPESSCOSO", icon: "scope", color: .orange, package: "HSPESSCOSO.3105", state: $aimDragEnabled)
-            hudRow(title: "HS SLA PECHO", icon: "scope", color: AppTheme.accent, package: "HS SLA PECHO.3105", state: $aimbotPechoEnabled)
+            hudRow(title: "DRAG", icon: "scope", color: .orange, package: "HSPESSCOSO.3105", state: $aimDragEnabled)
+            hudRow(title: "PECHO", icon: "scope", color: AppTheme.accent, package: "HS SLA PECHO.3105", state: $aimbotPechoEnabled)
 
             if !licenseManager.isActive { accessStrip }
         }
