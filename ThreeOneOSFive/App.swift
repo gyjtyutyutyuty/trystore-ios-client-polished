@@ -3,6 +3,7 @@ import UIKit
 
 @main
 struct ThreeOneOSFiveApp: App {
+    @UIApplicationDelegateAdaptor(ThreeOneOSFiveAppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
     @StateObject private var licenseManager = LicenseManager()
     @AppStorage("trystore.hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -71,6 +72,13 @@ struct ThreeOneOSFiveApp: App {
             }
             .preferredColorScheme(.dark)
         }
+    }
+}
+
+final class ThreeOneOSFiveAppDelegate: NSObject, UIApplicationDelegate {
+    func applicationWillTerminate(_ application: UIApplication) {
+        let restored = DevicePatchService.restoreAllExistingReceipts()
+        log("patch: app termination restored \(restored) active receipt(s)")
     }
 }
 

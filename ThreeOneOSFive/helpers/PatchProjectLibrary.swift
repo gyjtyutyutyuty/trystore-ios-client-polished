@@ -73,7 +73,7 @@ enum PatchProjectLibrary {
                 }
                 // Refresh bundled packages when an app update ships a corrected
                 // package with the same filename. This prevents stale cached
-                // copies from causing PACKAGE NOT FOUND or activation failures.
+                // copies from causing stale-package or activation failures.
                 try data.write(to: destinationURL, options: [.atomic, .completeFileProtection])
             } catch {
                 log("patch: skipped bundled package \(sourceURL.lastPathComponent): \(error)")

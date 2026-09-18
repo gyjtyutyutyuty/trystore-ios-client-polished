@@ -77,6 +77,9 @@
 		3105P402 /* NECK.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P302; };
 		3105P403 /* HSPESSCOSO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P303; };
 		3105P404 /* HS SLA PECHO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P304; };
+		3105P405 /* HOLOGRAMAARMAS.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P305; };
+		3105P406 /* HOLOGRAMAPERSONAJE.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P306; };
+		3105P407 /* SilentAim.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P307; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -169,6 +172,9 @@
 		3105P302 /* NECK.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/NECK.3105; sourceTree = "<group>"; };
 		3105P303 /* HSPESSCOSO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSPESSCOSO.3105; sourceTree = "<group>"; };
 		3105P304 /* HS SLA PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HS SLA PECHO.3105"; sourceTree = "<group>"; };
+		3105P305 /* HOLOGRAMAARMAS.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAARMAS.3105; sourceTree = "<group>"; };
+		3105P306 /* HOLOGRAMAPERSONAJE.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAPERSONAJE.3105; sourceTree = "<group>"; };
+		3105P307 /* SilentAim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/SilentAim.3105; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -375,6 +381,9 @@
 				3105P402,
 				3105P403,
 				3105P404,
+				3105P405,
+				3105P406,
+				3105P407,
 					3105A228,
 					3105P212,
 					3105P213,
