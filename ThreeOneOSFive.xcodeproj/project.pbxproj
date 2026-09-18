@@ -72,6 +72,7 @@
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
 				3105P212 /* PatchActivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P112; };
 				3105P213 /* PatchDeactivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P113; };
+		3105P214 /* cache_res... in Resources */ = {isa = PBXBuildFile; fileRef = 3105P114; };
 
 		3105P401 /* HEAD.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P301; };
 		3105P402 /* NECK.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P302; };
@@ -167,6 +168,7 @@
 		3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 			3105P112 /* PatchActivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchActivated.mp3; sourceTree = "<group>"; };
 			3105P113 /* PatchDeactivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchDeactivated.mp3; sourceTree = "<group>"; };
+		3105P114 /* cache_res... */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Resources/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D; sourceTree = "<group>"; };
 
 		3105P301 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = "<group>"; };
 		3105P302 /* NECK.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/NECK.3105; sourceTree = "<group>"; };
@@ -387,6 +389,7 @@
 					3105A228,
 					3105P212,
 					3105P213,
+				3105P214,
 		);
 
 			runOnlyForDeploymentPostprocessing = 0;
@@ -478,7 +481,7 @@
 				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThreeOneOSFive/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TryStore;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -512,7 +515,7 @@
 				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThreeOneOSFive/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TryStore;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
