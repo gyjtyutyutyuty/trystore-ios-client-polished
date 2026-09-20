@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 if ! command -v xcodebuild >/dev/null 2>&1; then
@@ -7,6 +7,8 @@ if ! command -v xcodebuild >/dev/null 2>&1; then
 fi
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+PROJECT="$ROOT/ThreeOneOSFive.xcodeproj"
+SCHEME="3105"
 BUILD_DIR="$ROOT/build"
 ARCHIVE="$BUILD_DIR/3105.xcarchive"
 IPA="$BUILD_DIR/3105-unsigned.ipa"
@@ -15,10 +17,11 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 xcodebuild \
-  -project "$ROOT/ThreeOneOSFive.xcodeproj" \
-  -scheme 3105 \
+  -project "$PROJECT" \
+  -scheme "$SCHEME" \
   -configuration Release \
   -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
@@ -26,18 +29,36 @@ xcodebuild \
   archive
 
 APP="$ARCHIVE/Products/Applications/3105.app"
-test -d "$APP"
+if [[ ! -d "$APP" ]]; then
+  echo "Error: expected archived app at $APP" >&2
+  exit 1
+fi
 
-# Keep patch resources in the same Patches folder used by the runtime loader.
+# Keep bundled patch resources in the same Patches folder used by the runtime loader.
 PATCH_DIR="$APP/Patches"
 mkdir -p "$PATCH_DIR"
-for package in "$APP"/*.3105; do
-  [ -e "$package" ] || continue
+shopt -s nullglob
+packages=("$APP"/*.3105)
+if (( ${#packages[@]} == 0 )); then
+  echo "Error: no .3105 patch packages were copied into the archived app." >&2
+  exit 1
+fi
+for package in "${packages[@]}"; do
   mv "$package" "$PATCH_DIR/"
 done
-test -n "$(find "$PATCH_DIR" -maxdepth 1 -type f -name '*.3105' -print -quit)"
+shopt -u nullglob
 
-# Xcode can omit these keys from the processed plist in the unsigned archive.
+for required in \
+  'HOLOGRAMAARMAS.3105' \
+  'HSPESSCOSO.3105' \
+  'HS SLA PECHO.3105'; do
+  if [[ ! -f "$PATCH_DIR/$required" ]]; then
+    echo "Error: required patch package is missing from the app: $required" >&2
+    exit 1
+  fi
+done
+
+# Xcode can omit these keys from the processed plist in an unsigned archive.
 # eSign importers use them to identify the executable app bundle.
 plutil -replace CFBundleExecutable -string 3105 "$APP/Info.plist"
 plutil -replace CFBundlePackageType -string APPL "$APP/Info.plist"
@@ -50,5 +71,5 @@ cp -R "$APP" "$BUILD_DIR/Payload/"
   rm -rf Payload
 )
 
-echo "Unsigned archive: $ARCHIVE"
-echo "Unsigned IPA:     $IPA"
+printf 'Unsigned archive: %s\n' "$ARCHIVE"
+printf 'Unsigned IPA:     %s\n' "$IPA"

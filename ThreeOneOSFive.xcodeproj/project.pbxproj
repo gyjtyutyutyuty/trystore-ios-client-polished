@@ -165,16 +165,16 @@
 		3105A122 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 3105A123 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-			3105P112 /* PatchActivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchActivated.mp3; sourceTree = "<group>"; };
-			3105P113 /* PatchDeactivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchDeactivated.mp3; sourceTree = "<group>"; };
+			3105P112 /* PatchActivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchActivated.mp3; sourceTree = SOURCE_ROOT; };
+			3105P113 /* PatchDeactivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchDeactivated.mp3; sourceTree = SOURCE_ROOT; };
 
-		3105P301 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = "<group>"; };
-		3105P302 /* NECK.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/NECK.3105; sourceTree = "<group>"; };
-		3105P303 /* HSPESSCOSO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSPESSCOSO.3105; sourceTree = "<group>"; };
-		3105P304 /* HS SLA PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HS SLA PECHO.3105"; sourceTree = "<group>"; };
-		3105P305 /* HOLOGRAMAARMAS.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAARMAS.3105; sourceTree = "<group>"; };
-		3105P306 /* HOLOGRAMAPERSONAJE.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAPERSONAJE.3105; sourceTree = "<group>"; };
-		3105P307 /* SilentAim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/SilentAim.3105; sourceTree = "<group>"; };
+		3105P301 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = SOURCE_ROOT; };
+		3105P302 /* NECK.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/NECK.3105; sourceTree = SOURCE_ROOT; };
+		3105P303 /* HSPESSCOSO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSPESSCOSO.3105; sourceTree = SOURCE_ROOT; };
+		3105P304 /* HS SLA PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HS SLA PECHO.3105"; sourceTree = SOURCE_ROOT; };
+		3105P305 /* HOLOGRAMAARMAS.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAARMAS.3105; sourceTree = SOURCE_ROOT; };
+		3105P306 /* HOLOGRAMAPERSONAJE.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAPERSONAJE.3105; sourceTree = SOURCE_ROOT; };
+		3105P307 /* SilentAim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/SilentAim.3105; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
