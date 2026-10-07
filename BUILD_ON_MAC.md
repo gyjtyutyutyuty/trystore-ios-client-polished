@@ -12,7 +12,7 @@ Use a Mac with:
 
 - macOS and Xcode installed;
 - iOS platform components installed through Xcode;
-- Rust and the iOS Rust targets available only if you intend to rebuild Airlift;
+- Rust and the iOS Rust targets available if you intend to rebuild Airlift (Codemagic installs stable Rust automatically when it is missing);
 - the project copied to a writable local folder.
 
 ## Build commands
