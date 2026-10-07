@@ -389,18 +389,25 @@ private struct FreeFirePatchView: View {
         let names = game.locationProjectNames
         var seen: Set<UUID> = []
         return names.compactMap { name in
+            let expectedName = normalizedLocationProjectName(name)
             guard let match = store.items.first(where: { item in
                 let currentName = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
-                let normalizedName = currentName.lowercased()
-                let aliasSet = [name.lowercased(), name.replacingOccurrences(of: " ", with: "").lowercased()]
-                return aliasSet.contains(normalizedName)
-                    || normalizedName == name.lowercased().replacingOccurrences(of: " ", with: "")
-                    || normalizedName == "chamskhongmau"
-                    || normalizedName == "dinhviblue"
+                return normalizedLocationProjectName(currentName) == expectedName
             }) else { return nil }
             if seen.insert(match.id).inserted { return match }
             return nil
         }
+    }
+
+    private func normalizedLocationProjectName(_ name: String) -> String {
+        let latinized = name
+            .replacingOccurrences(of: "Đ", with: "D")
+            .replacingOccurrences(of: "đ", with: "d")
+        let folded = latinized.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        return String(folded.filter { $0.isLetter || $0.isNumber })
     }
 
     // MARK: - Display Name

@@ -320,6 +320,10 @@ enum PatchTransaction {
         remoteReader: RemoteReader? = nil,
         fileManager: FileManager = .default
     ) throws {
+        guard (remoteWriter == nil) == (remoteReader == nil) else {
+            throw PatchPackageError.restoreFailed
+        }
+
         var journal: Journal
         do {
             journal = try readJournal(receipt.journalURL)
@@ -435,12 +439,12 @@ enum PatchTransaction {
             }
 
             if requirePatchedDigest {
-                if let remoteReader, remoteWriter == nil {
+                if let remoteReader {
                     guard digest(try remoteReader(record.bundleID, record.relativePath))
                             == record.replacementDigest else {
                         throw PatchPackageError.restoreFailed
                     }
-                } else if remoteWriter == nil {
+                } else {
                     guard fileManager.fileExists(atPath: target.path),
                           try digestFile(target) == record.replacementDigest else {
                         throw PatchPackageError.restoreFailed

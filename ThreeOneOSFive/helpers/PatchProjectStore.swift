@@ -61,7 +61,6 @@ enum FreeFireGame: Hashable {
                 BundledPatch(resourceName: "UnlockFPS144", projectName: "Unlock FPS 144", password: "alpha_fps"),
                 BundledPatch(resourceName: "ChamsHoloTim", projectName: "Chams + Holo tím", password: "james"),
                 BundledPatch(resourceName: "ChamsKhongMau", projectName: "Chams Không màu", password: "james"),
-                BundledPatch(resourceName: "DinhViBlue", projectName: "Định vị blue", password: "james"),
                 BundledPatch(resourceName: "DinhVi", projectName: "Định Vị", password: nil),
                 BundledPatch(resourceName: "ModSkinGojo", projectName: "Mod Skin Gojo", password: "YaBaor")
             ]
@@ -345,7 +344,7 @@ final class PatchProjectStore: ObservableObject {
                "Aim Head Free Fire", "Aim Magic Free Fire", "Unlock FPS 144":
             return .aim
         case "Súng Trắng", "Chạm Đỏ", "Chams + Holo tím", "Chams Không màu",
-             "ChamsKhongMau", "Định vị blue", "DinhViBlue":
+             "ChamsKhongMau", "Định vị blue", "DinhViBlue", "Định Vị":
             return .location
         case "Mod Skin Gojo":
             return .skin
