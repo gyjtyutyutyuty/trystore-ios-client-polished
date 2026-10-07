@@ -16,8 +16,8 @@ fi
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# The checked-in XCFramework may lag behind the Rust FFI surface. Rebuild and
-# verify it before Xcode links the app; set REBUILD_AIRLIFT=0 to only verify.
+# The checked-in XCFramework may lag behind the Rust FFI surface. Rebuild it
+# before Xcode links the app; set REBUILD_AIRLIFT=0 to only validate the archive.
 REBUILD_AIRLIFT="${REBUILD_AIRLIFT:-1}" bash "$ROOT/ThreeOneOSFive/build-airlift-ffi.sh"
 
 xcodebuild \

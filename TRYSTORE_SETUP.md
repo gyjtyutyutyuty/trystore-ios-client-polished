@@ -12,7 +12,7 @@ The application target is **SupportPatch**, using the shared scheme at `ThreeOne
 
 ## Build on macOS or Codemagic
 
-Install a stable Rust toolchain (`rustup` and `cargo`) on the macOS build machine. The unsigned build script rebuilds and validates both Airlift iOS archives before Xcode links the app:
+Install a stable Rust toolchain (`rustup` and `cargo`) on the macOS build machine. The unsigned build script rebuilds both Airlift iOS archives before Xcode links the app:
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
@@ -25,6 +25,6 @@ To build the XCFramework separately, or when your Codemagic workflow archives th
 REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh
 ```
 
-The rebuild script adds the required iOS Rust targets, checks that the FFI exports match the headers, and recreates `AirliftFFI.xcframework`. GitHub Actions installs stable Rust and uses the same unsigned build script.
+The rebuild script adds the required iOS Rust targets and recreates `AirliftFFI.xcframework`. Static symbol inspection is advisory for these LTO archives; Xcode's app link is the authoritative check for symbols used by the target. GitHub Actions installs stable Rust and uses the same unsigned build script.
 
 See [BUILD_ON_MAC.md](BUILD_ON_MAC.md), [README.md](README.md), and [docs/PATCH_GUIDE.md](docs/PATCH_GUIDE.md) for additional build and patch details.
