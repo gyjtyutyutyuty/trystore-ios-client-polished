@@ -1,43 +1,40 @@
 workflows:
-  trystore_unsigned_ipa:
-    name: TryStore unsigned IPA
+  supportpatch_unsigned_ipa:
+    name: SupportPatch unsigned IPA
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       xcode: latest
     scripts:
-      - name: Validate project, shared scheme, and bundled patches
+      - name: Validate merged project and current patch assets
         script: |
           set -euo pipefail
           echo "Building commit: $(git rev-parse HEAD)"
           test -f ThreeOneOSFive.xcodeproj/project.pbxproj
-          test -f ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/3105.xcscheme
-          test -f ThreeOneOSFive/Patches/HOLOGRAMAARMAS.3105
-          test -f ThreeOneOSFive/Patches/HSPESSCOSO.3105
-          test -f "ThreeOneOSFive/Patches/HS SLA PECHO.3105"
-          grep -n 'sourceTree = SOURCE_ROOT' ThreeOneOSFive.xcodeproj/project.pbxproj
-          find ThreeOneOSFive/Patches -maxdepth 1 -type f -name '*.3105' -print
-          xcodebuild -project ThreeOneOSFive.xcodeproj -scheme 3105 -list
-      - name: Build unsigned archive and IPA
+          test -f ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme
+          test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64/libairlift_ffi.a
+          test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64-simulator/libairlift_ffi.a
+          test -n "$(find ThreeOneOSFive/Assets.xcassets -type f -name '*.bin' -print -quit)"
+          test "$(find . -type f -name '*.3105' | wc -l | tr -d ' ')" -eq 0
+          xcodebuild -project ThreeOneOSFive.xcodeproj -scheme SupportPatch -list
+      - name: Build Airlift FFI and unsigned archive/IPA
         script: |
           set -euo pipefail
-          chmod +x ./build_unsigned.sh
+          chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
+          ./ThreeOneOSFive/build-airlift-ffi.sh
           mkdir -p /tmp/xcodebuild_logs
-          ./build_unsigned.sh 2>&1 | tee /tmp/xcodebuild_logs/build.log
+          ./build_supportpatch_unsigned.sh 2>&1 | tee /tmp/xcodebuild_logs/build.log
       - name: Verify unsigned IPA contents
         script: |
           set -euo pipefail
-          test -s build/3105-unsigned.ipa
-          rm -rf /tmp/trystore-ipa-check
-          mkdir -p /tmp/trystore-ipa-check
-          unzip -q build/3105-unsigned.ipa -d /tmp/trystore-ipa-check
-          APP="/tmp/trystore-ipa-check/Payload/3105.app"
-          test -x "$APP/3105"
+          test -s build/SupportPatch-unsigned.ipa
+          rm -rf /tmp/supportpatch-ipa-check
+          mkdir -p /tmp/supportpatch-ipa-check
+          unzip -q build/SupportPatch-unsigned.ipa -d /tmp/supportpatch-ipa-check
+          APP="/tmp/supportpatch-ipa-check/Payload/SupportPatch.app"
+          test -x "$APP/SupportPatch"
           test -f "$APP/Info.plist"
-          test -f "$APP/Patches/HOLOGRAMAARMAS.3105"
-          test -f "$APP/Patches/HSPESSCOSO.3105"
-          test -f "$APP/Patches/HS SLA PECHO.3105"
     artifacts:
-      - build/3105-unsigned.ipa
-      - build/3105.xcarchive
+      - build/SupportPatch-unsigned.ipa
+      - build/SupportPatch.xcarchive
       - /tmp/xcodebuild_logs/*.log

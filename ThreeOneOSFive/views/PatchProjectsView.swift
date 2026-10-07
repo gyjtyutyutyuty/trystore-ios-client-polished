@@ -14,29 +14,6 @@ struct PatchProjectsView: View {
     @StateObject private var store = PatchProjectStore()
     @State private var showCreate = false
     @State private var showImporter = false
-    @State private var searchText = ""
-
-    private var filteredItems: [PatchLibraryItem] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return store.items }
-        return store.items.filter { item in
-            if item.packageURL.lastPathComponent.localizedCaseInsensitiveContains(query) {
-                return true
-            }
-            guard let project = item.project else { return false }
-            return project.name.localizedCaseInsensitiveContains(query)
-                || project.allBundleIdentifiers.contains {
-                    $0.localizedCaseInsensitiveContains(query)
-                }
-                || project.directories.contains {
-                    $0.relativePath.localizedCaseInsensitiveContains(query)
-                }
-                || project.rules.contains {
-                    $0.relativePath.localizedCaseInsensitiveContains(query)
-                        || $0.replacementFilename.localizedCaseInsensitiveContains(query)
-                }
-        }
-    }
 
     init() {
 #if targetEnvironment(simulator)
@@ -48,38 +25,26 @@ struct PatchProjectsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                AppSearchField(
-                    text: $searchText,
-                    prompt: language.text("patch.search"),
-                    clearLabel: language.text("common.clear")
-                )
-                Divider()
-                List {
-                    if store.items.isEmpty && !store.isBusy {
-                        emptyState
-                            .listRowSeparator(.hidden)
-                    } else if filteredItems.isEmpty && !store.isBusy {
-                        searchEmptyState
-                            .listRowSeparator(.hidden)
-                    } else {
-                        ForEach(filteredItems) { item in
-                            itemRow(item)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .fill(AppTheme.referenceCard)
-                                        .padding(.vertical, 5)
-                                )
-                        }
-                        .onDelete { offsets in
-                            offsets.map { filteredItems[$0] }.forEach(store.delete)
+            ScrollView {
+                if store.items.isEmpty && !store.isBusy {
+                    emptyState
+                        .frame(maxWidth: .infinity)
+                } else {
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(), spacing: 14),
+                            GridItem(.flexible(), spacing: 14)
+                        ],
+                        spacing: 14
+                    ) {
+                        ForEach(store.items) { item in
+                            itemTile(item)
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
                 }
-                .listStyle(.insetGrouped)
             }
-            .navigationTitle(language.text("patch.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -164,18 +129,29 @@ struct PatchProjectsView: View {
     }
 
     @ViewBuilder
-    private func itemRow(_ item: PatchLibraryItem) -> some View {
+    private func itemTile(_ item: PatchLibraryItem) -> some View {
         if item.isLocked {
             Button { store.requestUnlock(for: item) } label: {
-                PatchProjectRow(item: item, language: language)
+                PatchProjectTile(item: item, language: language)
             }
             .buttonStyle(.plain)
+            .contextMenu { deleteButton(for: item) }
         } else {
             NavigationLink {
                 PatchProjectDetailView(store: store, projectID: item.id)
             } label: {
-                PatchProjectRow(item: item, language: language)
+                PatchProjectTile(item: item, language: language)
             }
+            .contextMenu { deleteButton(for: item) }
+        }
+    }
+
+    @ViewBuilder
+    private func deleteButton(for item: PatchLibraryItem) -> some View {
+        Button(role: .destructive) {
+            store.delete(item)
+        } label: {
+            Label(language.text("browser.delete"), systemImage: "trash")
         }
     }
 
@@ -198,34 +174,24 @@ struct PatchProjectsView: View {
         .padding(.vertical, 64)
     }
 
-    private var searchEmptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: AppTheme.emptyIconSize, weight: .light))
-                .foregroundStyle(.secondary)
-            Text(language.text("patch.search_empty"))
-                .font(.headline)
-            Text(language.text("patch.search_empty_message"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 64)
-    }
 }
 
-private struct PatchProjectRow: View {
+private struct PatchProjectTile: View {
     let item: PatchLibraryItem
     let language: AppLanguage
 
     var body: some View {
-        HStack(spacing: 12) {
-                Image(systemName: item.isLocked ? "lock.doc.fill" : "puzzlepiece.fill")
-            VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 10) {
+            AppRowIcon(
+                systemName: item.isLocked ? "lock.doc.fill" : "shippingbox.fill",
+                symbolSize: 22,
+                frameSize: 44
+            )
+            VStack(alignment: .leading, spacing: 5) {
                 Text(item.project?.name ?? language.text("patch.locked_project"))
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
+                    .lineLimit(2)
                 Text(item.isLocked
                      ? language.text("patch.tap_to_unlock")
                      : language.text(
@@ -234,8 +200,9 @@ private struct PatchProjectRow: View {
                      ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
-            Spacer()
+            Spacer(minLength: 0)
             if item.summary.isPasswordProtected {
                 Image(systemName: "key.fill")
                     .font(.caption)
@@ -243,7 +210,15 @@ private struct PatchProjectRow: View {
                     .accessibilityLabel(language.text("patch.password_protected"))
             }
         }
-        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(14)
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        }
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 
@@ -293,7 +268,7 @@ private struct PatchUnlockView: View {
     }
 }
 
-private struct PatchProjectDetailView: View {
+struct PatchProjectDetailView: View {
     @Environment(\.appLanguage) private var language
     @ObservedObject var store: PatchProjectStore
     let projectID: UUID
@@ -420,15 +395,37 @@ private struct PatchProjectDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if isWorking {
+                GeometryReader { geometry in
+                    ZStack {
+                        Color.black.opacity(0.08)
+                        VStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.large)
+                            Text(language.text("patch.operation_in_progress"))
+                                .font(.footnote)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 220)
+                        }
+                        .fixedSize(horizontal: true, vertical: true)
+                        .padding(16)
+                        .background(
+                            .regularMaterial,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                }
+            }
+        }
         .navigationTitle(item?.project?.name ?? language.text("patch.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                if isWorking {
-                    ProgressView()
-                } else if !isWorkspaceProject {
+                if !isWorkspaceProject {
                     Button(language.text("patch.edit")) { showEditor = true }
-                        .disabled(item?.project == nil)
+                        .disabled(isWorking || item?.project == nil)
                 }
             }
         }

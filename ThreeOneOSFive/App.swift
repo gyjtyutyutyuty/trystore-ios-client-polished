@@ -1,22 +1,37 @@
 import SwiftUI
 import UIKit
 
+@_silgen_name("ALGetGrappaToken")
+private func retainGrappaTokenSymbol(
+    _ version: UInt32,
+    _ deviceType: UInt32,
+    _ protocolVersion: UInt32,
+    _ output: UnsafeMutablePointer<UInt8>?,
+    _ maximumLength: Int,
+    _ outputLength: UnsafeMutablePointer<Int>?,
+    _ errorBuffer: UnsafeMutablePointer<CChar>?,
+    _ errorLength: Int
+) -> Int32
+
 @main
 struct ThreeOneOSFiveApp: App {
-    @UIApplicationDelegateAdaptor(ThreeOneOSFiveAppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
-    @StateObject private var licenseManager = LicenseManager()
-    @AppStorage("trystore.hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("trystore.themeMode") private var themeMode = "dark"
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
-    @StateObject private var fileOperationCoordinator = FileOperationCoordinator();
+    @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+    @State private var showOnboarding = OnboardingStore.shouldShow()
+    @State private var showAttribution = false
     @State private var updateOffer: AppUpdateChecker.Offer?
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        _ = retainGrappaTokenSymbol(0, 0, 0, nil, 0, nil, nil, 0)
         setupLogCapture()
-        log("app: 3105 launching — iOS \(AppInfo.osVersion) (\(AppInfo.osBuild)) \(AppInfo.machineName)")
+        PairingController.removeLegacyTransportLogs()
+        SecuritySuiteProbe.denyDebugger()
+        ["activation_granted", "activation_account", "activation_password", "activation_uuid", "activation_expires_at"]
+            .forEach(UserDefaults.standard.removeObject(forKey:))
+        log("app: Support Patch launching — iOS \(AppInfo.osVersion) (\(AppInfo.osBuild)) \(AppInfo.machineName)")
     }
 
     private var language: AppLanguage {
@@ -33,18 +48,40 @@ struct ThreeOneOSFiveApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if !hasCompletedOnboarding {
-                    OnboardingView { hasCompletedOnboarding = true }
+                if appState.securityBlocked {
+                    SecurityBlockView(reason: appState.securityMessage)
                 } else {
-                    ContentView()
-                        .environmentObject(licenseManager)
+                    ZStack {
+                        ContentView()
+                            .environmentObject(appState)
+                            .environmentObject(patchDraftCoordinator)
+                            .environmentObject(fileOperationCoordinator)
+                            .environment(\.appLanguage, language)
+                            .environment(\.locale, language.locale)
+                            .opacity(showOnboarding ? 0 : 1)
+                            .allowsHitTesting(!showOnboarding)
+
+                        if showOnboarding {
+                            OnboardingView {
+                                OnboardingStore.markCompleted()
+                                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                                    showOnboarding = false
+                                }
+                                appState.detectSupport()
+                                checkForUpdate()
+                            }
+                            .environment(\.appLanguage, language)
+                            .environment(\.locale, language.locale)
+                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                            .zIndex(1)
+                        }
+                    }
                 }
             }
-                .environmentObject(appState)
-                .environmentObject(patchDraftCoordinator)
-                .environmentObject(fileOperationCoordinator)
-                .environment(\.appLanguage, language)
-                .environment(\.locale, language.locale)
+            .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding)
+            .sheet(isPresented: $showAttribution) {
+                DisplayAttributionSheet()
+            }
             .alert(item: $updateOffer) { offer in
                 Alert(
                     title: Text(language.text("update.title")),
@@ -57,28 +94,53 @@ struct ThreeOneOSFiveApp: App {
                     }
                 )
             }
-                .onAppear {
-                    licenseManager.beginLaunchSession()
-                    appState.detectSupport()
-                    checkForUpdate()
-                }
-            .onChange(of: scenePhase) { phase in
-                guard phase == .active else { return }
-                licenseManager.beginLaunchSession()
-                appState.detectSupport()
-            }
             .onOpenURL { url in
                 patchDraftCoordinator.presentImport(url)
             }
-            .preferredColorScheme(.dark)
+            .onAppear {
+                appState.evaluateRuntimeSecurity()
+                if !showOnboarding {
+                    appState.detectSupport()
+                    checkForUpdate()
+                }
+            }
+            .onChange(of: scenePhase) { phase in
+                guard phase == .active else { return }
+                appState.evaluateRuntimeSecurity()
+                guard !showOnboarding else { return }
+                appState.detectSupport()
+            }
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    guard scenePhase == .active else { continue }
+                    appState.evaluateRuntimeSecurity()
+                }
+            }
         }
     }
 }
 
-final class ThreeOneOSFiveAppDelegate: NSObject, UIApplicationDelegate {
-    func applicationWillTerminate(_ application: UIApplication) {
-        let restored = DevicePatchService.restoreAllExistingReceipts()
-        log("patch: app termination restored \(restored) active receipt(s)")
+struct SecurityBlockView: View {
+    let reason: String
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundStyle(.red)
+                Text("Ứng dụng đã bị khóa")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                Text(reason)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .frame(maxWidth: 420)
+            }
+            .padding(24)
+        }
     }
 }
 
@@ -86,18 +148,9 @@ class AppState: ObservableObject {
     @Published var exploitStatus: ExploitStatus = .notStarted
     @Published var unsupportedMessage: String?
     @Published var kernelExploitRunning = false
-    @Published private(set) var integrityStatus: DeviceIntegrityReport.Status = .trusted
-    @Published private(set) var integrityCheckedAt: Date?
-    @Published private(set) var isReconcilingPatches = false
-
+    @Published var securityBlocked = false
+    @Published var securityMessage = ""
     private var autoRunAttempted = false
-
-    var canUseProtectedFeatures: Bool {
-        isSupported && integrityStatus.isTrusted
-    }
-
-    var integrityLabel: String { integrityStatus.label }
-    var integrityDetail: String { integrityStatus.detail }
 
     var kernelExploitApplicable: Bool {
         KernelExploit.isApplicable(
@@ -110,33 +163,23 @@ class AppState: ObservableObject {
 
     var isSupported: Bool { unsupportedMessage == nil }
 
-    @MainActor
-    func reconcilePatchesIfNeeded(licenseManager: LicenseManager) {
-        guard (licenseManager.requiresPatchRestore || licenseManager.isExpired), !isReconcilingPatches else { return }
-        isReconcilingPatches = true
-        log("patch: reconciling existing receipts before protected access")
-        DispatchQueue.global(qos: .userInitiated).async {
-            let restored = DevicePatchService.restoreAllExistingReceipts()
-            DispatchQueue.main.async {
-                self.isReconcilingPatches = false
-                if restored > 0 {
-                    licenseManager.markPatchRestoreCompleted()
-                    log("patch: launch reconciliation restored \(restored) receipt(s)")
-                } else {
-                    log("patch: launch reconciliation found no restorable receipts")
-                }
-            }
+    func evaluateRuntimeSecurity() {
+        switch RuntimeProbe.currentState() {
+        case .ok, .unavailable:
+            securityBlocked = false
+            securityMessage = ""
+        case .blockedByDebug:
+            securityBlocked = true
+            securityMessage = "Debugger đang được phát hiện."
+        case .blockedBySimulator:
+            securityBlocked = true
+            securityMessage = "Môi trường giả lập không được phép chạy phiên bản này."
         }
     }
 
     func detectSupport() {
-        let integrity = DeviceIntegrityReport.evaluate()
-        integrityStatus = integrity.status
-        integrityCheckedAt = integrity.checkedAt
-        if !integrity.status.isTrusted {
-            log("security: protected actions blocked — \(integrity.status.detail)")
-        }
-
+        evaluateRuntimeSecurity()
+        if securityBlocked { return }
         let v = AppInfo.versionTuple
         let supported = ExploitSupportPolicy.isSupported(
             major: v.major,
@@ -169,10 +212,6 @@ class AppState: ObservableObject {
     }
 
     private func maybeAutoRunKernelExploit() {
-        guard UIDevice.current.userInterfaceIdiom != .pad else {
-            log("app: iPad safety mode — automatic kernel exploit disabled")
-            return
-        }
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,
               !exploitStatus.isFailed,
@@ -201,10 +240,6 @@ class AppState: ObservableObject {
     }
 
     func runKernelExploitIfNeeded() {
-        guard UIDevice.current.userInterfaceIdiom != .pad else {
-            log("app: iPad safety mode — kernel exploit request blocked")
-            return
-        }
         refreshKernelExploitStatus()
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,

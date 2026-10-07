@@ -1,40 +1,23 @@
-# 3105 TryStore build
+# SupportPatch project setup
 
-This repository keeps the full **3105** application GUI and document workflow. It uses the original bundle identifier `com.apple.mobile.MobileHouseArrest`, preserves `.3105` document import/export, Files sharing, and the `threeoneosfive://` import URL, and applies TryStore branding through the in-app name, artwork, theme, and app icon.
+The repository now uses the uploaded `test1-main` project as its source of truth. The application target is **SupportPatch**, with the shared scheme at `ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme`.
 
-## Compatibility and patch visibility
+## Included in the merge
 
-The full 3105 interface remains available, including the Patch and Files workflows, settings, cleaner, wallpaper tools, and compatibility diagnostics. The compatibility screen reports the detected iOS version/build, device identity, integrity state, and whether the protected device-level features are supported. Patch projects and bundled packages remain inspectable through the normal 3105 patch UI; unsupported package formats and incompatible device states are reported instead of being silently applied.
+- SupportPatch GUI and Files/patch-workspace flows under `ThreeOneOSFive/`.
+- Airlift FFI XCFramework at `ThreeOneOSFive/AirliftFFI.xcframework`.
+- Reproducible Airlift Rust-core build script at `ThreeOneOSFive/build-airlift-ffi.sh`.
+- Current bundled patch datasets under `ThreeOneOSFive/Assets.xcassets/**/*.dataset/*.bin`.
+- Encrypted `.3105` package import/export for user-created patch projects.
 
-The requested TryStore packages are bundled in `ThreeOneOSFive/Patches/` and registered as application resources:
-
-- `HOLOGRAMAARMAS.3105`
-- `HSPESSCOSO.3105`
-- `HS SLA PECHO.3105`
-
-The source project also contains the other original 3105/TryStore bundled resources already present in the full GUI build.
-
-## TryStore Cloudflare license API
-
-The license manager uses the published TryStore Cloudflare validation endpoint:
-
-`https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate`
-
-It sends the entered key, a device identifier, app version, and project ID `trystore`. The server response is interpreted using the existing `valid`, `outcome`, and `expiresAt` contract. The active license token and expiration are stored in the iOS Keychain with device-only accessibility. No Cloudflare administration credentials are embedded in the app.
-
-A key must be active and issued for the `trystore` project. An invalid, expired, revoked, frozen, or wrong-project key is correctly rejected by the server and shown in the app as an inactive key state.
+Legacy root GUI files, old standalone `.3105` binaries, and their build checks were removed. The CI workflow now validates the SupportPatch target, Airlift framework, current `.bin` datasets, and absence of legacy bundled `.3105` files.
 
 ## Build
 
-Codemagic uses the shared `3105` scheme and `build_unsigned.sh` to create `build/3105-unsigned.ipa`. The workflow validates the project, patch resources, Cloudflare configuration, and final IPA contents before publishing the IPA and archive as artifacts.
+```bash
+chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
+./ThreeOneOSFive/build-airlift-ffi.sh
+./build_supportpatch_unsigned.sh
+```
 
-## Documentation
-
-- [English README](README.md)
-- [Vietnamese README](README.vi.md)
-- [Patch workspace guide](docs/PATCH_GUIDE.md)
-- [Vietnamese patch workspace guide](docs/PATCH_GUIDE.vi.md)
-- [eSign setup](docs/ESIGN_SETUP.md)
-- [Documentation index](docs/DOCUMENTATION_INDEX.md)
-
-The archive’s broader device-management and exploit-oriented material is not part of the TryStore workflow. TryStore preserves the GUI and document workflow described above and limits its replacement action to the user-selected cosmetic asset.
+See [BUILD_ON_MAC.md](BUILD_ON_MAC.md), [README.md](README.md), and [docs/PATCH_GUIDE.md](docs/PATCH_GUIDE.md) for the complete workflow.

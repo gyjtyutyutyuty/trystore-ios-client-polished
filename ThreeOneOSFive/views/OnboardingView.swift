@@ -1,7 +1,7 @@
 import SwiftUI
 
 private enum OnboardingStep: Int, CaseIterable {
-    case language = 0, versions, install
+    case language = 0, welcome, versions, install
 
     var next: OnboardingStep? { Self(rawValue: rawValue + 1) }
     var prev: OnboardingStep? { Self(rawValue: rawValue - 1) }
@@ -72,6 +72,7 @@ struct OnboardingView: View {
     private func page(for s: OnboardingStep) -> some View {
         switch s {
         case .language: languagePage
+        case .welcome: welcomePage
         case .versions: versionsPage
         case .install: installPage
         }
@@ -137,6 +138,41 @@ struct OnboardingView: View {
         }
     }
 
+    private var welcomePage: some View {
+        VStack(spacing: 18) {
+            Spacer(minLength: 10)
+             ZStack {
+                 RoundedRectangle(cornerRadius: 10, style: .continuous)
+                     .fill(Color(uiColor: .secondarySystemBackground))
+                     .overlay(
+                         RoundedRectangle(cornerRadius: 10, style: .continuous)
+                             .stroke(AppTheme.accent.opacity(0.3), lineWidth: 1)
+                     )
+                     .frame(width: 72, height: 72)
+                 Image(systemName: "sparkles")
+                     .font(.system(size: 30, weight: .medium))
+                     .foregroundStyle(AppTheme.accent)
+             }
+            VStack(spacing: 10) {
+                Text(language.text("onboarding.welcome_title"))
+                    .font(.title2.weight(.bold))
+                    .multilineTextAlignment(.center)
+                Text(language.text("onboarding.welcome_message"))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+            Label(language.text("onboarding.welcome_badge"), systemImage: "checkmark.seal.fill")
+                 .font(.footnote.weight(.semibold))
+                 .foregroundStyle(AppTheme.accent)
+                 .padding(.horizontal, 14)
+                 .padding(.vertical, 8)
+                 .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Spacer(minLength: 10)
+        }
+    }
+
     private var versionsPage: some View {
         VStack(spacing: 16) {
             Spacer(minLength: 8)
@@ -163,28 +199,17 @@ struct OnboardingView: View {
                     .padding(.horizontal, 22)
             }
             VStack(alignment: .leading, spacing: 10) {
-                versionRow(icon: "checkmark.circle.fill", title: "iOS 17", value: ExploitSupportPolicy.verifiedIOS17Range, color: .green)
-                versionRow(icon: "checkmark.circle.fill", title: "iOS 18", value: ExploitSupportPolicy.verifiedIOS18Range, color: .green)
-                versionRow(icon: "checkmark.circle.fill", title: "iOS 26", value: ExploitSupportPolicy.verifiedIOS26Range, color: .green)
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                        Text("iOS 27.0").font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Text(language.text("onboarding.beta")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    }
-                    ForEach(ExploitSupportPolicy.verifiedIOS27Builds, id: \.build) { v in
-                        HStack {
-                            Text("Beta \(v.beta)" + (v.publicBeta.map { " / Public \($0)" } ?? ""))
-                                .font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                            Spacer()
-                            Text(v.build).font(.caption.monospaced()).foregroundStyle(.secondary)
-                        }
-                        .padding(.leading, 24)
-                    }
+                ForEach(ExploitSupportPolicy.supportedMajorVersions, id: \.self) { major in
+                    versionRow(
+                        icon: "checkmark.circle.fill",
+                        title: "iOS \(major)",
+                        value: language.text(
+                            "onboarding.build_count",
+                            "\(ExploitSupportPolicy.buildCount(forMajor: major))"
+                        ),
+                        color: .green
+                    )
                 }
-                .padding(12)
-                 .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .padding(.horizontal, 20)
             Text(language.text("onboarding.versions_footer", AppInfo.osVersion, AppInfo.osBuild))
@@ -224,7 +249,6 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 installBullet(icon: "checkmark.seal.fill", text: language.text("onboarding.install_ok"), color: .green)
                 installBullet(icon: "xmark.octagon.fill", text: language.text("onboarding.install_bad"), color: .red)
-                installBullet(icon: "exclamationmark.triangle.fill", text: language.text("onboarding.install_jailbreak"), color: .orange)
             }
             .padding(14)
              .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))

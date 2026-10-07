@@ -1,88 +1,124 @@
-# TryStore — Cosmetic Chest Preview
+<p align="center">
+  <img src="docs/images/app-icon.png" width="132" alt="SupportPatch app icon">
+</p>
 
-This revision turns the supplied 3105 project into a normal SwiftUI iOS app with a Files/document-picker workflow.
+<h1 align="center">SupportPatch</h1>
 
-## Included
+<p align="center">
+  A native iOS workspace for app-container files, portable patches, limited cleanup, and PosterBoard wallpaper packages.
+</p>
 
-- Lion-themed `IMG_0022.jpeg` artwork as the visual theme.
-- Lion artwork installed as the 1024×1024 app icon.
-- Supplied `cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D` bundled as an app resource.
-- Two user-owned profile labels:
-  - `com.dts.freefiremax`
-  - `com.dts.freefireth`
-- `Aim Chest` cosmetic-only control.
-- Document Picker folder access with security-scoped bookmarks.
-- Relative-path validation rejecting empty components, `.`, `..`, `/`, and `\\`.
-- Symlink rejection for the selected root and target path.
-- Backup before replacement.
-- Staged copy plus atomic rename.
-- SHA-256 verification after replacement.
-- Automatic rollback from the backup when replacement or verification fails.
+<p align="center">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0-E6753A?style=flat-square">
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-17.0–18.7.1%20%7C%2026.0–26.6.1%20%7C%2027%20beta%201–4-222222?style=flat-square">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-5-F05138?style=flat-square&logo=swift&logoColor=white">
+  <img alt="Languages" src="https://img.shields.io/badge/languages-English%20%7C%20Tiếng%20Việt%20%7C%20简体中文-E6753A?style=flat-square">
+</p>
 
-## Test1 project documents
-The compatible documentation supplied in `test1-main.zip` is linked under [Test1 project documentation reference](docs/test1-reference/README.md). The links cover the archive changelog, notices, patch guides, and release notes while keeping TryStore’s existing GUI and workflow.
+<p align="center">
+  <a href="README.vi.md">Tiếng Việt</a> ·
+  <a href="docs/PATCH_GUIDE.md">Patch guide</a> ·
+  <a href="#compatibility">Compatibility</a> ·
+  <a href="#license">License</a>
+</p>
 
-## Patch workspace documentation
-The full TryStore GUI and workflow are preserved. The archive’s compatible patch-workspace documentation is available here:
+> [!WARNING]
+> SupportPatch is research software for personal device management. Keep a backup and use it only on devices and data you own. Simulator screenshots demonstrate UI only; they do not verify device-level access.
 
-- [Patch workspace guide](docs/PATCH_GUIDE.md)
-- [Hướng dẫn workspace bằng tiếng Việt](docs/PATCH_GUIDE.vi.md)
-- [TryStore 1.0.1 release notes](docs/releases/1.0.1.md)
+## Preview
 
-These guides cover bundle-based workspace organization, backup and restore behavior, import/export, password-protected packages, and path-safety rules. They do not change the app’s existing TryStore controls or bundled cosmetic-preview workflow.
+<p align="center">
+  <img src="docs/images/home.png" width="245" alt="3105 Home">
+  &nbsp;
+  <img src="docs/images/patches.png" width="245" alt="3105 Patches">
+</p>
 
-## Asset path
+## What's new in 1.1.0
 
-The app resolves the requested relative asset path:
+- **Broader iOS support** — verified range now includes iOS 17.0–17.7.x (kernel exploit), iOS 18.0–18.7.1 (kernel exploit), iOS 26.0–26.6.1 and iOS 27 Developer Beta 1–4 / Public Beta 1–2.
+- **Wrong-password feedback** — importing a `.3105` patch with an incorrect password now shows "Incorrect password" instead of failing silently.
+- **Onboarding for reinstalls** — onboarding reappears after overwriting the app with the same version, so fresh and overwritten installs both see the guided setup.
 
-`Documents/contentcache/Compulsory/ios/gameassetbundles/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D`
+See the complete [Patch workspace guide](docs/PATCH_GUIDE.md).
 
-If Files exposes the `Documents` directory itself, the app uses it as the root and resolves the remaining components. If Files exposes the game container root, the app resolves the full path above.
+## What's new in 1.0.1
 
-## macOS + Xcode
+- **Patch workspace v2** — build patches as a normal bundle-based directory tree under `On My iPhone/3105/Patches`; Apply and Export synchronize the workspace automatically.
+- **Safer recovery** — original files are journaled before writes; Restore puts existing files back, removes files introduced by the patch, and removes patch-created directories once empty.
+- **More capable Files tab** — independent tabs, preserved folder position, multi-selection, ZIP creation and extraction, plus a denser and more consistent grouped layout.
 
-1. Open `ThreeOneOSFive.xcodeproj` in Xcode.
-2. Select the `TryStore` target.
-3. In **Signing & Capabilities**, choose the owner's Apple Developer Team and keep automatic signing enabled.
-4. Select a physical iPhone/iPad or a generic iOS device destination.
-5. Build with **Product → Build**.
-6. For a signed archive, use **Product → Archive** and export it from Organizer with the owner's signing identity.
+See the complete [Patch workspace guide](docs/PATCH_GUIDE.md).
 
-### Unsigned archive / IPA
+## Highlights
 
-The repository includes `build_unsigned.sh`. On macOS with Xcode installed:
+- **App Data Browser** — resolves volatile container UUIDs to stable app bundle identifiers and exposes a native file workspace.
+- **File operations** — search, preview, share, import multiple files, copy, move, paste, rename, delete, create files and folders, make ZIP archives, and safely handle name conflicts.
+- **Portable `.3105` patches** — bundle-based rules survive container-ID changes between devices; projects may include files or folders, support optional password protection, and can be imported from Files or a secure website link.
+- **No jailbreak installation** — SupportPatch does not install a persistent jailbreak, bootstrap, or daemon and does not inject code into third-party apps. Because it still uses device exploits and can modify app data, no universal guarantee can be made against every app's integrity or jailbreak-detection policy.
+- **Localized interface** — English, Vietnamese, and Simplified Chinese.
 
-```bash
-chmod +x ./build_unsigned.sh
-./build_unsigned.sh
+## Compatibility
+
+SupportPatch enables device-level features only for builds explicitly verified by the project:
+
+| System | Verified range/builds |
+| --- | --- |
+| iOS 17 | 17.0 through 17.7 (kernel exploit) |
+| iOS 18 | 18.0 through 18.7.1 (kernel exploit) |
+| iOS 26 | 26.0 through 26.6.1 |
+| iOS 27 Developer Beta 1 | `24A5355q` |
+| iOS 27 Developer Beta 2 | `24A5370h` |
+| iOS 27 Developer Beta 3 / Public Beta 1 | `24A5380h` |
+| iOS 27 Developer Beta 4 / Public Beta 2 | `24A5390f` |
+| iOS 27.0 RC | `24A435` |
+| iOS 27.0 final | `24A437` |
+
+Unlisted iOS 27 builds are marked unsupported rather than assumed compatible. The iOS 17–18 kernel exploit is opt-in (manual button) because a failed exploit attempt may restart the app.
+
+## Installation notes
+
+- Device functionality requires signing with an **enterprise certificate**.
+- SideStore, AltStore, 3uTools, and LiveContainer are not supported installation paths.
+- The target bundle identifier is intentionally `com.apple.mobile.MobileHouseArrest` for legacy MHA-C2 browsing; iOS 27 patch operations resolve app containers through the pairing tunnel.
+- The source tree does not contain certificates, provisioning profiles, signed applications, or IPA files; release assets may provide an unsigned IPA.
+
+## Project layout
+
+```text
+3105/
+├── ThreeOneOSFive/          # SwiftUI app, helpers, native bridges, localizations
+├── ThreeOneOSFive.xcodeproj # Xcode project and 3105 scheme
+└── docs/images/             # Repository artwork and current UI previews
 ```
 
-It creates:
+## Security and responsible use
 
-- `build/TryStore.xcarchive`
-- `build/TryStore-unsigned.ipa`
+Do not publish logs, app containers, cookies, account databases, or patch payloads containing personal data. Report security-sensitive issues privately to the maintainer.
 
-The IPA is intentionally unsigned. This is the correct input for a re-signing utility such as **eSign**: the selected Apple certificate (`.p12`) and matching provisioning profile (`.mobileprovision`) are applied by eSign for the target device and Apple Developer account.
+## Credits
 
-To validate the package before importing it into eSign, run:
+SupportPatch is developed and designed by [Hole30601](https://t.me/hole30601).
 
-```bash
-chmod +x ./build_esign_ready_ipa.sh
-./build_esign_ready_ipa.sh
-```
+Special thanks to [0xjohnny](https://x.com/0xjohnny) for [FilzaSlop](https://github.com/0xjohnnydev/FilzaSlop) and related research:
 
-The validator confirms that the IPA contains exactly one `Payload/*.app`, has the expected executable and `Info.plist`, and does not already contain `_CodeSignature` or `embedded.mobileprovision`. Do not use an App Store-exported IPA as the input to this workflow.
+- [MobileHouseArrest-PoC](https://github.com/0xjohnnydev/MobileHouseArrest-PoC) — ContainerManager identity-trust bug
+- [Geod-MCM-PoC](https://github.com/0xjohnnydev/Geod-MCM-PoC) — `geod` MobileContainerManager `partDomain` traversal
+- [InstallCoordination-PoC](https://github.com/0xjohnnydev/InstallCoordination-PoC) — persisted-state and final-symlink chain
+- [CFPrefsZeroFile-PoC](https://github.com/0xjohnnydev/CFPrefsZeroFile-PoC) — `cfprefsd` zero-file creation
 
-### eSign installation workflow
+The project also builds on work from Pocket Poster/Nugget, CrazyMind90, forcequitOS, Dopamine, and their contributors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full attribution and upstream links.
 
-1. Build `build/TryStore-unsigned.ipa` on macOS using the command above.
-2. Transfer the IPA to the iPhone or iPad, then open it from the Files app or import it into eSign.
-3. In eSign, import the owner’s `.p12` certificate and matching `.mobileprovision` profile. The profile must authorize the app’s bundle identifier, `com.trystore.cosmeticpreview`, or the identifier must be changed during signing to one authorized by that profile.
-4. Sign the IPA without injecting additional tweaks or dynamic libraries, then install it from eSign.
-5. Trust the developer profile in **Settings → General → VPN & Device Management** if iOS requests it. Installation still depends on a valid certificate, a matching profile, registered device UDID where applicable, and the iOS version supported by that certificate/profile.
+## License
 
-The project intentionally declares no app groups, push notifications, keychain-sharing groups, extensions, background modes, or other special entitlements. Its standard Files/document-picker behavior therefore remains available after re-signing, subject to the normal iOS sandbox and profile rules.
+Original portions of SupportPatch are distributed under the [GNU General Public License v3.0](LICENSE). Third-party components remain subject to their respective upstream copyright and license terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Scope of Aim Chest
+## Project merge status
 
-`Aim Chest` only replaces the supplied cosmetic chest asset at the validated relative path. It contains no aiming logic, player targeting, recoil control, injection, jailbreak code, kernel code, sandbox escape, or third-party process modification.
+This checkout now uses the uploaded `test1-main` project as the source of truth:
+
+- the Support Patch GUI and patch-workspace flow live under `ThreeOneOSFive/`;
+- Airlift is linked through `ThreeOneOSFive/AirliftFFI.xcframework` and can be rebuilt with `ThreeOneOSFive/build-airlift-ffi.sh`;
+- legacy root-level TryStore sources and old `.3105` payloads were removed;
+- the current bundled patch resources are the `.bin` datasets in `ThreeOneOSFive/Assets.xcassets`.
+
+The application continues to use its existing path-validation, backup/restore, and package-integrity checks. It does not silently fall back to the removed legacy `.3105` files.

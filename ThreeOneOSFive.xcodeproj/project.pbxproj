@@ -10,6 +10,10 @@
 		3105A200 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A020; };
 		3105A201 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A021; };
 		3105A203 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A023; };
+		3105A242 /* ActivationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A114; };
+				3105K200 /* PairingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105K201; };
+				3105K202 /* AirliftFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3105K203; };
+				3105L200 /* GrappaHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105L201; };
 		3105A204 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A024; };
 		3105A205 /* Utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A025; };
 		3105A206 /* SBX.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A026; };
@@ -26,7 +30,6 @@
 		3105A227 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A099; };
 		3105A235 /* AppIconHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A106; };
 		3105A208 /* KernelExploit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A202; };
-		3105J200 /* AntiDetection.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105J201; };
 		3105J204 /* DisplayIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105J203; };
 		3105J206 /* DisplayIdentityAttribution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105J205; };
 		3105A236 /* ContainerIdentityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A108; };
@@ -61,8 +64,6 @@
 		3105G201 /* FileOperationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105G101; };
 		3105G202 /* ZIPArchiveExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105G102; };
 		3105G203 /* PatchWorkspaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105G103; };
-		3105K101 /* LicenseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105K100; };
-		3105K104 /* DeviceIntegrity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105K105; };
 		3105H200 /* AppTabNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105H100; };
 		3105I200 /* FilesTabControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105I100; };
 		3105I201 /* FilesTabSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105I101; };
@@ -70,20 +71,14 @@
 		3105A234 /* AppDataBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A105; };
 		3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
-				3105P212 /* PatchActivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P112; };
-				3105P213 /* PatchDeactivated.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P113; };
-
-		3105P401 /* HEAD.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P301; };
-		3105P402 /* NECK.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P302; };
-		3105P403 /* HSPESSCOSO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P303; };
-		3105P404 /* HS SLA PECHO.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P304; };
-		3105P405 /* HOLOGRAMAARMAS.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P305; };
-		3105P406 /* HOLOGRAMAPERSONAJE.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P306; };
-		3105P407 /* SilentAim.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105P307; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		3105A010 /* 3105.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "3105.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3105A010 /* SupportPatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SupportPatch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+				3105K201 /* PairingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingController.swift; sourceTree = "<group>"; };
+				3105K203 /* AirliftFFI.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = AirliftFFI.xcframework; sourceTree = "<group>"; };
+				3105L201 /* GrappaHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GrappaHelper.m; sourceTree = "<group>"; };
+				3105L202 /* GrappaHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GrappaHelper.h; sourceTree = "<group>"; };
 		3105A020 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		3105A021 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3105A023 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -119,7 +114,6 @@
 		3105A106 /* AppIconHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppIconHelper.m; sourceTree = "<group>"; };
 		3105A107 /* AppIconHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppIconHelper.h; sourceTree = "<group>"; };
 		3105A202 /* KernelExploit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KernelExploit.swift; sourceTree = "<group>"; };
-		3105J201 /* AntiDetection.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AntiDetection.m; sourceTree = "<group>"; };
 		3105J202 /* DisplayIdentity.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DisplayIdentity.h; sourceTree = "<group>"; };
 		3105J203 /* DisplayIdentity.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DisplayIdentity.m; sourceTree = "<group>"; };
 		3105J205 /* DisplayIdentityAttribution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayIdentityAttribution.swift; sourceTree = "<group>"; };
@@ -129,6 +123,7 @@
 		3105A111 /* FileManagerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerService.swift; sourceTree = "<group>"; };
 		3105A112 /* FileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserView.swift; sourceTree = "<group>"; };
 		3105A113 /* SupportPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPolicy.swift; sourceTree = "<group>"; };
+		3105A114 /* ActivationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivationGate.swift; sourceTree = "<group>"; };
 		3105B114 /* PatchProjectModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectModels.swift; sourceTree = "<group>"; };
 		3105B115 /* PatchPackageCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPackageCodec.swift; sourceTree = "<group>"; };
 		3105B116 /* PatchKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchKeyStore.swift; sourceTree = "<group>"; };
@@ -136,8 +131,6 @@
 		3105B118 /* DevicePatchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePatchService.swift; sourceTree = "<group>"; };
 		3105B119 /* PatchProjectLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectLibrary.swift; sourceTree = "<group>"; };
 		3105B120 /* PatchProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectStore.swift; sourceTree = "<group>"; };
-		3105K100 /* LicenseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseManager.swift; sourceTree = "<group>"; };
-		3105K105 /* DeviceIntegrity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIntegrity.swift; sourceTree = "<group>"; };
 		3105B121 /* PatchProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectsView.swift; sourceTree = "<group>"; };
 		3105B122 /* PatchProjectEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectEditorView.swift; sourceTree = "<group>"; };
 		3105C100 /* PatchDraftService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchDraftService.swift; sourceTree = "<group>"; };
@@ -163,18 +156,9 @@
 		3105I101 /* FilesTabSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesTabSwitcherView.swift; sourceTree = "<group>"; };
 		3105A121 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105A122 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
-3105A123 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-			3105P112 /* PatchActivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchActivated.mp3; sourceTree = SOURCE_ROOT; };
-			3105P113 /* PatchDeactivated.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ThreeOneOSFive/Patches/PatchDeactivated.mp3; sourceTree = SOURCE_ROOT; };
-
-		3105P301 /* HEAD.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HEAD.3105; sourceTree = SOURCE_ROOT; };
-		3105P302 /* NECK.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/NECK.3105; sourceTree = SOURCE_ROOT; };
-		3105P303 /* HSPESSCOSO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HSPESSCOSO.3105; sourceTree = SOURCE_ROOT; };
-		3105P304 /* HS SLA PECHO.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/HS SLA PECHO.3105"; sourceTree = SOURCE_ROOT; };
-		3105P305 /* HOLOGRAMAARMAS.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAARMAS.3105; sourceTree = SOURCE_ROOT; };
-		3105P306 /* HOLOGRAMAPERSONAJE.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/HOLOGRAMAPERSONAJE.3105; sourceTree = SOURCE_ROOT; };
-		3105P307 /* SilentAim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ThreeOneOSFive/Patches/SilentAim.3105; sourceTree = SOURCE_ROOT; };
+		3105B124 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		3105B125 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -182,6 +166,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3105K202 /* AirliftFFI.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -209,6 +194,7 @@
 				3105A406 /* kexploit */,
 				3105A120 /* Localizable.strings */,
 				3105A031 /* Assets.xcassets */,
+								3105K203 /* AirliftFFI.xcframework */,
 			);
 			path = ThreeOneOSFive;
 			sourceTree = "<group>";
@@ -216,7 +202,7 @@
 		3105A402 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				3105A010 /* 3105.app */,
+				3105A010 /* SupportPatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -257,6 +243,10 @@
 		3105A405 /* helpers */ = {
 			isa = PBXGroup;
 			children = (
+				3105A114 /* ActivationGate.swift */,
+								3105K201 /* PairingController.swift */,
+				3105L201 /* GrappaHelper.m */,
+				3105L202 /* GrappaHelper.h */,
 				3105A099 /* Localization.swift */,
 				3105A104 /* ContainerStore.swift */,
 				3105A108 /* ContainerIdentityResolver.swift */,
@@ -274,8 +264,6 @@
 				3105B118 /* DevicePatchService.swift */,
 				3105B119 /* PatchProjectLibrary.swift */,
 				3105B120 /* PatchProjectStore.swift */,
-				3105K100 /* LicenseManager.swift */,
-				3105K105 /* DeviceIntegrity.swift */,
 				3105G103 /* PatchWorkspaceService.swift */,
 				3105H100 /* AppTabNavigationState.swift */,
 				3105C100 /* PatchDraftService.swift */,
@@ -289,7 +277,6 @@
 				3105A106 /* AppIconHelper.m */,
 				3105A107 /* AppIconHelper.h */,
 				3105A202 /* KernelExploit.swift */,
-				3105J201 /* AntiDetection.m */,
 				3105J202 /* DisplayIdentity.h */,
 				3105J203 /* DisplayIdentity.m */,
 				3105J205 /* DisplayIdentityAttribution.swift */,
@@ -324,7 +311,7 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3105A500 /* 3105 */ = {
+		3105A500 /* SupportPatch */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3105A600;
 			buildPhases = (
@@ -336,8 +323,8 @@
 			);
 			dependencies = (
 			);
-			name = 3105;
-			productName = 3105;
+			name = SupportPatch;
+			productName = SupportPatch;
 			productReference = 3105A010;
 			productType = "com.apple.product-type.application";
 		};
@@ -377,18 +364,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				3105A211,
-				3105P401,
-				3105P402,
-				3105P403,
-				3105P404,
-				3105P405,
-				3105P406,
-				3105P407,
-					3105A228,
-					3105P212,
-					3105P213,
-		);
-
+				3105A228,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -398,8 +375,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3105A200, 3105A201, 3105A203, 3105A204,
-				3105A205, 3105A206, 3105A207, 3105A209,
+				3105A200, 3105A201, 3105A203, 3105A204, 3105A242,
+								3105K200,
+								3105L200,
+								3105A205, 3105A206, 3105A207, 3105A209,
 				3105A210, 3105A220, 3105A221, 3105A222, 3105A223,
 				3105A224, 3105A225,
 				3105A226,
@@ -412,7 +391,7 @@
 				3105A238,
 				3105A239,
 				3105A208,
-				3105J200,
+
 				3105J204,
 				3105J206,
 				3105A240,
@@ -442,10 +421,8 @@
 				3105G200,
 				3105G201,
 				3105G202,
-					3105G203,
-					3105K101 /* LicenseManager.swift in Sources */,
-				3105K104 /* DeviceIntegrity.swift in Sources */,
-					3105H200,
+				3105G203,
+				3105H200,
 				3105I200,
 				3105I201,
 			);
@@ -459,8 +436,9 @@
 			children = (
 				3105A121 /* en */,
 				3105A122 /* vi */,
-				3105A123 /* es */,
 				3105B123 /* zh-Hans */,
+				3105B124 /* pt-BR */,
+				3105B125 /* es */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -480,7 +458,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ThreeOneOSFive/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = TryStore;
+				INFOPLIST_KEY_CFBundleDisplayName = SupportPatch;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -492,9 +470,12 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.1.1;
-				OTHER_LDFLAGS = "-lz";
+				    OTHER_LDFLAGS = (
+					    "-lz",
+					    "-lc++",
+				    );
 				PRODUCT_BUNDLE_IDENTIFIER = "com.apple.mobile.MobileHouseArrest";
-				PRODUCT_NAME = 3105;
+				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -514,7 +495,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ThreeOneOSFive/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = TryStore;
+				INFOPLIST_KEY_CFBundleDisplayName = SupportPatch;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -526,9 +507,12 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.1.1;
-				OTHER_LDFLAGS = "-lz";
+				    OTHER_LDFLAGS = (
+					    "-lz",
+					    "-lc++",
+				    );
 				PRODUCT_BUNDLE_IDENTIFIER = "com.apple.mobile.MobileHouseArrest";
-				PRODUCT_NAME = 3105;
+				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -656,7 +640,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3105A600 /* Build configuration list for PBXNativeTarget "3105" */ = {
+		3105A600 /* Build configuration list for PBXNativeTarget "SupportPatch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3105A601 /* Debug */,

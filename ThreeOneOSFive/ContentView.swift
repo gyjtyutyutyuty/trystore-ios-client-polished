@@ -1,1264 +1,712 @@
 import SwiftUI
 import UIKit
-import AVFoundation
-import Combine
 
 struct ContentView: View {
-    private enum CharacterRegion: String, CaseIterable, Hashable {
-        case head, neck, chest, drag
-        var title: String {
-            switch self { case .head: return "HEAD"; case .neck: return "NECK"; case .chest: return "CHEST"; case .drag: return "DRAG" }
-        }
-        var color: Color {
-            switch self { case .head: return .indigo; case .neck: return .cyan; case .chest: return AppTheme.accent; case .drag: return .orange }
-        }
-        var icon: String {
-            switch self { case .head: return "viewfinder"; case .neck: return "scope"; case .chest: return "scope"; case .drag: return "arrow.up.right.and.arrow.down.left" }
-        }
+    @Environment(\.appLanguage) private var language
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var tabNavigation: AppTabNavigationState
+
+    init() {
+        _tabNavigation = State(initialValue: AppTabNavigationState())
     }
-
-    @Environment(\.scenePhase) private var scenePhase
-    @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
-    @StateObject private var patchStore = PatchProjectStore()
-    @State private var patchOperationBusy = false
-    @State private var patchMessage = "READY — SELECT AN ARCHIVO"
-    @State private var aimDragEnabled = false
-    @State private var aimNeckEnabled = false
-    @State private var silentAimEnabled = false
-    @State private var hspEnabled = false
-    @State private var aimbotPechoEnabled = false
-    @State private var hologramaArmasEnabled = false
-    @State private var holoPersonajeEnabled = false
-    @State private var fpsEnabled = false
-    @State private var hsslaEnabled = false
-    @State private var aimBodyEnabled = false
-    @State private var hyperBalamagicaEnabled = false
-    @State private var aimbotPechoMaxEnabled = false
-    @State private var espFFMEnabled = false
-    @State private var expiryRestoreCompleted = false
-    @State private var licenseKeyInput = ""
-    @State private var selectedRegion: CharacterRegion?
-    @State private var selectedHomeTab: HomeTab = .loadout
-    @AppStorage("trystore.hapticsEnabled") private var hapticsEnabled = true
-    @AppStorage(AppTheme.accentStorageKey) private var accentIndex = AppTheme.defaultAccentIndex
-
-    private let licenseGateEnabled = true
-    private let totalArchivoCount = 5
-    private let fpsPackageFilename = "140 FPS FFMAX.3105"
-    private let holoPackageFilename = "HOLO ARM.3105"
-    private let holoPersonajePackageFilename = "HOLO PERSONAJE.3105"
-
-    private var activeArchivoCount: Int { [aimDragEnabled, aimNeckEnabled, hspEnabled, aimbotPechoEnabled, silentAimEnabled].filter { $0 }.count }
-    private var activePatchCount: Int { activeArchivoCount }
-    private var activeCharacterRegions: Set<CharacterRegion> {
-        var regions = Set<CharacterRegion>()
-        if aimDragEnabled { regions.insert(.drag) }
-        if aimNeckEnabled { regions.insert(.neck) }
-        if hspEnabled { regions.insert(.head) }
-        if aimbotPechoEnabled { regions.insert(.chest) }
-        if silentAimEnabled { regions.insert(.head) }
-        return regions
-    }
-    private var accessReady: Bool { licenseManager.isActive && appState.canUseProtectedFeatures }
-    private var overallStatus: (title: String, detail: String, color: Color, icon: String) {
-        if patchOperationBusy { return ("UPDATING", "Saving your Archivo selection", AppTheme.accent, "arrow.triangle.2.circlepath") }
-        if !appState.isSupported || !appState.canUseProtectedFeatures { return ("REVIEW REQUIRED", "Device compatibility needs attention", .orange, "exclamationmark.shield.fill") }
-        if licenseGateEnabled && !licenseManager.isActive { return ("ACCESS NEEDED", "Activate access to use Archivos", .orange, "lock.fill") }
-        if activeArchivoCount == 0 { return ("READY TO BUILD", "Choose an Archivo to begin", AppTheme.accent, "slider.horizontal.3") }
-        return ("READY TO REVIEW", "\(activeArchivoCount) of \(totalArchivoCount) Archivos active", .green, "checkmark.circle.fill")
-    }
-
-    var body: some View {
-        ZStack {
-            ControlDeckBackdrop().ignoresSafeArea()
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 10) {
-                    topBar
-                    commandStrip
-                    homeTabSwitcher
-                    if selectedHomeTab == .visuals {
-                        visualTabPanel
-                    } else {
-                        characterHUD
-                        archivosHUD
-                    }
-                    bottomStatus
-                    keyAndSocialPanel
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 104)
-            }
-        }
-        .preferredColorScheme(.dark)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            launchDock
-        }
-        .onAppear {
-            syncPatchStates()
-            enforceLicenseExpiry()
-            restoreRememberedLicenseKey()
-        }
-        .onChange(of: scenePhase) { phase in
-            guard phase == .active else { return }
-            syncPatchStates(); enforceLicenseExpiry()
-            if licenseManager.isActive { patchMessage = "READY — SELECT AN ARCHIVO" }
-        }
-        .onChange(of: licenseManager.isActive) { active in
-            if active { expiryRestoreCompleted = false } else { enforceLicenseExpiry() }
-        }
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            guard scenePhase == .active else { return }
-            licenseManager.expireIfNeeded(); enforceLicenseExpiry()
-        }
-    }
-
-    private var topBar: some View {
-        HStack(spacing: 10) {
-            Button(action: {}) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .frame(width: 42, height: 42)
-                    .background(Color.white.opacity(0.075), in: Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back")
-
-            AppLogo(size: 40)
-                .padding(4)
-                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(AppTheme.accent.opacity(0.34), lineWidth: 1))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("TRY STORE")
-                    .font(.system(size: 17, weight: .black, design: .rounded))
-                    .tracking(1.4)
-                Text("CONTROL HUD")
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .tracking(1.6)
-                    .foregroundStyle(AppTheme.accent)
-            }
-
-            Spacer()
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(overallStatus.color)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: overallStatus.color, radius: 6)
-                Text(overallStatus.title)
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.7)
-                    .foregroundStyle(.white.opacity(0.78))
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .background(Color.black.opacity(0.38), in: Capsule())
-            .overlay(Capsule().stroke(overallStatus.color.opacity(0.35), lineWidth: 1))
-        }
-        .foregroundStyle(.white)
-        .padding(.bottom, 8)
-    }
-
-    private var commandStrip: some View {
-        HStack(spacing: 7) {
-            hudMetric(icon: "shield.fill", title: "DEVICE", value: appState.canUseProtectedFeatures ? "READY" : "CHECK", color: appState.canUseProtectedFeatures ? .green : .orange)
-            hudMetric(icon: "square.stack.3d.up.fill", title: "ARCHIVOS", value: "\(activeArchivoCount)/\(totalArchivoCount)", color: AppTheme.accent)
-            hudMetric(icon: "scope", title: "ZONES", value: "\(activeCharacterRegions.count)", color: .cyan)
-            hudMetric(icon: "key.fill", title: "ACCESS", value: licenseManager.isActive ? "OPEN" : "LOCKED", color: licenseManager.isActive ? .green : .orange)
-        }
-        .padding(9)
-        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
-    }
-
-    private func hudMetric(icon: String, title: String, value: String, color: Color) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon).font(.system(size: 8, weight: .black)).foregroundStyle(color)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 5.5, weight: .black, design: .monospaced)).foregroundStyle(.white.opacity(0.32))
-                Text(value).font(.system(size: 7, weight: .black, design: .monospaced)).foregroundStyle(color)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var characterHUD: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [
-                            Color(red: 0.035, green: 0.075, blue: 0.14),
-                            Color(red: 0.008, green: 0.015, blue: 0.035)
-                        ], startPoint: .top, endPoint: .bottom))
-
-                Image("TryStoreTheme")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 230)
-                    .opacity(0.055)
-
-                Image("CleanCharacter")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 330)
-                    .padding(.top, 22)
-                    .shadow(color: AppTheme.accent.opacity(0.18), radius: 18)
-
-                HUDScanLines().clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                hudTargetOverlay
-            }
-            .frame(height: 390)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(AppTheme.accent.opacity(0.28), lineWidth: 1))
-
-            waveformDivider
-
-            Text(activeCharacterRegions.isEmpty
-                 ? "SELECT A MODULE TO LINK A CHARACTER ZONE"
-                 : "\(activeCharacterRegions.count) ZONE\(activeCharacterRegions.count == 1 ? "" : "S") LINKED")
-                .font(.system(size: 8, weight: .black, design: .rounded))
-                .tracking(1.0)
-                .foregroundStyle(.white.opacity(0.48))
-                .padding(.vertical, 8)
-        }
-    }
-
-    private var hudTargetOverlay: some View {
-        GeometryReader { proxy in
-            ZStack {
-                hudTargetLine(color: aimDragEnabled ? .green : .orange,
-                              from: CGPoint(x: proxy.size.width * 0.30, y: proxy.size.height * 0.27),
-                              to: CGPoint(x: proxy.size.width * 0.47, y: proxy.size.height * 0.23))
-                hudTargetLine(color: aimNeckEnabled ? .green : .cyan,
-                              from: CGPoint(x: proxy.size.width * 0.70, y: proxy.size.height * 0.28),
-                              to: CGPoint(x: proxy.size.width * 0.56, y: proxy.size.height * 0.32))
-                hudTargetLine(color: hspEnabled ? .green : .indigo,
-                              from: CGPoint(x: proxy.size.width * 0.30, y: proxy.size.height * 0.43),
-                              to: CGPoint(x: proxy.size.width * 0.46, y: proxy.size.height * 0.25))
-                hudTargetLine(color: aimbotPechoEnabled ? .green : AppTheme.accent,
-                              from: CGPoint(x: proxy.size.width * 0.70, y: proxy.size.height * 0.48),
-                              to: CGPoint(x: proxy.size.width * 0.57, y: proxy.size.height * 0.47))
-
-                hudCallout(title: "DRAG", color: aimDragEnabled ? .green : .orange, active: aimDragEnabled)
-                    .position(x: proxy.size.width * 0.19, y: proxy.size.height * 0.27)
-
-                hudCallout(title: "NECK", color: aimNeckEnabled ? .green : .cyan, active: aimNeckEnabled)
-                    .position(x: proxy.size.width * 0.81, y: proxy.size.height * 0.28)
-
-                hudCallout(title: "HEAD", color: hspEnabled ? .green : .indigo, active: hspEnabled)
-                    .position(x: proxy.size.width * 0.19, y: proxy.size.height * 0.43)
-
-                hudCallout(title: "CHEST", color: aimbotPechoEnabled ? .green : AppTheme.accent, active: aimbotPechoEnabled)
-                    .position(x: proxy.size.width * 0.82, y: proxy.size.height * 0.48)
-
-            }
-        }
-        .allowsHitTesting(false)
-    }
-
-    private func hudCallout(title: String, color: Color, active: Bool) -> some View {
-        Text(title)
-            .font(.system(size: 8, weight: .black, design: .rounded))
-            .tracking(0.8)
-            .foregroundStyle(active ? .white : color)
-            .padding(.horizontal, 9)
-            .frame(height: 27)
-            .background(active ? color.opacity(0.20) : Color.black.opacity(0.62), in: Capsule())
-            .overlay(Capsule().stroke(color.opacity(active ? 0.85 : 0.48), lineWidth: 1))
-        .shadow(color: color.opacity(active ? 0.34 : 0.10), radius: 8)
-    }
-
-    private func hudTargetLine(color: Color, from: CGPoint, to: CGPoint) -> some View {
-        Canvas { context, _ in
-            var path = Path()
-            path.move(to: from)
-            path.addLine(to: to)
-            context.stroke(path, with: .color(color.opacity(0.82)), lineWidth: 1.2)
-            let dot = CGRect(x: to.x - 3, y: to.y - 3, width: 6, height: 6)
-            context.fill(Path(ellipseIn: dot), with: .color(color))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(false)
-    }
-
-    private var waveformDivider: some View {
-        HStack(spacing: 0) {
-            Rectangle().fill(AppTheme.accent.opacity(0.30)).frame(height: 1)
-            WaveformMark()
-                .stroke(AppTheme.accent.opacity(0.90), style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
-                .frame(width: 185, height: 26)
-            Rectangle().fill(AppTheme.accent.opacity(0.30)).frame(height: 1)
-        }
-        .padding(.horizontal, 16)
-    }
-
-    private enum HomeTab: String {
-        case loadout
-        case visuals
-    }
-
-    private var homeTabSwitcher: some View {
-        HStack(spacing: 8) {
-            homeTabButton(title: "LOADOUT", subtitle: "GAMEPLAY MODULES", icon: "scope", tab: .loadout, color: AppTheme.accent)
-            homeTabButton(title: "VISUALS", subtitle: "VISUAL MODULES", icon: "sparkles", tab: .visuals, color: .purple)
-        }
-        .padding(5)
-        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-    }
-
-    private func homeTabButton(title: String, subtitle: String, icon: String, tab: HomeTab, color: Color) -> some View {
-        let isSelected = selectedHomeTab == tab
-        return Button {
-            withAnimation(.easeOut(duration: 0.18)) { selectedHomeTab = tab }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(isSelected ? .white : color)
-                    .frame(width: 30, height: 30)
-                    .background(isSelected ? color.opacity(0.32) : color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(0.8)
-                    Text(subtitle)
-                        .font(.system(size: 7, weight: .bold, design: .rounded))
-                        .tracking(0.4)
-                        .foregroundStyle(.white.opacity(isSelected ? 0.72 : 0.38))
-                }
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 9)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .background(isSelected ? color.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(isSelected ? color.opacity(0.65) : Color.clear, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Open \(title) tab")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private var visualTabPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("VISUAL PERSONA")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .tracking(1.2)
-                        .foregroundStyle(.purple)
-                    Text("Tap a visual module to activate it")
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.46))
-                }
-                Spacer()
-                Image(systemName: "person.crop.circle.badge.sparkles")
-                    .font(.system(size: 23, weight: .semibold))
-                    .foregroundStyle(.pink)
-            }
-            ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(LinearGradient(colors: [Color.purple.opacity(0.22), Color.black.opacity(0.42)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                Image("CleanCharacter")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: 330)
-                    .padding(.vertical, 10)
-                    .shadow(color: Color.pink.opacity(0.34), radius: 20)
-                LinearGradient(colors: [.clear, .black.opacity(0.72)], startPoint: .center, endPoint: .bottom)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                Label("FULL CHARACTER PREVIEW", systemImage: "sparkles")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.9)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 11)
-            }
-            .frame(maxWidth: .infinity, minHeight: 350, maxHeight: 350)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.pink.opacity(0.38), lineWidth: 1))
-            keyExpiryPatchBadge
-            VStack(spacing: 0) {
-                visualPatchRow(title: "HOLOGRAMA ARMAS", icon: "sparkles", color: .purple, package: "HOLOGRAMAARMAS.3105", state: $hologramaArmasEnabled)
-                visualPatchRow(title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, package: "HOLOGRAMAPERSONAJE.3105", state: $holoPersonajeEnabled)
-            }
-            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.purple.opacity(0.26), lineWidth: 1))
-        }
-        .padding(14)
-        .background(Color.purple.opacity(0.09), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.purple.opacity(0.34), lineWidth: 1))
-    }
-
-    private func visualPatchRow(title: String, icon: String, color: Color, package: String, state: Binding<Bool>) -> some View {
-        hudRow(title: title, icon: icon, color: color, package: package, state: state)
-    }
-
-    private var keyExpiryPatchBadge: some View {
-        HStack(spacing: 9) {
-            Image(systemName: licenseManager.isActive ? "clock.badge.checkmark" : "clock.badge.exclamationmark")
-                .foregroundStyle(licenseManager.isActive ? .green : .orange)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("PATCH ACCESS")
-                    .font(.system(size: 7, weight: .black, design: .rounded))
-                    .tracking(1.0)
-                    .foregroundStyle(.white.opacity(0.42))
-                Text(licenseManager.isActive ? licenseManager.expirationText : "KEY REQUIRED TO ACTIVATE VISUALS")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(licenseManager.isActive ? .green : .orange)
-            }
-            Spacer()
-            if licenseManager.isActive {
-                Text(licenseManager.remainingText)
-                    .font(.system(size: 8, weight: .black, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.68))
-                    .multilineTextAlignment(.trailing)
-            }
-        }
-        .padding(.horizontal, 12)
-        .frame(minHeight: 48)
-        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-    }
-
-    private var archivosHUD: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("ARCHIVOS")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .tracking(1.35)
-                    .foregroundStyle(AppTheme.accent)
-                Spacer()
-                Text("\(activeArchivoCount) / \(totalArchivoCount)")
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.68))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-
-            hudRow(title: "HEAD", icon: "viewfinder", color: .indigo, package: "HEAD.3105", state: $hspEnabled)
-            hudRow(title: "NECK", icon: "scope", color: .cyan, package: "NECK.3105", state: $aimNeckEnabled)
-            hudRow(title: "DRAG", icon: "scope", color: .orange, package: "HSPESSCOSO.3105", state: $aimDragEnabled)
-            hudRow(title: "PECHO", icon: "scope", color: AppTheme.accent, package: "HS SLA PECHO.3105", state: $aimbotPechoEnabled)
-            hudRow(title: "ESP TRY", icon: "scope", color: .mint, package: "SilentAim.3105", state: $silentAimEnabled)
-
-            if !licenseManager.isActive { accessStrip }
-        }
-        .background(Color(red: 0.045, green: 0.035, blue: 0.075).opacity(0.92), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .padding(.horizontal, 2)
-    }
-
-    private func hudRow(title: String, icon: String, color: Color, package: String, state: Binding<Bool>) -> some View {
-        Button {
-            selectedRegion = regionForPackage(package)
-            togglePatch(packageFilename: package, state: state)
-        } label: {
-            HStack(spacing: 11) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(state.wrappedValue ? .white : color)
-                    .frame(width: 31, height: 31)
-                    .background(state.wrappedValue ? color.opacity(0.30) : color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-
-                Text(title)
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .tracking(0.55)
-                    .foregroundStyle(.white)
-
-                Spacer()
-
-                Text(state.wrappedValue ? "ON" : "OFF")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.7)
-                    .foregroundStyle(state.wrappedValue ? .white : .white.opacity(0.38))
-                    .frame(width: 34, height: 23)
-                    .background(state.wrappedValue ? color.opacity(0.30) : Color.white.opacity(0.045), in: Capsule())
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .black))
-                    .foregroundStyle(.white.opacity(0.48))
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 57)
-            .background(state.wrappedValue ? color.opacity(0.18) : Color.clear)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1).padding(.leading, 53)
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(patchOperationBusy)
-        .opacity(patchOperationBusy ? 0.58 : 1)
-        .accessibilityLabel("\(title), \(state.wrappedValue ? "On" : "Off")")
-    }
-
-    private var accessStrip: some View {
-        VStack(spacing: 9) {
-            HStack {
-                Label("ACCESS REQUIRED", systemImage: "lock.fill")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.9)
-                    .foregroundStyle(.orange)
-                Spacer()
-            }
-
-            HStack(spacing: 7) {
-                TextField("TRY-XXXX-XXXX-XXXX", text: $licenseKeyInput)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 11)
-                    .frame(height: 40)
-                    .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                Button {
-                    licenseManager.activate(key: licenseKeyInput)
-                } label: {
-                    Text(licenseManager.isBusy ? "CHECKING" : "ACTIVATE")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 12)
-                        .frame(height: 40)
-                        .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
-                .disabled(licenseManager.isBusy || licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-
-            Toggle(isOn: Binding(
-                get: { licenseManager.rememberKey },
-                set: { licenseManager.setRememberKey($0) }
-            )) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("REMEMBER KEY ON THIS DEVICE")
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .tracking(0.55)
-                        .foregroundStyle(.white.opacity(0.82))
-                    Text("Securely save it so you do not re-enter it after opening the game")
-                        .font(.system(size: 8, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.45))
-                }
-            }
-            .tint(AppTheme.accent)
-            .padding(.top, 2)
-
-            if let message = licenseManager.message {
-                Text(message)
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
-                    .foregroundStyle(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(12)
-        .background(Color.orange.opacity(0.045))
-    }
-
-    private func restoreRememberedLicenseKey() {
-        guard licenseManager.rememberKey, licenseKeyInput.isEmpty else { return }
-        licenseKeyInput = licenseManager.rememberedKey() ?? ""
-    }
-
-    private var bottomStatus: some View {
-        VStack(spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("SESSION")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
-                        .tracking(1.1)
-                        .foregroundStyle(.white.opacity(0.40))
-                    Text(activeArchivoCount == 0 ? "READY FOR SELECTION" : "\(activeArchivoCount) MODULE\(activeArchivoCount == 1 ? "" : "S") ACTIVE")
-                        .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                }
-                Spacer()
-                Circle().fill(overallStatus.color).frame(width: 8, height: 8).shadow(color: overallStatus.color, radius: 7)
-            }
-
-            HStack {
-                Image(systemName: "waveform")
-                    .foregroundStyle(AppTheme.accent)
-                Text(patchMessage)
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.45))
-                    .lineLimit(1)
-                Spacer()
-                if licenseManager.isActive {
-                    Text(licenseManager.remainingText)
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.green)
-                }
-            }
-        }
-        .padding(14)
-        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
-        .padding(.top, 12)
-    }
-
-    private var launchDock: some View {
-        HStack(spacing: 8) {
-            launchDockButton(title: "FREE FIRE", scheme: "freefireth", color: AppTheme.accent)
-            launchDockButton(title: "FREE FIRE MAX", scheme: "freefiremax", color: .cyan)
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.ultraThinMaterial)
-        .overlay(alignment: .top) {
-            Rectangle().fill(AppTheme.accent.opacity(0.24)).frame(height: 1)
-        }
-    }
-
-    private var keyAndSocialPanel: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: licenseManager.isActive ? "calendar.badge.checkmark" : "calendar.badge.exclamationmark")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(licenseManager.isActive ? .green : .orange)
-                    .frame(width: 32, height: 32)
-                    .background((licenseManager.isActive ? Color.green : Color.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("KEY EXPIRY")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
-                        .tracking(1.0)
-                        .foregroundStyle(.white.opacity(0.42))
-                    Text(licenseManager.isActive ? licenseManager.expirationText : "ACTIVATE ACCESS TO VIEW EXPIRY")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(licenseManager.isActive ? .green : .orange)
-                        .lineLimit(1)
-                }
-                Spacer()
-                if licenseManager.isActive {
-                    Text(licenseManager.remainingText)
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.58))
-                        .multilineTextAlignment(.trailing)
-                }
-            }
-            HStack(spacing: 8) {
-                Text("CONNECT")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.9)
-                    .foregroundStyle(.white.opacity(0.35))
-                Spacer()
-                Link(destination: URL(string: "https://www.instagram.com/guillenrmarcos")!) {
-                    socialLinkLabel(title: "INSTAGRAM", icon: "camera.fill", color: Color(red: 0.92, green: 0.28, blue: 0.62))
-                }
-                Link(destination: URL(string: "https://www.tiktok.com/@vaal_goat")!) {
-                    socialLinkLabel(title: "TIKTOK", icon: "play.rectangle.fill", color: .white)
-                }
-            }
-            Text("DEVELOPED BY JVZTXN  •  TRYSTORE")
-                .font(.system(size: 8, weight: .black, design: .rounded))
-                .tracking(1.0)
-                .foregroundStyle(AppTheme.accent.opacity(0.72))
-                .frame(maxWidth: .infinity)
-        }
-        .padding(13)
-        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-    }
-
-    private func socialLinkLabel(title: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon).font(.system(size: 9, weight: .bold))
-            Text(title).font(.system(size: 7, weight: .black, design: .rounded)).tracking(0.3)
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .background(color.opacity(0.11), in: Capsule())
-        .overlay(Capsule().stroke(color.opacity(0.28), lineWidth: 1))
-    }
-
-    private func launchDockButton(title: String, scheme: String, color: Color) -> some View {
-        Button { openGame(scheme: scheme) } label: {
-            HStack(spacing: 6) {
-                Image(systemName: accessReady ? "arrow.up.right.square.fill" : "lock.fill")
-                    .font(.system(size: 13, weight: .bold))
-                Text(title)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .tracking(0.35)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .black))
-            }
-            .foregroundStyle(accessReady ? .black : .white.opacity(0.38))
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(accessReady ? color : Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(accessReady ? color.opacity(0.90) : Color.white.opacity(0.10), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .disabled(!accessReady)
-        .accessibilityLabel("Launch \(title)")
-    }
-
-    private func regionForPackage(_ package: String) -> CharacterRegion? {
-        switch package {
-        case "HSPESSCOSO.3105": return .drag
-        case "NECK.3105": return .head
-        case "HS SLA PECHO.3105": return .chest
-        case "SilentAim.3105": return .head
-        case "HEAD.3105": return .head
-        default: return nil
-        }
-    }
-
-    private func enforceLicenseExpiry() {
-        guard licenseGateEnabled,
-              !licenseManager.isActive,
-              !licenseManager.isBusy,
-              !patchOperationBusy,
-              !expiryRestoreCompleted else { return }
-        let hasActivePatch = activePatchCount > 0 || [
-            "HEAD.3105", "NECK.3105", "HSPESSCOSO.3105", "HS SLA PECHO.3105", "SilentAim.3105", "HOLOGRAMAARMAS.3105", "HOLOGRAMAPERSONAJE.3105"
-        ].contains { isPatchActive($0) }
-        guard hasActivePatch else {
-            expiryRestoreCompleted = true
-            return
-        }
-        expiryRestoreCompleted = true
-        restoreAllPatchesAfterExpiry()
-    }
-
-    private func restoreAllPatchesAfterExpiry() {
-        guard !patchOperationBusy else { return }
-        let packages = [
-            "HEAD.3105", "NECK.3105", "HSPESSCOSO.3105", "HS SLA PECHO.3105", "SilentAim.3105", "HOLOGRAMAARMAS.3105", "HOLOGRAMAPERSONAJE.3105"
-        ]
-        let restoreTargets = packages.compactMap { package -> (String, PatchTransactionReceipt)? in
-            guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(package) == .orderedSame }),
-                  let receipt = DevicePatchService.latestReceipt(projectID: item.id) else { return nil }
-            return (package, receipt)
-        }
-        patchOperationBusy = true
-        patchMessage = "LICENSE EXPIRED — RESTORING ORIGINALS…"
-        DispatchQueue.global(qos: .userInitiated).async {
-            var restored = 0
-            for (package, receipt) in restoreTargets {
-                do {
-                    try DevicePatchService.restore(receipt: receipt)
-                    restored += 1
-                } catch {
-                    log("patch: expiry restore failed for \(package): \(error)")
-                }
-            }
-            DispatchQueue.main.async {
-                self.syncPatchStates()
-                self.patchOperationBusy = false
-                self.patchMessage = restored > 0 ? "LICENSE EXPIRED — ORIGINALS RESTORED" : "LICENSE EXPIRED — NO ACTIVE ARCHIVOS"
-            }
-        }
-    }
-
-    private func syncPatchStates() {
-        aimDragEnabled = isPatchActive("HSPESSCOSO.3105")
-        aimNeckEnabled = isPatchActive("NECK.3105")
-        hspEnabled = isPatchActive("HEAD.3105")
-        aimbotPechoEnabled = isPatchActive("HS SLA PECHO.3105")
-        silentAimEnabled = isPatchActive("SilentAim.3105")
-        hologramaArmasEnabled = isPatchActive("HOLOGRAMAARMAS.3105")
-        holoPersonajeEnabled = isPatchActive("HOLOGRAMAPERSONAJE.3105")
-        fpsEnabled = false
-        espFFMEnabled = false
-    }
-
-    private func isPatchActive(_ packageFilename: String) -> Bool {
-        patchStore.items.first(where: { matchesPackageFilename($0.packageURL.lastPathComponent, requested: packageFilename) })
-            .flatMap { DevicePatchService.latestReceipt(projectID: $0.id) } != nil
-    }
-
-    private func matchesPackageFilename(_ actual: String, requested: String) -> Bool {
-        let normalize: (String) -> String = { value in
-            value
-                .replacingOccurrences(of: ".3105", with: "", options: [.caseInsensitive])
-                .filter { $0.isLetter || $0.isNumber }
-                .lowercased()
-        }
-        let actualKey = normalize(actual)
-        let requestedKey = normalize(requested)
-        if actualKey == requestedKey { return true }
-
-        // Accept the uploaded V2 filename and the legacy bundled filename as
-        // aliases so an app update cannot make the visual button lose its package.
-        let holoPersonajeKeys = ["holopersonaje", "holopersonajev2"]
-        return holoPersonajeKeys.contains(actualKey) && holoPersonajeKeys.contains(requestedKey)
-    }
-
-    private enum PatchActionResult {
-        case applied
-        case restored
-        case unavailable(String)
-    }
-
-    private func setPatchState(for packageFilename: String, enabled: Bool) {
-        switch packageFilename {
-        case "HSPESSCOSO.3105": aimDragEnabled = enabled
-        case "NECK.3105": aimNeckEnabled = enabled
-        case "HEAD.3105": hspEnabled = enabled
-        case "HS SLA PECHO.3105": aimbotPechoEnabled = enabled
-        case "SilentAim.3105": silentAimEnabled = enabled
-        case "HOLO ARM.3105", "HOLOGRAMAARMAS.3105": hologramaArmasEnabled = enabled
-        case "HOLO PERSONAJE.3105", "HOLOPERSONAJEV2.3105", "HOLOGRAMAPERSONAJE.3105": holoPersonajeEnabled = enabled
-        case "140 FPS FFMAX.3105": fpsEnabled = enabled
-        case "EspFFM.3105": espFFMEnabled = enabled
-        default: break
-        }
-    }
-
-    private func togglePatch(packageFilename: String, state: Binding<Bool>) {
-        guard !patchOperationBusy else { return }
-        guard !licenseGateEnabled || licenseManager.isActive else {
-            patchMessage = "LOCKED — ACTIVATE YOUR 30-DAY KEY ABOVE"
-            return
-        }
-        guard appState.canUseProtectedFeatures else {
-            patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
-            return
-        }
-        // Re-sync bundled packages before every activation so a fresh install or
-        // app update can never leave Visuals pointing at a stale local catalog.
-        PatchProjectLibrary.installBundledPackagesIfNeeded()
-        patchStore.reload()
-        guard let item = patchStore.items.first(where: { matchesPackageFilename($0.packageURL.lastPathComponent, requested: packageFilename) }) else {
-            patchMessage = "ERROR — PATCH LOAD FAILED"
-            log("patch: load failed after reload: \(packageFilename)")
-            return
-        }
-
-        let wasEnabled = state.wrappedValue
-        if hapticsEnabled {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-        patchOperationBusy = true
-        patchMessage = "PROCESSING — \(packageFilename)"
-        let project = item.project
-        let projectID = item.id
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            let result: PatchActionResult
-            do {
-                if wasEnabled {
-                    guard let receipt = DevicePatchService.latestReceipt(projectID: projectID) else {
-                        DispatchQueue.main.async {
-                            self.setPatchState(for: packageFilename, enabled: false)
-                            self.patchMessage = "OFF — NO ACTIVE ARCHIVO FOUND"
-                            self.patchOperationBusy = false
-                        }
-                        return
-                    }
-                    try DevicePatchService.restore(receipt: receipt)
-                    result = .restored
-                } else {
-                    guard let project else {
-                        DispatchQueue.main.async {
-                            self.patchMessage = "LOCKED — PASSWORD REQUIRED"
-                            self.patchOperationBusy = false
-                        }
-                        return
-                    }
-                    _ = try DevicePatchService.apply(project: project)
-                    result = .applied
-                }
-            } catch {
-                result = .unavailable("FAILED — \(String(describing: error))")
-            }
-
-            DispatchQueue.main.async {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    switch result {
-                    case .applied:
-                        self.setPatchState(for: packageFilename, enabled: true)
-                        self.patchMessage = "SUCCESS — BYPASS ACTIVATED"
-                        PatchAudioFeedback.bypassActivated()
-                        PatchAudioFeedback.announce(packageFilename, enabled: true)
-                    case .restored:
-                        self.setPatchState(for: packageFilename, enabled: false)
-                        self.patchMessage = "SUCCESS — BYPASS DEACTIVATED"
-                        PatchAudioFeedback.originalRestored()
-                        PatchAudioFeedback.announce(packageFilename, enabled: false)
-                    case .unavailable(let message):
-                        self.patchMessage = message
-                    }
-                    self.patchOperationBusy = false
-                }
-            }
-        }
-    }
-
-    private func openGame(scheme: String) {
-        guard !licenseGateEnabled || licenseManager.isActive else {
-            patchMessage = "LOCKED — ACTIVATE YOUR 30-DAY KEY ABOVE"
-            return
-        }
-        guard appState.canUseProtectedFeatures else {
-            patchMessage = "BLOCKED — DEVICE INTEGRITY REVIEW REQUIRED"
-            return
-        }
-        guard let url = URL(string: "\(scheme)://") else { return }
-        UIApplication.shared.open(url, options: [:]) { success in
-            log("launch: \(scheme) success=\(success)")
-        }
-    }
-}
-
-private struct WaveformMark: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let midY = rect.midY
-        let step = rect.width / 8
-        path.move(to: CGPoint(x: 0, y: midY))
-        path.addLine(to: CGPoint(x: step * 0.8, y: midY))
-        path.addLine(to: CGPoint(x: step * 0.95, y: rect.minY + 4))
-        path.addLine(to: CGPoint(x: step * 1.08, y: rect.maxY - 4))
-        path.addLine(to: CGPoint(x: step * 1.22, y: midY))
-        path.addLine(to: CGPoint(x: step * 3.0, y: midY))
-        path.addLine(to: CGPoint(x: step * 3.15, y: rect.minY + 3))
-        path.addLine(to: CGPoint(x: step * 3.30, y: rect.maxY - 3))
-        path.addLine(to: CGPoint(x: step * 3.45, y: midY))
-        path.addLine(to: CGPoint(x: step * 5.25, y: midY))
-        path.addLine(to: CGPoint(x: step * 5.40, y: rect.minY + 5))
-        path.addLine(to: CGPoint(x: step * 5.55, y: rect.maxY - 5))
-        path.addLine(to: CGPoint(x: step * 5.70, y: midY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: midY))
-        return path
-    }
-}
-
-private struct HUDScanLines: View {
-    var body: some View {
-        Canvas { context, size in
-            var path = Path()
-            let spacing: CGFloat = 14
-            stride(from: CGFloat(0), through: size.height, by: spacing).forEach { y in
-                path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: size.width, y: y))
-            }
-            context.stroke(path, with: .color(Color.white.opacity(0.035)), lineWidth: 0.7)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct PatchOptionCard: View {
-    let name: String
-    let target: String
-    let fileExcerpt: String
-    let color: Color
-    @Binding var isEnabled: Bool
-    let isBusy: Bool
-    let isCompact: Bool
-    let showFileExcerpt: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 13) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(color.opacity(isEnabled ? 0.25 : 0.11))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: isEnabled ? "bolt.fill" : "scope")
-                        .font(.system(size: 18, weight: .black))
-                        .foregroundStyle(color)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(name)
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                    HStack(spacing: 6) {
-                        Text(target)
-                            .font(.system(size: 8, weight: .black, design: .rounded))
-                            .tracking(0.65)
-                            .foregroundStyle(color)
-                            .lineLimit(1)
-                        if showFileExcerpt {
-                            Text("•")
-                                .foregroundStyle(.white.opacity(0.30))
-                            Text(fileExcerpt)
-                                .font(.system(size: 8, weight: .black, design: .rounded))
-                                .tracking(0.65)
-                                .foregroundStyle(.white.opacity(0.46))
-                        }
-                    }
-                    Text(isEnabled ? "ARCHIVO ACTIVE" : "TAP TO ACTIVATE")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
-                        .tracking(0.7)
-                        .foregroundStyle(isEnabled ? .green : .white.opacity(0.40))
-                }
-
-                Spacer(minLength: 4)
-
-                VStack(alignment: .trailing, spacing: 7) {
-                    Text(isEnabled ? "ON" : "OFF")
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(isEnabled ? .green : .white.opacity(0.56))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background((isEnabled ? Color.green : Color.white).opacity(0.10), in: Capsule())
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundStyle(.white.opacity(0.26))
-                }
-            }
-            .padding(isCompact ? 10 : 12)
-            .frame(maxWidth: .infinity, minHeight: isCompact ? 68 : 82, alignment: .leading)
-            .background {
-                if isEnabled {
-                    LinearGradient(colors: [color.opacity(0.20), Color.black.opacity(0.52)], startPoint: .leading, endPoint: .trailing)
-                } else {
-                    LinearGradient(colors: [color.opacity(0.07), Color.black.opacity(0.43)], startPoint: .leading, endPoint: .trailing)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 19, style: .continuous)
-                    .stroke(isEnabled ? color.opacity(0.78) : color.opacity(0.24), lineWidth: isEnabled ? 1.4 : 1)
-            )
-            .shadow(color: isEnabled ? color.opacity(0.18) : .black.opacity(0.18), radius: isEnabled ? 12 : 5, y: 4)
-        }
-        .buttonStyle(GoldPatchButtonStyle())
-        .disabled(isBusy)
-        .opacity(isBusy ? 0.55 : 1)
-        .accessibilityLabel("\(name), \(target), \(showFileExcerpt ? fileExcerpt : "file hidden"), \(isEnabled ? "On" : "Off")")
-    }
-}
-
-private struct GoldPatchButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(configuration.isPressed ? 0.90 : 1)
-            .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
-    }
-}
-
-private enum PatchAudioFeedback {
-    private static var activationPlayer: AVAudioPlayer?
-    private static var deactivationPlayer: AVAudioPlayer?
-
-    static func bypassActivated() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .moviePlayback, options: [.duckOthers])
-        try? session.setActive(true, options: [])
-
-        guard let url = Bundle.main.url(forResource: "PatchActivated", withExtension: "mp3") else { log("audio: PatchActivated.mp3 is missing"); return }
-
-        do {
-            activationPlayer = try AVAudioPlayer(contentsOf: url)
-            activationPlayer?.prepareToPlay()
-            activationPlayer?.play()
-        } catch {
-            log("audio: activation sound unavailable: \(error)")
-        }
-    }
-
-    static func originalRestored() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .moviePlayback, options: [.duckOthers])
-        try? session.setActive(true, options: [])
-
-        guard let url = Bundle.main.url(forResource: "PatchDeactivated", withExtension: "mp3") else { log("audio: PatchDeactivated.mp3 is missing"); return }
-
-        do {
-            deactivationPlayer = try AVAudioPlayer(contentsOf: url)
-            deactivationPlayer?.prepareToPlay()
-            deactivationPlayer?.play()
-        } catch {
-            log("audio: deactivation sound unavailable: \(error)")
-        }
-    }
-
-    static func announce(_ packageFilename: String, enabled: Bool) { }
-}
-
-struct ControlDeckBackdrop: View {
-    @State private var animate = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                Color(red: 0.004, green: 0.010, blue: 0.026)
-                Image("TryStoreTheme")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: proxy.size.width * 1.12, height: proxy.size.height * 0.74)
-                    .opacity(0.18)
-                    .blur(radius: 1.2)
-                    .scaleEffect(animate ? 1.02 : 1.0)
-                    .offset(y: animate ? -6 : 6)
-                    .mask(LinearGradient(colors: [.clear, .white.opacity(0.72), .white.opacity(0.72), .clear], startPoint: .top, endPoint: .bottom))
-                Circle()
-                    .fill(AppTheme.accent.opacity(0.12))
-                    .frame(width: 310, height: 310)
-                    .blur(radius: 64)
-                    .offset(x: animate ? 130 : -120, y: -proxy.size.height * 0.30)
-                Circle()
-                    .fill(AppTheme.palette[4].color.opacity(0.08))
-                    .frame(width: 250, height: 250)
-                    .blur(radius: 68)
-                    .offset(x: animate ? -110 : 100, y: proxy.size.height * 0.26)
-                Circle()
-                    .fill(Color.purple.opacity(0.10))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 62)
-                    .offset(x: animate ? -80 : 120, y: -proxy.size.height * 0.08)
-                GridOverlay()
-            }
-            .onAppear {
-                guard !reduceMotion, UIDevice.current.userInterfaceIdiom != .pad else { return }
-                withAnimation(.easeInOut(duration: 14).repeatForever(autoreverses: true)) {
-                    animate = true
-                }
-            }
-        }
-    }
-}
-
-private struct ParticleField: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
-            if reduceMotion {
-                canvas(time: 0)
+            if horizontalSizeClass == .regular {
+                regularLayout
             } else {
-                TimelineView(.animation) { timeline in
-                    canvas(time: timeline.date.timeIntervalSinceReferenceDate)
+                compactLayout
+            }
+        }
+        .tint(AppTheme.accent)
+        .imageScale(.small)
+        .onAppear {
+            tabNavigation.reconcileSelection(with: featureVisibility)
+        }
+    }
+
+    private var compactLayout: some View {
+        TabView(selection: tabSelection) {
+            ForEach(featureVisibility.visibleSections) { section in
+                sectionContent(section)
+                    .tabItem {
+                        CompactTabLabel(
+                            title: language.text(section.titleKey),
+                            systemImage: section.systemImage
+                        )
+                    }
+                    .tag(section.rawValue)
+            }
+        }
+    }
+
+    private var regularLayout: some View {
+        NavigationSplitView {
+            List {
+                ForEach(featureVisibility.visibleSections) { section in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            tabNavigation.select(section.rawValue)
+                        }
+                    } label: {
+                        Label(language.text(section.titleKey), systemImage: section.systemImage)
+                            .fontWeight(section.rawValue == tabNavigation.selectedTab ? .semibold : .regular)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(
+                        section.rawValue == tabNavigation.selectedTab
+                            ? AppTheme.accent.opacity(0.14)
+                            : Color.clear
+                    )
+                    .accessibilityAddTraits(
+                        section.rawValue == tabNavigation.selectedTab ? .isSelected : []
+                    )
+                }
+            }
+            .navigationTitle("Support Patch")
+            .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
+        } detail: {
+            sectionContent(selectedVisibleSection)
+                .id(selectedVisibleSection.rawValue)
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    @ViewBuilder
+    private func sectionContent(_ section: AppSection) -> some View {
+        switch section {
+        case .home:
+            DashboardView()
+        }
+    }
+
+    private var tabSelection: Binding<Int> {
+        Binding(
+            get: { tabNavigation.selectedTab },
+            set: { tabNavigation.select($0) }
+        )
+    }
+
+    private var featureVisibility: FeatureVisibility {
+        FeatureVisibility()
+    }
+
+    private var selectedVisibleSection: AppSection {
+        guard let section = AppSection(rawValue: tabNavigation.selectedTab),
+              featureVisibility.isVisible(section) else {
+            return .home
+        }
+        return section
+    }
+}
+
+private struct CompactTabLabel: View {
+    let title: String
+    let systemImage: String
+
+    @ViewBuilder
+    var body: some View {
+        if let image = UIImage(
+            systemName: systemImage,
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
+        )?.withRenderingMode(.alwaysTemplate) {
+            Image(uiImage: image)
+        } else {
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .medium))
+        }
+        Text(title)
+    }
+}
+
+private extension AppSection {
+    var titleKey: String {
+        switch self {
+        case .home: return "tab.home"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .home: return "house.fill"
+        }
+    }
+}
+
+// MARK: - DashboardView
+private struct DashboardView: View {
+    @Environment(\.appLanguage) private var language
+    @EnvironmentObject private var appState: AppState
+    @State private var showSettings = false
+    @State private var showLogs = false
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 7) {
+                deviceSection
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: 12) {
+                    FreeFireGameEntryView(game: .max)
+                    FreeFireGameEntryView(game: .regular)
+                    FreeFireGameEntryView(game: .capCut)
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(AppTheme.accent)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showLogs = true } label: {
+                        Image(systemName: "apple.terminal")
+                    }
+                    .accessibilityLabel(language.text("accessibility.open_logs"))
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel(language.text("accessibility.open_settings"))
+                }
+            }
+            .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showLogs) { LogView() }
+        }
+    }
+
+    private var deviceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(language.text("common.device"))
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            LabeledContent(language.text("dashboard.hardware_model")) {
+                Text(AppInfo.displayMachineName)
+                    .font(.body.monospaced())
+            }
+            LabeledContent(language.text("settings.ios_version")) {
+                Text("\(AppInfo.osVersion) (\(AppInfo.osBuild))")
+                    .font(.body.monospaced())
+            }
+            HStack {
+                Text(language.text("settings.exploit_compatibility"))
+                Spacer()
+                Text(language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"))
+                    .foregroundStyle(appState.isSupported ? Color.green : Color.orange)
+            }
+
+            if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
+                HStack {
+                    Text(language.text("dashboard.kernel_status"))
+                    Spacer()
+                    if appState.kernelExploitRunning {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text(language.text("dashboard.kernel_running"))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text(language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive"))
+                            .foregroundStyle(appState.exploitStatus.isSuccess ? Color.green : Color.secondary)
+                    }
                 }
             }
         }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+    }
+}
+
+private extension FreeFireGame {
+    var scheme: String {
+        switch self {
+        case .max: return "freefiremax"
+        case .regular: return "freefire"
+        case .capCut: return "com.googleusercontent.apps.753696289953-c71g0mbsqjtrtdgf1ov874fpru7f22g6"
+        }
     }
 
-    private func canvas(time: TimeInterval) -> some View {
-        Canvas { context, size in
-            for index in 0..<24 {
-                let seed = Double(index)
-                let baseX = (seed * 0.61803398875).truncatingRemainder(dividingBy: 1.0)
-                let baseY = (seed * 0.38196601125 + 0.17).truncatingRemainder(dividingBy: 1.0)
-                let x = (baseX + sin(time * 0.10 + seed * 1.7) * 0.035).truncatingRemainder(dividingBy: 1.0) * size.width
-                let fall = time * (0.014 + seed.truncatingRemainder(dividingBy: 5.0) * 0.0015)
-                let y = (baseY + fall + cos(time * 0.08 + seed * 1.2) * 0.025 + 1.0).truncatingRemainder(dividingBy: 1.0) * size.height
-                let radius = 1.0 + seed.truncatingRemainder(dividingBy: 3.0) * 0.55
-                let pulse = 0.55 + 0.45 * sin(time * 0.7 + seed)
-                let color = index.isMultiple(of: 4) ? Color.cyan : AppTheme.accent
-                let alpha = (0.16 + seed.truncatingRemainder(dividingBy: 4.0) * 0.035) * pulse
-                let rect = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
-                context.fill(Path(ellipseIn: rect), with: .color(color.opacity(alpha)))
-                let glow = rect.insetBy(dx: -radius * 2.8, dy: -radius * 2.8)
-                context.fill(Path(ellipseIn: glow), with: .color(color.opacity(alpha * 0.16)))
+    var titleKey: String {
+        switch self {
+        case .max: return "freefire.title"
+        case .regular: return "freefire.title_regular"
+        case .capCut: return "capcut.title"
+        }
+    }
+
+    var artworkName: String {
+        switch self {
+        case .max: return "FreeFireMax"
+        case .regular: return "FreeFire"
+        case .capCut: return ""
+        }
+    }
+
+    var logoURL: String {
+        "https://play-lh.googleusercontent.com/M78HyakHaxKrjoeqYx41E9DXfVYYtx67nvc7Ks4G4zFQeaAJdGCi8gzzGSrHIwlrmnJS6zD9S4fAXqdEwfuHQAQ=w480-h960"
+    }
+
+    var aimProjectNames: [String] {
+        switch self {
+        case .max: return ["Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu"]
+        case .regular: return ["Aim Body Free Fire", "Aim Drag Free Fire", "Aim Neck Free Fire", "Aim Head Free Fire", "Aim Magic Free Fire", "Unlock FPS 144"]
+        case .capCut: return ["CapCut Pro"]
+        }
+    }
+
+    var locationProjectNames: [String] {
+        switch self {
+        case .max: return ["Súng Trắng", "Chạm Đỏ"]
+        case .regular: return [
+                "Chams + Holo tím",
+                "Chams Không màu",
+                "ChamsKhongMau",
+                "Định vị blue",
+                "DinhViBlue",
+                "Định Vị"
+            ]
+        case .capCut: return []
+        }
+    }
+
+    var skinProjectNames: [String] {
+        switch self {
+        case .max: return []
+        case .regular: return ["Mod Skin Gojo"]
+        case .capCut: return []
+        }
+    }
+
+    var openGameKey: String {
+        switch self {
+        case .max: return "freefire.open_game"
+        case .regular: return "freefire.open_game_regular"
+        case .capCut: return "capcut.open"
+        }
+    }
+
+    func canOpen() -> Bool {
+        guard let url = URL(string: "\(scheme)://") else { return false }
+        return UIApplication.shared.canOpenURL(url)
+    }
+}
+
+// MARK: - FreeFireGameEntryView
+private struct FreeFireGameEntryView: View {
+    @Environment(\.appLanguage) private var language
+    let game: FreeFireGame
+    @State private var isAvailable: Bool
+    @State private var showNotice = false
+    @State private var navigateToPatch = false
+
+    init(game: FreeFireGame) {
+        self.game = game
+        _isAvailable = State(initialValue: game.canOpen())
+    }
+
+    var body: some View {
+        Button {
+            if game == .max || game == .regular {
+                showNotice = true
+            } else {
+                navigateToPatch = true
             }
+        } label: {
+            VStack(spacing: 10) {
+                FreeFireArtwork(game: game, size: 68)
+                Text(language.text(game.titleKey))
+                    .font(.headline)
+                    .foregroundStyle(isAvailable ? .primary : .secondary)
+                if !isAvailable {
+                    Text(language.text("dashboard.unavailable"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background(
+                isAvailable
+                    ? Color(uiColor: .secondarySystemGroupedBackground)
+                    : Color(uiColor: .secondarySystemFill),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .opacity(isAvailable ? 1 : 0.7)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isAvailable)
+        .navigationDestination(isPresented: $navigateToPatch) {
+            FreeFirePatchView(game: game)
+        }
+        .alert(language.text("freefire.notice_title"), isPresented: $showNotice) {
+            Button(language.text("freefire.notice_confirm")) {
+                navigateToPatch = true
+            }
+        } message: {
+            Text(language.text("freefire.notice_message"))
+        }
+        .tint(AppTheme.accent)
+        .padding(.horizontal, 16)
+        .padding(.top, 0)
+        .onAppear {
+            isAvailable = game.canOpen()
         }
     }
 }
 
-private struct FallingNeonParticles: View {
-    var body: some View {
-        GeometryReader { proxy in
-            TimelineView(.periodic(from: Date(), by: 0.10)) { timeline in
-                fallingCanvas(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
+// MARK: - FreeFirePatchView
+private struct FreeFirePatchView: View {
+    @Environment(\.appLanguage) private var language
+    @Environment(\.openURL) private var openURL
+    let game: FreeFireGame
+    @StateObject private var store: PatchProjectStore
+    @State private var selectedSegment = 0
+    @State private var isLoading = true
+    @State private var loadError: String?
+    @State private var isGameAvailable: Bool
+
+    init(game: FreeFireGame) {
+        self.game = game
+        _store = StateObject(wrappedValue: PatchProjectStore(game: game))
+        _isGameAvailable = State(initialValue: game.canOpen())
+    }
+
+    // MARK: - Hàm lấy danh sách item
+    private var aimItems: [PatchLibraryItem] {
+        let names = game.aimProjectNames
+        return names.compactMap { name in
+            store.items.first { item in
+                item.project?.name == name
             }
         }
     }
 
-    private func fallingCanvas(time: TimeInterval, size: CGSize) -> some View {
-        Canvas { context, canvasSize in
-            let width = max(canvasSize.width, size.width)
-            let height = max(canvasSize.height, size.height)
-            for index in 0..<30 {
-                let seed = Double(index)
-                let x = (seed * 0.754877666 + sin(seed * 2.1) * 0.025).truncatingRemainder(dividingBy: 1.0) * width
-                let speed = 0.010 + seed.truncatingRemainder(dividingBy: 5.0) * 0.0014
-                let y = (seed * 0.413731 + time * speed).truncatingRemainder(dividingBy: 1.0) * height
-                let length = 3.0 + seed.truncatingRemainder(dividingBy: 5.0) * 2.0
-                let radius = 0.8 + seed.truncatingRemainder(dividingBy: 3.0) * 0.42
-                let pulse = 0.62 + 0.38 * sin(time * 0.9 + seed)
-                let color = index.isMultiple(of: 5) ? Color.white : (index.isMultiple(of: 2) ? Color.cyan : AppTheme.accent)
-                let alpha = (0.42 + seed.truncatingRemainder(dividingBy: 4.0) * 0.045) * pulse
-                var streak = Path()
-                streak.move(to: CGPoint(x: x, y: y))
-                streak.addLine(to: CGPoint(x: x, y: y + length))
-                context.stroke(streak, with: .color(color.opacity(alpha * 0.95)), lineWidth: radius * 1.35)
-                let dot = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
-                context.fill(Path(ellipseIn: dot), with: .color(color.opacity(alpha)))
-            }
+    private var locationItems: [PatchLibraryItem] {
+        let names = game.locationProjectNames
+        var seen: Set<UUID> = []
+        return names.compactMap { name in
+            guard let match = store.items.first(where: { item in
+                let currentName = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
+                let normalizedName = currentName.lowercased()
+                let aliasSet = [name.lowercased(), name.replacingOccurrences(of: " ", with: "").lowercased()]
+                return aliasSet.contains(normalizedName)
+                    || normalizedName == name.lowercased().replacingOccurrences(of: " ", with: "")
+                    || normalizedName == "chamskhongmau"
+                    || normalizedName == "dinhviblue"
+            }) else { return nil }
+            if seen.insert(match.id).inserted { return match }
+            return nil
         }
-        .drawingGroup(opaque: false, colorMode: .linear)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
+
+    // MARK: - Display Name
+    private func aimDisplayName(for item: PatchLibraryItem) -> String {
+        switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
+        case "Aim Neck": return language.text("freefire.aim_neck")
+        case "Aim Chest": return language.text("freefire.aim_chest")
+        case "Aim Body": return language.text("freefire.aim_body")
+        case "Aim Drag": return language.text("freefire.aim_drag")
+        case "Aim Magic": return language.text("freefire.aim_magic")
+        case "Aim Đầu": return language.text("freefire.aim_head")
+        case "Aim Neck Free Fire": return language.text("freefire.aim_neck")
+        case "Aim Body Free Fire": return language.text("freefire.aim_body")
+        case "Aim Drag Free Fire": return language.text("freefire.aim_drag")
+        case "Aim Head Free Fire": return language.text("freefire.aim_head")
+        case "Aim Magic Free Fire": return language.text("freefire.aim_magic")
+        case "Unlock FPS 144": return language.text("freefire.unlock_fps_144")
+        default: return item.project?.name ?? language.text("freefire.aim_file")
+        }
+    }
+
+    private func locationDisplayName(for item: PatchLibraryItem) -> String {
+        switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
+        case "Súng Trắng": return language.text("freefire.white_gun")
+        case "Chạm Đỏ": return language.text("freefire.red_touch")
+        case "Chams + Holo tím": return language.text("freefire.chams_holo")
+        case "Chams Không màu", "ChamsKhongMau": return language.text("freefire.chams_no_color")
+        case "Định vị blue", "DinhViBlue": return language.text("freefire.blue_location")
+        case "Định Vị": return language.text("freefire.location_main")
+        default: return item.project?.name ?? language.text("freefire.location")
+        }
+    }
+
+    private var skinItems: [PatchLibraryItem] {
+        game.skinProjectNames.compactMap { name in
+            store.items.first { $0.project?.name == name }
+        }
+    }
+
+    private func skinDisplayName(for item: PatchLibraryItem) -> String {
+        switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
+        case "Mod Skin Gojo": return language.text("freefire.gojo")
+        default: return item.project?.name ?? language.text("freefire.mod_skin")
+        }
+    }
+
+    // MARK: - Body
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Text(language.text(game.titleKey))
+                    .font(.title2.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                FreeFireArtwork(game: game, size: 112)
+                Text(language.text(game.titleKey))
+                    .font(.headline)
+
+                if isLoading {
+                    ProgressView(language.text("freefire.loading"))
+                        .padding(.vertical, 40)
+                } else if let error = loadError {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .padding()
+                } else {
+                    // Nội dung chính
+                    if let project = aimItems.first?.project {
+                        Text(project.allBundleIdentifiers.joined(separator: ", "))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    if game != .capCut {
+                        Picker(language.text("freefire.patch_type"), selection: $selectedSegment) {
+                            Label(language.text("freefire.aim_file"), systemImage: "scope").tag(0)
+                            Label(language.text("freefire.location"), systemImage: "location.fill").tag(1)
+                            Label(language.text("freefire.mod_skin"), systemImage: "paintbrush.fill").tag(2)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    if store.isBusy {
+                        ProgressView(language.text("patch.operation_in_progress"))
+                            .font(.footnote)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                    }
+
+                    if game == .capCut {
+                        if let item = aimItems.first {
+                            Toggle(isOn: Binding(
+                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
+                                set: { store.setEnabled($0, for: item, group: .capCut) }
+                            )) {
+                                Label(language.text("capcut.activate_pro"), systemImage: "crown.fill")
+                            }
+                            .padding()
+                            .background(
+                                Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .disabled(store.isBusy)
+                        }
+                    } else if selectedSegment == 0 {
+                        ForEach(aimItems) { item in
+                            Toggle(isOn: Binding(
+                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
+                                set: { store.setEnabled($0, for: item, group: .aim) }
+                            )) {
+                                Label(aimDisplayName(for: item), systemImage: "scope")
+                            }
+                            .padding()
+                            .background(
+                                Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .disabled(store.isBusy)
+                        }
+                    } else if selectedSegment == 1 {
+                        ForEach(locationItems) { item in
+                            Toggle(isOn: Binding(
+                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
+                                set: { store.setEnabled($0, for: item, group: .location) }
+                            )) {
+                                Label(locationDisplayName(for: item), systemImage: "location.fill")
+                            }
+                            .padding()
+                            .background(
+                                Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .disabled(store.isBusy)
+                        }
+                    } else {
+                        ForEach(skinItems) { item in
+                            Toggle(isOn: Binding(
+                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
+                                set: { store.setEnabled($0, for: item, group: .skin) }
+                            )) {
+                                Label(skinDisplayName(for: item), systemImage: "tshirt.fill")
+                            }
+                            .padding()
+                            .background(
+                                Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .disabled(store.isBusy)
+                        }
+                    }
+
+                    Button {
+                        guard let url = URL(string: "\(game.scheme)://") else { return }
+                        if isGameAvailable {
+                            openURL(url)
+                        }
+                    } label: {
+                        Label(
+                            isGameAvailable ? language.text(game.openGameKey) : language.text("dashboard.unavailable"),
+                            systemImage: isGameAvailable ? "gamecontroller.fill" : "gamecontroller"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                    }
+                    .disabled(!isGameAvailable)
+                    .background(
+                        isGameAvailable ? AppTheme.accent : Color(uiColor: .systemGray4),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+                }
+            }
+            .padding(16)
+        }
+        .navigationTitle(language.text(game.titleKey))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            isGameAvailable = game.canOpen()
+        }
+        .task {
+            await loadPatchLibrary()
+        }
+        .alert(item: $store.alert) { alert in
+            let title = Text(language.text(alert.titleKey))
+            let message = Text(alert.message(language: language))
+            if alert.messageKey == "patch.error.pairing_tunnel_required" {
+                return Alert(
+                    title: title,
+                    message: message,
+                    primaryButton: .default(Text(language.text("settings.open_localdevvpn"))) {
+                        if let url = URL(string: "localdevvpn://") {
+                            openURL(url)
+                        }
+                    },
+                    secondaryButton: .cancel(Text(language.text("common.cancel")))
+                )
+            }
+            return Alert(
+                title: title,
+                message: message,
+                dismissButton: .default(Text(language.text("common.ok")))
+            )
+        }
+    }
+
+    // MARK: - Hàm tải patch (chạy background)
+    private func loadPatchLibrary() async {
+        // Chỉ tải một lần (dùng static flag)
+        guard !Self.loadedGames.contains(game) else {
+            // Nếu đã tải, chỉ cần reload store và tắt loading
+            await MainActor.run {
+                store.reload()
+                isLoading = false
+            }
+            return
+        }
+
+        // Bắt đầu loading
+        await MainActor.run {
+            isLoading = true
+            loadError = nil
+        }
+
+        // Chạy tác vụ nặng trong background
+        await Task.detached(priority: .userInitiated) {
+            do {
+                // Gọi các hàm install (có thể là đồng bộ, nhưng chạy ở background)
+                // Nếu các hàm này throw, catch sẽ bắt
+                try await withCheckedThrowingContinuation { continuation in
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        // Thực hiện cài đặt
+                        for patch in game.bundledPatches {
+                            if patch.resourceName.hasSuffix(".3105") {
+                                PatchProjectLibrary.installBundledFileIfNeeded(
+                                    filename: patch.resourceName,
+                                    projectName: patch.projectName,
+                                    password: patch.password
+                                )
+                            } else {
+                                PatchProjectLibrary.installBundledPackageIfNeeded(
+                                    resourceName: patch.resourceName,
+                                    projectName: patch.projectName,
+                                    password: patch.password
+                                )
+                            }
+                        }
+
+                        // Sau khi cài xong, reload store
+                        DispatchQueue.main.async {
+                            store.reload()
+                            // Đánh dấu đã load
+                            Self.loadedGames.insert(game)
+                            continuation.resume()
+                        }
+                    }
+                }
+                // Cập nhật UI: tắt loading
+                await MainActor.run {
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    loadError = "Failed to load patches: \(error.localizedDescription)"
+                    isLoading = false
+                }
+            }
+        }.value // chờ task hoàn thành
+    }
+
+    // Static flag để chỉ load một lần
+    private static var loadedGames: Set<FreeFireGame> = []
 }
 
-private struct AnimatedAtmosphere: View {
+// MARK: - FreeFireArtwork
+private struct FreeFireArtwork: View {
+    let game: FreeFireGame
+    let size: CGFloat
+
     var body: some View {
-        GeometryReader { proxy in
-            TimelineView(.periodic(from: Date(), by: 0.12)) { timeline in
-                atmosphere(time: timeline.date.timeIntervalSinceReferenceDate, size: proxy.size)
+        Group {
+            if game == .capCut, let logoURL = URL(string: game.logoURL) {
+                AsyncImage(url: logoURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        fallbackArtwork
+                    }
+                }
+            } else if let image = UIImage(named: game.artworkName) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                fallbackArtwork
             }
         }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
     }
 
-    private func atmosphere(time: TimeInterval, size: CGSize) -> some View {
-        let phase = time * 0.12
-        let driftX = CGFloat(sin(phase) * Double(size.width * 0.28))
-        let driftY = CGFloat(cos(phase * 0.83) * Double(size.height * 0.12))
-        return ZStack {
-            Circle()
-                .fill(Color.cyan.opacity(0.10))
-                .frame(width: 310, height: 310)
-                .blur(radius: 54)
-                .offset(x: -size.width * 0.34 + driftX, y: -size.height * 0.30 + driftY)
-            Circle()
-                .fill(Color.purple.opacity(0.12))
-                .frame(width: 270, height: 270)
-                .blur(radius: 56)
-                .offset(x: size.width * 0.34 - driftX, y: size.height * 0.18 - driftY)
-            Circle()
-                .fill(AppTheme.accent.opacity(0.07))
-                .frame(width: 220, height: 220)
-                .blur(radius: 46)
-                .offset(x: driftX * 0.5, y: size.height * 0.34)
-        }
-        .frame(width: size.width, height: size.height)
-    }
-}
-
-private struct GridOverlay: View {
-    var body: some View {
-        Canvas { context, size in
-            var path = Path()
-            let spacing: CGFloat = 44
-            stride(from: CGFloat(0), through: size.width, by: spacing).forEach { x in
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: size.height))
-            }
-            stride(from: CGFloat(0), through: size.height, by: spacing).forEach { y in
-                path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: size.width, y: y))
-            }
-            context.stroke(path, with: .color(AppTheme.accent.opacity(0.045)), lineWidth: 1)
-        }
+    private var fallbackArtwork: some View {
+        Image(systemName: game == .capCut ? "crown.fill" : "gamecontroller.fill")
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(AppTheme.accent)
     }
 }
