@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="docs/images/app-icon.png" width="132" alt="Biểu tượng ứng dụng 3105">
+  <img src="docs/images/app-icon.png" width="132" alt="Biểu tượng ứng dụng TryStore">
 </p>
 
-<h1 align="center">3105</h1>
+<h1 align="center">TryStore</h1>
 
 <p align="center">
   Trình quản lý dữ liệu ứng dụng, patch theo bundle, dọn dẹp giới hạn và hình nền PosterBoard dành cho iOS.
 </p>
 
 <p align="center">
-  <img alt="Phiên bản" src="https://img.shields.io/badge/phiên%20bản-1.0.1-E6753A?style=flat-square">
+  <img alt="Phiên bản" src="https://img.shields.io/badge/phiên%20bản-1.1.1-E6753A?style=flat-square">
   <img alt="iOS" src="https://img.shields.io/badge/iOS-26.0–26.6.1%20%7C%2027%20beta%201–4-222222?style=flat-square">
   <img alt="Ngôn ngữ" src="https://img.shields.io/badge/ngôn%20ngữ-English%20%7C%20Tiếng%20Việt%20%7C%20简体中文-E6753A?style=flat-square">
 </p>
@@ -17,19 +17,19 @@
 <p align="center"><a href="README.md">English</a> · <a href="docs/PATCH_GUIDE.vi.md">Hướng dẫn Patch</a> · <a href="#giấy-phép">Giấy phép</a></p>
 
 > [!WARNING]
-> 3105 là phần mềm nghiên cứu để quản lý thiết bị cá nhân. Chỉ sử dụng trên thiết bị và dữ liệu thuộc quyền sở hữu của bạn, đồng thời luôn sao lưu trước khi thay đổi dữ liệu ứng dụng.
+> TryStore là ứng dụng iOS dành cho bản xem trước cosmetic và quản lý tệp do người dùng chọn để quản lý thiết bị cá nhân. Chỉ sử dụng trên thiết bị và dữ liệu thuộc quyền sở hữu của bạn, đồng thời luôn sao lưu trước khi thay đổi dữ liệu ứng dụng.
 
 ## Giao diện
 
 <p align="center">
-  <img src="docs/images/home.png" width="245" alt="Trang chủ 3105">
+  <img src="docs/images/home.png" width="245" alt="Trang chủ TryStore">
   &nbsp;
-  <img src="docs/images/patches.png" width="245" alt="Patch 3105">
+  <img src="docs/images/patches.png" width="245" alt="Patch TryStore">
   &nbsp;
-  <img src="docs/images/cleaner.png" width="245" alt="Dọn dẹp 3105">
+  <img src="docs/images/cleaner.png" width="245" alt="Dọn dẹp TryStore">
 </p>
 
-## Có gì mới trong 1.0.1
+## Có gì mới trong TryStore 1.1.1
 
 - **Patch workspace v2** — tạo patch bằng cây thư mục theo bundle trong `Trên iPhone của tôi/3105/Patches`; khi Áp dụng hoặc Xuất, app tự đồng bộ toàn bộ workspace.
 - **Khôi phục an toàn hơn** — file gốc được ghi nhật ký và sao lưu trước khi thay; Khôi phục sẽ trả lại file cũ, xóa file do patch thêm và dọn các thư mục mới nếu đã rỗng.
@@ -39,17 +39,25 @@
 
 Xem [hướng dẫn Patch workspace đầy đủ](docs/PATCH_GUIDE.vi.md).
 
-## Tính năng chính
+## Tính năng chính của TryStore
 
 - Duyệt dữ liệu ứng dụng theo **bundle identifier**, không phụ thuộc UUID container của từng máy.
 - Trình quản lý tệp có tìm kiếm, xem trước, chia sẻ, nhập nhiều tệp, sao chép, di chuyển, dán, đổi tên, xóa, tạo tệp/thư mục, nén ZIP và xử lý trùng tên.
 - Tạo và nhập dự án patch `.3105` theo bundle, hỗ trợ nhiều quy tắc, tệp/thư mục, mật khẩu tùy chọn và nhập từ Files hoặc liên kết website bảo mật.
 - Dọn dẹp giới hạn trong `Library/Caches` và `tmp`, hỗ trợ sắp xếp dung lượng và chọn nhiều ứng dụng, luôn hiển thị cảnh báo trước khi xóa.
 - Nhập gói hình nền `.tendies`, xác thực payload và chỉ reset nội dung do 3105 cài đặt.
-- 3105 không cài jailbreak, bootstrap hay daemon thường trú và không inject mã vào ứng dụng bên thứ ba. Do ứng dụng vẫn dùng khai thác thiết bị và có thể sửa dữ liệu app, không thể bảo đảm vượt qua mọi cơ chế kiểm tra tính toàn vẹn hoặc phát hiện jailbreak.
 - Hỗ trợ tiếng Anh, tiếng Việt và tiếng Trung giản thể.
 
-## Phiên bản iOS đã xác minh
+## Tài liệu
+
+- [Hướng dẫn Patch workspace](docs/PATCH_GUIDE.vi.md)
+- [Hướng dẫn eSign](docs/ESIGN_SETUP.md)
+- [Thiết lập TryStore](TRYSTORE_SETUP.md)
+- [Chỉ mục tài liệu](docs/DOCUMENTATION_INDEX.md)
+
+TryStore giữ nguyên GUI bản xem trước cosmetic, quyền truy cập thư mục qua Files, sao lưu, ghi tạm, đổi tên nguyên tử, xác minh SHA-256 và rollback.
+
+## Tương thích và quy trình
 
 | Hệ thống | Phiên bản/build |
 | --- | --- |
@@ -61,7 +69,7 @@ Xem [hướng dẫn Patch workspace đầy đủ](docs/PATCH_GUIDE.vi.md).
 
 Những build không có trong bảng sẽ được đánh dấu là không hỗ trợ.
 
-## Lưu ý cài đặt
+## Lưu ý xây dựng và cài đặt
 
 - Các chức năng trên thiết bị yêu cầu ứng dụng được ký bằng **chứng chỉ doanh nghiệp**.
 - Không hỗ trợ SideStore, AltStore, 3uTools hoặc LiveContainer.
@@ -70,8 +78,8 @@ Những build không có trong bảng sẽ được đánh dấu là không hỗ
 
 ## Tác giả và ghi công
 
-3105 được phát triển và thiết kế bởi [YangJiii](https://x.com/duongduong0908). Xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) để biết các dự án và nhà phát triển nền tảng đã được sử dụng/tham khảo.
+TryStore được phát triển dựa trên mã nguồn dự án 3105 và giữ giao diện, luồng tài liệu riêng của TryStore. Xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) để biết các dự án và nhà phát triển nền tảng đã được sử dụng/tham khảo.
 
 ## Giấy phép
 
-Phần mã gốc của 3105 được phát hành theo [GNU General Public License v3.0](LICENSE). Thành phần của bên thứ ba vẫn tuân theo bản quyền và điều khoản của dự án nguồn tương ứng; xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Phần mã gốc của TryStore được phát hành theo [GNU General Public License v3.0](LICENSE). Thành phần của bên thứ ba vẫn tuân theo bản quyền và điều khoản của dự án nguồn tương ứng; xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

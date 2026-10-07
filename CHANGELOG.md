@@ -7,6 +7,7 @@ All notable user-facing changes are documented in this file.
 - Added the compatible patch-workspace guide from the supplied archive in English and Vietnamese.
 - Added the archive’s 1.0.1 release notes under `docs/releases/`.
 - Clarified that TryStore’s existing GUI, cosmetic-preview controls, document picker, backup, atomic replacement, verification, and rollback workflow remain unchanged.
+- Reconciled the English/Vietnamese project documentation, setup notes, eSign guide, attribution notices, and documentation index.
 
 
 ## [1.0.1] - 2026-08-15

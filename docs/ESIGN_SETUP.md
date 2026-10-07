@@ -33,3 +33,7 @@ Successful installation is not guaranteed by the source package alone. It depend
 [2]: https://developer.apple.com/documentation/bundleresources/entitlements "Apple Developer: Entitlements"
 
 [3]: https://github.com/iOS17/Esign "GitHub: iOS17/Esign"
+
+## Related documentation
+
+See the [documentation index](DOCUMENTATION_INDEX.md), [TryStore setup](../TRYSTORE_SETUP.md), and [patch workspace guide](PATCH_GUIDE.md).

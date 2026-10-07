@@ -27,3 +27,14 @@ A key must be active and issued for the `trystore` project. An invalid, expired,
 ## Build
 
 Codemagic uses the shared `3105` scheme and `build_unsigned.sh` to create `build/3105-unsigned.ipa`. The workflow validates the project, patch resources, Cloudflare configuration, and final IPA contents before publishing the IPA and archive as artifacts.
+
+## Documentation
+
+- [English README](README.md)
+- [Vietnamese README](README.vi.md)
+- [Patch workspace guide](docs/PATCH_GUIDE.md)
+- [Vietnamese patch workspace guide](docs/PATCH_GUIDE.vi.md)
+- [eSign setup](docs/ESIGN_SETUP.md)
+- [Documentation index](docs/DOCUMENTATION_INDEX.md)
+
+The archive’s broader device-management and exploit-oriented material is not part of the TryStore workflow. TryStore preserves the GUI and document workflow described above and limits its replacement action to the user-selected cosmetic asset.

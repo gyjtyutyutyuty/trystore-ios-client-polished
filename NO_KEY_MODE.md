@@ -1,8 +1,8 @@
-# Temporary local access mode
+# License-gated access mode
 
-The main SwiftUI console currently runs with `licenseGateEnabled = false` in `ThreeOneOSFive/ContentView.swift`. Patch activation no longer requires a license key, while the device-integrity check remains enforced before protected actions.
+The main SwiftUI console currently runs with `licenseGateEnabled = true` in `ThreeOneOSFive/ContentView.swift`. Protected patch activation requires an active license key, while the device-integrity check remains enforced before protected actions.
 
-The license manager files remain in the project so the gate can be re-enabled later by changing that flag to `true` and restoring the license panel in the view flow.
+The license manager and license panel remain in the project and are active in the current TryStore workflow.
 
 ## Build note
 
