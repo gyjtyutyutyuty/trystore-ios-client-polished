@@ -2,149 +2,55 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @Environment(\.appLanguage) private var language
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var tabNavigation: AppTabNavigationState
-
-    init() {
-        _tabNavigation = State(initialValue: AppTabNavigationState())
-    }
-
     var body: some View {
-        Group {
-            if horizontalSizeClass == .regular {
-                regularLayout
-            } else {
-                compactLayout
-            }
-        }
-        .tint(AppTheme.accent)
-        .imageScale(.small)
-        .preferredColorScheme(.dark)
-        .onAppear {
-            tabNavigation.reconcileSelection(with: featureVisibility)
-        }
-    }
-
-    private var compactLayout: some View {
-        TabView(selection: tabSelection) {
-            ForEach(featureVisibility.visibleSections) { section in
-                sectionContent(section)
-                    .tabItem {
-                        CompactTabLabel(
-                            title: language.text(section.titleKey),
-                            systemImage: section.systemImage
-                        )
-                    }
-                    .tag(section.rawValue)
-            }
-        }
-    }
-
-    private var regularLayout: some View {
-        NavigationSplitView {
-            List {
-                ForEach(featureVisibility.visibleSections) { section in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            tabNavigation.select(section.rawValue)
-                        }
-                    } label: {
-                        Label(language.text(section.titleKey), systemImage: section.systemImage)
-                            .fontWeight(section.rawValue == tabNavigation.selectedTab ? .semibold : .regular)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(
-                        section.rawValue == tabNavigation.selectedTab
-                            ? AppTheme.accent.opacity(0.14)
-                            : Color.clear
-                    )
-                    .accessibilityAddTraits(
-                        section.rawValue == tabNavigation.selectedTab ? .isSelected : []
-                    )
-                }
-            }
-            .navigationTitle("TRY STORE")
-            .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
-        } detail: {
-            sectionContent(selectedVisibleSection)
-                .id(selectedVisibleSection.rawValue)
-        }
-        .navigationSplitViewStyle(.balanced)
-    }
-
-    @ViewBuilder
-    private func sectionContent(_ section: AppSection) -> some View {
-        switch section {
-        case .home:
-            DashboardView()
-        case .patches:
-            PatchProjectsView()
-        }
-    }
-
-    private var tabSelection: Binding<Int> {
-        Binding(
-            get: { tabNavigation.selectedTab },
-            set: { tabNavigation.select($0) }
-        )
-    }
-
-    private var featureVisibility: FeatureVisibility {
-        FeatureVisibility()
-    }
-
-    private var selectedVisibleSection: AppSection {
-        guard let section = AppSection(rawValue: tabNavigation.selectedTab),
-              featureVisibility.isVisible(section) else {
-            return .home
-        }
-        return section
-    }
-}
-
-private struct CompactTabLabel: View {
-    let title: String
-    let systemImage: String
-
-    @ViewBuilder
-    var body: some View {
-        if let image = UIImage(
-            systemName: systemImage,
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
-        )?.withRenderingMode(.alwaysTemplate) {
-            Image(uiImage: image)
-        } else {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .medium))
-        }
-        Text(title)
-    }
-}
-
-private extension AppSection {
-    var titleKey: String {
-        switch self {
-        case .home: return "tab.home"
-        case .patches: return "tab.patches"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .home: return "house.fill"
-        case .patches: return "square.stack.3d.up.fill"
-        }
+        DashboardView()
+            .tint(AppTheme.accent)
+            .imageScale(.small)
+            .preferredColorScheme(.dark)
     }
 }
 
 // MARK: - DashboardView
+private enum DashboardPatchTab: String, CaseIterable, Identifiable {
+    case loadout
+    case visuals
+
+    var id: String { rawValue }
+    var title: String { self == .loadout ? "LOADOUT" : "VISUALS" }
+    var icon: String { self == .loadout ? "scope" : "sparkles" }
+}
+
+private struct DashboardPatchOption: Identifiable {
+    let projectName: String
+    let title: String
+    let icon: String
+    let color: Color
+    let group: PatchToggleGroup?
+
+    var id: String { projectName }
+
+    static let loadout = [
+        DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
+        DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
+        DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
+        DashboardPatchOption(projectName: "Silent Aim", title: "ESP TRY", icon: "viewfinder", color: .mint, group: nil)
+    ]
+
+    static let visuals = [
+        DashboardPatchOption(projectName: "HOLOGRAMA ARMAS", title: "HOLOGRAMA ARMAS", icon: "sparkles", color: .purple, group: nil),
+        DashboardPatchOption(projectName: "HOLOGRAMA PERSONAJE", title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, group: nil)
+    ]
+
+    static var all: [DashboardPatchOption] { loadout + visuals }
+}
+
 private struct DashboardView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var appState: AppState
+    @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @State private var selectedPatchTab: DashboardPatchTab = .loadout
     @State private var showSettings = false
     @State private var showLogs = false
 
@@ -157,10 +63,10 @@ private struct DashboardView: View {
                         topBar
                         heroPanel
                         telemetryStrip
+                        legacyPatchPanel
                         deviceSection
                         quickStartPanel
                         characterPreviewPanel
-                        maxConsolePanel
                         socialLinksPanel
                         footerBar
                     }
@@ -175,6 +81,13 @@ private struct DashboardView: View {
             .tint(AppTheme.accent)
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showLogs) { LogView() }
+            .alert(item: $patchStore.alert) { alert in
+                Alert(
+                    title: Text(language.text(alert.titleKey)),
+                    message: Text(alert.message(language: language)),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
@@ -366,9 +279,9 @@ private struct DashboardView: View {
         VStack(alignment: .leading, spacing: 11) {
             panelHeader(title: "QUICK START", subtitle: "YOUR MAX SESSION", icon: "bolt.fill")
             HStack(alignment: .top, spacing: 8) {
-                quickStartStep(number: "01", title: "CHOOSE", detail: "Open the MAX patch console")
-                quickStartStep(number: "02", title: "APPLY", detail: "Enable a bundled option")
-                quickStartStep(number: "03", title: "RESTORE", detail: "Turn it off to undo")
+                quickStartStep(number: "01", title: "CHOOSE", detail: "Pick LOADOUT or VISUALS")
+                quickStartStep(number: "02", title: "TOGGLE", detail: "Tap a legacy patch to apply")
+                quickStartStep(number: "03", title: "RESTORE", detail: "Tap the active button again")
             }
         }
         .padding(14)
@@ -439,18 +352,190 @@ private struct DashboardView: View {
         .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(AppTheme.accent.opacity(0.18), lineWidth: 1))
     }
 
-    private var maxConsolePanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            panelHeader(title: "FREE FIRE MAX", subtitle: "BUNDLED MAX PATCH CATALOG", icon: "gamecontroller.fill")
-            FreeFireGameEntryView(game: .max)
-            Text("Only Free Fire MAX patch files are bundled in this build.")
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.46))
-                .padding(.horizontal, 3)
+    private var legacyPatchPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("TRYSTORE PATCHES")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundStyle(.white)
+                    Text("FREE FIRE MAX  •  ORIGINAL MODULES")
+                        .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .tracking(0.55)
+                        .foregroundStyle(AppTheme.accent)
+                }
+                Spacer()
+                if patchStore.isBusy {
+                    ProgressView()
+                        .tint(AppTheme.accent)
+                        .scaleEffect(0.78)
+                        .accessibilityLabel("Applying patch")
+                } else {
+                    Text("\(activeLegacyPatchCount) / 7 ON")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.78))
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(Color.white.opacity(0.07), in: Capsule())
+                }
+            }
+
+            HStack(spacing: 7) {
+                ForEach(DashboardPatchTab.allCases) { tab in
+                    let selected = selectedPatchTab == tab
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedPatchTab = tab
+                        }
+                    } label: {
+                        Label(tab.title, systemImage: tab.icon)
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .tracking(0.55)
+                            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.58))
+                            .frame(maxWidth: .infinity, minHeight: 38)
+                            .background(
+                                selected ? AppTheme.accent.opacity(0.28) : Color.white.opacity(0.045),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(selected ? AppTheme.accent.opacity(0.72) : Color.white.opacity(0.08), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+
+            if selectedPatchTab == .visuals {
+                visualPatchPreview
+            } else {
+                Text("Tap a patch to turn it on; tap the same button again to restore the original.")
+                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.52))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(spacing: 7) {
+                ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals) { option in
+                    legacyPatchButton(option)
+                }
+            }
+
+            if selectedPatchTab == .loadout {
+                Text("Aim modules share a game file, so only one aim option is active at a time.")
+                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.40))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
-        .background(AppTheme.consoleBackground.opacity(0.96), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(AppTheme.accent.opacity(0.25), lineWidth: 1))
+        .background(
+            LinearGradient(
+                colors: [Color(red: 0.035, green: 0.12, blue: 0.24), AppTheme.consoleBackground.opacity(0.97)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(AppTheme.accent.opacity(0.32), lineWidth: 1))
+        .shadow(color: AppTheme.accent.opacity(0.08), radius: 16, y: 7)
+    }
+
+    private var visualPatchPreview: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.03, green: 0.13, blue: 0.27), Color.black.opacity(0.82)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+            Image("CleanCharacter")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 132)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .shadow(color: AppTheme.accent.opacity(0.22), radius: 14, y: 4)
+            Label("TRYSTORE CLASSIC CHARACTER", systemImage: "sparkles")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(.white.opacity(0.82))
+                .padding(10)
+        }
+        .frame(height: 142)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.accent.opacity(0.20), lineWidth: 1))
+    }
+
+    private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
+        let item = patchStore.items.first {
+            $0.project?.name == option.projectName
+                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+        }
+        let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
+
+        return Button {
+            guard let item else { return }
+            patchStore.setEnabled(!isActive, for: item, group: option.group, reportsSuccess: false)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(isActive ? .white : option.color)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        (isActive ? option.color : option.color.opacity(0.16)),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.title)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(0.45)
+                        .foregroundStyle(.white)
+                    Text("FREE FIRE MAX PATCH")
+                        .font(.system(size: 6, weight: .bold, design: .rounded))
+                        .tracking(0.55)
+                        .foregroundStyle(.white.opacity(0.42))
+                }
+                Spacer(minLength: 4)
+                Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(item == nil ? .orange : (isActive ? .white : .white.opacity(0.48)))
+                    .frame(minWidth: 39, minHeight: 23)
+                    .background(
+                        isActive ? option.color.opacity(0.42) : Color.white.opacity(0.055),
+                        in: Capsule()
+                    )
+                Image(systemName: item == nil ? "exclamationmark.triangle.fill" : (isActive ? "checkmark.circle.fill" : "circle"))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(item == nil ? .orange : (isActive ? option.color : .white.opacity(0.30)))
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 52)
+            .background(
+                isActive ? option.color.opacity(0.15) : Color.white.opacity(0.035),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isActive ? option.color.opacity(0.58) : Color.white.opacity(0.075), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(patchStore.isBusy || item == nil)
+        .opacity(patchStore.isBusy ? 0.72 : (item == nil ? 0.52 : 1))
+        .accessibilityLabel("\(option.title), \(isActive ? "on" : "off")")
+    }
+
+    private var activeLegacyPatchCount: Int {
+        DashboardPatchOption.all.reduce(into: 0) { count, option in
+            guard let item = patchStore.items.first(where: { $0.project?.name == option.projectName }),
+                  DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
+            count += 1
+        }
     }
 
     private var socialLinksPanel: some View {
@@ -602,11 +687,11 @@ private extension FreeFireGame {
     }
 
     var aimProjectNames: [String] {
-        ["Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu"]
+        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "Silent Aim"]
     }
 
     var locationProjectNames: [String] {
-        ["Súng Trắng", "Chạm Đỏ"]
+        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
     }
 
     var openGameKey: String {
@@ -742,20 +827,19 @@ private struct FreeFirePatchView: View {
     // MARK: - Display Name
     private func aimDisplayName(for item: PatchLibraryItem) -> String {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "Aim Neck": return language.text("freefire.aim_neck")
-        case "Aim Chest": return language.text("freefire.aim_chest")
-        case "Aim Body": return language.text("freefire.aim_body")
-        case "Aim Drag": return language.text("freefire.aim_drag")
-        case "Aim Magic": return language.text("freefire.aim_magic")
-        case "Aim Đầu": return language.text("freefire.aim_head")
+        case "HEAD": return "HEAD"
+        case "NECK": return "NECK"
+        case "HS PESSCOSO": return "DRAG"
+        case "HS SLA PECHO": return "PECHO"
+        case "Silent Aim": return "ESP TRY"
         default: return item.project?.name ?? language.text("freefire.aim_file")
         }
     }
 
     private func locationDisplayName(for item: PatchLibraryItem) -> String {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "Súng Trắng": return language.text("freefire.white_gun")
-        case "Chạm Đỏ": return language.text("freefire.red_touch")
+        case "HOLOGRAMA ARMAS": return "HOLOGRAMA ARMAS"
+        case "HOLOGRAMA PERSONAJE": return "HOLOGRAMA PERSONAJE"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }

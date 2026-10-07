@@ -36,14 +36,13 @@ enum FreeFireGame: Hashable {
 
     var bundledPatches: [BundledPatch] {
         [
-            BundledPatch(resourceName: "AimNeck", projectName: "Aim Neck", password: "nmkiosvn"),
-            BundledPatch(resourceName: "AimChest", projectName: "Aim Chest", password: "nmkiosvn"),
-            BundledPatch(resourceName: "AimBody", projectName: "Aim Body", password: "nmkiosvn"),
-            BundledPatch(resourceName: "AimDrag", projectName: "Aim Drag", password: "nmkiosvn"),
-            BundledPatch(resourceName: "AimMagic", projectName: "Aim Magic", password: "nmkiosvn"),
-            BundledPatch(resourceName: "AimDau", projectName: "Aim Đầu", password: "nmkiosvn"),
-            BundledPatch(resourceName: "SungTrang", projectName: "Súng Trắng", password: "YaBao"),
-            BundledPatch(resourceName: "ChamDo", projectName: "Chạm Đỏ", password: "YaBao")
+            BundledPatch(resourceName: "HEAD.3105", projectName: "HEAD", password: nil),
+            BundledPatch(resourceName: "NECK.3105", projectName: "NECK", password: nil),
+            BundledPatch(resourceName: "HSPESSCOSO.3105", projectName: "HS PESSCOSO", password: nil),
+            BundledPatch(resourceName: "HS SLA PECHO.3105", projectName: "HS SLA PECHO", password: nil),
+            BundledPatch(resourceName: "SilentAim.3105", projectName: "Silent Aim", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAARMAS.3105", projectName: "HOLOGRAMA ARMAS", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil)
         ]
     }
 }
@@ -65,9 +64,6 @@ final class PatchProjectStore: ObservableObject {
     private var pendingUnlock: PendingUnlock?
 
     init(game: FreeFireGame = .max) {
-        if game == .max {
-            PatchProjectLibrary.removeBundledPackage(named: "Free Fire Max")
-        }
         for patch in game.bundledPatches {
             if patch.resourceName.hasSuffix(".3105") {
                 PatchProjectLibrary.installBundledFileIfNeeded(
@@ -273,7 +269,12 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
-    func setEnabled(_ enabled: Bool, for item: PatchLibraryItem, group: PatchToggleGroup? = nil) {
+    func setEnabled(
+        _ enabled: Bool,
+        for item: PatchLibraryItem,
+        group: PatchToggleGroup? = nil,
+        reportsSuccess: Bool = true
+    ) {
         guard !isBusy else { return }
         if DevicePatchService.requiresPairingTunnel, !LocalDevTunnelProbe.isConnected {
             present(.pairingTunnelRequired)
@@ -288,7 +289,7 @@ final class PatchProjectStore: ObservableObject {
                 return
             }
 
-            runOperation(successMessageKey: "patch.applied_message") {
+            runOperation(successMessageKey: "patch.applied_message", reportsSuccess: reportsSuccess) {
                 if let resolvedGroup {
                     for candidate in self.items where Self.group(for: candidate) == resolvedGroup && candidate.id != item.id {
                         if let receipt = DevicePatchService.latestReceipt(projectID: candidate.id) {
@@ -303,7 +304,7 @@ final class PatchProjectStore: ObservableObject {
                 _ = try DevicePatchService.apply(project: project)
             }
         } else if let receipt = DevicePatchService.latestReceipt(projectID: item.id) {
-            runOperation(successMessageKey: "patch.restored_message") {
+            runOperation(successMessageKey: "patch.restored_message", reportsSuccess: reportsSuccess) {
                 try DevicePatchService.restore(receipt: receipt)
             }
         }
@@ -312,10 +313,8 @@ final class PatchProjectStore: ObservableObject {
     private static func group(for item: PatchLibraryItem) -> PatchToggleGroup? {
         let name = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
         switch name {
-        case "Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu":
+        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO":
             return .aim
-        case "Súng Trắng", "Chạm Đỏ":
-            return .location
         default:
             return nil
         }
@@ -351,6 +350,7 @@ final class PatchProjectStore: ObservableObject {
 
     private func runOperation(
         successMessageKey: String,
+        reportsSuccess: Bool = true,
         operation: @escaping () throws -> Void
     ) {
         guard !isBusy else { return }
@@ -358,7 +358,10 @@ final class PatchProjectStore: ObservableObject {
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 try operation()
-                await self?.finishOperation(successMessageKey: successMessageKey)
+                await self?.finishOperation(
+                    successMessageKey: successMessageKey,
+                    reportsSuccess: reportsSuccess
+                )
             } catch let error as PatchPackageError {
                 await self?.failOperation(error)
             } catch {
@@ -411,10 +414,12 @@ final class PatchProjectStore: ObservableObject {
         unlockErrorKey = nil
     }
 
-    private func finishOperation(successMessageKey: String) {
+    private func finishOperation(successMessageKey: String, reportsSuccess: Bool = true) {
         reload()
         isBusy = false
-        alert = PatchStoreAlert(titleKey: "common.done", messageKey: successMessageKey)
+        alert = reportsSuccess
+            ? PatchStoreAlert(titleKey: "common.done", messageKey: successMessageKey)
+            : nil
     }
 
     private func failOperation(_ error: PatchPackageError) {
