@@ -28,6 +28,7 @@ workflows:
             "HOLOGRAMAPERSONAJE.3105"; do
             test -s "ThreeOneOSFive/Patches/$package"
           done
+          python3 scripts/verify_legacy_patch_bundle.py
           xcodebuild -project ThreeOneOSFive.xcodeproj -scheme SupportPatch -list
       - name: Validate Airlift FFI and build unsigned archive/IPA
         script: |
@@ -53,6 +54,7 @@ workflows:
           APP="/tmp/supportpatch-ipa-check/Payload/SupportPatch.app"
           test -x "$APP/SupportPatch"
           test -f "$APP/Info.plist"
+          python3 scripts/verify_legacy_patch_bundle.py --app "$APP"
     artifacts:
       - build/SupportPatch-unsigned.ipa
       - build/SupportPatch.xcarchive
