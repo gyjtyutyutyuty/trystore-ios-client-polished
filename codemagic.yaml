@@ -17,7 +17,7 @@ workflows:
           test -n "$(find ThreeOneOSFive/Assets.xcassets -type f -name '*.bin' -print -quit)"
           test "$(find . -type f -name '*.3105' | wc -l | tr -d ' ')" -eq 0
           xcodebuild -project ThreeOneOSFive.xcodeproj -scheme SupportPatch -list
-      - name: Build Airlift FFI and unsigned archive/IPA
+      - name: Validate Airlift FFI and build unsigned archive/IPA
         script: |
           set -euo pipefail
           chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh

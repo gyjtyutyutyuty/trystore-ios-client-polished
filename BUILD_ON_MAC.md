@@ -12,7 +12,7 @@ Use a Mac with:
 
 - macOS and Xcode installed;
 - iOS platform components installed through Xcode;
-- Rust and the iOS Rust targets available for rebuilding Airlift;
+- Rust and the iOS Rust targets available only if you intend to rebuild Airlift;
 - the project copied to a writable local folder.
 
 ## Build commands
@@ -21,6 +21,7 @@ From the project root, run:
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
+# Uses the committed Airlift XCFramework by default.
 ./ThreeOneOSFive/build-airlift-ffi.sh
 ./build_supportpatch_unsigned.sh
 ```
@@ -47,3 +48,5 @@ ThreeOneOSFive/Assets.xcassets/**/*.dataset/*.bin
 ```
 
 The `.3105` suffix remains only for the encrypted user patch-package import/export format handled by the patch workspace code.
+
+The checked-in Airlift XCFramework is used by default. To intentionally rebuild it on macOS, run `REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh`.
