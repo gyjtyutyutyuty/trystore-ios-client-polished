@@ -25,10 +25,7 @@ enum PatchProjectLibrary {
     ]
     private static let bundledProjectNames: Set<String> = [
         "Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu",
-        "Súng Trắng", "Chạm Đỏ", "Aim Neck Free Fire", "Aim Body Free Fire",
-        "Aim Drag Free Fire", "Aim Head Free Fire", "Aim Magic Free Fire", "Unlock FPS 144",
-        "Chams + Holo tím", "Chams Không màu", "ChamsKhongMau",
-        "Định Vị", "Mod Skin Gojo", "CapCut Pro"
+        "Súng Trắng", "Chạm Đỏ"
     ]
 
     static func isBundledProject(_ project: PatchProject) -> Bool {

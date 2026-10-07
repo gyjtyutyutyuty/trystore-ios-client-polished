@@ -2,6 +2,7 @@ import Foundation
 
 enum AppSection: Int, CaseIterable, Identifiable {
     case home
+    case patches
 
     var id: Int { rawValue }
 }
@@ -23,7 +24,7 @@ struct FeatureVisibility: Equatable {
     }
 
     func isVisible(_ section: AppSection) -> Bool {
-        section == .home
+        section == .home || section == .patches
     }
 }
 

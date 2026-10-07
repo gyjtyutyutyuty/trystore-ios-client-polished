@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>SupportPatch</string>
+    <string>TryStore</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>SupportPatch</string>
+    <string>TryStore</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -49,8 +49,6 @@
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>freefiremax</string>
-        <string>freefire</string>
-        <string>com.googleusercontent.apps.753696289953-c71g0mbsqjtrtdgf1ov874fpru7f22g6</string>
         <string>localdevvpn</string>
     </array>
     <key>UTExportedTypeDeclarations</key>

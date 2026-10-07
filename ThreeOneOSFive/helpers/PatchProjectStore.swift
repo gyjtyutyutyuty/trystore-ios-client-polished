@@ -23,8 +23,6 @@ struct PatchStoreAlert: Identifiable {
 enum PatchToggleGroup {
     case aim
     case location
-    case skin
-    case capCut
 }
 
 struct BundledPatch {
@@ -35,40 +33,18 @@ struct BundledPatch {
 
 enum FreeFireGame: Hashable {
     case max
-    case regular
-    case capCut
 
     var bundledPatches: [BundledPatch] {
-        switch self {
-        case .max:
-            return [
-                BundledPatch(resourceName: "AimNeck", projectName: "Aim Neck", password: "nmkiosvn"),
-                BundledPatch(resourceName: "AimChest", projectName: "Aim Chest", password: "nmkiosvn"),
-                BundledPatch(resourceName: "AimBody", projectName: "Aim Body", password: "nmkiosvn"),
-                BundledPatch(resourceName: "AimDrag", projectName: "Aim Drag", password: "nmkiosvn"),
-                BundledPatch(resourceName: "AimMagic", projectName: "Aim Magic", password: "nmkiosvn"),
-                BundledPatch(resourceName: "AimDau", projectName: "Aim Đầu", password: "nmkiosvn"),
-                BundledPatch(resourceName: "SungTrang", projectName: "Súng Trắng", password: "YaBao"),
-                BundledPatch(resourceName: "ChamDo", projectName: "Chạm Đỏ", password: "YaBao")
-            ]
-        case .regular:
-            return [
-                BundledPatch(resourceName: "AimNeckFreeFire", projectName: "Aim Neck Free Fire", password: "james"),
-                BundledPatch(resourceName: "AimBodyFreeFire", projectName: "Aim Body Free Fire", password: "james"),
-                BundledPatch(resourceName: "AimDragFreeFire", projectName: "Aim Drag Free Fire", password: "james"),
-                BundledPatch(resourceName: "AimHeadFreeFire", projectName: "Aim Head Free Fire", password: "YB"),
-                BundledPatch(resourceName: "AimMagicFreeFire", projectName: "Aim Magic Free Fire", password: nil),
-                BundledPatch(resourceName: "UnlockFPS144", projectName: "Unlock FPS 144", password: "alpha_fps"),
-                BundledPatch(resourceName: "ChamsHoloTim", projectName: "Chams + Holo tím", password: "james"),
-                BundledPatch(resourceName: "ChamsKhongMau", projectName: "Chams Không màu", password: "james"),
-                BundledPatch(resourceName: "DinhVi", projectName: "Định Vị", password: nil),
-                BundledPatch(resourceName: "ModSkinGojo", projectName: "Mod Skin Gojo", password: "YaBaor")
-            ]
-        case .capCut:
-            return [
-                BundledPatch(resourceName: "capcutpro", projectName: "CapCut Pro", password: "Hoangdz")
-            ]
-        }
+        [
+            BundledPatch(resourceName: "AimNeck", projectName: "Aim Neck", password: "nmkiosvn"),
+            BundledPatch(resourceName: "AimChest", projectName: "Aim Chest", password: "nmkiosvn"),
+            BundledPatch(resourceName: "AimBody", projectName: "Aim Body", password: "nmkiosvn"),
+            BundledPatch(resourceName: "AimDrag", projectName: "Aim Drag", password: "nmkiosvn"),
+            BundledPatch(resourceName: "AimMagic", projectName: "Aim Magic", password: "nmkiosvn"),
+            BundledPatch(resourceName: "AimDau", projectName: "Aim Đầu", password: "nmkiosvn"),
+            BundledPatch(resourceName: "SungTrang", projectName: "Súng Trắng", password: "YaBao"),
+            BundledPatch(resourceName: "ChamDo", projectName: "Chạm Đỏ", password: "YaBao")
+        ]
     }
 }
 
@@ -91,9 +67,6 @@ final class PatchProjectStore: ObservableObject {
     init(game: FreeFireGame = .max) {
         if game == .max {
             PatchProjectLibrary.removeBundledPackage(named: "Free Fire Max")
-        } else if game == .regular {
-            PatchProjectLibrary.removeBundledPackage(named: "Người Nhện")
-            PatchProjectLibrary.removeBundledPackage(named: "Quái Nhân Đen")
         }
         for patch in game.bundledPatches {
             if patch.resourceName.hasSuffix(".3105") {
@@ -339,17 +312,10 @@ final class PatchProjectStore: ObservableObject {
     private static func group(for item: PatchLibraryItem) -> PatchToggleGroup? {
         let name = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
         switch name {
-        case "Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu",
-               "Aim Neck Free Fire", "Aim Body Free Fire", "Aim Drag Free Fire",
-               "Aim Head Free Fire", "Aim Magic Free Fire", "Unlock FPS 144":
+        case "Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu":
             return .aim
-        case "Súng Trắng", "Chạm Đỏ", "Chams + Holo tím", "Chams Không màu",
-             "ChamsKhongMau", "Định vị blue", "DinhViBlue", "Định Vị":
+        case "Súng Trắng", "Chạm Đỏ":
             return .location
-        case "Mod Skin Gojo":
-            return .skin
-        case "CapCut Pro":
-            return .capCut
         default:
             return nil
         }
