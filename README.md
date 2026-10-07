@@ -19,6 +19,15 @@ This revision turns the supplied 3105 project into a normal SwiftUI iOS app with
 - SHA-256 verification after replacement.
 - Automatic rollback from the backup when replacement or verification fails.
 
+## Patch workspace documentation
+The full TryStore GUI and workflow are preserved. The archive’s compatible patch-workspace documentation is available here:
+
+- [Patch workspace guide](docs/PATCH_GUIDE.md)
+- [Hướng dẫn workspace bằng tiếng Việt](docs/PATCH_GUIDE.vi.md)
+- [TryStore 1.0.1 release notes](docs/releases/1.0.1.md)
+
+These guides cover bundle-based workspace organization, backup and restore behavior, import/export, password-protected packages, and path-safety rules. They do not change the app’s existing TryStore controls or bundled cosmetic-preview workflow.
+
 ## Asset path
 
 The app resolves the requested relative asset path:
