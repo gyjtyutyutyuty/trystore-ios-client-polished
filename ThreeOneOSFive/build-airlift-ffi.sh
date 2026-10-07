@@ -6,25 +6,54 @@ CORE="$ROOT/airlift-rust-core"
 OUTPUT="$ROOT/AirliftFFI.xcframework"
 TEMP_OUTPUT="$ROOT/AirliftFFI.tmp.xcframework"
 
-# The repository contains the exact device and simulator XCFrameworks needed by
-# the Xcode target. This keeps CI independent of Rust target installation,
-# crates.io/Git access, and the host's local Rust toolchain. Set
-# REBUILD_AIRLIFT=1 on macOS when intentionally rebuilding the framework.
+# The repository contains a framework for quick local builds. CI should set
+# REBUILD_AIRLIFT=1 so the framework is regenerated whenever the Rust FFI
+# surface changes. This prevents stale archives from silently missing exports.
 REBUILD_AIRLIFT="${REBUILD_AIRLIFT:-0}"
 
+required_exports=(
+  al_log_init
+  al_pairing_run_host
+  al_exploit_run
+  al_exploit_write_dir
+  al_exploit_read_file
+  al_exploit_inject_folder
+  al_find_app_container
+  al_device_respring
+)
+
+has_export() {
+  local archive="$1"
+  local symbol="$2"
+  if command -v nm >/dev/null 2>&1 && nm -gU "$archive" 2>/dev/null | grep -Eq "(^|[[:space:]])_?${symbol}([[:space:]]|$)"; then
+    return 0
+  fi
+  # GNU nm cannot inspect the Mach-O archive in the Linux sandbox; this fallback
+  # still catches missing symbol names in committed/generated archives.
+  grep -a -q "$symbol" "$archive"
+}
+
+verify_archive() {
+  local archive="$1"
+  test -s "$archive" || return 1
+  for symbol in "${required_exports[@]}"; do
+    if ! has_export "$archive" "$symbol"; then
+      echo "Airlift archive is missing required export: $symbol" >&2
+      return 1
+    fi
+  done
+}
+
 if [[ "$REBUILD_AIRLIFT" != "1" ]]; then
-  test -s "$OUTPUT/ios-arm64/libairlift_ffi.a" || {
-    echo "AirliftFFI.xcframework is missing the ios-arm64 library; run with REBUILD_AIRLIFT=1 on macOS." >&2
+  verify_archive "$OUTPUT/ios-arm64/libairlift_ffi.a" || {
+    echo "The committed Airlift framework is stale or incomplete; run REBUILD_AIRLIFT=1 on macOS." >&2
     exit 1
   }
-  test -s "$OUTPUT/ios-arm64-simulator/libairlift_ffi.a" || {
-    echo "AirliftFFI.xcframework is missing the simulator library; run with REBUILD_AIRLIFT=1 on macOS." >&2
+  verify_archive "$OUTPUT/ios-arm64-simulator/libairlift_ffi.a" || {
+    echo "The committed Airlift simulator framework is stale or incomplete; run REBUILD_AIRLIFT=1 on macOS." >&2
     exit 1
   }
-  test -f "$OUTPUT/Info.plist" || {
-    echo "AirliftFFI.xcframework is missing Info.plist; run with REBUILD_AIRLIFT=1 on macOS." >&2
-    exit 1
-  }
+  test -f "$OUTPUT/Info.plist"
   echo "Using committed AirliftFFI.xcframework (set REBUILD_AIRLIFT=1 to rebuild)."
   exit 0
 fi
@@ -43,8 +72,8 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 cargo build --locked --manifest-path "$CORE/Cargo.toml" --release --target aarch64-apple-ios
 cargo build --locked --manifest-path "$CORE/Cargo.toml" --release --target aarch64-apple-ios-sim
 
-test -s "$CORE/target/aarch64-apple-ios/release/libairlift_ffi.a"
-test -s "$CORE/target/aarch64-apple-ios-sim/release/libairlift_ffi.a"
+verify_archive "$CORE/target/aarch64-apple-ios/release/libairlift_ffi.a"
+verify_archive "$CORE/target/aarch64-apple-ios-sim/release/libairlift_ffi.a"
 
 rm -rf "$TEMP_OUTPUT"
 xcodebuild -create-xcframework \
@@ -56,4 +85,6 @@ xcodebuild -create-xcframework \
 
 rm -rf "$OUTPUT"
 mv "$TEMP_OUTPUT" "$OUTPUT"
-echo "Rebuilt $OUTPUT"
+verify_archive "$OUTPUT/ios-arm64/libairlift_ffi.a"
+verify_archive "$OUTPUT/ios-arm64-simulator/libairlift_ffi.a"
+echo "Rebuilt and verified $OUTPUT"

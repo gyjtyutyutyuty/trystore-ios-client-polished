@@ -21,8 +21,8 @@ From the project root, run:
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
-# Uses the committed Airlift XCFramework by default.
-./ThreeOneOSFive/build-airlift-ffi.sh
+# Rebuilds Airlift so all current Rust FFI exports are linked.
+REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh
 ./build_supportpatch_unsigned.sh
 ```
 
@@ -49,4 +49,4 @@ ThreeOneOSFive/Assets.xcassets/**/*.dataset/*.bin
 
 The `.3105` suffix remains only for the encrypted user patch-package import/export format handled by the patch workspace code.
 
-The checked-in Airlift XCFramework is used by default. To intentionally rebuild it on macOS, run `REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh`.
+The build script verifies the checked-in Airlift exports. For this merged checkout, rebuild it before archiving with `REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh`; this refreshes the framework when new Rust FFI functions are added.

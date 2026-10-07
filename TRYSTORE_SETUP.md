@@ -6,7 +6,7 @@ The repository now uses the uploaded `test1-main` project as its source of truth
 
 - SupportPatch GUI and Files/patch-workspace flows under `ThreeOneOSFive/`.
 - Airlift FFI XCFramework at `ThreeOneOSFive/AirliftFFI.xcframework`.
-- Airlift Rust-core rebuild script at `ThreeOneOSFive/build-airlift-ffi.sh` (the committed XCFramework is used by default; set `REBUILD_AIRLIFT=1` to rebuild on macOS).
+- Airlift Rust-core rebuild script at `ThreeOneOSFive/build-airlift-ffi.sh` (the script verifies exports; set `REBUILD_AIRLIFT=1` to rebuild the framework on macOS).
 - Current bundled patch datasets under `ThreeOneOSFive/Assets.xcassets/**/*.dataset/*.bin`.
 - Encrypted `.3105` package import/export for user-created patch projects.
 
@@ -16,7 +16,7 @@ Legacy root GUI files, old standalone `.3105` binaries, and their build checks w
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
-./ThreeOneOSFive/build-airlift-ffi.sh
+REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh
 ./build_supportpatch_unsigned.sh
 ```
 
