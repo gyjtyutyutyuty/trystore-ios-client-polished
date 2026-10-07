@@ -14,8 +14,20 @@ workflows:
           test -f ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme
           test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64/libairlift_ffi.a
           test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64-simulator/libairlift_ffi.a
-          test -n "$(find ThreeOneOSFive/Assets.xcassets -type f -name '*.bin' -print -quit)"
-          test "$(find . -type f -name '*.3105' | wc -l | tr -d ' ')" -eq 0
+          patch_count="$(find ThreeOneOSFive/Patches -maxdepth 1 -type f -name '*.3105' | wc -l | tr -d ' ')"
+          test "$patch_count" -eq 7
+          test "$(find . -type f -name '*.3105' | wc -l | tr -d ' ')" -eq 7
+          test -z "$(find ThreeOneOSFive/Assets.xcassets -type f -name '*.bin' -print -quit)"
+          for package in \
+            "HEAD.3105" \
+            "NECK.3105" \
+            "HSPESSCOSO.3105" \
+            "HS SLA PECHO.3105" \
+            "SilentAim.3105" \
+            "HOLOGRAMAARMAS.3105" \
+            "HOLOGRAMAPERSONAJE.3105"; do
+            test -s "ThreeOneOSFive/Patches/$package"
+          done
           xcodebuild -project ThreeOneOSFive.xcodeproj -scheme SupportPatch -list
       - name: Validate Airlift FFI and build unsigned archive/IPA
         script: |
@@ -29,9 +41,8 @@ workflows:
           source "$HOME/.cargo/env" 2>/dev/null || true
           command -v rustup
           command -v cargo
-          REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh
           mkdir -p /tmp/xcodebuild_logs
-          ./build_supportpatch_unsigned.sh 2>&1 | tee /tmp/xcodebuild_logs/build.log
+          REBUILD_AIRLIFT=1 ./build_supportpatch_unsigned.sh 2>&1 | tee /tmp/xcodebuild_logs/build.log
       - name: Verify unsigned IPA contents
         script: |
           set -euo pipefail
