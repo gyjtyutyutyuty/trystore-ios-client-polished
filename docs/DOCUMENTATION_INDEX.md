@@ -24,6 +24,7 @@ This index covers the documentation reviewed from the supplied archive and the e
 | [Vietnamese patch workspace guide](PATCH_GUIDE.vi.md) | Vietnamese version of the patch workspace guide. |
 | [eSign setup](ESIGN_SETUP.md) | Owner-controlled signing inputs, unsigned IPA validation, and installation workflow. |
 | [1.0.1 release notes](releases/1.0.1.md) | Vietnamese release notes adapted for TryStore. |
+| [Test1 project documentation reference](test1-reference/README.md) | Linked, TryStore-adapted documentation from the supplied test1 archive. |
 
 ## Archive documentation disposition
 

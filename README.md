@@ -19,6 +19,9 @@ This revision turns the supplied 3105 project into a normal SwiftUI iOS app with
 - SHA-256 verification after replacement.
 - Automatic rollback from the backup when replacement or verification fails.
 
+## Test1 project documents
+The compatible documentation supplied in `test1-main.zip` is linked under [Test1 project documentation reference](docs/test1-reference/README.md). The links cover the archive changelog, notices, patch guides, and release notes while keeping TryStore’s existing GUI and workflow.
+
 ## Patch workspace documentation
 The full TryStore GUI and workflow are preserved. The archive’s compatible patch-workspace documentation is available here:
 
