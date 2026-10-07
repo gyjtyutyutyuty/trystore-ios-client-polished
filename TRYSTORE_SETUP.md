@@ -1,23 +1,30 @@
-# SupportPatch project setup
+# TryStore MAX build setup
 
-The repository now uses the uploaded `test1-main` project as its source of truth. The application target is **SupportPatch**, with the shared scheme at `ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme`.
+The application target is **SupportPatch**, using the shared scheme at `ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme`.
 
-## Included in the merge
+## Included
 
-- SupportPatch GUI and Files/patch-workspace flows under `ThreeOneOSFive/`.
-- Airlift FFI XCFramework at `ThreeOneOSFive/AirliftFFI.xcframework`.
-- Airlift Rust-core rebuild script at `ThreeOneOSFive/build-airlift-ffi.sh` (the script verifies exports; set `REBUILD_AIRLIFT=1` to rebuild the framework on macOS).
-- Current bundled patch datasets under `ThreeOneOSFive/Assets.xcassets/**/*.dataset/*.bin`.
-- Encrypted `.3105` package import/export for user-created patch projects.
+- The signature-blue TryStore home screen, original character art, and social links.
+- The classic **Loadout / Visuals** patch switcher. Tapping a module applies it; tapping the active module again restores its backup.
+- Seven historical `.3105` patch packages, all verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, Silent Aim, HOLOGRAMA ARMAS, and HOLOGRAMA PERSONAJE.
+- Airlift’s `DevicePatchService` integration for patch apply/restore operations.
+- No regular Free Fire catalog or newer `.dataset` patch catalog.
 
-Legacy root GUI files, old standalone `.3105` binaries, and their build checks were removed. The CI workflow now validates the SupportPatch target, Airlift framework, current `.bin` datasets, and absence of legacy bundled `.3105` files.
+## Build on macOS or Codemagic
 
-## Build
+Install a stable Rust toolchain (`rustup` and `cargo`) on the macOS build machine. The unsigned build script rebuilds and validates both Airlift iOS archives before Xcode links the app:
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
-REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh
 ./build_supportpatch_unsigned.sh
 ```
 
-See [BUILD_ON_MAC.md](BUILD_ON_MAC.md), [README.md](README.md), and [docs/PATCH_GUIDE.md](docs/PATCH_GUIDE.md) for the complete workflow.
+To build the XCFramework separately, or when your Codemagic workflow archives the Xcode project directly, run this before the Xcode build:
+
+```bash
+REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh
+```
+
+The rebuild script adds the required iOS Rust targets, checks that the FFI exports match the headers, and recreates `AirliftFFI.xcframework`. GitHub Actions installs stable Rust and uses the same unsigned build script.
+
+See [BUILD_ON_MAC.md](BUILD_ON_MAC.md), [README.md](README.md), and [docs/PATCH_GUIDE.md](docs/PATCH_GUIDE.md) for additional build and patch details.
