@@ -582,3 +582,40 @@
 "wallpaper.error.install" = "Installation failed and any descriptors added during this attempt were rolled back.";
 "wallpaper.error.restore" = "Support Patch could not safely remove every descriptor from this installation.";
 "wallpaper.error.unknown" = "An unexpected error occurred. Review Session Logs for details.";
+
+
+/* Cloudflare license gate */
+"license.gate_kicker" = "CLOUDFLARE LICENSE CHECK";
+"license.gate_title" = "Unlock TryStore";
+"license.gate_message" = "Enter a valid TryStore access key to continue.";
+"license.key_placeholder" = "TRY-XXXXXX-XXXXXX-XXXXXX";
+"license.show_key" = "Show key";
+"license.hide_key" = "Hide key";
+"license.verifying" = "VERIFYING KEY…";
+"license.activate" = "VERIFY & CONTINUE";
+"license.checking" = "Checking your key…";
+"license.keychain_note" = "A verified key is saved in this iPhone’s device-only Keychain.";
+"license.retry" = "Retry verification";
+"license.error_required" = "No saved key is available. Enter your key.";
+"license.error_configuration" = "The license service is not configured.";
+"license.error_secure_storage" = "iOS could not save your key securely.";
+"license.error_offline" = "The license service is unavailable. Check your connection and retry.";
+"license.error_server" = "The license service returned an unreadable response. Try again later.";
+"license.error_invalid" = "That key was not recognized.";
+"license.error_expired" = "This key has expired.";
+"license.error_revoked" = "This key has been revoked.";
+"license.error_frozen" = "This key is currently frozen.";
+"license.error_wrong_project" = "This key is not for TryStore.";
+"license.error_inactive" = "This key is not active.";
+"license.settings_section" = "License";
+"license.settings_status" = "Status";
+"license.settings_active" = "Active";
+"license.settings_required" = "Not activated";
+"license.settings_expiration" = "Expires";
+"license.settings_key" = "Key";
+"license.settings_verify" = "Recheck license";
+"license.settings_forget" = "Forget this key";
+"license.forget_title" = "Remove saved key?";
+"license.forget_message" = "This removes the saved key from this iPhone. A key will be required to reopen the console.";
+"license.forget_action" = "Forget key";
+"license.cancel" = "Cancel";

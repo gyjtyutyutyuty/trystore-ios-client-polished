@@ -158,3 +158,40 @@
 "cleaner.confirm_title" = "¿Eliminar datos temporales?";
 "cleaner.confirm_message" = "Support Patch eliminará permanentemente Library/Caches y tmp de %lld apps seleccionadas (%@). Cierra estas apps antes. La próxima apertura puede ir más lento al reconstruir cachés. Esta acción no se puede deshacer.";
 "cleaner.confirm_action" = "Limpiar ahora";
+
+
+/* Cloudflare license gate */
+"license.gate_kicker" = "VERIFICACIÓN DE LICENCIA CLOUDFLARE";
+"license.gate_title" = "Desbloquear TryStore";
+"license.gate_message" = "Introduce una clave de acceso válida de TryStore para continuar.";
+"license.key_placeholder" = "TRY-XXXXXX-XXXXXX-XXXXXX";
+"license.show_key" = "Mostrar clave";
+"license.hide_key" = "Ocultar clave";
+"license.verifying" = "VERIFICANDO CLAVE…";
+"license.activate" = "VERIFICAR Y CONTINUAR";
+"license.checking" = "Comprobando la clave…";
+"license.keychain_note" = "La clave verificada se guarda en el Keychain de este iPhone, solo para este dispositivo.";
+"license.retry" = "Reintentar verificación";
+"license.error_required" = "No hay una clave guardada. Introduce tu clave.";
+"license.error_configuration" = "El servicio de licencias no está configurado.";
+"license.error_secure_storage" = "iOS no pudo guardar la clave de forma segura.";
+"license.error_offline" = "El servicio de licencias no está disponible. Comprueba la conexión e inténtalo de nuevo.";
+"license.error_server" = "El servicio de licencias devolvió una respuesta ilegible. Inténtalo más tarde.";
+"license.error_invalid" = "No se reconoce esta clave.";
+"license.error_expired" = "Esta clave ha caducado.";
+"license.error_revoked" = "Esta clave ha sido revocada.";
+"license.error_frozen" = "Esta clave está congelada actualmente.";
+"license.error_wrong_project" = "Esta clave no es para TryStore.";
+"license.error_inactive" = "Esta clave no está activa.";
+"license.settings_section" = "Licencia";
+"license.settings_status" = "Estado";
+"license.settings_active" = "Activa";
+"license.settings_required" = "Sin activar";
+"license.settings_expiration" = "Caduca";
+"license.settings_key" = "Clave";
+"license.settings_verify" = "Volver a comprobar la licencia";
+"license.settings_forget" = "Olvidar esta clave";
+"license.forget_title" = "¿Eliminar la clave guardada?";
+"license.forget_message" = "La clave se eliminará de este iPhone. Se necesitará otra clave para volver a abrir la consola.";
+"license.forget_action" = "Olvidar clave";
+"license.cancel" = "Cancelar";
