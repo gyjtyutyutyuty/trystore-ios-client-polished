@@ -576,3 +576,40 @@
 "wallpaper.error.install" = "Cài đặt thất bại và mọi descriptor đã thêm trong lần thử này đã được rollback.";
 "wallpaper.error.restore" = "Support Patch không thể xóa an toàn toàn bộ descriptor của lần cài này.";
 "wallpaper.error.unknown" = "Đã xảy ra lỗi không mong muốn. Hãy kiểm tra Nhật ký phiên để biết chi tiết.";
+
+
+/* Cloudflare license gate */
+"license.gate_kicker" = "XÁC MINH GIẤY PHÉP CLOUDFLARE";
+"license.gate_title" = "Mở khóa TryStore";
+"license.gate_message" = "Nhập khóa truy cập TryStore hợp lệ để tiếp tục.";
+"license.key_placeholder" = "TRY-XXXXXX-XXXXXX-XXXXXX";
+"license.show_key" = "Hiện khóa";
+"license.hide_key" = "Ẩn khóa";
+"license.verifying" = "ĐANG XÁC MINH KHÓA…";
+"license.activate" = "XÁC MINH & TIẾP TỤC";
+"license.checking" = "Đang kiểm tra khóa…";
+"license.keychain_note" = "Khóa hợp lệ được lưu trong Keychain chỉ dành cho thiết bị này.";
+"license.retry" = "Thử xác minh lại";
+"license.error_required" = "Không tìm thấy khóa đã lưu. Hãy nhập khóa.";
+"license.error_configuration" = "Dịch vụ giấy phép chưa được cấu hình.";
+"license.error_secure_storage" = "iOS không thể lưu khóa an toàn.";
+"license.error_offline" = "Không kết nối được dịch vụ giấy phép. Kiểm tra mạng và thử lại.";
+"license.error_server" = "Dịch vụ giấy phép trả về phản hồi không hợp lệ. Hãy thử lại sau.";
+"license.error_invalid" = "Không nhận diện được khóa này.";
+"license.error_expired" = "Khóa này đã hết hạn.";
+"license.error_revoked" = "Khóa này đã bị thu hồi.";
+"license.error_frozen" = "Khóa này hiện đang bị khóa.";
+"license.error_wrong_project" = "Khóa này không dành cho TryStore.";
+"license.error_inactive" = "Khóa này chưa được kích hoạt.";
+"license.settings_section" = "Giấy phép";
+"license.settings_status" = "Trạng thái";
+"license.settings_active" = "Đang hoạt động";
+"license.settings_required" = "Chưa kích hoạt";
+"license.settings_expiration" = "Hết hạn";
+"license.settings_key" = "Khóa";
+"license.settings_verify" = "Kiểm tra lại giấy phép";
+"license.settings_forget" = "Xóa khóa này";
+"license.forget_title" = "Xóa khóa đã lưu?";
+"license.forget_message" = "Khóa sẽ bị xóa khỏi iPhone này. Cần nhập khóa để mở lại bảng điều khiển.";
+"license.forget_action" = "Xóa khóa";
+"license.cancel" = "Hủy";

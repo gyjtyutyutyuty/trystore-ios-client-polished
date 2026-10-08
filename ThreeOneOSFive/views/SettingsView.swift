@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @StateObject private var pairingController = PairingController()
     @State private var isPairingReady = false
@@ -18,6 +19,7 @@ struct SettingsView: View {
     @State private var isPairingImporterPresented = false
     @State private var isPairingImporting = false
     @State private var isPairingDeleteConfirmationPresented = false
+    @State private var isLicenseForgetConfirmationPresented = false
     @State private var pairingImportErrorKey: String?
     @State private var pairingAlertTitleKey = "settings.pairing_import_error_title"
 
@@ -51,6 +53,38 @@ struct SettingsView: View {
                 Section(language.text("common.device")) {
                     LabeledContent(language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
                     LabeledContent(language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
+                }
+
+                Section(language.text("license.settings_section")) {
+                    LabeledContent(
+                        language.text("license.settings_status"),
+                        value: language.text(licenseManager.isActive ? "license.settings_active" : "license.settings_required")
+                    )
+                    if let expirationDate = licenseManager.expirationDate {
+                        LabeledContent(
+                            language.text("license.settings_expiration"),
+                            value: expirationDate.formatted(date: .abbreviated, time: .omitted)
+                        )
+                    }
+                    if let maskedKey = licenseManager.maskedKey {
+                        LabeledContent(language.text("license.settings_key"), value: maskedKey)
+                    }
+                    if let messageKey = licenseManager.messageKey {
+                        Text(language.text(messageKey))
+                            .font(.footnote)
+                            .foregroundStyle(licenseManager.isOffline ? .orange : .secondary)
+                    }
+                    Button {
+                        licenseManager.refresh()
+                    } label: {
+                        Label(language.text("license.settings_verify"), systemImage: "arrow.clockwise")
+                    }
+                    .disabled(licenseManager.isBusy)
+                    Button(role: .destructive) {
+                        isLicenseForgetConfirmationPresented = true
+                    } label: {
+                        Text(language.text("license.settings_forget"))
+                    }
                 }
 
                 if pairingSettingsVisible {
@@ -258,6 +292,18 @@ struct SettingsView: View {
                 Button(language.text("common.cancel"), role: .cancel) {}
             } message: {
                 Text(language.text("settings.delete_pairing_confirm_message"))
+            }
+            .confirmationDialog(
+                language.text("license.forget_title"),
+                isPresented: $isLicenseForgetConfirmationPresented,
+                titleVisibility: .visible
+            ) {
+                Button(language.text("license.forget_action"), role: .destructive) {
+                    licenseManager.clear()
+                }
+                Button(language.text("license.cancel"), role: .cancel) {}
+            } message: {
+                Text(language.text("license.forget_message"))
             }
             .alert(
                 language.text(pairingAlertTitleKey),

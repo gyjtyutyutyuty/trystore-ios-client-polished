@@ -11,6 +11,7 @@ This index covers the documentation reviewed from the supplied archive and the e
 | [TryStore setup](../TRYSTORE_SETUP.md) | GUI/workflow preservation, bundled resources, compatibility notes, and build pipeline. |
 | [Build on Mac](../BUILD_ON_MAC.md) | macOS/Xcode build requirements and unsigned IPA packaging. |
 | [License-gated access](../NO_KEY_MODE.md) | Current licensing and protected-action behavior. |
+| [License activation integration](LICENSE_ACTIVATION.md) | Cloudflare validation contract, Keychain behavior, and device-binding limitation. |
 | [1.0.1 release notes](../1.0.1.md) | Root release note and quick patch workflow. |
 | [Changelog](../CHANGELOG.md) | User-facing changes and documentation updates. |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Attribution and license boundaries for material retained by TryStore. |

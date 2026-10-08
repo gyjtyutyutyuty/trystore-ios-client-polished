@@ -16,6 +16,7 @@ private func retainGrappaTokenSymbol(
 @main
 struct ThreeOneOSFiveApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var licenseManager = LicenseManager()
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
     @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
@@ -50,35 +51,29 @@ struct ThreeOneOSFiveApp: App {
             Group {
                 if appState.securityBlocked {
                     SecurityBlockView(reason: appState.securityMessage)
-                } else {
-                    ZStack {
-                        ContentView()
-                            .environmentObject(appState)
-                            .environmentObject(patchDraftCoordinator)
-                            .environmentObject(fileOperationCoordinator)
-                            .environment(\.appLanguage, language)
-                            .environment(\.locale, language.locale)
-                            .opacity(showOnboarding ? 0 : 1)
-                            .allowsHitTesting(!showOnboarding)
-
-                        if showOnboarding {
-                            OnboardingView {
-                                OnboardingStore.markCompleted()
-                                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-                                    showOnboarding = false
-                                }
-                                appState.detectSupport()
-                                checkForUpdate()
-                            }
-                            .environment(\.appLanguage, language)
-                            .environment(\.locale, language.locale)
-                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                            .zIndex(1)
+                } else if showOnboarding {
+                    OnboardingView {
+                        OnboardingStore.markCompleted()
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                            showOnboarding = false
                         }
+                        licenseManager.beginLaunchSession()
+                        appState.detectSupport()
+                        checkForUpdate()
                     }
+                } else if licenseManager.isActive {
+                    ContentView()
+                } else {
+                    LicenseGateView()
                 }
             }
-            .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding)
+            .environmentObject(appState)
+            .environmentObject(licenseManager)
+            .environmentObject(patchDraftCoordinator)
+            .environmentObject(fileOperationCoordinator)
+            .environment(\.appLanguage, language)
+            .environment(\.locale, language.locale)
+            .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding && licenseManager.isActive)
             .sheet(isPresented: $showAttribution) {
                 DisplayAttributionSheet()
             }
@@ -100,6 +95,7 @@ struct ThreeOneOSFiveApp: App {
             .onAppear {
                 appState.evaluateRuntimeSecurity()
                 if !showOnboarding {
+                    licenseManager.beginLaunchSession()
                     appState.detectSupport()
                     checkForUpdate()
                 }
@@ -108,6 +104,7 @@ struct ThreeOneOSFiveApp: App {
                 guard phase == .active else { return }
                 appState.evaluateRuntimeSecurity()
                 guard !showOnboarding else { return }
+                licenseManager.beginLaunchSession()
                 appState.detectSupport()
             }
             .task {

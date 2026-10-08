@@ -79,6 +79,10 @@
     <true/>
     <key>AppReleaseDisplayVersion</key>
     <string>1.1.1</string>
+    <key>TRYSTORE_LICENSE_API_URL</key>
+    <string>https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate</string>
+    <key>TRYSTORE_PROJECT_ID</key>
+    <string>trystore</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSPhotoLibraryUsageDescription</key>
