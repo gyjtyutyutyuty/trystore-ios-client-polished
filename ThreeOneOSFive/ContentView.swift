@@ -49,6 +49,7 @@ private struct DashboardView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedPatchTab: DashboardPatchTab = .loadout
     @State private var showSettings = false
@@ -91,6 +92,11 @@ private struct DashboardView: View {
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
+        .task {
+            if let key = licenseManager.patchBundleKey {
+                patchStore.installBundledResources(bundleKey: key)
+            }
+        }
     }
 
     private var topBar: some View {
@@ -776,6 +782,7 @@ private struct FreeFireGameEntryView: View {
 private struct FreeFirePatchView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var licenseManager: LicenseManager
     let game: FreeFireGame
     @StateObject private var store: PatchProjectStore
     @State private var selectedSegment = 0
@@ -984,6 +991,9 @@ private struct FreeFirePatchView: View {
             isGameAvailable = game.canOpen()
         }
         .task {
+            if let key = licenseManager.patchBundleKey {
+                store.installBundledResources(bundleKey: key)
+            }
             await loadPatchLibrary()
         }
         .alert(item: $store.alert) { alert in
@@ -1020,70 +1030,18 @@ private struct FreeFirePatchView: View {
 
     // MARK: - Hàm tải patch (chạy background)
     private func loadPatchLibrary() async {
-        // Chỉ tải một lần (dùng static flag)
-        guard !Self.loadedGames.contains(game) else {
-            // Nếu đã tải, chỉ cần reload store và tắt loading
-            await MainActor.run {
-                store.reload()
-                isLoading = false
-            }
+        guard let key = licenseManager.patchBundleKey else {
+            loadError = "Resource authorization is unavailable. Please refresh your license."
+            isLoading = false
             return
         }
-
-        // Bắt đầu loading
-        await MainActor.run {
-            isLoading = true
-            loadError = nil
-        }
-
-        // Chạy tác vụ nặng trong background
-        await Task.detached(priority: .userInitiated) {
-            do {
-                // Gọi các hàm install (có thể là đồng bộ, nhưng chạy ở background)
-                // Nếu các hàm này throw, catch sẽ bắt
-                try await withCheckedThrowingContinuation { continuation in
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        // Thực hiện cài đặt
-                        for patch in game.bundledPatches {
-                            if patch.resourceName.hasSuffix(".3105") {
-                                PatchProjectLibrary.installBundledFileIfNeeded(
-                                    filename: patch.resourceName,
-                                    projectName: patch.projectName,
-                                    password: patch.password
-                                )
-                            } else {
-                                PatchProjectLibrary.installBundledPackageIfNeeded(
-                                    resourceName: patch.resourceName,
-                                    projectName: patch.projectName,
-                                    password: patch.password
-                                )
-                            }
-                        }
-
-                        // Sau khi cài xong, reload store
-                        DispatchQueue.main.async {
-                            store.reload()
-                            // Đánh dấu đã load
-                            Self.loadedGames.insert(game)
-                            continuation.resume()
-                        }
-                    }
-                }
-                // Cập nhật UI: tắt loading
-                await MainActor.run {
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    loadError = "Failed to load patches: \(error.localizedDescription)"
-                    isLoading = false
-                }
-            }
-        }.value // chờ task hoàn thành
+        isLoading = true
+        loadError = nil
+        store.installBundledResources(bundleKey: key)
+        store.reload()
+        isLoading = false
     }
 
-    // Static flag để chỉ load một lần
-    private static var loadedGames: Set<FreeFireGame> = []
 }
 
 // MARK: - FreeFireArtwork

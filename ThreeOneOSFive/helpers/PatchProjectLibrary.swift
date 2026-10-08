@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct PatchLibraryItem: Identifiable {
@@ -126,14 +127,18 @@ enum PatchProjectLibrary {
     static func installBundledFileIfNeeded(
         filename: String,
         projectName: String,
+        bundleKey: Data,
         password: String? = nil,
         bundle: Bundle = .main,
         fileManager: FileManager = .default
     ) {
-        let filenameWithoutExtension = URL(fileURLWithPath: filename).deletingPathExtension().lastPathComponent
-        guard let sourceURL = bundle.url(forResource: filename, withExtension: nil)
-            ?? bundle.url(forResource: filenameWithoutExtension, withExtension: "3105"),
-              let sourceData = try? Data(contentsOf: sourceURL),
+        guard let sourceURL = bundle.url(forResource: filename, withExtension: "enc"),
+              let encryptedData = try? Data(contentsOf: sourceURL),
+              let sealedBox = try? AES.GCM.SealedBox(combined: encryptedData),
+              let sourceData = try? AES.GCM.open(
+                sealedBox,
+                using: SymmetricKey(data: bundleKey)
+              ),
               let sourceSummary = try? PatchPackageCodec.inspect(sourceData),
               let root = try? packageRootURL(fileManager: fileManager) else { return }
 

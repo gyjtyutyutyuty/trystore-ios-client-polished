@@ -11,6 +11,7 @@ private enum PatchPackagePickerPolicy {
 struct PatchProjectsView: View {
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var draftCoordinator: PatchDraftCoordinator
+    @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var store = PatchProjectStore()
     @State private var showCreate = false
     @State private var showImporter = false
@@ -116,6 +117,11 @@ struct PatchProjectsView: View {
                 )
             }
             .onAppear(perform: consumeExternalImport)
+            .task {
+                if let key = licenseManager.patchBundleKey {
+                    store.installBundledResources(bundleKey: key)
+                }
+            }
             .onChange(of: draftCoordinator.importRequest?.id) { _ in
                 consumeExternalImport()
             }

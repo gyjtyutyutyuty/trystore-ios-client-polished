@@ -2,9 +2,7 @@
 
 ## Current status
 
-This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, and the current `.bin` patch datasets under `ThreeOneOSFive/Assets.xcassets`. The old root-level TryStore GUI and legacy bundled `.3105` payloads are no longer part of the build.
-
-A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
+This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and encrypted bundled patch resources. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
 
 ## Build requirements
 
@@ -41,12 +39,12 @@ Open `ThreeOneOSFive.xcodeproj`, choose the shared **SupportPatch** scheme, and 
 
 ## Current patch resources
 
-Patch payloads are asset-catalog datasets, not legacy `.3105` files. The current resources are in:
+The bundled `.3105` packages are encrypted with AES-256-GCM and included in the IPA as:
 
 ```text
-ThreeOneOSFive/Assets.xcassets/**/*.dataset/*.bin
+ThreeOneOSFive/Patches/Encrypted/*.3105.enc
 ```
 
-The `.3105` suffix remains only for the encrypted user patch-package import/export format handled by the patch workspace code.
+At runtime the app validates the license, retrieves the 32-byte decryption key from the Cloudflare Worker, and decrypts each resource for import. The Worker secret is `PATCH_BUNDLE_ENCRYPTION_KEY`; it is not part of this repository or the app bundle. See [license activation](docs/LICENSE_ACTIVATION.md) for the endpoint and the re-encryption command. The plaintext `.3105` source files remain build inputs but are not listed in the Xcode Resources build phase.
 
 The build script verifies the checked-in Airlift exports. For this merged checkout, rebuild it before archiving with `REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh`; this refreshes the framework when new Rust FFI functions are added.

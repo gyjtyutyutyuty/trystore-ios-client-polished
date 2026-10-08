@@ -62,22 +62,24 @@ final class PatchProjectStore: ObservableObject {
     }
 
     private var pendingUnlock: PendingUnlock?
+    private let game: FreeFireGame
+    private var didInstallBundledResources = false
 
     init(game: FreeFireGame = .max) {
+        self.game = game
+        reload()
+    }
+
+    func installBundledResources(bundleKey: Data) {
+        guard bundleKey.count == 32, !didInstallBundledResources else { return }
+        didInstallBundledResources = true
         for patch in game.bundledPatches {
-            if patch.resourceName.hasSuffix(".3105") {
-                PatchProjectLibrary.installBundledFileIfNeeded(
-                    filename: patch.resourceName,
-                    projectName: patch.projectName,
-                    password: patch.password
-                )
-            } else {
-                PatchProjectLibrary.installBundledPackageIfNeeded(
-                    resourceName: patch.resourceName,
-                    projectName: patch.projectName,
-                    password: patch.password
-                )
-            }
+            PatchProjectLibrary.installBundledFileIfNeeded(
+                filename: patch.resourceName,
+                projectName: patch.projectName,
+                bundleKey: bundleKey,
+                password: patch.password
+            )
         }
         reload()
     }
