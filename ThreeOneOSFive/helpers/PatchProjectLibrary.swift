@@ -164,7 +164,7 @@ enum PatchProjectLibrary {
                 data: normalizedData.data,
                 decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
                 summary: normalizedSummary,
-                existingURL: destination,
+                existingURL: nil,
                 createWorkspace: false,
                 fileManager: fileManager
             )
