@@ -37,14 +37,13 @@ The IPA is intentionally unsigned. It must be signed with an Apple Developer cer
 
 Open `ThreeOneOSFive.xcodeproj`, choose the shared **SupportPatch** scheme, and build or archive for a physical iOS device. The target uses the bundle identifier declared in `ThreeOneOSFive/Info.plist`.
 
-## Current patch resources
-
-The bundled `.3105` packages are encrypted with AES-256-GCM and included in the IPA as:
+## Bundled patch payloads
+The seven bundled `.3105` packages are combined into one AES-256-GCM archive and stored as base64 ciphertext in generated Swift source:
 
 ```text
-ThreeOneOSFive/Patches/Encrypted/*.3105.enc
+ThreeOneOSFive/helpers/GeneratedPatchBundle.swift
 ```
 
-At runtime the app validates the license, retrieves the 32-byte decryption key from the Cloudflare Worker, and decrypts each resource for import. The Worker secret is `PATCH_BUNDLE_ENCRYPTION_KEY`; it is not part of this repository or the app bundle. See [license activation](docs/LICENSE_ACTIVATION.md) for the endpoint and the re-encryption command. The plaintext `.3105` source files remain build inputs but are not listed in the Xcode Resources build phase.
+The generated source is compiled into the app; none of the seven patch files or names are separate IPA resources. At runtime the app validates the license, retrieves the 32-byte decryption key from the Cloudflare Worker, decrypts the archive in memory, and imports its entries. The Worker secret is `PATCH_BUNDLE_ENCRYPTION_KEY`. See [license activation](docs/LICENSE_ACTIVATION.md) for key handling and the regeneration command. This hides the separate files from archive listings, but the ciphertext still resides in the executable and can be extracted by reverse engineering.
 
 The build script verifies the checked-in Airlift exports. For this merged checkout, rebuild it before archiving with `REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh`; this refreshes the framework when new Rust FFI functions are added.

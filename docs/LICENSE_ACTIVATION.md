@@ -12,17 +12,17 @@ The app sends the entered key, project slug, app version, and a random per-insta
 
 ## Encrypted bundled resources
 
-The IPA includes the bundled `.3105` patch packages only as AES-256-GCM ciphertext at `ThreeOneOSFive/Patches/Encrypted/*.3105.enc`. After license validation, the app requests `POST /api/v1/keys/patch-bundle-key` with the same license key, device identifier, and `projectId`. The Worker rechecks that the license is active, unexpired, and for `trystore` before returning the key. It also validates legacy keys through the existing license backend. The iOS client verifies that the returned key is 32 bytes, keeps it in memory only, and decrypts resources when importing them; it does not save the bundle key to Keychain.
+The seven `.3105` packages are combined into one AES-256-GCM ciphertext archive and encoded into `ThreeOneOSFive/helpers/GeneratedPatchBundle.swift`. The Xcode target compiles that file as source; no patch payload or patch filename is a separate IPA resource. After license validation, the app requests `POST /api/v1/keys/patch-bundle-key` with the same license key, device identifier, and `projectId`. The Worker rechecks that the license is active, unexpired, and for `trystore` before returning the key. It also validates legacy keys through the existing license backend. The iOS client verifies that the returned key is 32 bytes, keeps it in memory only, and decrypts the archive in memory before importing its entries; it does not save the bundle key to Keychain.
 
-The key is stored as the Cloudflare Worker secret `PATCH_BUNDLE_ENCRYPTION_KEY`, not in app source or the IPA. To regenerate ciphertext resources, set `PATCH_BUNDLE_KEY_BASE64` in a private build environment to the base64-encoded 32-byte key and run:
+The key is stored as the Cloudflare Worker secret `PATCH_BUNDLE_ENCRYPTION_KEY`, not in the generated source. To regenerate the encrypted source archive, set `PATCH_BUNDLE_KEY_BASE64` in a private build environment to the base64-encoded 32-byte key and run:
 
 ```bash
 node scripts/encrypt_bundled_patches.mjs
 ```
 
-The source `.3105` files in `ThreeOneOSFive/Patches/` are build inputs; Xcode must package the encrypted files in `Patches/Encrypted/`, not those inputs. Never put the server key in source control or build logs.
+The source `.3105` files in `ThreeOneOSFive/Patches/` are build inputs; they are not listed in the Xcode project or copied into the IPA. Never put the server key in source control or build logs.
 
-This raises the bar for casual archive inspection, but does not make the content unrecoverable: a person with an authorized app/device can capture the key or plaintext after runtime decryption. The existing license service also does not enforce device binding, as noted below.
+This removes the seven separate patch entries and names from ordinary IPA extraction. It does not make the content unrecoverable: the single ciphertext blob is compiled into the app executable, and a person with an authorized app/device can capture it, the key, or plaintext after runtime decryption. The existing license service also does not enforce device binding, as noted below.
 
 ## Important current limitation
 

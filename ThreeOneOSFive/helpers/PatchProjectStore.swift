@@ -72,12 +72,17 @@ final class PatchProjectStore: ObservableObject {
 
     func installBundledResources(bundleKey: Data) {
         guard bundleKey.count == 32, !didInstallBundledResources else { return }
+        guard let resources = try? PatchResourceBundle.load(using: bundleKey),
+              game.bundledPatches.allSatisfy({ resources[$0.resourceName] != nil }) else {
+            log("patch: bundled archive unavailable")
+            return
+        }
         didInstallBundledResources = true
         for patch in game.bundledPatches {
-            PatchProjectLibrary.installBundledFileIfNeeded(
-                filename: patch.resourceName,
+            guard let data = resources[patch.resourceName] else { continue }
+            PatchProjectLibrary.installBundledPackageDataIfNeeded(
+                data,
                 projectName: patch.projectName,
-                bundleKey: bundleKey,
                 password: patch.password
             )
         }
