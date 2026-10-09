@@ -1114,17 +1114,7 @@ private struct TryStoreAmbientBackground: View {
 
                     if !reduceMotion {
                         ForEach(0..<15, id: \.self) { index in
-                            let angle = Double(index) * (.pi * 2 / 15) + time * (index.isMultiple(of: 2) ? 0.48 : -0.34)
-                            let radius = CGFloat(34 + (index % 5) * 14)
-                            Circle()
-                                .fill(particleColors[index % particleColors.count])
-                                .frame(width: index.isMultiple(of: 4) ? 4.5 : 2.5, height: index.isMultiple(of: 4) ? 4.5 : 2.5)
-                                .shadow(color: particleColors[index % particleColors.count].opacity(0.7), radius: 5)
-                                .position(
-                                    x: touchPoint.x + CGFloat(cos(angle)) * radius,
-                                    y: touchPoint.y + CGFloat(sin(angle)) * radius
-                                )
-                                .opacity(touchStrength * (index.isMultiple(of: 3) ? 0.9 : 0.58))
+                            particleView(index: index, time: time)
                         }
                     }
                 }
@@ -1141,6 +1131,25 @@ private struct TryStoreAmbientBackground: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    private func particleView(index: Int, time: TimeInterval) -> some View {
+        let angle: Double = Double(index) * (.pi * 2 / 15)
+            + time * (index.isMultiple(of: 2) ? 0.48 : -0.34)
+        let radius: CGFloat = CGFloat(34 + (index % 5) * 14)
+        let color = particleColors[index % particleColors.count]
+        let diameter: CGFloat = index.isMultiple(of: 4) ? 4.5 : 2.5
+        let opacity = touchStrength * (index.isMultiple(of: 3) ? 0.9 : 0.58)
+
+        return Circle()
+            .fill(color)
+            .frame(width: diameter, height: diameter)
+            .shadow(color: color.opacity(0.7), radius: 5)
+            .position(
+                x: touchPoint.x + CGFloat(cos(angle)) * radius,
+                y: touchPoint.y + CGFloat(sin(angle)) * radius
+            )
+            .opacity(opacity)
     }
 }
 
