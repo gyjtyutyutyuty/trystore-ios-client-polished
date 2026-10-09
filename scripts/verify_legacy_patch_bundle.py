@@ -61,6 +61,9 @@ def check_source() -> None:
     catalog = CATALOG.read_text()
     ui = UI.read_text()
     pbx = PROJECT.read_text()
+    pbx_object_ids = re.findall(r"^\s*([A-Z0-9]{8,24})\s*(?:/\*.*?\*/\s*)?=\s*\{", pbx, re.M)
+    require(len(pbx_object_ids) == len(set(pbx_object_ids)),
+            "Xcode project contains duplicate object identifiers")
     library = LIBRARY.read_text()
     resource_bundle = RESOURCE_BUNDLE.read_text()
     license_manager = LICENSE_MANAGER.read_text()
@@ -164,8 +167,12 @@ def check_source() -> None:
             "the asset catalog is not in the IPA Resources phase or a raw patch file is listed")
     source_phase = re.search(r'3105A700 /\* Sources \*/ = \{.*?files = \((.*?)\);', pbx, re.S)
     require(source_phase is not None
-            and 'B71300000000000000000004' in source_phase.group(1)
-            and 'B71300000000000000000006' not in source_phase.group(1)
+            and 'B71300000000000000000006' in source_phase.group(1)
+            and 'B71300000000000000000004' not in source_phase.group(1)
+            and re.search(
+                r'B71300000000000000000006 /\* PatchResourceBundle\.swift in Sources \*/ = \{isa = PBXBuildFile; fileRef = B71300000000000000000005;',
+                pbx,
+            ) is not None
             and 'GeneratedPatchBundle' not in pbx
             and not (ROOT / "ThreeOneOSFive/helpers/GeneratedPatchBundle.swift").exists(),
             "the app target still compiles a patch archive instead of loading asset-catalog Data Sets")
