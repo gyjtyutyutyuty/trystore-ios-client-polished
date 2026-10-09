@@ -209,6 +209,10 @@ private struct DashboardView: View {
     @State private var selectedPatchTab: DashboardPatchTab = .loadout
     @State private var showSettings = false
     @State private var showLogs = false
+    @State private var heroFloat = false
+    @State private var heroRingRotation = 0.0
+    @State private var heroScan = false
+    @State private var previewFloat = false
 
     var body: some View {
         NavigationStack {
@@ -265,10 +269,10 @@ private struct DashboardView: View {
                     .font(.system(size: horizontalSizeClass == .compact ? 15 : 18, weight: .black, design: .rounded))
                     .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
                     .foregroundStyle(.white)
-                Text("SECURE EDITION")
-                    .font(.system(size: horizontalSizeClass == .compact ? 7 : 9, weight: .black, design: .rounded))
-                    .tracking(horizontalSizeClass == .compact ? 0.8 : 1.15)
-                    .foregroundStyle(AppTheme.accent)
+                Text("MAX CONTROL  /  VISUAL LAB")
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(AppTheme.accent.opacity(0.82))
             }
             Spacer(minLength: 2)
             if horizontalSizeClass == .regular {
@@ -335,29 +339,57 @@ private struct DashboardView: View {
                 .frame(width: 150, height: 150)
                 .blur(radius: 34)
                 .offset(x: 38, y: -20)
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            AppTheme.accent.opacity(0.02),
+                            AppTheme.accent.opacity(0.92),
+                            Color.white.opacity(0.72),
+                            AppTheme.accent.opacity(0.08)
+                        ],
+                        center: .center,
+                        startAngle: .degrees(heroRingRotation),
+                        endAngle: .degrees(heroRingRotation + 360)
+                    ),
+                    style: StrokeStyle(lineWidth: 1.1, lineCap: .round, dash: [3, 8])
+                )
+                .frame(width: 184, height: 184)
+                .rotationEffect(.degrees(heroRingRotation * -0.35))
+                .offset(x: 6, y: 5)
+                .shadow(color: AppTheme.accent.opacity(0.45), radius: 9)
+            Circle()
+                .stroke(Color.white.opacity(0.13), lineWidth: 1)
+                .frame(width: 204, height: 204)
+                .overlay(alignment: .top) {
+                    Capsule()
+                        .fill(AppTheme.accent)
+                        .frame(width: 4, height: 15)
+                        .shadow(color: AppTheme.accent, radius: 7)
+                }
+                .rotationEffect(.degrees(heroRingRotation * 0.55))
+                .offset(x: 6, y: 5)
             Image("CleanCharacter")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 164, height: 210)
-                .opacity(0.92)
-                .offset(x: 5, y: 11)
+                .opacity(0.96)
+                .offset(x: 5, y: heroFloat ? 2 : 11)
+                .scaleEffect(heroFloat ? 1.025 : 0.985)
+                .animation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true), value: heroFloat)
                 .mask(LinearGradient(colors: [.white, .white.opacity(0.92), .clear], startPoint: .top, endPoint: .bottom))
             VStack(alignment: .leading, spacing: 10) {
                 Text("TRY STORE / CONTROL DECK")
                     .font(.system(size: 9, weight: .black, design: .rounded))
                     .tracking(1.35)
                     .foregroundStyle(AppTheme.accent)
-                Text("Patch smarter.\nPlay cleaner.")
-                    .font(.system(size: 26, weight: .black, design: .rounded))
+                Text("FREE FIRE\nMAX")
+                    .font(.system(size: 27, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Your classic blue TryStore interface, focused on Free Fire MAX.")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.66))
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
                     heroBadge(icon: "gamecontroller.fill", title: "MAX ONLY")
-                    heroBadge(icon: "sparkles", title: "SIGNATURE BLUE")
+                    heroBadge(icon: "sparkles", title: "VISUALS")
                 }
             }
             .padding(17)
@@ -366,8 +398,71 @@ private struct DashboardView: View {
         }
         .frame(minHeight: 208)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(AppTheme.accent.opacity(0.40), lineWidth: 1))
-        .shadow(color: AppTheme.accent.opacity(0.11), radius: 20, y: 9)
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            AppTheme.accent.opacity(0.95),
+                            Color.white.opacity(0.10),
+                            AppTheme.accent.opacity(0.22),
+                            Color.cyan.opacity(0.75),
+                            AppTheme.accent.opacity(0.95)
+                        ],
+                        center: .center,
+                        startAngle: .degrees(heroRingRotation),
+                        endAngle: .degrees(heroRingRotation + 360)
+                    ),
+                    lineWidth: 1.25
+                )
+        }
+        .overlay {
+            GeometryReader { proxy in
+                ZStack {
+                    LinearGradient(
+                        colors: [.clear, AppTheme.accent.opacity(0.14), Color.white.opacity(0.34), AppTheme.accent.opacity(0.12), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(width: 42)
+                    .rotationEffect(.degrees(18))
+                    .offset(x: heroScan ? proxy.size.width + 65 : -75)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .allowsHitTesting(false)
+        }
+        .overlay(alignment: .topLeading) {
+            HeroCornerMark()
+                .stroke(AppTheme.accent.opacity(0.95), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .frame(width: 22, height: 22)
+                .padding(10)
+                .shadow(color: AppTheme.accent.opacity(0.8), radius: 5)
+                .allowsHitTesting(false)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            HeroCornerMark()
+                .stroke(AppTheme.accent.opacity(0.95), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .frame(width: 22, height: 22)
+                .rotationEffect(.degrees(180))
+                .padding(10)
+                .shadow(color: AppTheme.accent.opacity(0.8), radius: 5)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: AppTheme.accent.opacity(0.22), radius: 26, y: 9)
+        .onAppear {
+            heroFloat = false
+            withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+                heroFloat = true
+            }
+            withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
+                heroRingRotation = 360
+            }
+            withAnimation(.linear(duration: 5.8).repeatForever(autoreverses: false)) {
+                heroScan = true
+            }
+        }
     }
 
     private func heroBadge(icon: String, title: String) -> some View {
@@ -491,7 +586,10 @@ private struct DashboardView: View {
                     .frame(maxHeight: 230)
                     .padding(.horizontal, 18)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .shadow(color: AppTheme.accent.opacity(0.24), radius: 18, y: 6)
+                    .offset(y: previewFloat ? -4 : 4)
+                    .scaleEffect(previewFloat ? 1.015 : 0.99)
+                    .animation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true), value: previewFloat)
+                    .shadow(color: AppTheme.accent.opacity(0.32), radius: previewFloat ? 25 : 14, y: 6)
                 Label("FREE FIRE MAX", systemImage: "gamecontroller.fill")
                     .font(.system(size: 8, weight: .black, design: .rounded))
                     .tracking(0.65)
@@ -503,10 +601,22 @@ private struct DashboardView: View {
             }
             .frame(height: 226)
             .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.25), lineWidth: 1))
-            Text("The original TryStore character and signature-blue look are back.")
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.50))
+            .overlay {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [AppTheme.accent.opacity(0.75), Color.white.opacity(0.08), Color.cyan.opacity(0.38)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
+                previewFloat = true
+            }
         }
         .padding(14)
         .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
@@ -585,11 +695,6 @@ private struct DashboardView: View {
 
             if selectedPatchTab == .visuals {
                 visualPatchPreview
-            } else {
-                Text("Tap a patch to turn it on; tap the same button again to restore the original.")
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.52))
-                    .fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(spacing: 7) {
@@ -673,10 +778,6 @@ private struct DashboardView: View {
                         .font(.system(size: 10, weight: .black, design: .rounded))
                         .tracking(0.45)
                         .foregroundStyle(.white)
-                    Text("FREE FIRE MAX PATCH")
-                        .font(.system(size: 6, weight: .bold, design: .rounded))
-                        .tracking(0.55)
-                        .foregroundStyle(.white.opacity(0.42))
                 }
                 Spacer(minLength: 4)
                 Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))
@@ -706,8 +807,14 @@ private struct DashboardView: View {
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isActive ? PlatinumPalette.bright.opacity(0.72) : Color.white.opacity(0.095), lineWidth: 1)
+                    .stroke(
+                        isActive
+                            ? LinearGradient(colors: [Color.white.opacity(0.96), PlatinumPalette.silver.opacity(0.38), PlatinumPalette.bright.opacity(0.90)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1
+                    )
             )
+            .shadow(color: isActive ? PlatinumPalette.bright.opacity(0.14) : .clear, radius: 12, y: 3)
             .scaleEffect(isActive ? 1.012 : 1)
             .animation(.spring(response: 0.34, dampingFraction: 0.68), value: isActive)
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -785,16 +892,15 @@ private struct DashboardView: View {
     }
 
     private var footerBar: some View {
-        HStack(spacing: 7) {
-            Image(systemName: "bolt.shield.fill")
-                .foregroundStyle(AppTheme.accent)
-            Text("TRY STORE  •  SIGNATURE BLUE  •  FREE FIRE MAX")
-                .foregroundStyle(.white.opacity(0.40))
-        }
-        .font(.system(size: 8, weight: .black, design: .rounded))
-        .tracking(0.55)
-        .frame(maxWidth: .infinity)
-        .padding(.top, 3)
+        Rectangle()
+            .fill(LinearGradient(
+                colors: [.clear, AppTheme.accent.opacity(0.45), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            ))
+            .frame(height: 1)
+            .padding(.horizontal, 36)
+            .padding(.top, 5)
     }
 
     private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
@@ -830,7 +936,19 @@ private struct DashboardView: View {
     }
 }
 
+private struct HeroCornerMark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.width, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: rect.height))
+        return path
+    }
+}
+
 private struct TryStoreAmbientBackground: View {
+    @State private var drift = false
+
     var body: some View {
         ZStack {
             LinearGradient(
@@ -848,12 +966,25 @@ private struct TryStoreAmbientBackground: View {
                 .fill(AppTheme.accent.opacity(0.10))
                 .frame(width: 270, height: 270)
                 .blur(radius: 72)
-                .offset(x: 145, y: -300)
+                .offset(x: drift ? 118 : 155, y: drift ? -275 : -320)
+                .scaleEffect(drift ? 1.12 : 0.92)
             Circle()
                 .fill(Color.blue.opacity(0.07))
                 .frame(width: 220, height: 220)
                 .blur(radius: 68)
-                .offset(x: -130, y: 250)
+                .offset(x: drift ? -105 : -150, y: drift ? 220 : 275)
+                .scaleEffect(drift ? 0.9 : 1.12)
+            Circle()
+                .fill(Color.cyan.opacity(0.045))
+                .frame(width: 180, height: 180)
+                .blur(radius: 62)
+                .offset(x: drift ? 155 : 105, y: drift ? 380 : 430)
+                .scaleEffect(drift ? 1.15 : 0.88)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 7.0).repeatForever(autoreverses: true)) {
+                drift = true
+            }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
@@ -1042,10 +1173,6 @@ private struct FreeFirePatchView: View {
                 Text("FREE FIRE MAX")
                     .font(.system(size: 18, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
-                Text("Bundled MAX catalog · live patch status")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.55))
-                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
             Image("CleanCharacter")
