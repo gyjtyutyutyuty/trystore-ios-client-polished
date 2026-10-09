@@ -74,7 +74,7 @@ final class PatchProjectStore: ObservableObject {
         guard bundleKey.count == 32, !didInstallBundledResources else { return }
         guard let resources = try? PatchResourceBundle.load(using: bundleKey),
               game.bundledPatches.allSatisfy({ resources[$0.resourceName] != nil }) else {
-            log("patch: bundled archive unavailable")
+            log("patch: encrypted asset catalog resources unavailable")
             return
         }
         didInstallBundledResources = true

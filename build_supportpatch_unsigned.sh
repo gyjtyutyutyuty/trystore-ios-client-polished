@@ -38,6 +38,7 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
+python3 "$ROOT/scripts/verify_legacy_patch_bundle.py" --app "$APP"
 plutil -replace CFBundleExecutable -string SupportPatch "$APP/Info.plist"
 plutil -replace CFBundlePackageType -string APPL "$APP/Info.plist"
 mkdir -p "$BUILD_DIR/Payload"

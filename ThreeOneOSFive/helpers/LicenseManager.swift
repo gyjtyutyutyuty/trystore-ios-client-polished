@@ -61,6 +61,7 @@ final class LicenseManager: ObservableObject {
     func refresh() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            patchBundleKey = nil
             isActive = false
             messageKey = "license.error_required"
             return
@@ -131,6 +132,7 @@ final class LicenseManager: ObservableObject {
                     do {
                         try saveKeychainString(key, for: keyAccount)
                     } catch {
+                        patchBundleKey = nil
                         isActive = false
                         messageKey = "license.error_secure_storage"
                         return

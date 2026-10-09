@@ -2,7 +2,7 @@
 
 ## Current status
 
-This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and encrypted bundled patch resources. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
+This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and seven AES-GCM-encrypted patch Data Sets. Xcode compiles the opaque `.bin` assets into `Assets.car`. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
 
 ## Build requirements
 
@@ -37,13 +37,13 @@ The IPA is intentionally unsigned. It must be signed with an Apple Developer cer
 
 Open `ThreeOneOSFive.xcodeproj`, choose the shared **SupportPatch** scheme, and build or archive for a physical iOS device. The target uses the bundle identifier declared in `ThreeOneOSFive/Info.plist`.
 
-## Bundled patch payloads
-The seven bundled `.3105` packages are combined into one AES-256-GCM archive and stored as base64 ciphertext in generated Swift source:
+## Encrypted patch assets
+The seven source `.3105` packages are encrypted individually with AES-256-GCM into opaque `.bin` Data Sets under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles those Data Sets into the single `Assets.car` archive, so ordinary IPA extraction does not show seven loose patch files or their original names. The encrypted payloads are still part of the IPA and could be recovered from `Assets.car` with asset-catalog tooling.
 
 ```text
-ThreeOneOSFive/helpers/GeneratedPatchBundle.swift
+ThreeOneOSFive/Assets.xcassets/r_*.dataset/*.bin
 ```
 
-The generated source is compiled into the app; none of the seven patch files or names are separate IPA resources. At runtime the app validates the license, retrieves the 32-byte decryption key from the Cloudflare Worker, decrypts the archive in memory, and imports its entries. The Worker secret is `PATCH_BUNDLE_ENCRYPTION_KEY`. See [license activation](docs/LICENSE_ACTIVATION.md) for key handling and the regeneration command. This hides the separate files from archive listings, but the ciphertext still resides in the executable and can be extracted by reverse engineering.
+At runtime the app validates the license, retrieves the 32-byte key from `POST /api/v1/keys/patch-bundle-key`, reads the Data Sets through `NSDataAsset`, decrypts the packages in memory, and imports them. The key remains a Cloudflare Worker secret (`PATCH_BUNDLE_ENCRYPTION_KEY`); the Worker does not serve the patch ciphertext. To regenerate the encrypted assets after changing source packages, set `PATCH_BUNDLE_KEY_BASE64` in a private environment and run `node scripts/encrypt_bundled_patches.mjs`. See [license activation](docs/LICENSE_ACTIVATION.md) for the security boundary.
 
 The build script verifies the checked-in Airlift exports. For this merged checkout, rebuild it before archiving with `REBUILD_AIRLIFT=1 ./ThreeOneOSFive/build-airlift-ffi.sh`; this refreshes the framework when new Rust FFI functions are added.

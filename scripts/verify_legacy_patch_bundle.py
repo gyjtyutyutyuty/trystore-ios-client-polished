@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -14,9 +15,11 @@ UI = ROOT / "ThreeOneOSFive/ContentView.swift"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 LIBRARY = ROOT / "ThreeOneOSFive/helpers/PatchProjectLibrary.swift"
 RESOURCE_BUNDLE = ROOT / "ThreeOneOSFive/helpers/PatchResourceBundle.swift"
-GENERATED_BUNDLE = ROOT / "ThreeOneOSFive/helpers/GeneratedPatchBundle.swift"
+LICENSE_MANAGER = ROOT / "ThreeOneOSFive/helpers/LicenseManager.swift"
 DEVICE_SERVICE = ROOT / "ThreeOneOSFive/helpers/DevicePatchService.swift"
+WORKER = ROOT / "cloudflare/license-worker.js"
 PATCH_DIR = ROOT / "ThreeOneOSFive/Patches"
+ASSET_CATALOG = ROOT / "ThreeOneOSFive/Assets.xcassets"
 
 # resource filename -> project name shown/selected by the dashboard
 EXPECTED = {
@@ -27,6 +30,15 @@ EXPECTED = {
     "SilentAim.3105": "Silent Aim",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
+}
+EXPECTED_ASSETS = {
+    "HEAD.3105": "r_91c3f2",
+    "NECK.3105": "r_5d7a10",
+    "HSPESSCOSO.3105": "r_8e4f1b",
+    "HS SLA PECHO.3105": "r_6b0c5d",
+    "SilentAim.3105": "r_2d9a74",
+    "HOLOGRAMAARMAS.3105": "r_5f1c38",
+    "HOLOGRAMAPERSONAJE.3105": "r_4b8e26",
 }
 AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "Silent Aim"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
@@ -53,7 +65,8 @@ def check_source() -> None:
     pbx = PROJECT.read_text()
     library = LIBRARY.read_text()
     resource_bundle = RESOURCE_BUNDLE.read_text()
-    generated_bundle = GENERATED_BUNDLE.read_text()
+    license_manager = LICENSE_MANAGER.read_text()
+    worker = WORKER.read_text()
     device_service = DEVICE_SERVICE.read_text()
 
     catalog_entries = re.findall(
@@ -101,16 +114,24 @@ def check_source() -> None:
     require(initializer is not None
             and 'reload()' in initializer.group(1),
             "store startup no longer loads the patch library")
-    require('PatchResourceBundle.load(using: bundleKey)' in catalog
+    require(re.search(r"PatchResourceBundle\.load\(using:\s*bundleKey", catalog) is not None
             and 'game.bundledPatches.allSatisfy' in catalog
             and 'installBundledPackageDataIfNeeded(' in catalog,
-            "store no longer decrypts the source-embedded archive before importing packages")
-    require('GeneratedPatchBundle.base64Chunks.joined()' in resource_bundle
+            "store no longer decrypts local asset-catalog resources before importing packages")
+    require('NSDataAsset(name: entry.assetName)?.data' in resource_bundle
+            and 'AES.GCM.SealedBox' in resource_bundle
             and 'AES.GCM.open' in resource_bundle
-            and 'TBP1' in resource_bundle,
-            "runtime loader is missing the authenticated encrypted archive parser")
-    require(all(filename not in generated_bundle for filename in EXPECTED),
-            "generated Swift ciphertext unexpectedly exposes a patch filename")
+            and 'SymmetricKey(data: keyData)' in resource_bundle,
+            "runtime loader is missing local authenticated asset decryption")
+    require('sendPatchBundleKey(key: key, endpoint: endpoint)' in license_manager
+            and 'patchBundleKey = bundleKey' in license_manager
+            and 'patchBundleCiphertext' not in license_manager
+            and 'sendPatchBundleCiphertext' not in license_manager,
+            "license manager should retrieve only the authorization-gated decryption key")
+    require("'/api/v1/keys/patch-bundle-key'" in worker
+            and 'PATCH_BUNDLE_CIPHERTEXT_B64' not in worker
+            and "'/api/v1/keys/patch-bundle'" not in worker,
+            "Worker must retain key delivery but not the no-longer-used archive endpoint")
     require('PatchPackageCodec.decode(data, contentKey: contentKey)' in library
             and 'PatchPackageCodec.decode(data, password: nil)' in library
             and 'project: decoded?.project' in library,
@@ -133,16 +154,35 @@ def check_source() -> None:
             and 'return .aim' in catalog,
             "aim group exclusivity mapping is missing")
 
-    # The encrypted archive is compiled into source, not copied as seven IPA resources.
+    # Xcode compiles encrypted Data Sets inside Assets.car; no raw package file is copied.
     resource_phase = re.search(r'3105A800 /\* Resources \*/ = \{.*?files = \((.*?)\);', pbx, re.S)
     require(resource_phase is not None, "SupportPatch resources build phase was not found")
-    require('.3105' not in resource_phase.group(1) and '.enc' not in resource_phase.group(1),
-            "a patch payload is still listed in the IPA Resources phase")
+    require('3105A211' in resource_phase.group(1)
+            and '.3105' not in resource_phase.group(1)
+            and '.enc' not in resource_phase.group(1),
+            "the asset catalog is not in the IPA Resources phase or a raw patch file is listed")
     source_phase = re.search(r'3105A700 /\* Sources \*/ = \{.*?files = \((.*?)\);', pbx, re.S)
     require(source_phase is not None
             and 'B71300000000000000000004' in source_phase.group(1)
-            and 'B71300000000000000000006' in source_phase.group(1),
-            "runtime loader and generated ciphertext archive are not compiled into the target")
+            and 'B71300000000000000000006' not in source_phase.group(1)
+            and 'GeneratedPatchBundle' not in pbx
+            and not (ROOT / "ThreeOneOSFive/helpers/GeneratedPatchBundle.swift").exists(),
+            "the app target still compiles a patch archive instead of loading asset-catalog Data Sets")
+    asset_map = dict(re.findall(r'\("([^\"]+)",\s*"(r_[a-f0-9]+)"\)', resource_bundle))
+    require(asset_map == EXPECTED_ASSETS, f"asset Data Set mapping mismatch: {asset_map!r}")
+    for resource_name, asset_name in asset_map.items():
+        dataset = ASSET_CATALOG / f"{asset_name}.dataset"
+        contents_path = dataset / "Contents.json"
+        require(contents_path.is_file(), f"missing asset Data Set metadata: {contents_path}")
+        contents = json.loads(contents_path.read_text())
+        files = contents.get('data', [])
+        require(len(files) == 1 and files[0].get('filename') == f"{asset_name}.bin",
+                f"asset Data Set does not reference its opaque .bin file: {asset_name}")
+        payload = dataset / f"{asset_name}.bin"
+        require(payload.is_file() and payload.stat().st_size > 28,
+                f"encrypted asset is missing or too small: {payload}")
+        require(not (dataset / resource_name).exists(),
+                f"plaintext source package is present in the asset Data Set: {resource_name}")
     for filename in EXPECTED:
         source_file = PATCH_DIR / filename
         require(source_file.is_file() and source_file.stat().st_size > 0,
@@ -151,15 +191,19 @@ def check_source() -> None:
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),
             f"unexpected or missing files in Patches/: {all_packages!r}")
-    print("PASS: seven bundled entries map to the expected GUI controls and one encrypted Swift source payload.")
+    print("PASS: seven patch entries map to encrypted .bin Data Sets in Assets.xcassets; no raw .3105 files are Xcode resources.")
 
 
 def check_app(app: Path) -> None:
     require(app.is_dir(), f"app bundle does not exist: {app}")
-    leaked = [path for path in app.rglob("*") if path.is_file()
-              and (path.name.endswith(".3105") or path.name.endswith(".3105.enc"))]
-    require(not leaked, f"standalone patch files are visible in the built app: {leaked!r}")
-    print(f"PASS: no standalone .3105 patch files are present in {app}.")
+    files = [path for path in app.rglob("*") if path.is_file()]
+    leaked = [path for path in files if path.name.endswith((".3105", ".3105.enc"))]
+    require(not leaked, f"standalone plaintext patch files are visible in the built app: {leaked!r}")
+    asset_bins = [path for path in files if path.name.startswith("r_") and path.suffix == ".bin"]
+    require(not asset_bins, f"asset-catalog .bin files escaped into the app as loose files: {asset_bins!r}")
+    require(any(path.name == "Assets.car" for path in files),
+            "built app is missing the compiled asset catalog containing encrypted .bin Data Sets")
+    print(f"PASS: no loose patch files are present; encrypted .bin Data Sets are compiled inside Assets.car in {app}.")
 
 
 def main() -> None:

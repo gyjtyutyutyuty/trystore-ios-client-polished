@@ -74,7 +74,6 @@
 		3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
 		B71300000000000000000004 /* PatchResourceBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71300000000000000000005; };
-		B71300000000000000000006 /* GeneratedPatchBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71300000000000000000007; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -166,7 +165,6 @@
 		3105B124 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		3105B125 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B71300000000000000000005 /* PatchResourceBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchResourceBundle.swift; sourceTree = "<group>"; };
-		B71300000000000000000007 /* GeneratedPatchBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedPatchBundle.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -273,7 +271,6 @@
 				3105B117 /* PatchTransaction.swift */,
 				3105B118 /* DevicePatchService.swift */,
 				B71300000000000000000005 /* PatchResourceBundle.swift */,
-				B71300000000000000000007 /* GeneratedPatchBundle.swift */,
 				3105B119 /* PatchProjectLibrary.swift */,
 				3105B120 /* PatchProjectStore.swift */,
 				3105G103 /* PatchWorkspaceService.swift */,
@@ -417,7 +414,6 @@
 				3105B218,
 				3105B219,
 				B71300000000000000000004,
-				B71300000000000000000006,
 				3105B220,
 				3105B221,
 				3105B222,

@@ -991,9 +991,6 @@ private struct FreeFirePatchView: View {
             isGameAvailable = game.canOpen()
         }
         .task {
-            if let key = licenseManager.patchBundleKey {
-                store.installBundledResources(bundleKey: key)
-            }
             await loadPatchLibrary()
         }
         .alert(item: $store.alert) { alert in
