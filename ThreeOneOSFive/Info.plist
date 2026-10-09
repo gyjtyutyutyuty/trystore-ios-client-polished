@@ -87,6 +87,8 @@
     <true/>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>3105 needs access to photos for wallpaper customization.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Try Store uses gentle device tilt to add subtle 3D depth to the interface.</string>
     <key>NSDocumentsFolderUsageDescription</key>
     <string>3105 needs access to documents.</string>
     <key>NSLocalNetworkUsageDescription</key>

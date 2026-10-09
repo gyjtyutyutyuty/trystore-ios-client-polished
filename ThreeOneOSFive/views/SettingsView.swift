@@ -248,12 +248,19 @@ struct SettingsView: View {
                     )
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppPremiumBackdrop())
+            .appCinematicReveal(delay: 0.05)
+            .appGyroTilt(intensity: 0.18)
             .tint(AppTheme.accent)
             .navigationTitle(language.text("settings.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(language.text("common.done")) { dismiss() }
+                    Button(language.text("common.done")) {
+                        AppHaptics.tap()
+                        dismiss()
+                    }
                         .fontWeight(.semibold)
                 }
             }

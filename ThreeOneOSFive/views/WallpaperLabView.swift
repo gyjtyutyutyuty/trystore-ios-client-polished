@@ -34,6 +34,10 @@ struct WallpaperLabView: View {
                 packagesSection
                 if !activeReceipts.isEmpty { resetSection }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppPremiumBackdrop())
+            .appCinematicReveal(delay: 0.06)
+            .appGyroTilt(intensity: 0.18)
             .listStyle(.insetGrouped)
             .navigationTitle(language.text("wallpaper.title"))
             .navigationBarTitleDisplayMode(.inline)
@@ -126,11 +130,13 @@ struct WallpaperLabView: View {
             } else {
                 ForEach(packages) { package in
                     Button {
+                        guard selectedPackageID != package.id else { return }
+                        AppHaptics.select()
                         selectedPackageID = package.id
                     } label: {
                         packageRow(package)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(AppPressButtonStyle())
                     .swipeActions {
                         Button(role: .destructive) {
                             alert = WallpaperLabAlert(kind: .deletePackage(package))
@@ -198,14 +204,20 @@ struct WallpaperLabView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            Button { checkAccess() } label: {
+            Button {
+                AppHaptics.tap()
+                checkAccess()
+            } label: {
                 Image(systemName: "arrow.clockwise")
             }
             .disabled(isBusy)
             .accessibilityLabel(language.text("wallpaper.try_again"))
         }
         ToolbarItem(placement: .navigationBarTrailing) {
-            Button { showImporter = true } label: {
+            Button {
+                AppHaptics.tap()
+                showImporter = true
+            } label: {
                 Image(systemName: "plus")
             }
             .disabled(isBusy)

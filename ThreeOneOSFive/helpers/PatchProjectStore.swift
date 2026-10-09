@@ -279,7 +279,8 @@ final class PatchProjectStore: ObservableObject {
         _ enabled: Bool,
         for item: PatchLibraryItem,
         group: PatchToggleGroup? = nil,
-        reportsSuccess: Bool = true
+        reportsSuccess: Bool = true,
+        onSuccess: (@MainActor @Sendable (Bool) -> Void)? = nil
     ) {
         guard !isBusy else { return }
         if DevicePatchService.requiresPairingTunnel, !LocalDevTunnelProbe.isConnected {
@@ -295,7 +296,11 @@ final class PatchProjectStore: ObservableObject {
                 return
             }
 
-            runOperation(successMessageKey: "patch.applied_message", reportsSuccess: reportsSuccess) {
+            runOperation(
+                successMessageKey: "patch.applied_message",
+                reportsSuccess: reportsSuccess,
+                onSuccess: { onSuccess?(true) }
+            ) {
                 if let resolvedGroup {
                     for candidate in self.items where Self.group(for: candidate) == resolvedGroup && candidate.id != item.id {
                         if let receipt = DevicePatchService.latestReceipt(projectID: candidate.id) {
@@ -310,7 +315,11 @@ final class PatchProjectStore: ObservableObject {
                 _ = try DevicePatchService.apply(project: project)
             }
         } else if let receipt = DevicePatchService.latestReceipt(projectID: item.id) {
-            runOperation(successMessageKey: "patch.restored_message", reportsSuccess: reportsSuccess) {
+            runOperation(
+                successMessageKey: "patch.restored_message",
+                reportsSuccess: reportsSuccess,
+                onSuccess: { onSuccess?(false) }
+            ) {
                 try DevicePatchService.restore(receipt: receipt)
             }
         }
@@ -357,6 +366,7 @@ final class PatchProjectStore: ObservableObject {
     private func runOperation(
         successMessageKey: String,
         reportsSuccess: Bool = true,
+        onSuccess: (@MainActor @Sendable () -> Void)? = nil,
         operation: @escaping () throws -> Void
     ) {
         guard !isBusy else { return }
@@ -364,10 +374,13 @@ final class PatchProjectStore: ObservableObject {
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 try operation()
-                await self?.finishOperation(
-                    successMessageKey: successMessageKey,
-                    reportsSuccess: reportsSuccess
-                )
+                if let self {
+                    await self.finishOperation(
+                        successMessageKey: successMessageKey,
+                        reportsSuccess: reportsSuccess
+                    )
+                    await onSuccess?()
+                }
             } catch let error as PatchPackageError {
                 await self?.failOperation(error)
             } catch {

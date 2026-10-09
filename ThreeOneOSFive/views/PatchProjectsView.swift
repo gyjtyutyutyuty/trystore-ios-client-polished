@@ -39,13 +39,17 @@ struct PatchProjectsView: View {
                         spacing: 14
                     ) {
                         ForEach(store.items) { item in
-                            itemTile(item)
+                            itemTile(item).appCinematicReveal(
+                                delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
+                            ).appGyroTilt(intensity: 0.72)
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                 }
             }
+            .background(AppPremiumBackdrop())
+            .appCinematicReveal(delay: 0.06)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -137,10 +141,13 @@ struct PatchProjectsView: View {
     @ViewBuilder
     private func itemTile(_ item: PatchLibraryItem) -> some View {
         if item.isLocked {
-            Button { store.requestUnlock(for: item) } label: {
+            Button {
+                AppHaptics.tap()
+                store.requestUnlock(for: item)
+            } label: {
                 PatchProjectTile(item: item, language: language)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AppPressButtonStyle())
             .contextMenu { deleteButton(for: item) }
         } else {
             NavigationLink {
@@ -148,6 +155,7 @@ struct PatchProjectsView: View {
             } label: {
                 PatchProjectTile(item: item, language: language)
             }
+            .simultaneousGesture(TapGesture().onEnded { AppHaptics.tap() })
             .contextMenu { deleteButton(for: item) }
         }
     }
@@ -539,6 +547,7 @@ struct PatchProjectDetailView: View {
                     store.reload()
                     isWorking = false
                     actionAlert = PatchStoreAlert(titleKey: "common.done", messageKey: "patch.applied_message")
+                    PatchAudioFeedback.play(enabled: true)
                 }
             } catch let error as PatchPackageError {
                 await MainActor.run {
@@ -601,6 +610,7 @@ struct PatchProjectDetailView: View {
                 await MainActor.run {
                     isWorking = false
                     actionAlert = PatchStoreAlert(titleKey: "common.done", messageKey: "patch.restored_message")
+                    PatchAudioFeedback.play(enabled: false)
                 }
             } catch let error as PatchPackageError {
                 await MainActor.run {

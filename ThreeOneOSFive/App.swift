@@ -19,11 +19,13 @@ struct ThreeOneOSFiveApp: App {
     @StateObject private var licenseManager = LicenseManager()
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
     @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
+    @StateObject private var deviceTiltMotion = DeviceTiltMotion()
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @State private var showOnboarding = OnboardingStore.shouldShow()
     @State private var showAttribution = false
     @State private var updateOffer: AppUpdateChecker.Offer?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init() {
         _ = retainGrappaTokenSymbol(0, 0, 0, nil, 0, nil, nil, 0)
@@ -71,6 +73,7 @@ struct ThreeOneOSFiveApp: App {
             .environmentObject(licenseManager)
             .environmentObject(patchDraftCoordinator)
             .environmentObject(fileOperationCoordinator)
+            .environmentObject(deviceTiltMotion)
             .environment(\.appLanguage, language)
             .environment(\.locale, language.locale)
             .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding && licenseManager.isActive)
@@ -94,6 +97,9 @@ struct ThreeOneOSFiveApp: App {
             }
             .onAppear {
                 appState.evaluateRuntimeSecurity()
+                if scenePhase == .active && !reduceMotion {
+                    deviceTiltMotion.start()
+                }
                 if !showOnboarding {
                     licenseManager.beginLaunchSession()
                     appState.detectSupport()
@@ -101,11 +107,23 @@ struct ThreeOneOSFiveApp: App {
                 }
             }
             .onChange(of: scenePhase) { phase in
+                if phase == .active && !reduceMotion {
+                    deviceTiltMotion.start()
+                } else {
+                    deviceTiltMotion.stop()
+                }
                 guard phase == .active else { return }
                 appState.evaluateRuntimeSecurity()
                 guard !showOnboarding else { return }
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
+            }
+            .onChange(of: reduceMotion) { isReduced in
+                if isReduced {
+                    deviceTiltMotion.stop()
+                } else if scenePhase == .active {
+                    deviceTiltMotion.start()
+                }
             }
             .task {
                 while !Task.isCancelled {
