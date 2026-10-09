@@ -95,15 +95,30 @@ def check_source() -> None:
     dashboard_names = [name for name, _title, _group in option_rows]
     require(dashboard_names == AIM + VISUALS,
             f"dashboard ON/OFF button mappings mismatch: {dashboard_names!r}")
-    require('ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals)' in ui
-            and 'legacyPatchButton(option)' in ui,
+    direct_option_loop = (
+        'ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals)' in ui
+        and 'legacyPatchButton(option)' in ui
+    )
+    indexed_option_loop = (
+        'let options = selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals' in ui
+        and re.search(
+            r'ForEach\(options\.indices, id:.*?\).*?legacyPatchButton\(options\[index\]\)',
+            ui,
+            re.S,
+        ) is not None
+    )
+    require(direct_option_loop or indexed_option_loop,
             "dashboard no longer renders the loadout and visual package options as buttons")
     for name, _title, group in option_rows:
         require((group == ".aim") == (name in EXCLUSIVE_AIM),
                 f"dashboard grouping mismatch for {name!r}: {group}")
     require('patchStore.setEnabled(!isActive, for: item, group: option.group' in ui,
             "dashboard button no longer routes its ON/OFF action through PatchProjectStore")
-    require('Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))' in ui,
+    require(re.search(
+                r'Text\(item == nil \? "(?:MISSING|Unavailable)" : '
+                r'\(isActive \? "(?:ON|On)" : "(?:OFF|Off)"\)\)',
+                ui,
+            ) is not None,
             "dashboard ON/OFF status label is missing or changed")
     require('$0.project?.name == option.projectName' in ui
             and 'caseInsensitiveCompare("\\(option.projectName).3105")' in ui,
