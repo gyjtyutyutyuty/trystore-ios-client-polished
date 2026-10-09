@@ -814,13 +814,7 @@ private struct DashboardView: View {
         return Button {
             guard let item else { return }
             AppHaptics.tap()
-            patchStore.setEnabled(
-                !isActive,
-                for: item,
-                group: option.group,
-                reportsSuccess: false,
-                onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) }
-            )
+            patchStore.setEnabled(!isActive, for: item, group: option.group, reportsSuccess: false, onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) })
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: option.icon)
