@@ -90,7 +90,10 @@
 "onboarding.language_subtitle" = "Puedes cambiarlo más tarde en Configuración.";
 "onboarding.language_hint" = "Selecciona un idioma para continuar.";
 "onboarding.welcome_title" = "Bienvenido a Support Patch";
-"onboarding.welcome_message" = "Desarrollado por Hole30601";
+"onboarding.welcome_message" = "Desarrollado por Jvztxn";
+"settings.developer" = "Desarrollador";
+"developer.attribution" = "Desarrollado por Jvztxn";
+"developer.telegram" = "Telegram: @Jvztxn";
 "onboarding.welcome_badge" = "Identidad oficial de Support Patch";
 "onboarding.versions_title" = "Versiones de iOS compatibles";
 "onboarding.versions_subtitle" = "Support Patch solo permite los identificadores de compilación exactos que aparecen en Configuración.";
