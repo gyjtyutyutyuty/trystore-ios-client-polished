@@ -62,22 +62,29 @@ final class PatchProjectStore: ObservableObject {
     }
 
     private var pendingUnlock: PendingUnlock?
+    private let game: FreeFireGame
+    private var didInstallBundledResources = false
 
     init(game: FreeFireGame = .max) {
+        self.game = game
+        reload()
+    }
+
+    func installBundledResources(bundleKey: Data) {
+        guard bundleKey.count == 32, !didInstallBundledResources else { return }
+        guard let resources = try? PatchResourceBundle.load(using: bundleKey),
+              game.bundledPatches.allSatisfy({ resources[$0.resourceName] != nil }) else {
+            log("patch: encrypted asset catalog resources unavailable")
+            return
+        }
+        didInstallBundledResources = true
         for patch in game.bundledPatches {
-            if patch.resourceName.hasSuffix(".3105") {
-                PatchProjectLibrary.installBundledFileIfNeeded(
-                    filename: patch.resourceName,
-                    projectName: patch.projectName,
-                    password: patch.password
-                )
-            } else {
-                PatchProjectLibrary.installBundledPackageIfNeeded(
-                    resourceName: patch.resourceName,
-                    projectName: patch.projectName,
-                    password: patch.password
-                )
-            }
+            guard let data = resources[patch.resourceName] else { continue }
+            PatchProjectLibrary.installBundledPackageDataIfNeeded(
+                data,
+                projectName: patch.projectName,
+                password: patch.password
+            )
         }
         reload()
     }

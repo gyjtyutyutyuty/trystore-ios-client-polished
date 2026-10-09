@@ -123,18 +123,13 @@ enum PatchProjectLibrary {
         }
     }
 
-    static func installBundledFileIfNeeded(
-        filename: String,
+    static func installBundledPackageDataIfNeeded(
+        _ sourceData: Data,
         projectName: String,
         password: String? = nil,
-        bundle: Bundle = .main,
         fileManager: FileManager = .default
     ) {
-        let filenameWithoutExtension = URL(fileURLWithPath: filename).deletingPathExtension().lastPathComponent
-        guard let sourceURL = bundle.url(forResource: filename, withExtension: nil)
-            ?? bundle.url(forResource: filenameWithoutExtension, withExtension: "3105"),
-              let sourceData = try? Data(contentsOf: sourceURL),
-              let sourceSummary = try? PatchPackageCodec.inspect(sourceData),
+        guard let sourceSummary = try? PatchPackageCodec.inspect(sourceData),
               let root = try? packageRootURL(fileManager: fileManager) else { return }
 
         let destination = root.appendingPathComponent("\(projectName).3105")
