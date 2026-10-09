@@ -20,6 +20,161 @@ private enum DashboardPatchTab: String, CaseIterable, Identifiable {
     var icon: String { self == .loadout ? "scope" : "sparkles" }
 }
 
+private enum PlatinumPalette {
+    static let bright = Color(red: 0.91, green: 0.94, blue: 0.99)
+    static let silver = Color(red: 0.70, green: 0.77, blue: 0.88)
+    static let graphite = Color(red: 0.055, green: 0.075, blue: 0.11)
+    static let gunmetal = Color(red: 0.12, green: 0.15, blue: 0.20)
+}
+
+private struct PlatinumPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.965 : 1)
+            .brightness(configuration.isPressed ? 0.055 : 0)
+            .animation(.spring(response: 0.28, dampingFraction: 0.62), value: configuration.isPressed)
+    }
+}
+
+private struct PlatinumExpiryCard: View {
+    let expirationDate: Date?
+    let isActive: Bool
+
+    @State private var sweep = false
+    @State private var ringRotation = 0.0
+
+    var body: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                Circle()
+                    .trim(from: 0.04, to: 0.76)
+                    .stroke(
+                        AngularGradient(
+                            colors: [PlatinumPalette.bright.opacity(0.18), .white, PlatinumPalette.silver.opacity(0.28)],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 2.2, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(ringRotation))
+                Image(systemName: expirationDate == nil ? "key.fill" : "hourglass")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(PlatinumPalette.bright)
+            }
+            .frame(width: 39, height: 39)
+            .shadow(color: PlatinumPalette.silver.opacity(0.32), radius: 9)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("LICENSE WINDOW")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .tracking(1.1)
+                        .foregroundStyle(PlatinumPalette.bright)
+                    Spacer(minLength: 4)
+                    Text(isActive ? "AUTHORIZED" : "VERIFYING")
+                        .font(.system(size: 6, weight: .black, design: .rounded))
+                        .tracking(0.7)
+                        .foregroundStyle(isActive ? PlatinumPalette.graphite : .white.opacity(0.76))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(isActive ? PlatinumPalette.bright : Color.white.opacity(0.12), in: Capsule())
+                }
+
+                if let expirationDate {
+                    Text(expiryStamp(expirationDate))
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.92))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+                        .fixedSize(horizontal: false, vertical: true)
+                    TimelineView(.periodic(from: Date(), by: 1)) { context in
+                        Text(countdown(to: expirationDate, now: context.date))
+                            .font(.system(size: 8, weight: .black, design: .monospaced))
+                            .tracking(0.65)
+                            .foregroundStyle(PlatinumPalette.silver)
+                            .monospacedDigit()
+                    }
+                } else {
+                    Text("NO EXPIRY TIMESTAMP PROVIDED")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .tracking(0.45)
+                        .foregroundStyle(PlatinumPalette.bright)
+                    Text("The license service did not return an expiry date.")
+                        .font(.system(size: 7, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.58))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 10)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [PlatinumPalette.gunmetal, PlatinumPalette.graphite, Color.black.opacity(0.94)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    AngularGradient(
+                        colors: [PlatinumPalette.bright.opacity(0.86), PlatinumPalette.silver.opacity(0.12), .white.opacity(0.48), PlatinumPalette.silver.opacity(0.14)],
+                        center: .center,
+                        startAngle: .degrees(ringRotation),
+                        endAngle: .degrees(ringRotation + 360)
+                    ),
+                    lineWidth: 1
+                )
+        }
+        .overlay {
+            GeometryReader { proxy in
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(0.16), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: 54)
+                .rotationEffect(.degrees(18))
+                .offset(x: sweep ? proxy.size.width + 70 : -70)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .allowsHitTesting(false)
+        }
+        .shadow(color: PlatinumPalette.silver.opacity(0.12), radius: 13, y: 5)
+        .accessibilityElement(children: .combine)
+        .onAppear {
+            withAnimation(.linear(duration: 4.4).repeatForever(autoreverses: false)) {
+                sweep = true
+            }
+            withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
+                ringRotation = 360
+            }
+        }
+    }
+
+    private func expiryStamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.timeZone = .current
+        formatter.dateStyle = .full
+        formatter.timeStyle = .long
+        return formatter.string(from: date)
+    }
+
+    private func countdown(to expiry: Date, now: Date) -> String {
+        let remaining = Int(expiry.timeIntervalSince(now))
+        guard remaining > 0 else { return "EXPIRED" }
+        let days = remaining / 86_400
+        let hours = (remaining % 86_400) / 3_600
+        let minutes = (remaining % 3_600) / 60
+        let seconds = remaining % 60
+        return String(format: "%02dD  %02dH  %02dM  %02dS REMAINING", days, hours, minutes, seconds)
+    }
+}
+
 private struct DashboardPatchOption: Identifiable {
     let projectName: String
     let title: String
@@ -33,8 +188,7 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
-        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
-        DashboardPatchOption(projectName: "Silent Aim", title: "ESP TRY", icon: "viewfinder", color: .mint, group: nil)
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim)
     ]
 
     static let visuals = [
@@ -51,6 +205,7 @@ private struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @Namespace private var patchTabNamespace
     @State private var selectedPatchTab: DashboardPatchTab = .loadout
     @State private var showSettings = false
     @State private var showLogs = false
@@ -378,7 +533,7 @@ private struct DashboardView: View {
                         .scaleEffect(0.78)
                         .accessibilityLabel("Applying patch")
                 } else {
-                    Text("\(activeLegacyPatchCount) / 7 ON")
+                    Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
                         .font(.system(size: 8, weight: .black, design: .rounded))
                         .foregroundStyle(.white.opacity(0.78))
                         .padding(.horizontal, 9)
@@ -387,29 +542,43 @@ private struct DashboardView: View {
                 }
             }
 
+            PlatinumExpiryCard(
+                expirationDate: licenseManager.expirationDate,
+                isActive: licenseManager.isActive
+            )
+
             HStack(spacing: 7) {
                 ForEach(DashboardPatchTab.allCases) { tab in
                     let selected = selectedPatchTab == tab
                     Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
                             selectedPatchTab = tab
                         }
                     } label: {
-                        Label(tab.title, systemImage: tab.icon)
-                            .font(.system(size: 9, weight: .black, design: .rounded))
-                            .tracking(0.55)
-                            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.58))
-                            .frame(maxWidth: .infinity, minHeight: 38)
-                            .background(
-                                selected ? AppTheme.accent.opacity(0.28) : Color.white.opacity(0.045),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .overlay(
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.045))
+                            if selected {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(selected ? AppTheme.accent.opacity(0.72) : Color.white.opacity(0.08), lineWidth: 1)
-                            )
+                                    .fill(LinearGradient(
+                                        colors: [PlatinumPalette.bright, PlatinumPalette.silver],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ))
+                                    .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
+                            }
+                            Label(tab.title, systemImage: tab.icon)
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .tracking(0.55)
+                                .foregroundStyle(selected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 38)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(selected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08), lineWidth: 1)
+                        )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PlatinumPressStyle())
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -428,6 +597,11 @@ private struct DashboardView: View {
                     legacyPatchButton(option)
                 }
             }
+            .id(selectedPatchTab)
+            .transition(.asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            ))
 
             if selectedPatchTab == .loadout {
                 Text("Aim modules share a game file, so only one aim option is active at a time.")
@@ -439,14 +613,14 @@ private struct DashboardView: View {
         .padding(14)
         .background(
             LinearGradient(
-                colors: [Color(red: 0.035, green: 0.12, blue: 0.24), AppTheme.consoleBackground.opacity(0.97)],
+                colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
             in: RoundedRectangle(cornerRadius: 23, style: .continuous)
         )
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(AppTheme.accent.opacity(0.32), lineWidth: 1))
-        .shadow(color: AppTheme.accent.opacity(0.08), radius: 16, y: 7)
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
+        .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
     }
 
     private var visualPatchPreview: some View {
@@ -488,10 +662,10 @@ private struct DashboardView: View {
             HStack(spacing: 10) {
                 Image(systemName: option.icon)
                     .font(.system(size: 13, weight: .black))
-                    .foregroundStyle(isActive ? .white : option.color)
+                    .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
                     .frame(width: 34, height: 34)
                     .background(
-                        (isActive ? option.color : option.color.opacity(0.16)),
+                        (isActive ? PlatinumPalette.bright : option.color.opacity(0.16)),
                         in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                     )
                 VStack(alignment: .leading, spacing: 2) {
@@ -508,31 +682,39 @@ private struct DashboardView: View {
                 Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))
                     .font(.system(size: 7, weight: .black, design: .rounded))
                     .tracking(0.5)
-                    .foregroundStyle(item == nil ? .orange : (isActive ? .white : .white.opacity(0.48)))
+                    .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.graphite : .white.opacity(0.48)))
                     .frame(minWidth: 39, minHeight: 23)
                     .background(
-                        isActive ? option.color.opacity(0.42) : Color.white.opacity(0.055),
+                        isActive ? PlatinumPalette.bright : Color.white.opacity(0.055),
                         in: Capsule()
                     )
                 Image(systemName: item == nil ? "exclamationmark.triangle.fill" : (isActive ? "checkmark.circle.fill" : "circle"))
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(item == nil ? .orange : (isActive ? option.color : .white.opacity(0.30)))
+                    .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.silver : .white.opacity(0.30)))
             }
             .padding(.horizontal, 10)
             .frame(minHeight: 52)
-            .background(
-                isActive ? option.color.opacity(0.15) : Color.white.opacity(0.035),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: isActive
+                            ? [PlatinumPalette.bright.opacity(0.22), PlatinumPalette.silver.opacity(0.06)]
+                            : [Color.white.opacity(0.065), Color.black.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isActive ? option.color.opacity(0.58) : Color.white.opacity(0.075), lineWidth: 1)
+                    .stroke(isActive ? PlatinumPalette.bright.opacity(0.72) : Color.white.opacity(0.095), lineWidth: 1)
             )
+            .scaleEffect(isActive ? 1.012 : 1)
+            .animation(.spring(response: 0.34, dampingFraction: 0.68), value: isActive)
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .buttonStyle(.plain)
         .disabled(patchStore.isBusy || item == nil)
         .opacity(patchStore.isBusy ? 0.72 : (item == nil ? 0.52 : 1))
+        .buttonStyle(PlatinumPressStyle())
         .accessibilityLabel("\(option.title), \(isActive ? "on" : "off")")
     }
 
@@ -693,7 +875,7 @@ private extension FreeFireGame {
     }
 
     var aimProjectNames: [String] {
-        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "Silent Aim"]
+        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
     }
 
     var locationProjectNames: [String] {
@@ -838,7 +1020,6 @@ private struct FreeFirePatchView: View {
         case "NECK": return "NECK"
         case "HS PESSCOSO": return "DRAG"
         case "HS SLA PECHO": return "PECHO"
-        case "Silent Aim": return "ESP TRY"
         default: return item.project?.name ?? language.text("freefire.aim_file")
         }
     }
@@ -890,6 +1071,10 @@ private struct FreeFirePatchView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 13) {
                     patchHeroPanel
+                    PlatinumExpiryCard(
+                        expirationDate: licenseManager.expirationDate,
+                        isActive: licenseManager.isActive
+                    )
                     if isLoading {
                         ProgressView(language.text("freefire.loading"))
                             .tint(AppTheme.accent)

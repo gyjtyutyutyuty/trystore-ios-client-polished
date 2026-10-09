@@ -6,7 +6,7 @@ The application target is **SupportPatch**, using the shared scheme at `ThreeOne
 
 - The signature-blue TryStore home screen, original character art, and social links.
 - The classic **Loadout / Visuals** patch switcher. Tapping a module applies it; tapping the active module again restores its backup.
-- Seven historical `.3105` patch packages, all verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, Silent Aim, HOLOGRAMA ARMAS, and HOLOGRAMA PERSONAJE.
+- Six historical `.3105` patch packages, all verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, HOLOGRAMA ARMAS, and HOLOGRAMA PERSONAJE.
 - Airlift’s `DevicePatchService` integration for patch apply/restore operations.
 - No regular Free Fire catalog or newer `.dataset` patch catalog.
 

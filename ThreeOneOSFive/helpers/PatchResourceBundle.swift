@@ -14,7 +14,6 @@ enum PatchResourceBundle {
         ("NECK.3105", "NECK"),
         ("HSPESSCOSO.3105", "HS_PESSCOSO"),
         ("HS SLA PECHO.3105", "HS_SLA_PECHO"),
-        ("SilentAim.3105", "SILENT_AIM"),
         ("HOLOGRAMAARMAS.3105", "HOLOGRAMA_ARMAS"),
         ("HOLOGRAMAPERSONAJE.3105", "HOLOGRAMA_PERSONAJE"),
     ]

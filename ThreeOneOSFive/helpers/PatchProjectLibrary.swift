@@ -21,7 +21,7 @@ struct PatchPasswordRequest: Identifiable {
 enum PatchProjectLibrary {
     private static let bundledProjectIDs: [String: UUID] = [:]
     private static let bundledProjectNames: Set<String> = [
-        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "Silent Aim",
+        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
         "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"
     ]
 

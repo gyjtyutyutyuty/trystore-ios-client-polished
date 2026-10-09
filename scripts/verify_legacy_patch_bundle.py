@@ -27,7 +27,6 @@ EXPECTED = {
     "NECK.3105": "NECK",
     "HSPESSCOSO.3105": "HS PESSCOSO",
     "HS SLA PECHO.3105": "HS SLA PECHO",
-    "SilentAim.3105": "Silent Aim",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
 }
@@ -36,11 +35,10 @@ EXPECTED_ASSETS = {
     "NECK.3105": "NECK",
     "HSPESSCOSO.3105": "HS_PESSCOSO",
     "HS SLA PECHO.3105": "HS_SLA_PECHO",
-    "SilentAim.3105": "SILENT_AIM",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
 }
-AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "Silent Aim"]
+AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 VISUALS = ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
 def fail(message: str) -> None:
@@ -76,6 +74,9 @@ def check_source() -> None:
             f"bundled catalog mismatch; found {catalog_entries!r}")
     require(len(catalog_entries) == len(EXPECTED),
             f"expected exactly {len(EXPECTED)} unique bundled catalog entries")
+    require("SilentAim.3105" not in catalog and "Silent Aim" not in ui
+            and "SilentAim.3105" not in resource_bundle,
+            "removed Silent Aim patch is still present in the app catalog, loader, or dashboard")
 
     aim_names = extract_string_array(ui, "aimProjectNames")
     visual_names = extract_string_array(ui, "locationProjectNames")
@@ -83,7 +84,7 @@ def check_source() -> None:
     require(visual_names == VISUALS, f"visual GUI mapping mismatch: {visual_names!r}")
 
     # Verify the dashboard's actual visible button arrays select exactly the same
-    # seven project names and send taps through the direct ON/OFF store action.
+    # six project names and send taps through the direct ON/OFF store action.
     option_rows = re.findall(
         r'DashboardPatchOption\(projectName:\s*"([^"]+)",\s*title:\s*"([^"]+)".*?group:\s*(\.aim|nil)\)',
         ui,
@@ -191,7 +192,7 @@ def check_source() -> None:
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),
             f"unexpected or missing files in Patches/: {all_packages!r}")
-    print("PASS: seven patch entries map to encrypted .bin Data Sets in Assets.xcassets; no raw .3105 files are Xcode resources.")
+    print("PASS: six patch entries map to encrypted .bin Data Sets in Assets.xcassets; Silent Aim is absent and no raw .3105 files are Xcode resources.")
 
 
 def check_app(app: Path) -> None:

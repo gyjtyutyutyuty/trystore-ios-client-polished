@@ -63,7 +63,7 @@ struct SettingsView: View {
                     if let expirationDate = licenseManager.expirationDate {
                         LabeledContent(
                             language.text("license.settings_expiration"),
-                            value: expirationDate.formatted(date: .abbreviated, time: .omitted)
+                            value: expirationDate.formatted(date: .complete, time: .complete)
                         )
                     }
                     if let maskedKey = licenseManager.maskedKey {

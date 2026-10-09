@@ -2,7 +2,7 @@
 
 ## Current status
 
-This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and seven AES-GCM-encrypted patch Data Sets. Xcode compiles the opaque `.bin` assets into `Assets.car`. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
+This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and six AES-GCM-encrypted patch Data Sets. Xcode compiles the `.bin` assets into `Assets.car`. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
 
 ## Build requirements
 
@@ -38,7 +38,7 @@ The IPA is intentionally unsigned. It must be signed with an Apple Developer cer
 Open `ThreeOneOSFive.xcodeproj`, choose the shared **SupportPatch** scheme, and build or archive for a physical iOS device. The target uses the bundle identifier declared in `ThreeOneOSFive/Info.plist`.
 
 ## Encrypted patch assets
-The seven source `.3105` packages are encrypted individually with AES-256-GCM into `.bin` Data Sets named after their patches under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles those Data Sets into the single `Assets.car` archive, so ordinary IPA extraction does not show seven loose patch files. The encrypted payloads are still part of the IPA and could be recovered from `Assets.car` with asset-catalog tooling.
+The six remaining source `.3105` packages are encrypted individually with AES-256-GCM into `.bin` Data Sets named after their patches under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles those Data Sets into the single `Assets.car` archive, so ordinary IPA extraction does not show six loose patch files. The encrypted payloads are still part of the IPA and could be recovered from `Assets.car` with asset-catalog tooling. Silent Aim has been removed from the source packages, asset catalog, and patch UI.
 
 ```text
 ThreeOneOSFive/Assets.xcassets/<PATCH_NAME>.dataset/<PATCH_NAME>.bin
