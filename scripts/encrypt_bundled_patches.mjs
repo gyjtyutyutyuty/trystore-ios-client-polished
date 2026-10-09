@@ -10,15 +10,15 @@ if (key.length !== 32) {
   throw new Error('Set PATCH_BUNDLE_KEY_BASE64 to a base64-encoded 32-byte AES key.');
 }
 
-// Opaque asset names deliberately do not disclose the patch/project names.
+// Keep asset catalog folder/file names recognizable in the repository.
 const assetNames = {
-  'HEAD.3105': 'r_91c3f2',
-  'NECK.3105': 'r_5d7a10',
-  'HSPESSCOSO.3105': 'r_8e4f1b',
-  'HS SLA PECHO.3105': 'r_6b0c5d',
-  'SilentAim.3105': 'r_2d9a74',
-  'HOLOGRAMAARMAS.3105': 'r_5f1c38',
-  'HOLOGRAMAPERSONAJE.3105': 'r_4b8e26',
+  'HEAD.3105': 'HEAD',
+  'NECK.3105': 'NECK',
+  'HSPESSCOSO.3105': 'HS_PESSCOSO',
+  'HS SLA PECHO.3105': 'HS_SLA_PECHO',
+  'SilentAim.3105': 'SILENT_AIM',
+  'HOLOGRAMAARMAS.3105': 'HOLOGRAMA_ARMAS',
+  'HOLOGRAMAPERSONAJE.3105': 'HOLOGRAMA_PERSONAJE',
 };
 
 const files = (await readdir(sourceDir, { withFileTypes: true }))
@@ -46,5 +46,5 @@ for (const filename of files) {
   }, null, 2)}\n`);
 }
 
-console.log(`Encrypted ${files.length} patch files into opaque .bin Data Sets in ${assetCatalog}.`);
+console.log(`Encrypted ${files.length} patch files into named .bin Data Sets in ${assetCatalog}.`);
 console.log('The AES key is not written to the asset catalog or the iOS project.');

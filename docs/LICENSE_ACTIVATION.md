@@ -12,7 +12,7 @@ The app sends the entered key, project slug, app version, and a random per-insta
 
 ## Encrypted asset-catalog resources
 
-The seven source `.3105` packages are each encrypted with AES-256-GCM and stored as opaque `.bin` files in separate Data Sets under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles these Data Sets into `Assets.car`; they do not appear as seven loose `.3105` files when the IPA is unzipped. The ciphertext is nevertheless inside the IPA and may be recovered from `Assets.car` with asset-catalog tools.
+The seven source `.3105` packages are each encrypted with AES-256-GCM and stored as `.bin` files in patch-named Data Sets under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles these Data Sets into `Assets.car`; they do not appear as seven loose patch files when the IPA is unzipped. The ciphertext is nevertheless inside the IPA and may be recovered from `Assets.car` with asset-catalog tools.
 
 After license validation, the app requests `POST /api/v1/keys/patch-bundle-key` with the license key, device identifier, and `projectId`. The Worker rechecks that the license is active, unexpired, and for `trystore` before returning the 32-byte key. The app reads the encrypted Data Sets locally through `NSDataAsset`, decrypts them in memory, and imports their package data. It does not save the decryption key to Keychain or write the encrypted `.bin` assets separately to app files.
 

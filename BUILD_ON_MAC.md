@@ -38,10 +38,10 @@ The IPA is intentionally unsigned. It must be signed with an Apple Developer cer
 Open `ThreeOneOSFive.xcodeproj`, choose the shared **SupportPatch** scheme, and build or archive for a physical iOS device. The target uses the bundle identifier declared in `ThreeOneOSFive/Info.plist`.
 
 ## Encrypted patch assets
-The seven source `.3105` packages are encrypted individually with AES-256-GCM into opaque `.bin` Data Sets under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles those Data Sets into the single `Assets.car` archive, so ordinary IPA extraction does not show seven loose patch files or their original names. The encrypted payloads are still part of the IPA and could be recovered from `Assets.car` with asset-catalog tooling.
+The seven source `.3105` packages are encrypted individually with AES-256-GCM into `.bin` Data Sets named after their patches under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles those Data Sets into the single `Assets.car` archive, so ordinary IPA extraction does not show seven loose patch files. The encrypted payloads are still part of the IPA and could be recovered from `Assets.car` with asset-catalog tooling.
 
 ```text
-ThreeOneOSFive/Assets.xcassets/r_*.dataset/*.bin
+ThreeOneOSFive/Assets.xcassets/<PATCH_NAME>.dataset/<PATCH_NAME>.bin
 ```
 
 At runtime the app validates the license, retrieves the 32-byte key from `POST /api/v1/keys/patch-bundle-key`, reads the Data Sets through `NSDataAsset`, decrypts the packages in memory, and imports them. The key remains a Cloudflare Worker secret (`PATCH_BUNDLE_ENCRYPTION_KEY`); the Worker does not serve the patch ciphertext. To regenerate the encrypted assets after changing source packages, set `PATCH_BUNDLE_KEY_BASE64` in a private environment and run `node scripts/encrypt_bundled_patches.mjs`. See [license activation](docs/LICENSE_ACTIVATION.md) for the security boundary.

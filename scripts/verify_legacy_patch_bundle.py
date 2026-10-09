@@ -32,13 +32,13 @@ EXPECTED = {
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
 }
 EXPECTED_ASSETS = {
-    "HEAD.3105": "r_91c3f2",
-    "NECK.3105": "r_5d7a10",
-    "HSPESSCOSO.3105": "r_8e4f1b",
-    "HS SLA PECHO.3105": "r_6b0c5d",
-    "SilentAim.3105": "r_2d9a74",
-    "HOLOGRAMAARMAS.3105": "r_5f1c38",
-    "HOLOGRAMAPERSONAJE.3105": "r_4b8e26",
+    "HEAD.3105": "HEAD",
+    "NECK.3105": "NECK",
+    "HSPESSCOSO.3105": "HS_PESSCOSO",
+    "HS SLA PECHO.3105": "HS_SLA_PECHO",
+    "SilentAim.3105": "SILENT_AIM",
+    "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
+    "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
 }
 AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "Silent Aim"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
@@ -168,7 +168,7 @@ def check_source() -> None:
             and 'GeneratedPatchBundle' not in pbx
             and not (ROOT / "ThreeOneOSFive/helpers/GeneratedPatchBundle.swift").exists(),
             "the app target still compiles a patch archive instead of loading asset-catalog Data Sets")
-    asset_map = dict(re.findall(r'\("([^\"]+)",\s*"(r_[a-f0-9]+)"\)', resource_bundle))
+    asset_map = dict(re.findall(r'\("([^\"]+)",\s*"([A-Z_]+)"\)', resource_bundle))
     require(asset_map == EXPECTED_ASSETS, f"asset Data Set mapping mismatch: {asset_map!r}")
     for resource_name, asset_name in asset_map.items():
         dataset = ASSET_CATALOG / f"{asset_name}.dataset"
@@ -177,7 +177,7 @@ def check_source() -> None:
         contents = json.loads(contents_path.read_text())
         files = contents.get('data', [])
         require(len(files) == 1 and files[0].get('filename') == f"{asset_name}.bin",
-                f"asset Data Set does not reference its opaque .bin file: {asset_name}")
+                f"asset Data Set does not reference its named .bin file: {asset_name}")
         payload = dataset / f"{asset_name}.bin"
         require(payload.is_file() and payload.stat().st_size > 28,
                 f"encrypted asset is missing or too small: {payload}")
@@ -199,7 +199,8 @@ def check_app(app: Path) -> None:
     files = [path for path in app.rglob("*") if path.is_file()]
     leaked = [path for path in files if path.name.endswith((".3105", ".3105.enc"))]
     require(not leaked, f"standalone plaintext patch files are visible in the built app: {leaked!r}")
-    asset_bins = [path for path in files if path.name.startswith("r_") and path.suffix == ".bin"]
+    asset_bin_names = {f"{asset_name}.bin" for asset_name in EXPECTED_ASSETS.values()}
+    asset_bins = [path for path in files if path.name in asset_bin_names]
     require(not asset_bins, f"asset-catalog .bin files escaped into the app as loose files: {asset_bins!r}")
     require(any(path.name == "Assets.car" for path in files),
             "built app is missing the compiled asset catalog containing encrypted .bin Data Sets")
