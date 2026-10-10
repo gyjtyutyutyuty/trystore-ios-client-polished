@@ -21,12 +21,12 @@ struct PatchPasswordRequest: Identifiable {
 enum PatchProjectLibrary {
     private static let bundledProjectIDs: [String: UUID] = [
         "HOLOGRAMA EXCLUSIVO VERDE": UUID(uuidString: "7F55648D-223E-59CB-8E6A-7D1AE1C7F0F2")!,
-        "HOLOGRAMA EXCUSIVO ROSADO": UUID(uuidString: "0EC114A7-D8D8-59C1-BBC0-44502563F4B4")!
+        "HOLOGRAMA EXCLUSIVO ROSADO": UUID(uuidString: "0EC114A7-D8D8-59C1-BBC0-44502563F4B4")!
     ]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
         "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE",
-        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCUSIVO ROSADO"
+        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
     static func isBundledProject(_ project: PatchProject) -> Bool {
@@ -132,9 +132,18 @@ enum PatchProjectLibrary {
         projectName: String,
         password: String? = nil,
         fileManager: FileManager = .default
-    ) {
+    ) -> Bool {
         guard let sourceSummary = try? PatchPackageCodec.inspect(sourceData),
-              let root = try? packageRootURL(fileManager: fileManager) else { return }
+              let root = try? packageRootURL(fileManager: fileManager) else { return false }
+
+        if projectName == "HOLOGRAMA EXCLUSIVO ROSADO" {
+            let legacyPinkPackage = root.appendingPathComponent("HOLOGRAMA EXCUSIVO ROSADO.3105")
+            if let legacyData = try? readPackage(at: legacyPinkPackage),
+               let legacySummary = try? PatchPackageCodec.inspect(legacyData) {
+                try? PatchKeyStore.delete(for: legacySummary)
+            }
+            try? fileManager.removeItem(at: legacyPinkPackage)
+        }
 
         let destination = root.appendingPathComponent("\(projectName).3105")
         if fileManager.fileExists(atPath: destination.path) {
@@ -151,13 +160,16 @@ enum PatchProjectLibrary {
                         fileManager: fileManager
                     )
                 } else {
-                    return
+                    return true
                 }
             }
             try? fileManager.removeItem(at: destination)
         }
 
-        guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else { return }
+        guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else {
+            log("patch: bundled source package could not be decoded for \(projectName) (schema \(sourceSummary.schemaVersion))")
+            return false
+        }
 
         do {
             var normalizedProject = decoded.project
@@ -179,8 +191,10 @@ enum PatchProjectLibrary {
                 createWorkspace: false,
                 fileManager: fileManager
             )
+            return true
         } catch {
-            log("patch: bundled file unavailable")
+            log("patch: bundled file unavailable for \(projectName)")
+            return false
         }
     }
 
