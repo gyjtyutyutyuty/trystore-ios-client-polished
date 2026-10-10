@@ -578,20 +578,20 @@ private struct DashboardView: View {
                 .stroke(
                     AngularGradient(
                         colors: [PlatinumPalette.neonBlue.opacity(0.08), PlatinumPalette.neonBlue.opacity(0.9), Color.cyan.opacity(0.65), .white.opacity(0.12), PlatinumPalette.neonBlue.opacity(0.08)],
+                        center: .center,
+                        startAngle: .degrees(heroRingRotation),
+                        endAngle: .degrees(heroRingRotation + 360)
+                    ),
+                    lineWidth: 1.4
+                )
                 .frame(width: 210, height: 210)
-                            .appCinematicReveal(delay: 0.13)
+                .appCinematicReveal(delay: 0.13)
                 .offset(x: 25, y: 26)
             Circle()
-                            .appCinematicReveal(delay: 0.19)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
                 .frame(width: 184, height: 184)
-                        homeShortcutsPanel
-                            .appCinematicReveal(delay: 0.25)
-                        .fill(PlatinumPalette.neonBlue)
-                        .frame(width: 3, height: 12)
-                            .appCinematicReveal(delay: 0.31)
-                }
-                .rotationEffect(.degrees(heroRingRotation * 0.55))
-                            .appCinematicReveal(delay: 0.37)
+                .appCinematicReveal(delay: 0.19)
+                .offset(x: 25, y: 26)
             LinearGradient(
                 colors: [AppTheme.pageBackground.opacity(0.98), AppTheme.pageBackground.opacity(0.84), AppTheme.pageBackground.opacity(0.30), .clear],
                 startPoint: .leading,
