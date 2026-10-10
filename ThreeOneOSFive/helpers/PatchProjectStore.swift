@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct PatchStoreAlert: Identifiable {
@@ -43,7 +44,7 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "HOLOGRAMAARMAS.3105", projectName: "HOLOGRAMA ARMAS", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(2).3105", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(3).3105", projectName: "HOLOGRAMA EXCUSIVO ROSADO", password: nil)
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(3).3105", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil)
         ]
     }
 }
@@ -64,7 +65,7 @@ final class PatchProjectStore: ObservableObject {
 
     private var pendingUnlock: PendingUnlock?
     private let game: FreeFireGame
-    private var didInstallBundledResources = false
+    private var installedBundleKeyFingerprint: Data?
 
     init(game: FreeFireGame = .max) {
         self.game = game
@@ -72,21 +73,27 @@ final class PatchProjectStore: ObservableObject {
     }
 
     func installBundledResources(bundleKey: Data) {
-        guard bundleKey.count == 32, !didInstallBundledResources else { return }
+        guard bundleKey.count == 32 else { return }
+        let keyFingerprint = Data(SHA256.hash(data: bundleKey))
+        guard keyFingerprint != installedBundleKeyFingerprint else { return }
         guard let resources = try? PatchResourceBundle.load(using: bundleKey),
               game.bundledPatches.allSatisfy({ resources[$0.resourceName] != nil }) else {
             log("patch: encrypted asset catalog resources unavailable")
             return
         }
-        didInstallBundledResources = true
-        for patch in game.bundledPatches {
-            guard let data = resources[patch.resourceName] else { continue }
-            PatchProjectLibrary.installBundledPackageDataIfNeeded(
+        let allInstalled = game.bundledPatches.allSatisfy { patch in
+            guard let data = resources[patch.resourceName] else { return false }
+            return PatchProjectLibrary.installBundledPackageDataIfNeeded(
                 data,
                 projectName: patch.projectName,
                 password: patch.password
             )
         }
+        guard allInstalled else {
+            log("patch: one or more bundled packages could not be installed")
+            return
+        }
+        installedBundleKeyFingerprint = keyFingerprint
         reload()
     }
 

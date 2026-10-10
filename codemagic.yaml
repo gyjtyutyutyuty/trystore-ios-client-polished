@@ -19,6 +19,13 @@ workflows:
         - $CM_BUILD_DIR/ThreeOneOSFive/airlift-rust-core/target
         - $HOME/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
     scripts:
+      - name: Generate encrypted patch Data Sets from protected runtime key
+        script: |
+          set -euo pipefail
+          command -v node
+          export PATCH_BUNDLE_KEY_BASE64="${PATCH_BUNDLE_KEY_BASE64:-${PATCH_BUNDLE_ENCRYPTION_KEY:-}}"
+          : "${PATCH_BUNDLE_KEY_BASE64:?PATCH_BUNDLE_ENCRYPTION_KEY must be configured as a protected Codemagic environment variable}"
+          node scripts/encrypt_bundled_patches.mjs
       - name: Validate merged project and current patch assets
         script: |
           set -euo pipefail

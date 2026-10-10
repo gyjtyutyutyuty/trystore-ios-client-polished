@@ -20,6 +20,9 @@ PACKAGE_CODEC = ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift"
 LICENSE_MANAGER = ROOT / "ThreeOneOSFive/helpers/LicenseManager.swift"
 DEVICE_SERVICE = ROOT / "ThreeOneOSFive/helpers/DevicePatchService.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
+GENERATOR = ROOT / "scripts/encrypt_bundled_patches.mjs"
+CODEMAGIC = ROOT / "codemagic.yaml"
+GITHUB_ACTIONS = ROOT / ".github/workflows/build-ipa.yml"
 PATCH_DIR = ROOT / "ThreeOneOSFive/Patches"
 ASSET_CATALOG = ROOT / "ThreeOneOSFive/Assets.xcassets"
 
@@ -32,7 +35,7 @@ EXPECTED = {
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
     "HOLOGRAMAEXCLUSIVO(2).3105": "HOLOGRAMA EXCLUSIVO VERDE",
-    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA EXCUSIVO ROSADO",
+    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA EXCLUSIVO ROSADO",
 }
 EXPECTED_ASSETS = {
     "HEAD.3105": "HEAD",
@@ -42,7 +45,11 @@ EXPECTED_ASSETS = {
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
     "HOLOGRAMAEXCLUSIVO(2).3105": "HOLOGRAMA_EXCLUSIVO_VERDE",
-    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA_EXCUSIVO_ROSADO",
+    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA_EXCLUSIVO_ROSADO",
+}
+EXPECTED_EXCLUSIVE_PACKAGE_IDS = {
+    "HOLOGRAMAEXCLUSIVO(2).3105": "7F55648D-223E-59CB-8E6A-7D1AE1C7F0F2",
+    "HOLOGRAMAEXCLUSIVO(3).3105": "0EC114A7-D8D8-59C1-BBC0-44502563F4B4",
 }
 AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
@@ -50,7 +57,7 @@ VISUALS = [
     "HOLOGRAMA ARMAS",
     "HOLOGRAMA PERSONAJE",
     "HOLOGRAMA EXCLUSIVO VERDE",
-    "HOLOGRAMA EXCUSIVO ROSADO",
+    "HOLOGRAMA EXCLUSIVO ROSADO",
 ]
 def fail(message: str) -> None:
     print(f"FAIL: {message}", file=sys.stderr)
@@ -81,6 +88,9 @@ def check_source() -> None:
     license_manager = LICENSE_MANAGER.read_text()
     worker = WORKER.read_text()
     device_service = DEVICE_SERVICE.read_text()
+    generator = GENERATOR.read_text()
+    codemagic = CODEMAGIC.read_text()
+    github_actions = GITHUB_ACTIONS.read_text()
 
     catalog_entries = re.findall(
         r'BundledPatch\(resourceName:\s*"([^"]+)",\s*projectName:\s*"([^"]+)"', catalog
@@ -134,6 +144,28 @@ def check_source() -> None:
             and 'game.bundledPatches.allSatisfy' in catalog
             and 'installBundledPackageDataIfNeeded(' in catalog,
             "store no longer decrypts local asset-catalog resources before importing packages")
+    require('installedBundleKeyFingerprint' in catalog
+            and 'SHA256.hash(data: bundleKey)' in catalog
+            and 'guard allInstalled else' in catalog,
+            "bundled patch installation must retry after runtime-key changes or prior install failures")
+    require('-> Bool' in library
+            and 'bundled source package could not be decoded' in library,
+            "bundled installer must surface per-package failures so missing entries can be retried")
+    require(ui.count('.onChange(of: licenseManager.patchBundleKey)') >= 2
+            and 'projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "HOLOGRAMA EXCLUSIVO ROSADO"' in ui,
+            "both dashboards must retry bundle installation on key changes and show the corrected pink patch name")
+    require('node scripts/encrypt_bundled_patches.mjs' in codemagic
+            and codemagic.index('node scripts/encrypt_bundled_patches.mjs')
+                < codemagic.index('Validate merged project and current patch assets')
+            and 'PATCH_BUNDLE_ENCRYPTION_KEY' in codemagic,
+            "Codemagic must regenerate encrypted Data Sets with its protected key before validation")
+    require('node scripts/encrypt_bundled_patches.mjs' in github_actions
+            and 'secrets.PATCH_BUNDLE_ENCRYPTION_KEY' in github_actions,
+            "GitHub Actions must regenerate encrypted Data Sets from its protected runtime-key secret")
+    require('createDecipheriv' in generator
+            and 'AES-GCM round-trip did not reproduce the source package' in generator
+            and 'AES-GCM accepted a wrong key' in generator,
+            "asset generation must authenticate a round trip and reject a wrong key")
     require('NSDataAsset(name: entry.assetName)?.data' in resource_bundle
             and 'AES.GCM.SealedBox' in resource_bundle
             and 'AES.GCM.open' in resource_bundle
@@ -157,10 +189,12 @@ def check_source() -> None:
     ))
     required_id_names = {
         "HOLOGRAMA EXCLUSIVO VERDE",
-        "HOLOGRAMA EXCUSIVO ROSADO",
+        "HOLOGRAMA EXCLUSIVO ROSADO",
     }
     require(required_id_names <= stable_bundled_ids.keys()
-            and len({stable_bundled_ids[name] for name in required_id_names}) == 2,
+            and len({stable_bundled_ids[name] for name in required_id_names}) == 2
+            and stable_bundled_ids["HOLOGRAMA EXCLUSIVO VERDE"] == EXPECTED_EXCLUSIVE_PACKAGE_IDS["HOLOGRAMAEXCLUSIVO(2).3105"]
+            and stable_bundled_ids["HOLOGRAMA EXCLUSIVO ROSADO"] == EXPECTED_EXCLUSIVE_PACKAGE_IDS["HOLOGRAMAEXCLUSIVO(3).3105"],
             "the two new bundled patches must have distinct stable project IDs")
     bundled_installer = re.search(
         r"static func installBundledPackageDataIfNeeded\(.*?\n    \}\n\n    static func packageRootURL",
@@ -239,23 +273,20 @@ def check_source() -> None:
         package_id = str(envelope.get("packageID", ""))
         require(bool(package_id), f"source payload has no package UUID: {filename}")
         source_package_ids.setdefault(package_id, []).append(filename)
-        require(schema_version in {1, 2, 9},
-                f"unsupported bundled package schema {schema_version!r}: {filename}")
-        if schema_version == 9:
-            require(filename in {"HOLOGRAMAEXCLUSIVO(2).3105", "HOLOGRAMAEXCLUSIVO(3).3105"}
-                    and envelope.get("isPasswordProtected") is False
-                    and len(envelope.get("publicContentKey", b"")) == 32
-                    and len(envelope.get("encryptedPayload", b"")) >= 28,
-                    f"schema-9 migration source is not a valid unprotected package: {filename}")
-            require("migrationCompatibleSchemaVersion = 9" in package_codec,
-                    "schema-9 package exists but the app has no compatibility migration path")
+        require(schema_version == 2,
+                f"bundled patches must use the same schema-2 format as the working packages; found {schema_version!r}: {filename}")
+        require(envelope.get("isPasswordProtected") is False
+                and len(envelope.get("publicContentKey", b"")) == 32
+                and len(envelope.get("keyFingerprint", b"")) == 32
+                and len(envelope.get("encryptedPayload", b"")) >= 28,
+                f"bundled source package is not a valid unprotected schema-2 package: {filename}")
+        expected_id = EXPECTED_EXCLUSIVE_PACKAGE_IDS.get(filename)
+        if expected_id:
+            require(package_id.upper() == expected_id,
+                    f"exclusive package must use its distinct stable ID {expected_id}: {filename}")
 
-    duplicate_source_ids = [set(filenames) for filenames in source_package_ids.values() if len(filenames) > 1]
-    require(duplicate_source_ids == [{
-        "HOLOGRAMAEXCLUSIVO(2).3105",
-        "HOLOGRAMAEXCLUSIVO(3).3105",
-    }],
-            f"unexpected duplicate source package UUIDs: {duplicate_source_ids!r}")
+    require(len(source_package_ids) == len(EXPECTED),
+            f"every bundled source package must have a unique package UUID; found {source_package_ids!r}")
 
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),

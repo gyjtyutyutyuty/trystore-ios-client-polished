@@ -197,7 +197,7 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "HOLOGRAMA ARMAS", title: "HOLOGRAMA ARMAS", icon: "sparkles", color: .purple, group: nil),
         DashboardPatchOption(projectName: "HOLOGRAMA PERSONAJE", title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, group: nil),
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "HOLOGRAMA EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil),
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCUSIVO ROSADO", title: "HOLOGRAMA EXCUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil)
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "HOLOGRAMA EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil)
     ]
 
     static var all: [DashboardPatchOption] { loadout + visuals }
@@ -274,6 +274,10 @@ private struct DashboardView: View {
             if let key = licenseManager.patchBundleKey {
                 patchStore.installBundledResources(bundleKey: key)
             }
+        }
+        .onChange(of: licenseManager.patchBundleKey) { key in
+            guard let key else { return }
+            patchStore.installBundledResources(bundleKey: key)
         }
         .task(id: ambientPulseID) {
             guard ambientPulseID > 0 else { return }
@@ -1173,7 +1177,7 @@ private extension FreeFireGame {
     }
 
     var locationProjectNames: [String] {
-        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCUSIVO ROSADO"]
+        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"]
     }
 
     var openGameKey: String {
@@ -1323,6 +1327,7 @@ private struct FreeFirePatchView: View {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
         case "HOLOGRAMA ARMAS": return "HOLOGRAMA ARMAS"
         case "HOLOGRAMA PERSONAJE": return "HOLOGRAMA PERSONAJE"
+        case "HOLOGRAMA EXCLUSIVO ROSADO", "HOLOGRAMA EXCUSIVO ROSADO": return "HOLOGRAMA EXCLUSIVO ROSADO"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }
@@ -1511,6 +1516,11 @@ private struct FreeFirePatchView: View {
         }
         .task {
             await loadPatchLibrary()
+        }
+        .onChange(of: licenseManager.patchBundleKey) { key in
+            guard let key else { return }
+            store.installBundledResources(bundleKey: key)
+            store.reload()
         }
         .alert(item: $store.alert) { alert in
             let title = Text(language.text(alert.titleKey))

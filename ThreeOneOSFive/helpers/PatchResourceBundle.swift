@@ -17,7 +17,7 @@ enum PatchResourceBundle {
         ("HOLOGRAMAARMAS.3105", "HOLOGRAMA_ARMAS"),
         ("HOLOGRAMAPERSONAJE.3105", "HOLOGRAMA_PERSONAJE"),
         ("HOLOGRAMAEXCLUSIVO(2).3105", "HOLOGRAMA_EXCLUSIVO_VERDE"),
-        ("HOLOGRAMAEXCLUSIVO(3).3105", "HOLOGRAMA_EXCUSIVO_ROSADO"),
+        ("HOLOGRAMAEXCLUSIVO(3).3105", "HOLOGRAMA_EXCLUSIVO_ROSADO"),
     ]
 
     static func load(using keyData: Data) throws -> [String: Data] {

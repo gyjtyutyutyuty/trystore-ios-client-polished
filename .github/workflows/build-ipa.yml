@@ -19,6 +19,19 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Set up Node.js for encrypted patch generation
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Generate encrypted patch Data Sets from protected runtime key
+        env:
+          PATCH_BUNDLE_KEY_BASE64: ${{ secrets.PATCH_BUNDLE_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          : "${PATCH_BUNDLE_KEY_BASE64:?Add PATCH_BUNDLE_ENCRYPTION_KEY as a protected GitHub Actions secret}"
+          node scripts/encrypt_bundled_patches.mjs
+
       - name: Cache Rust dependencies and build outputs
         uses: actions/cache@v4
         with:
