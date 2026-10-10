@@ -2,6 +2,12 @@ workflows:
   supportpatch_unsigned_ipa:
     name: TryStore
     max_build_duration: 60
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
     instance_type: mac_mini_m2
     environment:
       xcode: latest
