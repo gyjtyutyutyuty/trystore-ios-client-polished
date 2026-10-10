@@ -8,9 +8,10 @@ workflows:
       branch_patterns:
         - pattern: main
           include: true
-    cancel_previous_builds: true
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - PATCH_BUNDLE_KEYS
       xcode: latest
     cache:
       cache_paths:
