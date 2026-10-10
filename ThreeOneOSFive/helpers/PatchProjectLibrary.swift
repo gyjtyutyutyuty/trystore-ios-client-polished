@@ -19,7 +19,10 @@ struct PatchPasswordRequest: Identifiable {
 }
 
 enum PatchProjectLibrary {
-    private static let bundledProjectIDs: [String: UUID] = [:]
+    private static let bundledProjectIDs: [String: UUID] = [
+        "HOLOGRAMA EXCLUSIVO VERDE": UUID(uuidString: "7F55648D-223E-59CB-8E6A-7D1AE1C7F0F2")!,
+        "HOLOGRAMA EXCUSIVO ROSADO": UUID(uuidString: "0EC114A7-D8D8-59C1-BBC0-44502563F4B4")!
+    ]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
         "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE",
@@ -140,16 +143,28 @@ enum PatchProjectLibrary {
                let key = try? PatchKeyStore.load(for: existingSummary),
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
-                return
+                if let expectedID = bundledProjectIDs[projectName],
+                   existingDecoded.project.id != expectedID {
+                    try? PatchKeyStore.delete(for: existingSummary)
+                    try? PatchWorkspaceService.deleteWorkspace(
+                        projectID: existingDecoded.project.id,
+                        fileManager: fileManager
+                    )
+                } else {
+                    return
+                }
             }
             try? fileManager.removeItem(at: destination)
         }
 
-          guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else { return }
+        guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else { return }
 
         do {
             var normalizedProject = decoded.project
             normalizedProject.name = projectName
+            if let bundledProjectID = bundledProjectIDs[projectName] {
+                normalizedProject.id = bundledProjectID
+            }
             let normalizedData = try PatchPackageCodec.encodeNew(
                 project: normalizedProject,
                 password: password

@@ -152,6 +152,25 @@ def check_source() -> None:
             and 'PatchPackageCodec.decode(data, password: nil)' in library
             and 'project: decoded?.project' in library,
             "library no longer decodes the bundled packages into selectable projects")
+    stable_bundled_ids = dict(re.findall(
+        r'"([^"]+)":\s*UUID\(uuidString:\s*"([A-Fa-f0-9-]+)"\)!', library
+    ))
+    required_id_names = {
+        "HOLOGRAMA EXCLUSIVO VERDE",
+        "HOLOGRAMA EXCUSIVO ROSADO",
+    }
+    require(required_id_names <= stable_bundled_ids.keys()
+            and len({stable_bundled_ids[name] for name in required_id_names}) == 2,
+            "the two new bundled patches must have distinct stable project IDs")
+    bundled_installer = re.search(
+        r"static func installBundledPackageDataIfNeeded\(.*?\n    \}\n\n    static func packageRootURL",
+        library,
+        re.S,
+    )
+    require(bundled_installer is not None
+            and "existingDecoded.project.id != expectedID" in bundled_installer.group(0)
+            and "normalizedProject.id = bundledProjectID" in bundled_installer.group(0),
+            "bundled installer must migrate prior duplicate IDs and assign unique stable IDs")
     legacy_installer = re.search(
         r"static func installBundledPackageDataIfNeeded\(.*?\n    \}\n\n    static func packageRootURL",
         library,
@@ -203,6 +222,7 @@ def check_source() -> None:
                 f"encrypted asset is missing or too small: {payload}")
         require(not (dataset / resource_name).exists(),
                 f"plaintext source package is present in the asset Data Set: {resource_name}")
+    source_package_ids: dict[str, list[str]] = {}
     for filename in EXPECTED:
         source_file = PATCH_DIR / filename
         require(source_file.is_file() and source_file.stat().st_size > 0,
@@ -216,6 +236,9 @@ def check_source() -> None:
         except Exception as error:
             fail(f"source payload has an invalid package envelope: {filename}: {error}")
         schema_version = envelope.get("schemaVersion")
+        package_id = str(envelope.get("packageID", ""))
+        require(bool(package_id), f"source payload has no package UUID: {filename}")
+        source_package_ids.setdefault(package_id, []).append(filename)
         require(schema_version in {1, 2, 9},
                 f"unsupported bundled package schema {schema_version!r}: {filename}")
         if schema_version == 9:
@@ -226,6 +249,13 @@ def check_source() -> None:
                     f"schema-9 migration source is not a valid unprotected package: {filename}")
             require("migrationCompatibleSchemaVersion = 9" in package_codec,
                     "schema-9 package exists but the app has no compatibility migration path")
+
+    duplicate_source_ids = [set(filenames) for filenames in source_package_ids.values() if len(filenames) > 1]
+    require(duplicate_source_ids == [{
+        "HOLOGRAMAEXCLUSIVO(2).3105",
+        "HOLOGRAMAEXCLUSIVO(3).3105",
+    }],
+            f"unexpected duplicate source package UUIDs: {duplicate_source_ids!r}")
 
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),
