@@ -30,6 +30,7 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY="" \
+  COMPILATION_CACHE_ENABLE_CACHING=YES \
   archive
 
 APP="$ARCHIVE/Products/Applications/SupportPatch.app"
@@ -45,9 +46,35 @@ mkdir -p "$BUILD_DIR/Payload"
 cp -R "$APP" "$BUILD_DIR/Payload/"
 (
   cd "$BUILD_DIR"
-  /usr/bin/zip -qry "$IPA" Payload
+  # ditto creates the conventional Apple IPA ZIP with Payload at archive root.
+  /usr/bin/ditto -c -k --norsrc --keepParent Payload "$IPA"
   rm -rf Payload
 )
+
+/usr/bin/unzip -tq "$IPA"
+python3 - "$IPA" <<'PY'
+import plistlib
+import sys
+import zipfile
+
+ipa = sys.argv[1]
+with zipfile.ZipFile(ipa) as archive:
+    names = set(archive.namelist())
+    app_infos = [name for name in names if name.startswith("Payload/") and name.endswith(".app/Info.plist")]
+    if len(app_infos) != 1:
+        raise SystemExit(f"Expected exactly one Payload/*.app/Info.plist, found {app_infos!r}")
+    info_path = app_infos[0]
+    app_root = info_path.removesuffix("Info.plist")
+    metadata = plistlib.loads(archive.read(info_path))
+    executable = metadata.get("CFBundleExecutable")
+    if metadata.get("CFBundlePackageType") != "APPL" or not executable:
+        raise SystemExit("The IPA app Info.plist is missing a valid APPL package type or executable name")
+    if app_root + executable not in names:
+        raise SystemExit(f"The IPA is missing its declared executable: {app_root}{executable}")
+    if any(not (name == "Payload/" or name.startswith("Payload/")) for name in names):
+        raise SystemExit("The IPA contains files outside the top-level Payload directory")
+print(f"Validated eSign-ready IPA layout: {info_path}")
+PY
 
 printf 'Unsigned archive: %s\n' "$ARCHIVE"
 printf 'Unsigned IPA:     %s\n' "$IPA"

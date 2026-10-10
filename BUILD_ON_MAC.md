@@ -31,7 +31,7 @@ build/SupportPatch.xcarchive
 build/SupportPatch-unsigned.ipa
 ```
 
-The IPA is intentionally unsigned. It must be signed with an Apple Developer certificate and a matching provisioning profile before installation.
+The IPA is intentionally unsigned. It is packaged with `Payload/SupportPatch.app/` at the ZIP root and checked for ZIP integrity and the declared app executable before the script succeeds. Import the `.ipa` itself into eSign, not the `.xcarchive` or a CI artifact ZIP wrapper. When downloading a GitHub Actions artifact, extract its wrapper ZIP first and select the embedded `SupportPatch-unsigned.ipa`.
 
 ## Xcode target
 

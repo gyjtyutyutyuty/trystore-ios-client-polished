@@ -11,6 +11,12 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       xcode: latest
+    cache:
+      cache_paths:
+        - $HOME/.cargo/registry
+        - $HOME/.cargo/git
+        - $CM_BUILD_DIR/ThreeOneOSFive/airlift-rust-core/target
+        - $HOME/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
     scripts:
       - name: Validate merged project and current patch assets
         script: |
@@ -52,6 +58,7 @@ workflows:
           command -v rustup
           command -v cargo
           mkdir -p /tmp/xcodebuild_logs
+          export CARGO_TARGET_DIR="$CM_BUILD_DIR/ThreeOneOSFive/airlift-rust-core/target"
           REBUILD_AIRLIFT=1 ./build_supportpatch_unsigned.sh 2>&1 | tee /tmp/xcodebuild_logs/build.log
       - name: Verify unsigned IPA contents
         script: |
@@ -66,5 +73,4 @@ workflows:
           python3 scripts/verify_legacy_patch_bundle.py --app "$APP"
     artifacts:
       - build/SupportPatch-unsigned.ipa
-      - build/SupportPatch.xcarchive
       - /tmp/xcodebuild_logs/*.log

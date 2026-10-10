@@ -1,6 +1,6 @@
 # eSign Setup
 
-This project is packaged as an **unsigned iOS IPA** so that the owner can apply their own Apple certificate and provisioning profile in an on-device signer such as eSign. The project has one application target, no extensions, and no declared special entitlements. The bundle identifier is `com.trystore.cosmeticpreview`.
+This project is packaged as an **unsigned iOS IPA** so that the owner can apply their own Apple certificate and provisioning profile in an on-device signer such as eSign. The project has one application target, no extensions, and no declared special entitlements. The current target bundle identifier is `com.apple.mobile.MobileHouseArrest`; the signing profile must authorize the identifier, or eSign must change it to an identifier authorized by your profile.
 
 ## Required inputs
 
@@ -10,19 +10,19 @@ The eSign project documentation describes importing a `.p12` certificate and `.m
 
 ## Build and validate
 
-Run these commands on a Mac with Xcode installed:
+Run this command on a Mac with Xcode installed:
 
 ```bash
-chmod +x ./build_unsigned.sh ./build_esign_ready_ipa.sh
-./build_unsigned.sh
-./build_esign_ready_ipa.sh
+./build_supportpatch_unsigned.sh
 ```
 
-The second command verifies that the package has the expected `Payload/TryStore.app` layout and has not already been signed. This environment cannot compile a real iOS IPA because Xcode, the iOS SDK, and Apple signing utilities are macOS-only; the validator therefore checks packaging structure only.
+The output is `build/SupportPatch-unsigned.ipa`. It is validated as a ZIP and contains `Payload/SupportPatch.app/` with its declared `SupportPatch` executable. The `.xcarchive` is a separate build product and is **not** the file to import into eSign.
+
+If you download from GitHub Actions, GitHub wraps its artifact in a ZIP such as `trystore-unsigned-ipa.zip`: extract that wrapper first, then import the `.ipa` inside it. Do not rename the wrapper ZIP to `.ipa`. Codemagic provides the `.ipa` artifact directly. This environment cannot compile a real iOS IPA because Xcode and the iOS SDK are macOS-only.
 
 ## Sign and install
 
-Transfer `build/TryStore-unsigned.ipa` to the device, import it into eSign, import the certificate and provisioning profile, and sign the IPA without injecting additional dynamic libraries. Install the signed output from eSign. If iOS prompts for trust, use **Settings → General → VPN & Device Management**.
+Transfer `build/SupportPatch-unsigned.ipa` (or the direct `.ipa` downloaded from Codemagic) to the device. In eSign, import that `.ipa`, import your certificate and matching provisioning profile, and sign the IPA without injecting additional dynamic libraries. Install the signed output from eSign. If iOS prompts for trust, use **Settings → General → VPN & Device Management**.
 
 Successful installation is not guaranteed by the source package alone. It depends on a valid certificate, a matching provisioning profile, device authorization where applicable, certificate status, and the iOS version supported by the signing material.
 
