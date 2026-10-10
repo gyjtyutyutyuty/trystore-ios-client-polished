@@ -2,17 +2,6 @@ name: Build unsigned iOS IPA
 
 on:
   workflow_dispatch:
-    inputs:
-      send_ipa_here:
-        description: Send the built IPA to this private session
-        required: false
-        type: boolean
-        default: false
-      handoff_token:
-        description: One-time upload token for this session
-        required: false
-        type: string
-        default: ''
   push:
     branches: [ main ]
 
@@ -49,21 +38,7 @@ jobs:
       - name: Build unsigned IPA
         run: bash ./build_supportpatch_unsigned.sh
 
-      - name: Transfer IPA to this session
-        if: ${{ inputs.send_ipa_here }}
-        env:
-          IPA_HANDOFF_TOKEN: ${{ inputs.handoff_token }}
-        run: |
-          set -euo pipefail
-          test -n "$IPA_HANDOFF_TOKEN"
-          echo "::add-mask::$IPA_HANDOFF_TOKEN"
-          curl --fail --show-error --silent --retry 2 --retry-delay 2 \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @build/SupportPatch-unsigned.ipa \
-            "https://8765-itrkmpd52hvra8cesqdbg-9bd4e1e5.us3.manus.computer/upload/$IPA_HANDOFF_TOKEN"
-
       - name: Upload IPA artifact
-        if: ${{ !inputs.send_ipa_here }}
         uses: actions/upload-artifact@v4
         with:
           name: trystore-unsigned-ipa
