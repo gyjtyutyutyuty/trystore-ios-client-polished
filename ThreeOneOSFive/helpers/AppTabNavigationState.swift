@@ -2,10 +2,7 @@ import Foundation
 
 enum AppSection: Int, CaseIterable, Identifiable {
     case home
-    case files
     case patches
-    case cleaner
-    case wallpapers
 
     var id: Int { rawValue }
 }
@@ -27,7 +24,7 @@ struct FeatureVisibility: Equatable {
     }
 
     func isVisible(_ section: AppSection) -> Bool {
-        visibleSections.contains(section)
+        section == .home || section == .patches
     }
 }
 

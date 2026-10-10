@@ -5,8 +5,7 @@ import CoreMotion
 import Combine
 
 enum AppTheme {
-    static let accent = Color(red: 0.15, green: 0.91, blue: 1.0)
-    static let electricBlue = Color(red: 0.17, green: 0.49, blue: 1.0)
+    static let accent = Color(red: 0.78, green: 0.86, blue: 0.98)
     static let pageBackground = Color(red: 0.025, green: 0.032, blue: 0.048)
     static let consoleBackground = Color(red: 0.055, green: 0.067, blue: 0.090)
     static let referenceCard = Color(red: 0.085, green: 0.102, blue: 0.132)
@@ -36,7 +35,7 @@ struct AppPremiumBackdrop: View {
                     endPoint: .bottomTrailing
                 )
                 Circle()
-                    .fill(AppTheme.electricBlue.opacity(0.16))
+                    .fill(Color(red: 0.34, green: 0.28, blue: 0.95).opacity(0.15))
                     .frame(width: min(proxy.size.width * 0.90, 390))
                     .blur(radius: 100)
                     .offset(
@@ -44,7 +43,7 @@ struct AppPremiumBackdrop: View {
                         y: -proxy.size.height * (lightsDrift ? 0.34 : 0.42) - CGFloat(deviceTilt.pitch) * 16
                     )
                 Circle()
-                    .fill(AppTheme.accent.opacity(0.12))
+                    .fill(Color(red: 0.12, green: 0.78, blue: 0.76).opacity(0.10))
                     .frame(width: min(proxy.size.width * 0.72, 310))
                     .blur(radius: 94)
                     .offset(
@@ -52,7 +51,7 @@ struct AppPremiumBackdrop: View {
                         y: proxy.size.height * (lightsDrift ? 0.36 : 0.46) - CGFloat(deviceTilt.pitch) * 11
                     )
                 Circle()
-                    .fill(AppTheme.electricBlue.opacity(0.07))
+                    .fill(Color(red: 0.94, green: 0.34, blue: 0.60).opacity(0.075))
                     .frame(width: min(proxy.size.width * 0.56, 240))
                     .blur(radius: 88)
                     .offset(
@@ -60,7 +59,7 @@ struct AppPremiumBackdrop: View {
                         y: proxy.size.height * (lightsDrift ? 0.10 : -0.04)
                     )
                 LinearGradient(
-                    colors: [.clear, AppTheme.accent.opacity(0.035), Color.white.opacity(0.035), AppTheme.electricBlue.opacity(0.035), .clear],
+                    colors: [.clear, Color.cyan.opacity(0.025), Color.white.opacity(0.035), Color.purple.opacity(0.025), .clear],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

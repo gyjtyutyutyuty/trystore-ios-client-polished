@@ -1,15 +1,8 @@
 workflows:
   supportpatch_unsigned_ipa:
     name: TryStore
-    max_build_duration: 120
+    max_build_duration: 60
     instance_type: mac_mini_m2
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-          source: true
     environment:
       xcode: latest
     scripts:
@@ -22,19 +15,17 @@ workflows:
           test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64/libairlift_ffi.a
           test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64-simulator/libairlift_ffi.a
           patch_count="$(find ThreeOneOSFive/Patches -maxdepth 1 -type f -name '*.3105' | wc -l | tr -d ' ')"
-          test "$patch_count" -eq 8
-          test "$(find . -type f -name '*.3105' | wc -l | tr -d ' ')" -eq 8
+          test "$patch_count" -eq 6
+          test "$(find . -type f -name '*.3105' | wc -l | tr -d ' ')" -eq 6
           asset_bin_count="$(find ThreeOneOSFive/Assets.xcassets -type f -name '*.bin' | wc -l | tr -d ' ')"
-          test "$asset_bin_count" -eq 8
+          test "$asset_bin_count" -eq 6
           for package in \
             "HEAD.3105" \
             "NECK.3105" \
             "HSPESSCOSO.3105" \
             "HS SLA PECHO.3105" \
             "HOLOGRAMAARMAS.3105" \
-            "HOLOGRAMAPERSONAJE.3105" \
-            "HOLOGRAMAEXCLUSIVO(2).3105" \
-            "HOLOGRAMAEXCLUSIVO(3).3105"; do
+            "HOLOGRAMAPERSONAJE.3105"; do
             test -s "ThreeOneOSFive/Patches/$package"
           done
           python3 scripts/verify_legacy_patch_bundle.py

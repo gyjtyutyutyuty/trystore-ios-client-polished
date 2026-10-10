@@ -29,8 +29,6 @@ EXPECTED = {
     "HS SLA PECHO.3105": "HS SLA PECHO",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
-    "HOLOGRAMAEXCLUSIVO(2).3105": "HOLOGRAMA EXCLUSIVO VERDE",
-    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA EXCUSIVO ROSADO",
 }
 EXPECTED_ASSETS = {
     "HEAD.3105": "HEAD",
@@ -39,17 +37,10 @@ EXPECTED_ASSETS = {
     "HS SLA PECHO.3105": "HS_SLA_PECHO",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
-    "HOLOGRAMAEXCLUSIVO(2).3105": "HOLOGRAMA_EXCLUSIVO_VERDE",
-    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA_EXCUSIVO_ROSADO",
 }
 AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
-VISUALS = [
-    "HOLOGRAMA ARMAS",
-    "HOLOGRAMA PERSONAJE",
-    "HOLOGRAMA EXCLUSIVO VERDE",
-    "HOLOGRAMA EXCUSIVO ROSADO",
-]
+VISUALS = ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
 def fail(message: str) -> None:
     print(f"FAIL: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -96,7 +87,7 @@ def check_source() -> None:
     require(visual_names == VISUALS, f"visual GUI mapping mismatch: {visual_names!r}")
 
     # Verify the dashboard's actual visible button arrays select exactly the same
-    # eight project names and send taps through the direct ON/OFF store action.
+    # six project names and send taps through the direct ON/OFF store action.
     option_rows = re.findall(
         r'DashboardPatchOption\(projectName:\s*"([^"]+)",\s*title:\s*"([^"]+)".*?group:\s*(\.aim|nil)\)',
         ui,
@@ -104,30 +95,15 @@ def check_source() -> None:
     dashboard_names = [name for name, _title, _group in option_rows]
     require(dashboard_names == AIM + VISUALS,
             f"dashboard ON/OFF button mappings mismatch: {dashboard_names!r}")
-    direct_option_loop = (
-        'ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals)' in ui
-        and 'legacyPatchButton(option)' in ui
-    )
-    indexed_option_loop = (
-        'let options = selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals' in ui
-        and re.search(
-            r'ForEach\(options\.indices, id:.*?\).*?legacyPatchButton\(options\[index\]\)',
-            ui,
-            re.S,
-        ) is not None
-    )
-    require(direct_option_loop or indexed_option_loop,
+    require('ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals)' in ui
+            and 'legacyPatchButton(option)' in ui,
             "dashboard no longer renders the loadout and visual package options as buttons")
     for name, _title, group in option_rows:
         require((group == ".aim") == (name in EXCLUSIVE_AIM),
                 f"dashboard grouping mismatch for {name!r}: {group}")
     require('patchStore.setEnabled(!isActive, for: item, group: option.group' in ui,
             "dashboard button no longer routes its ON/OFF action through PatchProjectStore")
-    require(re.search(
-                r'Text\(item == nil \? "(?:MISSING|Unavailable)" : '
-                r'\(isActive \? "(?:ON|On)" : "(?:OFF|Off)"\)\)',
-                ui,
-            ) is not None,
+    require('Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))' in ui,
             "dashboard ON/OFF status label is missing or changed")
     require('$0.project?.name == option.projectName' in ui
             and 'caseInsensitiveCompare("\\(option.projectName).3105")' in ui,
@@ -223,7 +199,7 @@ def check_source() -> None:
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),
             f"unexpected or missing files in Patches/: {all_packages!r}")
-    print("PASS: eight patch entries map to encrypted .bin Data Sets in Assets.xcassets; Silent Aim is absent and no raw .3105 files are Xcode resources.")
+    print("PASS: six patch entries map to encrypted .bin Data Sets in Assets.xcassets; Silent Aim is absent and no raw .3105 files are Xcode resources.")
 
 
 def check_app(app: Path) -> None:
