@@ -395,6 +395,7 @@ private struct DashboardView: View {
     @State private var showSettings = false
     @State private var showLogs = false
     @State private var heroRingRotation = 0.0
+    @State private var characterRingRotation = 0.0
     @State private var heroScan = false
     @State private var heroFloat = false
     @State private var previewFloat = false
@@ -551,7 +552,7 @@ private struct DashboardView: View {
 
     private func headerButton(symbol: String, label: String, action: @escaping () -> Void) -> some View {
         let buttonSize: CGFloat = horizontalSizeClass == .compact ? 36 : 40
-        Button {
+        return Button {
             AppHaptics.tap()
             action()
         } label: {
