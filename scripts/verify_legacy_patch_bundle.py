@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import plistlib
 import re
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ UI = ROOT / "ThreeOneOSFive/ContentView.swift"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 LIBRARY = ROOT / "ThreeOneOSFive/helpers/PatchProjectLibrary.swift"
 RESOURCE_BUNDLE = ROOT / "ThreeOneOSFive/helpers/PatchResourceBundle.swift"
+PACKAGE_CODEC = ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift"
 LICENSE_MANAGER = ROOT / "ThreeOneOSFive/helpers/LicenseManager.swift"
 DEVICE_SERVICE = ROOT / "ThreeOneOSFive/helpers/DevicePatchService.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
@@ -75,6 +77,7 @@ def check_source() -> None:
             "Xcode project contains duplicate object identifiers")
     library = LIBRARY.read_text()
     resource_bundle = RESOURCE_BUNDLE.read_text()
+    package_codec = PACKAGE_CODEC.read_text()
     license_manager = LICENSE_MANAGER.read_text()
     worker = WORKER.read_text()
     device_service = DEVICE_SERVICE.read_text()
@@ -204,6 +207,25 @@ def check_source() -> None:
         source_file = PATCH_DIR / filename
         require(source_file.is_file() and source_file.stat().st_size > 0,
                 f"source payload missing or empty: {source_file}")
+        package_data = source_file.read_bytes()
+        magic = b"3105PATCH\0"
+        require(package_data.startswith(magic),
+                f"source payload has an unsupported package header: {filename}")
+        try:
+            envelope = plistlib.loads(package_data[len(magic):])
+        except Exception as error:
+            fail(f"source payload has an invalid package envelope: {filename}: {error}")
+        schema_version = envelope.get("schemaVersion")
+        require(schema_version in {1, 2, 9},
+                f"unsupported bundled package schema {schema_version!r}: {filename}")
+        if schema_version == 9:
+            require(filename in {"HOLOGRAMAEXCLUSIVO(2).3105", "HOLOGRAMAEXCLUSIVO(3).3105"}
+                    and envelope.get("isPasswordProtected") is False
+                    and len(envelope.get("publicContentKey", b"")) == 32
+                    and len(envelope.get("encryptedPayload", b"")) >= 28,
+                    f"schema-9 migration source is not a valid unprotected package: {filename}")
+            require("migrationCompatibleSchemaVersion = 9" in package_codec,
+                    "schema-9 package exists but the app has no compatibility migration path")
 
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),

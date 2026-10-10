@@ -7,6 +7,10 @@ enum PatchPackageCodec {
     private static let magic = Data("3105PATCH\0".utf8)
     static let latestSchemaVersion = 2
     private static let minimumSchemaVersion = 1
+    // The two exclusive visual bundles were produced by a compatible schema-9
+    // encoder. Accept that exact unprotected format for import; the bundled
+    // installer re-encodes the decoded project using latestSchemaVersion.
+    private static let migrationCompatibleSchemaVersion = 9
 
     private struct Envelope: Codable {
         let schemaVersion: Int
@@ -346,7 +350,10 @@ enum PatchPackageCodec {
         } catch {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
-        guard (minimumSchemaVersion...latestSchemaVersion).contains(envelope.schemaVersion) else {
+        let isCurrentSchema = (minimumSchemaVersion...latestSchemaVersion).contains(envelope.schemaVersion)
+        let isCompatibleMigrationSource = envelope.schemaVersion == migrationCompatibleSchemaVersion &&
+            !envelope.isPasswordProtected
+        guard isCurrentSchema || isCompatibleMigrationSource else {
             throw PatchPackageError.unsupportedVersion
         }
         guard envelope.keyFingerprint.count == 32,
