@@ -29,6 +29,8 @@ EXPECTED = {
     "HS SLA PECHO.3105": "HS SLA PECHO",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
+    "HOLOGRAMAEXCLUSIVO(2).3105": "HOLOGRAMA EXCLUSIVO VERDE",
+    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA EXCUSIVO ROSADO",
 }
 EXPECTED_ASSETS = {
     "HEAD.3105": "HEAD",
@@ -37,10 +39,17 @@ EXPECTED_ASSETS = {
     "HS SLA PECHO.3105": "HS_SLA_PECHO",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
+    "HOLOGRAMAEXCLUSIVO(2).3105": "HOLOGRAMA_EXCLUSIVO_VERDE",
+    "HOLOGRAMAEXCLUSIVO(3).3105": "HOLOGRAMA_EXCUSIVO_ROSADO",
 }
 AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
-VISUALS = ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
+VISUALS = [
+    "HOLOGRAMA ARMAS",
+    "HOLOGRAMA PERSONAJE",
+    "HOLOGRAMA EXCLUSIVO VERDE",
+    "HOLOGRAMA EXCUSIVO ROSADO",
+]
 def fail(message: str) -> None:
     print(f"FAIL: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -87,7 +96,7 @@ def check_source() -> None:
     require(visual_names == VISUALS, f"visual GUI mapping mismatch: {visual_names!r}")
 
     # Verify the dashboard's actual visible button arrays select exactly the same
-    # six project names and send taps through the direct ON/OFF store action.
+    # eight project names and send taps through the direct ON/OFF store action.
     option_rows = re.findall(
         r'DashboardPatchOption\(projectName:\s*"([^"]+)",\s*title:\s*"([^"]+)".*?group:\s*(\.aim|nil)\)',
         ui,
@@ -199,7 +208,7 @@ def check_source() -> None:
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),
             f"unexpected or missing files in Patches/: {all_packages!r}")
-    print("PASS: six patch entries map to encrypted .bin Data Sets in Assets.xcassets; Silent Aim is absent and no raw .3105 files are Xcode resources.")
+    print("PASS: eight patch entries map to encrypted .bin Data Sets in Assets.xcassets; Silent Aim is absent and no raw .3105 files are Xcode resources.")
 
 
 def check_app(app: Path) -> None:
