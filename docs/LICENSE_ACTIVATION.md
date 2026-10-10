@@ -12,7 +12,7 @@ The app sends the entered key, project slug, app version, and a random per-insta
 
 ## Encrypted asset-catalog resources
 
-The seven source `.3105` packages are each encrypted with AES-256-GCM and stored as `.bin` files in patch-named Data Sets under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles these Data Sets into `Assets.car`; they do not appear as seven loose patch files when the IPA is unzipped. The ciphertext is nevertheless inside the IPA and may be recovered from `Assets.car` with asset-catalog tools.
+The eight source `.3105` packages are each encrypted with AES-256-GCM and stored as `.bin` files in patch-named Data Sets under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles these Data Sets into `Assets.car`; they do not appear as eight loose patch files when the IPA is unzipped. The ciphertext is nevertheless inside the IPA and may be recovered from `Assets.car` with asset-catalog tools.
 
 After license validation, the app requests `POST /api/v1/keys/patch-bundle-key` with the license key, device identifier, and `projectId`. The Worker rechecks that the license is active, unexpired, and for `trystore` before returning the 32-byte key. The app reads the encrypted Data Sets locally through `NSDataAsset`, decrypts them in memory, and imports their package data. It does not save the decryption key to Keychain or write the encrypted `.bin` assets separately to app files.
 
@@ -22,7 +22,7 @@ The decryption key is stored as the Cloudflare Worker secret `PATCH_BUNDLE_ENCRY
 node scripts/encrypt_bundled_patches.mjs
 ```
 
-The command rewrites the seven `.bin` Data Sets and their `Contents.json` metadata under `Assets.xcassets`; commit those generated assets with the app. The source `.3105` files in `ThreeOneOSFive/Patches/` are encryption inputs and are not copied into the IPA. Never put the decryption key in source control or build logs. If the Worker key secret changes, regenerate all seven assets with that same key.
+The command rewrites the eight `.bin` Data Sets and their `Contents.json` metadata under `Assets.xcassets`; commit those generated assets with the app. The source `.3105` files in `ThreeOneOSFive/Patches/` are encryption inputs and are not copied into the IPA. Never put the decryption key in source control or build logs. If the Worker key secret changes, regenerate all eight assets with that same key.
 
 This hides the separate patch files and original filenames from ordinary IPA extraction; it does not remove their ciphertext from the IPA. A determined person can extract the `.bin` data from `Assets.car`, and a licensed device can recover plaintext after runtime decryption. The existing license service also does not enforce device binding, as noted below.
 

@@ -13,13 +13,6 @@ workflows:
     environment:
       xcode: latest
     scripts:
-      - name: Generate encrypted patch Data Sets from Codemagic secret
-        script: |
-          set -euo pipefail
-          command -v node
-          export PATCH_BUNDLE_KEY_BASE64="${PATCH_BUNDLE_KEY_BASE64:-${PATCH_BUNDLE_ENCRYPTION_KEY:-}}"
-          : "${PATCH_BUNDLE_KEY_BASE64:?PATCH_BUNDLE_ENCRYPTION_KEY must be configured as a protected Codemagic environment variable}"
-          node scripts/encrypt_bundled_patches.mjs
       - name: Validate merged project and current patch assets
         script: |
           set -euo pipefail
