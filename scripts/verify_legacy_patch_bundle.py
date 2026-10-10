@@ -140,14 +140,21 @@ def check_source() -> None:
     require(initializer is not None
             and 'reload()' in initializer.group(1),
             "store startup no longer loads the patch library")
-    require(re.search(r"PatchResourceBundle\.load\(using:\s*bundleKey", catalog) is not None
-            and 'game.bundledPatches.allSatisfy' in catalog
-            and 'installBundledPackageDataIfNeeded(' in catalog,
-            "store no longer decrypts local asset-catalog resources before importing packages")
+    install_resources = re.search(
+        r'func installBundledResources\(bundleKey: Data\) \{(.*?)\n    \}', catalog, re.S
+    )
+    require(install_resources is not None
+            and 'PatchResourceBundle.load(using: bundleKey)' in install_resources.group(1)
+            and 'game.bundledPatches.map' in install_resources.group(1)
+            and 'installBundledPackageDataIfNeeded(' in install_resources.group(1)
+            and 'game.bundledPatches.allSatisfy' not in install_resources.group(1)
+            and 'reload()' in install_resources.group(1),
+            "bundled patches must be attempted independently and the dashboard reloaded after partial installs")
     require('installedBundleKeyFingerprint' in catalog
             and 'SHA256.hash(data: bundleKey)' in catalog
-            and 'guard allInstalled else' in catalog,
-            "bundled patch installation must retry after runtime-key changes or prior install failures")
+            and 'installedBundleKeyFingerprint = keyFingerprint' in install_resources.group(1)
+            and 'missingFromLibrary' in install_resources.group(1),
+            "bundle installation must retry incomplete sets and confirm entries are visible before marking the key complete")
     require('-> Bool' in library
             and 'bundled source package could not be decoded' in library,
             "bundled installer must surface per-package failures so missing entries can be retried")
@@ -169,8 +176,11 @@ def check_source() -> None:
     require('NSDataAsset(name: entry.assetName)?.data' in resource_bundle
             and 'AES.GCM.SealedBox' in resource_bundle
             and 'AES.GCM.open' in resource_bundle
-            and 'SymmetricKey(data: keyData)' in resource_bundle,
-            "runtime loader is missing local authenticated asset decryption")
+            and 'SymmetricKey(data: keyData)' in resource_bundle
+            and 'patch: encrypted asset missing:' in resource_bundle
+            and 'patch: encrypted asset authentication failed:' in resource_bundle
+            and 'continue' in resource_bundle,
+            "runtime loader must decrypt each local asset independently so one corrupt entry cannot block the rest")
     require('sendPatchBundleKey(key: key, endpoint: endpoint)' in license_manager
             and 'patchBundleKey = bundleKey' in license_manager
             and 'patchBundleCiphertext' not in license_manager
