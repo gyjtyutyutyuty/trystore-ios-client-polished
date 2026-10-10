@@ -29,16 +29,9 @@ jobs:
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: trystore-unsigned-ipa
           path: build/SupportPatch-unsigned.ipa
           if-no-files-found: error
           retention-days: 14
-
-      - name: Upload archive artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trystore-xcarchive
-          path: build/SupportPatch.xcarchive
-          if-no-files-found: error
-          retention-days: 7
