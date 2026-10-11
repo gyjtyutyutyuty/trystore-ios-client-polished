@@ -23,7 +23,7 @@ enum PatchProjectLibrary {
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
         "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE",
-        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCUSIVO ROSADO"
+        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
     static func isBundledProject(_ project: PatchProject) -> Bool {

@@ -26,8 +26,8 @@ workflows:
             "HS SLA PECHO.3105" \
             "HOLOGRAMAARMAS.3105" \
             "HOLOGRAMAPERSONAJE.3105" \
-            "HOLOGRAMAEXCLUSIVO(2).3105" \
-            "HOLOGRAMAEXCLUSIVO(3).3105"; do
+            "HOLOGRAMAEXCLUSIVO(4).3105" \
+            "HOLOGRAMAEXCLUSIVO(5).3105"; do
             test -s "ThreeOneOSFive/Patches/$package"
           done
           python3 scripts/verify_legacy_patch_bundle.py
