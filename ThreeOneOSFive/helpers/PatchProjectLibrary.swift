@@ -133,8 +133,14 @@ enum PatchProjectLibrary {
         password: String? = nil,
         fileManager: FileManager = .default
     ) {
-        guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData),
-              let root = try? packageRootURL(fileManager: fileManager) else { return }
+        guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData) else {
+            log("patch: bundled package decode failed: \(projectName)")
+            return
+        }
+        guard let root = try? packageRootURL(fileManager: fileManager) else {
+            log("patch: bundled package storage unavailable: \(projectName)")
+            return
+        }
 
         let destination = root.appendingPathComponent("\(projectName).3105")
         if fileManager.fileExists(atPath: destination.path) {
@@ -180,7 +186,7 @@ enum PatchProjectLibrary {
                 fileManager: fileManager
             )
         } catch {
-            log("patch: bundled file unavailable")
+            log("patch: bundled file install failed: \(projectName) — \(error)")
         }
     }
 

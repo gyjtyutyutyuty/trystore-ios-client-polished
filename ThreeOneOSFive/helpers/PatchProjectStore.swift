@@ -73,14 +73,19 @@ final class PatchProjectStore: ObservableObject {
 
     func installBundledResources(bundleKey: Data) {
         guard bundleKey.count == 32, !didInstallBundledResources else { return }
-        guard let resources = try? PatchResourceBundle.load(using: bundleKey),
-              game.bundledPatches.allSatisfy({ resources[$0.resourceName] != nil }) else {
-            log("patch: encrypted asset catalog resources unavailable")
+        let resources: [String: Data]
+        do {
+            resources = try PatchResourceBundle.load(using: bundleKey)
+        } catch {
+            log("patch: encrypted asset catalog could not be read: \(error)")
             return
         }
         didInstallBundledResources = true
         for patch in game.bundledPatches {
-            guard let data = resources[patch.resourceName] else { continue }
+            guard let data = resources[patch.resourceName] else {
+                log("patch: bundled patch asset unavailable: \(patch.resourceName)")
+                continue
+            }
             PatchProjectLibrary.installBundledPackageDataIfNeeded(
                 data,
                 projectName: patch.projectName,

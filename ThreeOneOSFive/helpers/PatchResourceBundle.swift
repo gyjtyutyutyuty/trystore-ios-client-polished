@@ -5,8 +5,6 @@ import UIKit
 enum PatchResourceBundle {
     enum BundleError: Error {
         case invalidKey
-        case missingAsset(String)
-        case invalidCiphertext
     }
 
     private static let assets: [(resourceName: String, assetName: String)] = [
@@ -27,16 +25,18 @@ enum PatchResourceBundle {
         resources.reserveCapacity(assets.count)
 
         for entry in assets {
-            guard let encrypted = NSDataAsset(name: entry.assetName)?.data else {
-                throw BundleError.missingAsset(entry.assetName)
+            guard let encrypted = NSDataAsset(name: entry.assetName, bundle: .main)?.data else {
+                log("patch: encrypted asset missing from catalog: \(entry.assetName)")
+                continue
             }
             guard let sealedBox = try? AES.GCM.SealedBox(combined: encrypted) else {
-                throw BundleError.invalidCiphertext
+                log("patch: encrypted asset has invalid format: \(entry.assetName)")
+                continue
             }
             do {
                 resources[entry.resourceName] = try AES.GCM.open(sealedBox, using: key)
             } catch {
-                throw BundleError.invalidCiphertext
+                log("patch: encrypted asset authentication failed: \(entry.assetName)")
             }
         }
         return resources

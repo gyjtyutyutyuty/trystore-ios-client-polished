@@ -129,13 +129,15 @@ def check_source() -> None:
             and 'reload()' in initializer.group(1),
             "store startup no longer loads the patch library")
     require(re.search(r"PatchResourceBundle\.load\(using:\s*bundleKey", catalog) is not None
-            and 'game.bundledPatches.allSatisfy' in catalog
+            and 'resources[patch.resourceName]' in catalog
             and 'installBundledPackageDataIfNeeded(' in catalog,
             "store no longer decrypts local asset-catalog resources before importing packages")
-    require('NSDataAsset(name: entry.assetName)?.data' in resource_bundle
+    require('NSDataAsset(name: entry.assetName, bundle: .main)?.data' in resource_bundle
             and 'AES.GCM.SealedBox' in resource_bundle
             and 'AES.GCM.open' in resource_bundle
-            and 'SymmetricKey(data: keyData)' in resource_bundle,
+            and 'SymmetricKey(data: keyData)' in resource_bundle
+            and 'encrypted asset authentication failed' in resource_bundle
+            and 'encrypted asset missing from catalog' in resource_bundle,
             "runtime loader is missing local authenticated asset decryption")
     require('sendPatchBundleKey(key: key, endpoint: endpoint)' in license_manager
             and 'patchBundleKey = bundleKey' in license_manager
