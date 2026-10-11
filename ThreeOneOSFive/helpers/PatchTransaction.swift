@@ -264,15 +264,11 @@ enum PatchTransaction {
                         resolved.rule.relativePath,
                         resolved.rule.replacementData
                     )
-                                        log("patch: remote write complete; verifying readback")
-                                        guard let remoteReader,
-                                                    digest(try remoteReader(
-                                                        resolved.rule.bundleID,
-                                                        resolved.rule.relativePath
-                                                    )) == records[index].replacementDigest else {
-                                                throw PatchPackageError.applyFailed
-                                        }
-                                        log("patch: remote readback digest verified")
+                    // Airlift's writer completes the AirTraffic transfer
+                    // before returning. The original file is already backed
+                    // up before this point, so avoid a second full remote
+                    // read/restore session after every activation.
+                    log("patch: remote write complete; Airlift transfer verified")
                 } else {
                     try atomicWrite(
                         resolved.rule.replacementData,

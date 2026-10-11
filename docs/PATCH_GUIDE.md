@@ -51,6 +51,10 @@ For example, to replace `Library/Preferences/com.abc.xyz.plist`, put the replace
 
 Keep the target app closed while applying or restoring a patch. Do not rename the bundle folder or move files outside it.
 
+### iOS 27 remote-access prerequisites
+
+On supported iOS 27 version/build pairs, patch apply and restore use the Airlift pairing tunnel rather than the local app-container browser. Complete pairing in SupportPatch or import a valid pairing file, and activate the supported loopback tunnel before applying or restoring. Apple Books must be installed and opened at least once because Airlift uses its Books sync service for temporary staging and recovery. If the tunnel is interrupted, reconnect and check the recorded transaction/receipt before retrying; do not rerun an operation while the previous transaction's state is unknown.
+
 ## Export, import, and passwords
 
 - **Export** synchronizes the latest workspace contents before sharing the `.3105` file.
