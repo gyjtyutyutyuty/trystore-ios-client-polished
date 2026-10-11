@@ -47,7 +47,7 @@ For example, to replace `Library/Preferences/com.abc.xyz.plist`, put the replace
 - Existing targets are backed up before any replacement is written. Missing targets are created.
 - Writes are journaled and verified. If applying fails partway through, 3105 attempts to roll the transaction back.
 - **Restore Originals** returns files that existed before Apply, deletes files introduced by the patch, and removes directories created by the patch after they become empty.
-- Restore fails closed if the current target or recovery data no longer matches the recorded transaction, instead of overwriting an unverified file.
+- Restore verifies the app container, target path, and original backup. If a target changed while the patch was active, 3105 preserves those current bytes in the transaction recovery folder, then restores and verifies the saved original. It refuses only when the path, container, or original backup cannot be verified.
 
 Keep the target app closed while applying or restoring a patch. Do not rename the bundle folder or move files outside it.
 

@@ -444,8 +444,11 @@ enum PatchTransaction {
             var alreadyRestored = false
             if requirePatchedDigest {
                 let currentDigest: Data?
+                var currentData: Data?
                 if let remoteReader {
-                    currentDigest = digest(try remoteReader(record.bundleID, record.relativePath))
+                    let data = try remoteReader(record.bundleID, record.relativePath)
+                    currentData = data
+                    currentDigest = digest(data)
                 } else if fileManager.fileExists(atPath: target.path) {
                     currentDigest = try digestFile(target)
                 } else {
@@ -456,8 +459,33 @@ enum PatchTransaction {
                 } else if !record.originalExisted, currentDigest == nil {
                     alreadyRestored = true
                 } else if currentDigest != record.replacementDigest {
-                    log("patch: restore refused changed target \(record.bundleID)/\(record.relativePath)")
-                    throw PatchPackageError.restoreFailed
+                    if let currentDigest {
+                        var snapshotURL = transactionDirectory.appendingPathComponent(
+                            "\(record.ruleID.uuidString).pre-restore"
+                        )
+                        if fileManager.fileExists(atPath: snapshotURL.path),
+                           try digestFile(snapshotURL) != currentDigest {
+                            snapshotURL = transactionDirectory.appendingPathComponent(
+                                "\(record.ruleID.uuidString).pre-restore-\(UUID().uuidString)"
+                            )
+                        }
+                        if !fileManager.fileExists(atPath: snapshotURL.path) {
+                            if let currentData {
+                                try currentData.write(
+                                    to: snapshotURL,
+                                    options: [.atomic, .completeFileProtection]
+                                )
+                            } else {
+                                try fileManager.copyItem(at: target, to: snapshotURL)
+                            }
+                        }
+                        guard try digestFile(snapshotURL) == currentDigest else {
+                            throw PatchPackageError.restoreFailed
+                        }
+                        log("patch: preserved changed target before restoring verified original \(record.bundleID)/\(record.relativePath)")
+                    } else {
+                        log("patch: target missing; restoring verified original \(record.bundleID)/\(record.relativePath)")
+                    }
                 }
             }
             if record.originalExisted && !alreadyRestored {
