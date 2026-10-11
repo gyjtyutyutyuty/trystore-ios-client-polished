@@ -12,20 +12,23 @@ struct FilesTabSwitcherView: View {
             List {
                 ForEach(session.tabs) { tab in
                     Button {
+                        AppHaptics.select()
                         session.selectTab(tab.id)
                         dismiss()
                     } label: {
                         tabRow(tab)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(AppPressButtonStyle())
                     .contextMenu { tabActions(tab) }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
+                            AppHaptics.tap()
                             session.closeTab(tab.id)
                         } label: {
                             Label(language.text("browser.close_tab"), systemImage: "xmark")
                         }
                         Button {
+                            AppHaptics.tap()
                             beginRename(tab)
                         } label: {
                             Label(language.text("browser.rename_tab"), systemImage: "pencil")
@@ -34,14 +37,19 @@ struct FilesTabSwitcherView: View {
                     }
                 }
             }
+            .appGyroTilt(intensity: 0.18)
             .navigationTitle(language.text("browser.tabs"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(language.text("common.done")) { dismiss() }
+                    Button(language.text("common.done")) {
+                        AppHaptics.tap()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        AppHaptics.tap()
                         session.openTab()
                         dismiss()
                     } label: {
@@ -59,6 +67,7 @@ struct FilesTabSwitcherView: View {
                     renameTargetID = nil
                 }
                 Button(language.text("common.done")) {
+                    AppHaptics.tap()
                     if let renameTargetID {
                         session.renameTab(renameTargetID, to: renameText)
                     }

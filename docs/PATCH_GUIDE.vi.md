@@ -51,6 +51,10 @@ Ví dụ muốn thay `Library/Preferences/com.abc.xyz.plist`, hãy đặt file m
 
 Nên đóng ứng dụng đích trong lúc áp dụng hoặc khôi phục patch. Không đổi tên folder bundle và không đưa file ra ngoài folder đó.
 
+### Điều kiện truy cập từ xa trên iOS 27
+
+Trên các build iOS 27 đã được xác minh, áp dụng và khôi phục patch dùng pairing tunnel của Airlift thay vì trình duyệt container cục bộ. Hãy pairing thiết bị trong SupportPatch hoặc nhập pairing file hợp lệ, rồi bật loopback tunnel được hỗ trợ trước khi thao tác. Cần cài Apple Books và mở ứng dụng này ít nhất một lần vì Airlift dùng dịch vụ đồng bộ Books để staging và khôi phục tạm thời. Nếu tunnel bị ngắt, hãy kết nối lại rồi kiểm tra trạng thái giao dịch/receipt trước khi thử lại; không chạy lại khi chưa xác định giao dịch trước đó đã hoàn tất hay chưa.
+
 ## Xuất, nhập và mật khẩu
 
 - **Xuất** luôn đồng bộ nội dung mới nhất trong workspace trước khi chia sẻ file `.3105`.

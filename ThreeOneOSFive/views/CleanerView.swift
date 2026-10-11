@@ -74,6 +74,9 @@ struct CleanerView: View {
                 cleanerList
                     .listStyle(.insetGrouped)
             }
+            .background(AppPremiumBackdrop())
+            .appCinematicReveal(delay: 0.06)
+            .appGyroTilt(intensity: 0.18)
             .navigationTitle(language.text("cleaner.title"))
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
@@ -136,11 +139,12 @@ struct CleanerView: View {
             } else {
                 ForEach(filteredRecords) { record in
                     Button {
+                        AppHaptics.select()
                         toggleSelection(record.id)
                     } label: {
                         applicationRow(record)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(AppPressButtonStyle())
                     .disabled(isCleaning)
                 }
             }

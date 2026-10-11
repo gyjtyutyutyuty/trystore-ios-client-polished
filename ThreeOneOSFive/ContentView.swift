@@ -2,291 +2,1180 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @Environment(\.appLanguage) private var language
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var tabNavigation: AppTabNavigationState
-
-    init() {
-        _tabNavigation = State(initialValue: AppTabNavigationState())
-    }
-
     var body: some View {
-        Group {
-            if horizontalSizeClass == .regular {
-                regularLayout
-            } else {
-                compactLayout
-            }
-        }
-        .tint(AppTheme.accent)
-        .imageScale(.small)
-        .onAppear {
-            tabNavigation.reconcileSelection(with: featureVisibility)
-        }
-    }
-
-    private var compactLayout: some View {
-        TabView(selection: tabSelection) {
-            ForEach(featureVisibility.visibleSections) { section in
-                sectionContent(section)
-                    .tabItem {
-                        CompactTabLabel(
-                            title: language.text(section.titleKey),
-                            systemImage: section.systemImage
-                        )
-                    }
-                    .tag(section.rawValue)
-            }
-        }
-    }
-
-    private var regularLayout: some View {
-        NavigationSplitView {
-            List {
-                ForEach(featureVisibility.visibleSections) { section in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            tabNavigation.select(section.rawValue)
-                        }
-                    } label: {
-                        Label(language.text(section.titleKey), systemImage: section.systemImage)
-                            .fontWeight(section.rawValue == tabNavigation.selectedTab ? .semibold : .regular)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(
-                        section.rawValue == tabNavigation.selectedTab
-                            ? AppTheme.accent.opacity(0.14)
-                            : Color.clear
-                    )
-                    .accessibilityAddTraits(
-                        section.rawValue == tabNavigation.selectedTab ? .isSelected : []
-                    )
-                }
-            }
-            .navigationTitle("Support Patch")
-            .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
-        } detail: {
-            sectionContent(selectedVisibleSection)
-                .id(selectedVisibleSection.rawValue)
-        }
-        .navigationSplitViewStyle(.balanced)
-    }
-
-    @ViewBuilder
-    private func sectionContent(_ section: AppSection) -> some View {
-        switch section {
-        case .home:
-            DashboardView()
-        }
-    }
-
-    private var tabSelection: Binding<Int> {
-        Binding(
-            get: { tabNavigation.selectedTab },
-            set: { tabNavigation.select($0) }
-        )
-    }
-
-    private var featureVisibility: FeatureVisibility {
-        FeatureVisibility()
-    }
-
-    private var selectedVisibleSection: AppSection {
-        guard let section = AppSection(rawValue: tabNavigation.selectedTab),
-              featureVisibility.isVisible(section) else {
-            return .home
-        }
-        return section
-    }
-}
-
-private struct CompactTabLabel: View {
-    let title: String
-    let systemImage: String
-
-    @ViewBuilder
-    var body: some View {
-        if let image = UIImage(
-            systemName: systemImage,
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
-        )?.withRenderingMode(.alwaysTemplate) {
-            Image(uiImage: image)
-        } else {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .medium))
-        }
-        Text(title)
-    }
-}
-
-private extension AppSection {
-    var titleKey: String {
-        switch self {
-        case .home: return "tab.home"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .home: return "house.fill"
-        }
+        DashboardView()
+            .tint(AppTheme.accent)
+            .imageScale(.small)
+            .preferredColorScheme(.dark)
     }
 }
 
 // MARK: - DashboardView
-private struct DashboardView: View {
-    @Environment(\.appLanguage) private var language
-    @EnvironmentObject private var appState: AppState
-    @State private var showSettings = false
-    @State private var showLogs = false
+private enum DashboardPatchTab: String, CaseIterable, Identifiable {
+    case loadout
+    case visuals
+
+    var id: String { rawValue }
+    var title: String { self == .loadout ? "LOADOUT" : "VISUALS" }
+    var icon: String { self == .loadout ? "scope" : "sparkles" }
+}
+
+private enum PlatinumPalette {
+    static let bright = Color(red: 0.91, green: 0.94, blue: 0.99)
+    static let silver = Color(red: 0.70, green: 0.77, blue: 0.88)
+    static let graphite = Color(red: 0.055, green: 0.075, blue: 0.11)
+    static let gunmetal = Color(red: 0.12, green: 0.15, blue: 0.20)
+}
+
+private struct PlatinumPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.965 : 1)
+            .brightness(configuration.isPressed ? 0.055 : 0)
+            .animation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.62), value: configuration.isPressed)
+    }
+}
+
+private struct PlatinumExpiryCard: View {
+    let expirationDate: Date?
+    let isActive: Bool
+
+    @State private var sweep = false
+    @State private var ringRotation = 0.0
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 7) {
-                deviceSection
-                    .fixedSize(horizontal: false, vertical: true)
-                VStack(spacing: 12) {
-                    FreeFireGameEntryView(game: .max)
-                    FreeFireGameEntryView(game: .regular)
-                    FreeFireGameEntryView(game: .capCut)
-                }
-                .frame(maxHeight: .infinity, alignment: .top)
+        HStack(spacing: 11) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                Circle()
+                    .trim(from: 0.04, to: 0.76)
+                    .stroke(
+                        AngularGradient(
+                            colors: [PlatinumPalette.bright.opacity(0.18), .white, PlatinumPalette.silver.opacity(0.28)],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 2.2, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(ringRotation))
+                Image(systemName: expirationDate == nil ? "key.fill" : "hourglass")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(PlatinumPalette.bright)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .tint(AppTheme.accent)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showLogs = true } label: {
-                        Image(systemName: "apple.terminal")
-                    }
-                    .accessibilityLabel(language.text("accessibility.open_logs"))
+            .frame(width: 39, height: 39)
+            .shadow(color: PlatinumPalette.silver.opacity(0.32), radius: 9)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("LICENSE WINDOW")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .tracking(1.1)
+                        .foregroundStyle(PlatinumPalette.bright)
+                    Spacer(minLength: 4)
+                    Text(isActive ? "AUTHORIZED" : "VERIFYING")
+                        .font(.system(size: 6, weight: .black, design: .rounded))
+                        .tracking(0.7)
+                        .foregroundStyle(isActive ? PlatinumPalette.graphite : .white.opacity(0.76))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(isActive ? PlatinumPalette.bright : Color.white.opacity(0.12), in: Capsule())
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape")
+
+                if let expirationDate {
+                    Text(expiryStamp(expirationDate))
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.92))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+                        .fixedSize(horizontal: false, vertical: true)
+                    TimelineView(.periodic(from: Date(), by: 1)) { context in
+                        Text(countdown(to: expirationDate, now: context.date))
+                            .font(.system(size: 8, weight: .black, design: .monospaced))
+                            .tracking(0.65)
+                            .foregroundStyle(PlatinumPalette.silver)
+                            .monospacedDigit()
                     }
-                    .accessibilityLabel(language.text("accessibility.open_settings"))
+                } else {
+                    Text("NO EXPIRY TIMESTAMP PROVIDED")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .tracking(0.45)
+                        .foregroundStyle(PlatinumPalette.bright)
+                    Text("The license service did not return an expiry date.")
+                        .font(.system(size: 7, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.58))
                 }
             }
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .sheet(isPresented: $showLogs) { LogView() }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 10)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [PlatinumPalette.gunmetal, PlatinumPalette.graphite, Color.black.opacity(0.94)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    AngularGradient(
+                        colors: [PlatinumPalette.bright.opacity(0.86), PlatinumPalette.silver.opacity(0.12), .white.opacity(0.48), PlatinumPalette.silver.opacity(0.14)],
+                        center: .center,
+                        startAngle: .degrees(ringRotation),
+                        endAngle: .degrees(ringRotation + 360)
+                    ),
+                    lineWidth: 1
+                )
+        }
+        .overlay {
+            GeometryReader { proxy in
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(0.16), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: 54)
+                .rotationEffect(.degrees(18))
+                .offset(x: sweep ? proxy.size.width + 70 : -70)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .allowsHitTesting(false)
+        }
+        .shadow(color: PlatinumPalette.silver.opacity(0.12), radius: 13, y: 5)
+        .accessibilityElement(children: .combine)
+        .onAppear {
+            withAnimation(.linear(duration: 4.4).repeatForever(autoreverses: false)) {
+                sweep = true
+            }
+            withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
+                ringRotation = 360
+            }
         }
     }
 
-    private var deviceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(language.text("common.device"))
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            LabeledContent(language.text("dashboard.hardware_model")) {
-                Text(AppInfo.displayMachineName)
-                    .font(.body.monospaced())
-            }
-            LabeledContent(language.text("settings.ios_version")) {
-                Text("\(AppInfo.osVersion) (\(AppInfo.osBuild))")
-                    .font(.body.monospaced())
-            }
-            HStack {
-                Text(language.text("settings.exploit_compatibility"))
-                Spacer()
-                Text(language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"))
-                    .foregroundStyle(appState.isSupported ? Color.green : Color.orange)
-            }
+    private func expiryStamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.timeZone = .current
+        formatter.dateStyle = .full
+        formatter.timeStyle = .long
+        return formatter.string(from: date)
+    }
 
-            if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
-                HStack {
-                    Text(language.text("dashboard.kernel_status"))
-                    Spacer()
-                    if appState.kernelExploitRunning {
-                        HStack(spacing: 6) {
-                            ProgressView().controlSize(.small)
-                            Text(language.text("dashboard.kernel_running"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        Text(language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive"))
-                            .foregroundStyle(appState.exploitStatus.isSuccess ? Color.green : Color.secondary)
+    private func countdown(to expiry: Date, now: Date) -> String {
+        let remaining = Int(expiry.timeIntervalSince(now))
+        guard remaining > 0 else { return "EXPIRED" }
+        let days = remaining / 86_400
+        let hours = (remaining % 86_400) / 3_600
+        let minutes = (remaining % 3_600) / 60
+        let seconds = remaining % 60
+        return String(format: "%02dD  %02dH  %02dM  %02dS REMAINING", days, hours, minutes, seconds)
+    }
+}
+
+private struct DashboardPatchOption: Identifiable {
+    let projectName: String
+    let title: String
+    let icon: String
+    let color: Color
+    let group: PatchToggleGroup?
+
+    var id: String { projectName }
+
+    static let loadout = [
+        DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
+        DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
+        DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim)
+    ]
+
+    static let visuals = [
+        DashboardPatchOption(projectName: "HOLOGRAMA ARMAS", title: "HOLOGRAMA ARMAS", icon: "sparkles", color: .purple, group: nil),
+        DashboardPatchOption(projectName: "HOLOGRAMA PERSONAJE", title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, group: nil)
+    ]
+
+    static var all: [DashboardPatchOption] { loadout + visuals }
+}
+
+private struct DashboardView: View {
+    @Environment(\.appLanguage) private var language
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
+    @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @Namespace private var patchTabNamespace
+    @State private var selectedPatchTab: DashboardPatchTab = .loadout
+    @State private var showSettings = false
+    @State private var showLogs = false
+    @State private var heroFloat = false
+    @State private var heroRingRotation = 0.0
+    @State private var heroScan = false
+    @State private var previewFloat = false
+    @State private var ambientTouchPoint = CGPoint(x: 180, y: 260)
+    @State private var ambientTouchStrength = 0.0
+    @State private var ambientPulseID = 0
+    @State private var patchSheen = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                TryStoreAmbientBackground(
+                    touchPoint: ambientTouchPoint,
+                    touchStrength: ambientTouchStrength
+                )
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 14) {
+                        topBar.appCinematicReveal(delay: 0.02).appGyroTilt(intensity: 0.40)
+                        heroPanel.appCinematicReveal(delay: 0.08).appGyroTilt(intensity: 1.20)
+                        telemetryStrip.appCinematicReveal(delay: 0.15).appGyroTilt(intensity: 0.48)
+                        legacyPatchPanel.appCinematicReveal(delay: 0.22).appGyroTilt(intensity: 0.92)
+                        deviceSection.appCinematicReveal(delay: 0.29).appGyroTilt(intensity: 0.62)
+                        quickStartPanel.appCinematicReveal(delay: 0.36).appGyroTilt(intensity: 0.60)
+                        characterPreviewPanel.appCinematicReveal(delay: 0.43).appGyroTilt(intensity: 0.82)
+                        socialLinksPanel.appCinematicReveal(delay: 0.50).appGyroTilt(intensity: 0.42)
+                        footerBar.appCinematicReveal(delay: 0.56).appGyroTilt(intensity: 0.30)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 28)
                 }
             }
+            .coordinateSpace(name: "dashboard-touch-surface")
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .named("dashboard-touch-surface"))
+                    .onChanged { value in
+                        registerAmbientTouch(at: value.location)
+                    }
+            )
+            .background(AppTheme.pageBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .tint(AppTheme.accent)
+            .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showLogs) { LogView() }
+            .alert(item: $patchStore.alert) { alert in
+                Alert(
+                    title: Text(language.text(alert.titleKey)),
+                    message: Text(alert.message(language: language)),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .tint(AppTheme.accent)
+        .preferredColorScheme(.dark)
+        .task {
+            if let key = licenseManager.patchBundleKey {
+                patchStore.installBundledResources(bundleKey: key)
+            }
+        }
+        .task(id: ambientPulseID) {
+            guard ambientPulseID > 0 else { return }
+            try? await Task.sleep(nanoseconds: 650_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 1.2)) {
+                ambientTouchStrength = 0
+            }
+        }
+    }
+
+    private func registerAmbientTouch(at point: CGPoint) {
+        if UIAccessibility.isReduceMotionEnabled {
+            ambientTouchPoint = point
+            ambientTouchStrength = 1
+        } else {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.78)) {
+                ambientTouchPoint = point
+                ambientTouchStrength = 1
+            }
+        }
+        ambientPulseID &+= 1
+    }
+
+    private var topBar: some View {
+        HStack(spacing: horizontalSizeClass == .compact ? 6 : 11) {
+            AppLogo(size: horizontalSizeClass == .compact ? 36 : 44)
+                .padding(3)
+                .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(AppTheme.accent.opacity(0.36), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("TRY STORE")
+                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 18, weight: .black, design: .rounded))
+                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
+                    .foregroundStyle(.white)
+                Text("MAX CONTROL  /  VISUAL LAB")
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(AppTheme.accent.opacity(0.82))
+            }
+            Spacer(minLength: 2)
+            if horizontalSizeClass == .regular {
+                statusPill
+            } else {
+                Circle()
+                    .fill(appState.isSupported ? Color.green : Color.orange)
+                    .frame(width: 8, height: 8)
+                    .padding(8)
+                    .background(Color.black.opacity(0.38), in: Capsule())
+                    .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+            }
+            headerButton(symbol: "apple.terminal", label: language.text("accessibility.open_logs")) {
+                showLogs = true
+            }
+            headerButton(symbol: "slider.horizontal.3", label: language.text("accessibility.open_settings")) {
+                showSettings = true
+            }
+        }
+        .padding(.bottom, 2)
+    }
+
+    private var statusPill: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(appState.isSupported ? Color.green : Color.orange)
+                .frame(width: 7, height: 7)
+                .shadow(color: appState.isSupported ? .green : .orange, radius: 5)
+            Text(appState.isSupported ? "READY" : "REVIEW")
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.7)
+                .foregroundStyle(appState.isSupported ? .green : .orange)
+        }
+        .padding(.horizontal, 9)
+        .frame(height: 30)
+        .background(Color.black.opacity(0.38), in: Capsule())
+        .overlay(Capsule().stroke((appState.isSupported ? Color.green : Color.orange).opacity(0.34), lineWidth: 1))
+        .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+    }
+
+    private func headerButton(symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button {
+            AppHaptics.tap()
+            action()
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .black))
+                .foregroundStyle(.white.opacity(0.86))
+                .frame(width: horizontalSizeClass == .compact ? 34 : 40, height: horizontalSizeClass == .compact ? 34 : 40)
+                .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+        }
+        .buttonStyle(AppPressButtonStyle())
+        .accessibilityLabel(label)
+    }
+
+    private var heroPanel: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.045, green: 0.16, blue: 0.34), AppTheme.consoleBackground, AppTheme.pageBackground],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+            Circle()
+                .fill(AppTheme.accent.opacity(0.18))
+                .frame(width: 150, height: 150)
+                .blur(radius: 34)
+                .offset(x: 38, y: -20)
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            AppTheme.accent.opacity(0.02),
+                            AppTheme.accent.opacity(0.92),
+                            Color.white.opacity(0.72),
+                            AppTheme.accent.opacity(0.08)
+                        ],
+                        center: .center,
+                        startAngle: .degrees(heroRingRotation),
+                        endAngle: .degrees(heroRingRotation + 360)
+                    ),
+                    style: StrokeStyle(lineWidth: 1.1, lineCap: .round, dash: [3, 8])
+                )
+                .frame(width: 184, height: 184)
+                .rotationEffect(.degrees(heroRingRotation * -0.35))
+                .offset(x: 6, y: 5)
+                .shadow(color: AppTheme.accent.opacity(0.45), radius: 9)
+            Circle()
+                .stroke(Color.white.opacity(0.13), lineWidth: 1)
+                .frame(width: 204, height: 204)
+                .overlay(alignment: .top) {
+                    Capsule()
+                        .fill(AppTheme.accent)
+                        .frame(width: 4, height: 15)
+                        .shadow(color: AppTheme.accent, radius: 7)
+                }
+                .rotationEffect(.degrees(heroRingRotation * 0.55))
+                .offset(x: 6, y: 5)
+            Image("CleanCharacter")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 164, height: 210)
+                .opacity(0.96)
+                .offset(x: 5, y: heroFloat ? 2 : 11)
+                .scaleEffect(heroFloat ? 1.025 : 0.985)
+                .animation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true), value: heroFloat)
+                .mask(LinearGradient(colors: [.white, .white.opacity(0.92), .clear], startPoint: .top, endPoint: .bottom))
+            VStack(alignment: .leading, spacing: 10) {
+                Text("TRY STORE / CONTROL DECK")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(1.35)
+                    .foregroundStyle(AppTheme.accent)
+                Text("FREE FIRE\nMAX")
+                    .font(.system(size: 27, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    heroBadge(icon: "gamecontroller.fill", title: "MAX ONLY")
+                    heroBadge(icon: "sparkles", title: "VISUALS")
+                }
+            }
+            .padding(17)
+            .padding(.trailing, 112)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .frame(minHeight: 208)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            AppTheme.accent.opacity(0.95),
+                            Color.white.opacity(0.10),
+                            AppTheme.accent.opacity(0.22),
+                            Color.cyan.opacity(0.75),
+                            AppTheme.accent.opacity(0.95)
+                        ],
+                        center: .center,
+                        startAngle: .degrees(heroRingRotation),
+                        endAngle: .degrees(heroRingRotation + 360)
+                    ),
+                    lineWidth: 1.25
+                )
+        }
+        .overlay {
+            GeometryReader { proxy in
+                ZStack {
+                    // Thin scan beam stays inside the card and never intercepts controls.
+                    LinearGradient(
+                        colors: [.clear, AppTheme.accent.opacity(0.14), Color.white.opacity(0.34), AppTheme.accent.opacity(0.12), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(width: 42)
+                    .rotationEffect(.degrees(18))
+                    .offset(x: heroScan ? proxy.size.width + 65 : -75)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .allowsHitTesting(false)
+        }
+        .overlay(alignment: .topLeading) {
+            HeroCornerMark()
+                .stroke(AppTheme.accent.opacity(0.95), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .frame(width: 22, height: 22)
+                .padding(10)
+                .shadow(color: AppTheme.accent.opacity(0.8), radius: 5)
+                .allowsHitTesting(false)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            HeroCornerMark()
+                .stroke(AppTheme.accent.opacity(0.95), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .frame(width: 22, height: 22)
+                .rotationEffect(.degrees(180))
+                .padding(10)
+                .shadow(color: AppTheme.accent.opacity(0.8), radius: 5)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: AppTheme.accent.opacity(0.22), radius: 26, y: 9)
+        .onAppear {
+            heroFloat = false
+            withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+                heroFloat = true
+            }
+            withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
+                heroRingRotation = 360
+            }
+            withAnimation(.linear(duration: 5.8).repeatForever(autoreverses: false)) {
+                heroScan = true
+            }
+        }
+    }
+
+    private func heroBadge(icon: String, title: String) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 7, weight: .black, design: .rounded))
+            .tracking(0.35)
+            .foregroundStyle(.white.opacity(0.76))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 6)
+            .background(Color.black.opacity(0.32), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    private var telemetryStrip: some View {
+        HStack(spacing: 8) {
+            telemetryCell(icon: "iphone", label: "DEVICE", value: AppInfo.displayMachineName)
+            telemetryCell(icon: "gearshape.2.fill", label: "iOS", value: AppInfo.osVersion)
+            telemetryCell(icon: "shield.lefthalf.filled", label: "STATUS", value: appState.isSupported ? "SUPPORTED" : "REVIEW")
+        }
+    }
+
+    private func telemetryCell(icon: String, label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(label, systemImage: icon)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(AppTheme.accent)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.88))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, minHeight: 47, alignment: .leading)
+        .padding(.horizontal, 9)
+        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
+    }
+
+    private var deviceSection: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            panelHeader(title: "DEVICE OVERVIEW", subtitle: "LIVE SYSTEM STATUS", icon: "iphone.gen3")
+            statusRow(title: language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
+            statusRow(title: language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
+            HStack {
+                Text(language.text("settings.exploit_compatibility"))
+                    .foregroundStyle(.white.opacity(0.62))
+                Spacer()
+                Text(language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"))
+                    .fontWeight(.bold)
+                    .foregroundStyle(appState.isSupported ? .green : .orange)
+            }
+            .font(.system(size: 10, design: .rounded))
+            if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
+                statusRow(
+                    title: language.text("dashboard.kernel_status"),
+                    value: appState.kernelExploitRunning
+                        ? language.text("dashboard.kernel_running")
+                        : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
+                )
+            }
+        }
+        .padding(14)
+        .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
+    }
+
+    private var quickStartPanel: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            panelHeader(title: "QUICK START", subtitle: "YOUR MAX SESSION", icon: "bolt.fill")
+            HStack(alignment: .top, spacing: 8) {
+                quickStartStep(number: "01", title: "CHOOSE", detail: "Pick LOADOUT or VISUALS")
+                quickStartStep(number: "02", title: "TOGGLE", detail: "Tap a legacy patch to apply")
+                quickStartStep(number: "03", title: "RESTORE", detail: "Tap the active button again")
+            }
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+    }
+
+    private func quickStartStep(number: String, title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(number)
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .foregroundStyle(AppTheme.accent)
+            Text(title)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.4)
+                .foregroundStyle(.white)
+            Text(detail)
+                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.48))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(9)
+        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var characterPreviewPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            panelHeader(title: "CHARACTER PREVIEW", subtitle: "TRYSTORE CLASSIC ART", icon: "person.fill")
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [Color(red: 0.02, green: 0.08, blue: 0.17), Color.black.opacity(0.88)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                Image("TryStoreTheme")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 150)
+                    .opacity(0.09)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                Image("CleanCharacter")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 230)
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(y: previewFloat ? -4 : 4)
+                    .scaleEffect(previewFloat ? 1.015 : 0.99)
+                    .animation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true), value: previewFloat)
+                    .shadow(color: AppTheme.accent.opacity(0.32), radius: previewFloat ? 25 : 14, y: 6)
+                Label("FREE FIRE MAX", systemImage: "gamecontroller.fill")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.65)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(Color.black.opacity(0.70), in: Capsule())
+                    .padding(12)
+            }
+            .frame(height: 226)
+            .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [AppTheme.accent.opacity(0.75), Color.white.opacity(0.08), Color.cyan.opacity(0.38)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
+                previewFloat = true
+            }
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(AppTheme.accent.opacity(0.18), lineWidth: 1))
+    }
+
+    private var legacyPatchPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("TRYSTORE PATCHES")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundStyle(.white)
+                    Text("FREE FIRE MAX  •  ORIGINAL MODULES")
+                        .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .tracking(0.55)
+                        .foregroundStyle(AppTheme.accent)
+                }
+                Spacer()
+                if patchStore.isBusy {
+                    ProgressView()
+                        .tint(AppTheme.accent)
+                        .scaleEffect(0.78)
+                        .accessibilityLabel("Applying patch")
+                } else {
+                    Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.78))
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(Color.white.opacity(0.07), in: Capsule())
+                }
+            }
+
+            PlatinumExpiryCard(
+                expirationDate: licenseManager.expirationDate,
+                isActive: licenseManager.isActive
+            )
+
+            HStack(spacing: 7) {
+                ForEach(DashboardPatchTab.allCases) { tab in
+                    let selected = selectedPatchTab == tab
+                    Button {
+                        guard selectedPatchTab != tab else { return }
+                        AppHaptics.select()
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
+                            selectedPatchTab = tab
+                        }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.045))
+                            if selected {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(LinearGradient(
+                                        colors: [PlatinumPalette.bright, PlatinumPalette.silver],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ))
+                                    .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
+                            }
+                            Label(tab.title, systemImage: tab.icon)
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .tracking(0.55)
+                                .foregroundStyle(selected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 38)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(selected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(PlatinumPressStyle())
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+
+            if selectedPatchTab == .visuals {
+                visualPatchPreview
+            }
+
+            VStack(spacing: 7) {
+                ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals) { option in
+                    legacyPatchButton(option)
+                }
+            }
+            .id(selectedPatchTab)
+            .transition(.asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            ))
+
+            if selectedPatchTab == .loadout {
+                Text("Aim modules share a game file, so only one aim option is active at a time.")
+                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.40))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
         .background(
-            Color(uiColor: .secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            LinearGradient(
+                colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
         )
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
+        .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 3.4).repeatForever(autoreverses: false)) {
+                patchSheen = true
+            }
+        }
+    }
+
+    private var visualPatchPreview: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.03, green: 0.13, blue: 0.27), Color.black.opacity(0.82)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+            Image("CleanCharacter")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 132)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .shadow(color: AppTheme.accent.opacity(0.22), radius: 14, y: 4)
+            Label("TRYSTORE CLASSIC CHARACTER", systemImage: "sparkles")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(.white.opacity(0.82))
+                .padding(10)
+        }
+        .frame(height: 142)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.accent.opacity(0.20), lineWidth: 1))
+    }
+
+    private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
+        let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
+        let item = patchStore.items.first {
+            $0.project?.name == option.projectName
+                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+        }
+        let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
+
+        return Button {
+            guard let item else { return }
+            AppHaptics.tap()
+            patchStore.setEnabled(!isActive, for: item, group: option.group, reportsSuccess: false, onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) })
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        (isActive ? activeTint : option.color.opacity(0.16)),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.title)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(0.45)
+                        .foregroundStyle(.white)
+                }
+                Spacer(minLength: 4)
+                HStack(spacing: 4) {
+                    if isActive {
+                        Circle()
+                            .fill(PlatinumPalette.graphite)
+                            .frame(width: 4, height: 4)
+                            .shadow(color: .white.opacity(0.8), radius: 3)
+                    }
+                    Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))
+                        .font(.system(size: 7, weight: .black, design: .rounded))
+                        .tracking(0.65)
+                }
+                .foregroundStyle(item == nil ? Color.orange : (isActive ? PlatinumPalette.graphite : Color.white.opacity(0.56)))
+                .padding(.horizontal, 8)
+                .frame(minWidth: 39, minHeight: 23)
+                .background(
+                    isActive
+                        ? LinearGradient(colors: [activeTint, Color.cyan.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: Capsule()
+                )
+                .overlay(Capsule().stroke(isActive ? Color.white.opacity(0.70) : Color.white.opacity(0.08), lineWidth: 0.8))
+                .shadow(color: isActive ? activeTint.opacity(0.45) : .clear, radius: 9, y: 1)
+                Image(systemName: item == nil ? "exclamationmark.triangle.fill" : (isActive ? "checkmark.circle.fill" : "circle"))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.silver : .white.opacity(0.30)))
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 52)
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: isActive
+                            ? [activeTint.opacity(0.24), Color.cyan.opacity(0.10), PlatinumPalette.silver.opacity(0.06)]
+                            : [Color.white.opacity(0.065), Color.black.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+            }
+            .overlay {
+                if isActive && !reduceMotion {
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.22), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .rotationEffect(.degrees(22))
+                    .offset(x: patchSheen ? 180 : -180)
+                    .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .allowsHitTesting(false)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(
+                        isActive
+                            ? LinearGradient(colors: [Color.white.opacity(0.96), activeTint.opacity(0.92), Color.cyan.opacity(0.70)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: isActive ? activeTint.opacity(0.25) : .clear, radius: 16, y: 4)
+            .scaleEffect(isActive ? 1.018 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.68), value: isActive)
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .disabled(patchStore.isBusy || item == nil)
+        .opacity(patchStore.isBusy ? 0.72 : (item == nil ? 0.52 : 1))
+        .buttonStyle(PlatinumPressStyle())
+        .accessibilityLabel("\(option.title), \(isActive ? "on" : "off")")
+    }
+
+    private var activeLegacyPatchCount: Int {
+        DashboardPatchOption.all.reduce(into: 0) { count, option in
+            guard let item = patchStore.items.first(where: { $0.project?.name == option.projectName }),
+                  DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
+            count += 1
+        }
+    }
+
+    private var socialLinksPanel: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            panelHeader(title: "FOLLOW TRYSTORE", subtitle: "OFFICIAL SOCIAL LINKS", icon: "person.2.fill")
+            HStack(spacing: 9) {
+                socialLinkCard(
+                    title: "TikTok",
+                    handle: "@vaal_goat",
+                    icon: "play.rectangle.fill",
+                    colors: [.black, Color(red: 0.12, green: 0.08, blue: 0.22)],
+                    url: "https://www.tiktok.com/@vaal_goat"
+                )
+                socialLinkCard(
+                    title: "Instagram",
+                    handle: "@guillenrmarcos",
+                    icon: "camera.fill",
+                    colors: [Color(red: 0.35, green: 0.06, blue: 0.28), Color(red: 0.08, green: 0.14, blue: 0.38)],
+                    url: "https://www.instagram.com/guillenrmarcos"
+                )
+            }
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(AppTheme.accent.opacity(0.18), lineWidth: 1))
+    }
+
+    private func socialLinkCard(title: String, handle: String, icon: String, colors: [Color], url: String) -> some View {
+        Link(destination: URL(string: url)!) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundStyle(.white.opacity(0.65))
+                }
+                Text(title.uppercased())
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.7)
+                    .foregroundStyle(.white)
+                Text(handle)
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .padding(11)
+            .frame(maxWidth: .infinity, minHeight: 98, alignment: .leading)
+            .background(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.14), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open TryStore \(title) profile \(handle)")
+    }
+
+    private var footerBar: some View {
+        Rectangle()
+            .fill(LinearGradient(
+                colors: [.clear, AppTheme.accent.opacity(0.45), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            ))
+            .frame(height: 1)
+            .padding(.horizontal, 36)
+            .padding(.top, 5)
+    }
+
+    private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.85)
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+            Spacer()
+        }
+    }
+
+    private func statusRow(title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .foregroundStyle(.white.opacity(0.57))
+            Spacer(minLength: 10)
+            Text(value)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white.opacity(0.88))
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.system(size: 9, design: .rounded))
+    }
+}
+
+private struct HeroCornerMark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.width, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: rect.height))
+        return path
+    }
+}
+
+private struct TryStoreAmbientBackground: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var deviceTilt: DeviceTiltMotion
+    @State private var drift = false
+    let touchPoint: CGPoint
+    let touchStrength: Double
+
+    private let particleColors: [Color] = [.cyan, .purple, .pink, .blue, .mint]
+
+    init(touchPoint: CGPoint = .zero, touchStrength: Double = 0) {
+        self.touchPoint = touchPoint
+        self.touchStrength = touchStrength
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(red: 0.008, green: 0.022, blue: 0.052), AppTheme.pageBackground, Color.black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Image("TryStoreTheme")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 340)
+                .opacity(0.025)
+                .blur(radius: 5)
+            Circle()
+                .fill(AppTheme.accent.opacity(0.10))
+                .frame(width: 270, height: 270)
+                .blur(radius: 72)
+                .offset(
+                    x: (drift ? 118 : 155) + CGFloat(deviceTilt.roll) * 20,
+                    y: (drift ? -275 : -320) - CGFloat(deviceTilt.pitch) * 17
+                )
+                .scaleEffect(drift ? 1.12 : 0.92)
+            Circle()
+                .fill(Color.blue.opacity(0.07))
+                .frame(width: 220, height: 220)
+                .blur(radius: 68)
+                .offset(
+                    x: (drift ? -105 : -150) + CGFloat(deviceTilt.roll) * 13,
+                    y: (drift ? 220 : 275) - CGFloat(deviceTilt.pitch) * 12
+                )
+                .scaleEffect(drift ? 0.9 : 1.12)
+            Circle()
+                .fill(Color.cyan.opacity(0.045))
+                .frame(width: 180, height: 180)
+                .blur(radius: 62)
+                .offset(x: drift ? 155 : 105, y: drift ? 380 : 430)
+                .scaleEffect(drift ? 1.15 : 0.88)
+            Circle()
+                .fill(Color.purple.opacity(0.075))
+                .frame(width: 245, height: 245)
+                .blur(radius: 78)
+                .offset(x: drift ? -175 : -115, y: drift ? -95 : -165)
+                .scaleEffect(drift ? 1.10 : 0.88)
+            Circle()
+                .fill(Color.pink.opacity(0.045))
+                .frame(width: 185, height: 185)
+                .blur(radius: 72)
+                .offset(x: drift ? 120 : 180, y: drift ? 285 : 350)
+                .scaleEffect(drift ? 0.92 : 1.12)
+
+            TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduceMotion || touchStrength < 0.01)) { timeline in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                ZStack {
+                    RadialGradient(
+                        colors: [
+                            Color.cyan.opacity(touchStrength * 0.26),
+                            Color.purple.opacity(touchStrength * 0.18),
+                            Color.pink.opacity(touchStrength * 0.08),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 205
+                    )
+                    .frame(width: 410, height: 410)
+                    .position(touchPoint)
+                    .blendMode(.screen)
+
+                    Circle()
+                        .stroke(Color.white.opacity(touchStrength * 0.24), lineWidth: 1)
+                        .frame(width: 92, height: 92)
+                        .scaleEffect(reduceMotion ? 1 : 0.82 + CGFloat((sin(time * 3.2) + 1) * 0.10))
+                        .position(touchPoint)
+
+                    if !reduceMotion {
+                        ForEach(0..<15, id: \.self) { index in
+                            particleView(index: index, time: time)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(touchStrength)
+            }
+        }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 7.0).repeatForever(autoreverses: true)) {
+                drift = true
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func particleView(index: Int, time: TimeInterval) -> some View {
+        let angle: Double = Double(index) * (.pi * 2 / 15)
+            + time * (index.isMultiple(of: 2) ? 0.48 : -0.34)
+        let radius: CGFloat = CGFloat(34 + (index % 5) * 14)
+        let color = particleColors[index % particleColors.count]
+        let diameter: CGFloat = index.isMultiple(of: 4) ? 4.5 : 2.5
+        let opacity = touchStrength * (index.isMultiple(of: 3) ? 0.9 : 0.58)
+
+        return Circle()
+            .fill(color)
+            .frame(width: diameter, height: diameter)
+            .shadow(color: color.opacity(0.7), radius: 5)
+            .position(
+                x: touchPoint.x + CGFloat(cos(angle)) * radius,
+                y: touchPoint.y + CGFloat(sin(angle)) * radius
+            )
+            .opacity(opacity)
     }
 }
 
 private extension FreeFireGame {
     var scheme: String {
-        switch self {
-        case .max: return "freefiremax"
-        case .regular: return "freefire"
-        case .capCut: return "com.googleusercontent.apps.753696289953-c71g0mbsqjtrtdgf1ov874fpru7f22g6"
-        }
+        "freefiremax"
     }
 
     var titleKey: String {
-        switch self {
-        case .max: return "freefire.title"
-        case .regular: return "freefire.title_regular"
-        case .capCut: return "capcut.title"
-        }
+        "freefire.title"
     }
 
     var artworkName: String {
-        switch self {
-        case .max: return "FreeFireMax"
-        case .regular: return "FreeFire"
-        case .capCut: return ""
-        }
-    }
-
-    var logoURL: String {
-        "https://play-lh.googleusercontent.com/M78HyakHaxKrjoeqYx41E9DXfVYYtx67nvc7Ks4G4zFQeaAJdGCi8gzzGSrHIwlrmnJS6zD9S4fAXqdEwfuHQAQ=w480-h960"
+        "FreeFireMax"
     }
 
     var aimProjectNames: [String] {
-        switch self {
-        case .max: return ["Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu"]
-        case .regular: return ["Aim Body Free Fire", "Aim Drag Free Fire", "Aim Neck Free Fire", "Aim Head Free Fire", "Aim Magic Free Fire", "Unlock FPS 144"]
-        case .capCut: return ["CapCut Pro"]
-        }
+        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
     }
 
     var locationProjectNames: [String] {
-        switch self {
-        case .max: return ["Súng Trắng", "Chạm Đỏ"]
-        case .regular: return [
-                "Chams + Holo tím",
-                "Chams Không màu",
-                "ChamsKhongMau",
-                "Định vị blue",
-                "DinhViBlue",
-                "Định Vị"
-            ]
-        case .capCut: return []
-        }
-    }
-
-    var skinProjectNames: [String] {
-        switch self {
-        case .max: return []
-        case .regular: return ["Mod Skin Gojo"]
-        case .capCut: return []
-        }
+        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
     }
 
     var openGameKey: String {
-        switch self {
-        case .max: return "freefire.open_game"
-        case .regular: return "freefire.open_game_regular"
-        case .capCut: return "capcut.open"
-        }
+        "freefire.open_game"
     }
 
     func canOpen() -> Bool {
@@ -310,32 +1199,39 @@ private struct FreeFireGameEntryView: View {
 
     var body: some View {
         Button {
-            if game == .max || game == .regular {
-                showNotice = true
-            } else {
-                navigateToPatch = true
-            }
+            showNotice = true
         } label: {
-            VStack(spacing: 10) {
-                FreeFireArtwork(game: game, size: 68)
-                Text(language.text(game.titleKey))
-                    .font(.headline)
-                    .foregroundStyle(isAvailable ? .primary : .secondary)
-                if !isAvailable {
-                    Text(language.text("dashboard.unavailable"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(AppTheme.accent.opacity(0.12))
+                    FreeFireArtwork(game: game, size: 56)
                 }
+                .frame(width: 64, height: 64)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(language.text(game.titleKey))
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(isAvailable ? .white : .white.opacity(0.48))
+                    Text(isAvailable ? "OPEN MAX PATCH CONSOLE" : language.text("dashboard.unavailable"))
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .tracking(0.55)
+                        .foregroundStyle(isAvailable ? AppTheme.accent : .orange)
+                }
+                Spacer(minLength: 5)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .frame(width: 32, height: 32)
+                    .background(Color.white.opacity(0.08), in: Circle())
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
             .background(
-                isAvailable
-                    ? Color(uiColor: .secondarySystemGroupedBackground)
-                    : Color(uiColor: .secondarySystemFill),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                LinearGradient(colors: [Color(red: 0.045, green: 0.15, blue: 0.30), Color.black.opacity(0.56)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: RoundedRectangle(cornerRadius: 19, style: .continuous)
             )
-            .opacity(isAvailable ? 1 : 0.7)
+            .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(AppTheme.accent.opacity(0.35), lineWidth: 1))
+            .opacity(isAvailable ? 1 : 0.68)
         }
         .buttonStyle(.plain)
         .disabled(!isAvailable)
@@ -350,8 +1246,6 @@ private struct FreeFireGameEntryView: View {
             Text(language.text("freefire.notice_message"))
         }
         .tint(AppTheme.accent)
-        .padding(.horizontal, 16)
-        .padding(.top, 0)
         .onAppear {
             isAvailable = game.canOpen()
         }
@@ -362,6 +1256,8 @@ private struct FreeFireGameEntryView: View {
 private struct FreeFirePatchView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var licenseManager: LicenseManager
     let game: FreeFireGame
     @StateObject private var store: PatchProjectStore
     @State private var selectedSegment = 0
@@ -389,195 +1285,225 @@ private struct FreeFirePatchView: View {
         let names = game.locationProjectNames
         var seen: Set<UUID> = []
         return names.compactMap { name in
+            let expectedName = normalizedLocationProjectName(name)
             guard let match = store.items.first(where: { item in
                 let currentName = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
-                let normalizedName = currentName.lowercased()
-                let aliasSet = [name.lowercased(), name.replacingOccurrences(of: " ", with: "").lowercased()]
-                return aliasSet.contains(normalizedName)
-                    || normalizedName == name.lowercased().replacingOccurrences(of: " ", with: "")
-                    || normalizedName == "chamskhongmau"
-                    || normalizedName == "dinhviblue"
+                return normalizedLocationProjectName(currentName) == expectedName
             }) else { return nil }
             if seen.insert(match.id).inserted { return match }
             return nil
         }
     }
 
+    private func normalizedLocationProjectName(_ name: String) -> String {
+        let latinized = name
+            .replacingOccurrences(of: "Đ", with: "D")
+            .replacingOccurrences(of: "đ", with: "d")
+        let folded = latinized.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        return String(folded.filter { $0.isLetter || $0.isNumber })
+    }
+
     // MARK: - Display Name
     private func aimDisplayName(for item: PatchLibraryItem) -> String {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "Aim Neck": return language.text("freefire.aim_neck")
-        case "Aim Chest": return language.text("freefire.aim_chest")
-        case "Aim Body": return language.text("freefire.aim_body")
-        case "Aim Drag": return language.text("freefire.aim_drag")
-        case "Aim Magic": return language.text("freefire.aim_magic")
-        case "Aim Đầu": return language.text("freefire.aim_head")
-        case "Aim Neck Free Fire": return language.text("freefire.aim_neck")
-        case "Aim Body Free Fire": return language.text("freefire.aim_body")
-        case "Aim Drag Free Fire": return language.text("freefire.aim_drag")
-        case "Aim Head Free Fire": return language.text("freefire.aim_head")
-        case "Aim Magic Free Fire": return language.text("freefire.aim_magic")
-        case "Unlock FPS 144": return language.text("freefire.unlock_fps_144")
+        case "HEAD": return "HEAD"
+        case "NECK": return "NECK"
+        case "HS PESSCOSO": return "DRAG"
+        case "HS SLA PECHO": return "PECHO"
         default: return item.project?.name ?? language.text("freefire.aim_file")
         }
     }
 
     private func locationDisplayName(for item: PatchLibraryItem) -> String {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "Súng Trắng": return language.text("freefire.white_gun")
-        case "Chạm Đỏ": return language.text("freefire.red_touch")
-        case "Chams + Holo tím": return language.text("freefire.chams_holo")
-        case "Chams Không màu", "ChamsKhongMau": return language.text("freefire.chams_no_color")
-        case "Định vị blue", "DinhViBlue": return language.text("freefire.blue_location")
-        case "Định Vị": return language.text("freefire.location_main")
+        case "HOLOGRAMA ARMAS": return "HOLOGRAMA ARMAS"
+        case "HOLOGRAMA PERSONAJE": return "HOLOGRAMA PERSONAJE"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }
 
-    private var skinItems: [PatchLibraryItem] {
-        game.skinProjectNames.compactMap { name in
-            store.items.first { $0.project?.name == name }
+    private func patchToggleCard(
+        _ item: PatchLibraryItem,
+        title: String,
+        icon: String,
+        group: PatchToggleGroup
+    ) -> some View {
+        let isActive = DevicePatchService.latestReceipt(projectID: item.id) != nil
+        let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
+
+        return Toggle(isOn: Binding(
+            get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
+            set: { enabled in
+                store.setEnabled(
+                    enabled,
+                    for: item,
+                    group: group,
+                    onSuccess: { state in PatchAudioFeedback.play(enabled: state) }
+                )
+            }
+        )) {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(isActive ? activeTint : AppTheme.accent)
+                    .frame(width: 29, height: 29)
+                    .background((isActive ? activeTint : AppTheme.accent).opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                Spacer(minLength: 3)
+                Text(isActive ? "ON" : "OFF")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .tracking(0.6)
+                    .foregroundStyle(isActive ? PlatinumPalette.graphite : Color.white.opacity(0.55))
+                    .padding(.horizontal, 7)
+                    .frame(minHeight: 20)
+                    .background(isActive ? activeTint : Color.white.opacity(0.06), in: Capsule())
+            }
         }
+        .tint(isActive ? activeTint : AppTheme.accent)
+        .padding(11)
+        .background {
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(isActive
+                      ? LinearGradient(colors: [activeTint.opacity(0.18), Color.cyan.opacity(0.07), AppTheme.consoleBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
+                      : LinearGradient(colors: [Color.white.opacity(0.055), AppTheme.consoleBackground.opacity(0.96)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(isActive ? activeTint.opacity(0.72) : AppTheme.cardBorder, lineWidth: 1)
+        }
+        .shadow(color: isActive ? activeTint.opacity(0.16) : .clear, radius: 14, y: 4)
+        .scaleEffect(isActive ? 1.008 : 1)
+        .animation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.76), value: isActive)
+        .disabled(store.isBusy)
     }
 
-    private func skinDisplayName(for item: PatchLibraryItem) -> String {
-        switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "Mod Skin Gojo": return language.text("freefire.gojo")
-        default: return item.project?.name ?? language.text("freefire.mod_skin")
+    private var patchHeroPanel: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("TRY STORE / CONTROL DECK")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(AppTheme.accent)
+                Text("FREE FIRE MAX")
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            Spacer(minLength: 0)
+            Image("CleanCharacter")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 76, height: 102)
+                .shadow(color: AppTheme.accent.opacity(0.22), radius: 12, y: 4)
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 118)
+        .background(LinearGradient(
+            colors: [Color(red: 0.045, green: 0.15, blue: 0.31), AppTheme.consoleBackground],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(AppTheme.accent.opacity(0.35), lineWidth: 1))
     }
 
     // MARK: - Body
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Text(language.text(game.titleKey))
-                    .font(.title2.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                FreeFireArtwork(game: game, size: 112)
-                Text(language.text(game.titleKey))
-                    .font(.headline)
-
-                if isLoading {
-                    ProgressView(language.text("freefire.loading"))
-                        .padding(.vertical, 40)
-                } else if let error = loadError {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .padding()
-                } else {
-                    // Nội dung chính
-                    if let project = aimItems.first?.project {
-                        Text(project.allBundleIdentifiers.joined(separator: ", "))
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    if game != .capCut {
+        ZStack {
+            TryStoreAmbientBackground()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 13) {
+                    patchHeroPanel.appCinematicReveal(delay: 0.04)
+                    PlatinumExpiryCard(
+                        expirationDate: licenseManager.expirationDate,
+                        isActive: licenseManager.isActive
+                    )
+                    .appCinematicReveal(delay: 0.10)
+                    if isLoading {
+                        ProgressView(language.text("freefire.loading"))
+                            .tint(AppTheme.accent)
+                            .padding(.vertical, 40)
+                    } else if let error = loadError {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(AppTheme.consoleBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    } else {
                         Picker(language.text("freefire.patch_type"), selection: $selectedSegment) {
                             Label(language.text("freefire.aim_file"), systemImage: "scope").tag(0)
                             Label(language.text("freefire.location"), systemImage: "location.fill").tag(1)
-                            Label(language.text("freefire.mod_skin"), systemImage: "paintbrush.fill").tag(2)
                         }
                         .pickerStyle(.segmented)
-                    }
+                        .tint(AppTheme.accent)
+                        .appCinematicReveal(delay: 0.16)
 
-                    if store.isBusy {
-                        ProgressView(language.text("patch.operation_in_progress"))
-                            .font(.footnote)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                    }
+                        if store.isBusy {
+                            ProgressView(language.text("patch.operation_in_progress"))
+                                .font(.footnote)
+                                .tint(AppTheme.accent)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 2)
+                        }
 
-                    if game == .capCut {
-                        if let item = aimItems.first {
-                            Toggle(isOn: Binding(
-                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
-                                set: { store.setEnabled($0, for: item, group: .capCut) }
-                            )) {
-                                Label(language.text("capcut.activate_pro"), systemImage: "crown.fill")
+                        if selectedSegment == 0 {
+                            if aimItems.isEmpty {
+                                emptyPatchNotice
                             }
-                            .padding()
-                            .background(
-                                Color(uiColor: .secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .disabled(store.isBusy)
-                        }
-                    } else if selectedSegment == 0 {
-                        ForEach(aimItems) { item in
-                            Toggle(isOn: Binding(
-                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
-                                set: { store.setEnabled($0, for: item, group: .aim) }
-                            )) {
-                                Label(aimDisplayName(for: item), systemImage: "scope")
+                            ForEach(aimItems) { item in
+                                patchToggleCard(item, title: aimDisplayName(for: item), icon: "scope", group: .aim)
+                                    .appCinematicReveal(delay: 0.22)
+                                    .appGyroTilt(intensity: 0.78)
                             }
-                            .padding()
-                            .background(
-                                Color(uiColor: .secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .disabled(store.isBusy)
-                        }
-                    } else if selectedSegment == 1 {
-                        ForEach(locationItems) { item in
-                            Toggle(isOn: Binding(
-                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
-                                set: { store.setEnabled($0, for: item, group: .location) }
-                            )) {
-                                Label(locationDisplayName(for: item), systemImage: "location.fill")
+                        } else {
+                            if locationItems.isEmpty {
+                                emptyPatchNotice
                             }
-                            .padding()
-                            .background(
-                                Color(uiColor: .secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .disabled(store.isBusy)
-                        }
-                    } else {
-                        ForEach(skinItems) { item in
-                            Toggle(isOn: Binding(
-                                get: { DevicePatchService.latestReceipt(projectID: item.id) != nil },
-                                set: { store.setEnabled($0, for: item, group: .skin) }
-                            )) {
-                                Label(skinDisplayName(for: item), systemImage: "tshirt.fill")
+                            ForEach(locationItems) { item in
+                                patchToggleCard(item, title: locationDisplayName(for: item), icon: "location.fill", group: .location)
+                                    .appCinematicReveal(delay: 0.22)
+                                    .appGyroTilt(intensity: 0.78)
                             }
-                            .padding()
-                            .background(
-                                Color(uiColor: .secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .disabled(store.isBusy)
                         }
-                    }
 
-                    Button {
-                        guard let url = URL(string: "\(game.scheme)://") else { return }
-                        if isGameAvailable {
-                            openURL(url)
+                        Button {
+                            guard let url = URL(string: "\(game.scheme)://") else { return }
+                            if isGameAvailable {
+                                openURL(url)
+                            }
+                        } label: {
+                            Label(
+                                isGameAvailable ? language.text(game.openGameKey) : language.text("dashboard.unavailable"),
+                                systemImage: isGameAvailable ? "gamecontroller.fill" : "gamecontroller"
+                            )
+                            .font(.system(size: 13, weight: .black, design: .rounded))
+                            .tracking(0.5)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
                         }
-                    } label: {
-                        Label(
-                            isGameAvailable ? language.text(game.openGameKey) : language.text("dashboard.unavailable"),
-                            systemImage: isGameAvailable ? "gamecontroller.fill" : "gamecontroller"
+                        .tint(AppTheme.accent)
+                        .disabled(!isGameAvailable)
+                        .background(
+                            isGameAvailable ? AppTheme.accent : Color.gray.opacity(0.35),
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
                     }
-                    .disabled(!isGameAvailable)
-                    .background(
-                        isGameAvailable ? AppTheme.accent : Color(uiColor: .systemGray4),
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    )
                 }
+                .padding(16)
+                .padding(.bottom, 22)
             }
-            .padding(16)
         }
+        .background(AppTheme.pageBackground)
         .navigationTitle(language.text(game.titleKey))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .onAppear {
             isGameAvailable = game.canOpen()
         }
@@ -607,72 +1533,29 @@ private struct FreeFirePatchView: View {
         }
     }
 
-    // MARK: - Hàm tải patch (chạy background)
-    private func loadPatchLibrary() async {
-        // Chỉ tải một lần (dùng static flag)
-        guard !Self.loadedGames.contains(game) else {
-            // Nếu đã tải, chỉ cần reload store và tắt loading
-            await MainActor.run {
-                store.reload()
-                isLoading = false
-            }
-            return
-        }
-
-        // Bắt đầu loading
-        await MainActor.run {
-            isLoading = true
-            loadError = nil
-        }
-
-        // Chạy tác vụ nặng trong background
-        await Task.detached(priority: .userInitiated) {
-            do {
-                // Gọi các hàm install (có thể là đồng bộ, nhưng chạy ở background)
-                // Nếu các hàm này throw, catch sẽ bắt
-                try await withCheckedThrowingContinuation { continuation in
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        // Thực hiện cài đặt
-                        for patch in game.bundledPatches {
-                            if patch.resourceName.hasSuffix(".3105") {
-                                PatchProjectLibrary.installBundledFileIfNeeded(
-                                    filename: patch.resourceName,
-                                    projectName: patch.projectName,
-                                    password: patch.password
-                                )
-                            } else {
-                                PatchProjectLibrary.installBundledPackageIfNeeded(
-                                    resourceName: patch.resourceName,
-                                    projectName: patch.projectName,
-                                    password: patch.password
-                                )
-                            }
-                        }
-
-                        // Sau khi cài xong, reload store
-                        DispatchQueue.main.async {
-                            store.reload()
-                            // Đánh dấu đã load
-                            Self.loadedGames.insert(game)
-                            continuation.resume()
-                        }
-                    }
-                }
-                // Cập nhật UI: tắt loading
-                await MainActor.run {
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    loadError = "Failed to load patches: \(error.localizedDescription)"
-                    isLoading = false
-                }
-            }
-        }.value // chờ task hoàn thành
+    private var emptyPatchNotice: some View {
+        Text("No bundled Free Fire MAX patches are available in this category.")
+            .font(.footnote)
+            .foregroundStyle(.white.opacity(0.55))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(13)
+            .background(AppTheme.consoleBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    // Static flag để chỉ load một lần
-    private static var loadedGames: Set<FreeFireGame> = []
+    // MARK: - Hàm tải patch (chạy background)
+    private func loadPatchLibrary() async {
+        guard let key = licenseManager.patchBundleKey else {
+            loadError = "Resource authorization is unavailable. Please refresh your license."
+            isLoading = false
+            return
+        }
+        isLoading = true
+        loadError = nil
+        store.installBundledResources(bundleKey: key)
+        store.reload()
+        isLoading = false
+    }
+
 }
 
 // MARK: - FreeFireArtwork
@@ -682,15 +1565,7 @@ private struct FreeFireArtwork: View {
 
     var body: some View {
         Group {
-            if game == .capCut, let logoURL = URL(string: game.logoURL) {
-                AsyncImage(url: logoURL) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        fallbackArtwork
-                    }
-                }
-            } else if let image = UIImage(named: game.artworkName) {
+            if let image = UIImage(named: game.artworkName) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
@@ -703,7 +1578,7 @@ private struct FreeFireArtwork: View {
     }
 
     private var fallbackArtwork: some View {
-        Image(systemName: game == .capCut ? "crown.fill" : "gamecontroller.fill")
+        Image(systemName: "gamecontroller.fill")
             .font(.system(size: size * 0.42, weight: .semibold))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
