@@ -72,6 +72,8 @@ SupportPatch enables device-level features only for builds explicitly verified b
 | iOS 27 Developer Beta 4 / Public Beta 2 | `24A5390f` |
 | iOS 27.0 RC | `24A435` |
 | iOS 27.0 final | `24A437` |
+| iOS 27.0.1 | `24A446` |
+| iOS 27.2 | `24B5084k`, `24B5089g`, `24B5099f` |
 
 Unlisted iOS 27 builds are marked unsupported rather than assumed compatible. The iOS 17–18 kernel exploit is opt-in (manual button) because a failed exploit attempt may restart the app.
 
