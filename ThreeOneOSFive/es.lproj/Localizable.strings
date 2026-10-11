@@ -119,14 +119,14 @@
 "dashboard.device_name" = "Nombre del dispositivo";
 "dashboard.hardware_model" = "Modelo de hardware";
 "dashboard.access_footer" = "El acceso solo se reporta como exitoso después de abrir el archivo del sistema en modo lectura y escritura.";
-"dashboard.unsupported_footer" = "iOS %@ (%@) está fuera del rango verificado. Compatible: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0 Developer Beta 1–4 y Public Beta 1–2.";
+"dashboard.unsupported_footer" = "iOS %@ (%@) está fuera del rango verificado. Compatible: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0, 27.0.1 e iOS 27.2 (túnel de emparejamiento).";
 "dashboard.app_browser" = "Navegador de datos de la app";
 "dashboard.browser" = "Navegador de archivos";
 "dashboard.open_browser" = "Abrir navegador de archivos";
 "dashboard.browser_footer" = "Navega y lee datos de todas las apps y contenedores del sistema en este dispositivo.";
 "dashboard.device_actions_warning" = "Guarda los cambios pendientes antes de reiniciar el dispositivo.";
 "dashboard.unsupported_device" = "Dispositivo no compatible";
-"dashboard.unsupported_message" = "iOS %@ todavía no es compatible.\n\nActualmente compatible:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
+"dashboard.unsupported_message" = "iOS %@ todavía no es compatible.\n\nActualmente compatible:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0 y 27.0.1\n• iOS 27.2 (túnel de emparejamiento)";
 "dashboard.installation" = "Instalación";
 "dashboard.kernel_status" = "Estado del kernel";
 "dashboard.kernel_running" = "Activando…";

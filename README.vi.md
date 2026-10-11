@@ -66,6 +66,8 @@ TryStore giữ nguyên GUI bản xem trước cosmetic, quyền truy cập thư 
 | iOS 27 Developer Beta 2 | `24A5370h` |
 | iOS 27 Developer Beta 3 / Public Beta 1 | `24A5380h` |
 | iOS 27 Developer Beta 4 / Public Beta 2 | `24A5390f` |
+| iOS 27.0.1 | `24A446` |
+| iOS 27.2 | `24B5084k`, `24B5089g`, `24B5099f` |
 
 Những build không có trong bảng sẽ được đánh dấu là không hỗ trợ.
 
