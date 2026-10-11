@@ -47,13 +47,9 @@ For example, to replace `Library/Preferences/com.abc.xyz.plist`, put the replace
 - Existing targets are backed up before any replacement is written. Missing targets are created.
 - Writes are journaled and verified. If applying fails partway through, 3105 attempts to roll the transaction back.
 - **Restore Originals** returns files that existed before Apply, deletes files introduced by the patch, and removes directories created by the patch after they become empty.
-- Restore verifies the app container, target path, and original backup. If a target changed while the patch was active, 3105 preserves those current bytes in the transaction recovery folder, then restores and verifies the saved original. It refuses only when the path, container, or original backup cannot be verified.
+- Restore fails closed if the current target or recovery data no longer matches the recorded transaction, instead of overwriting an unverified file.
 
 Keep the target app closed while applying or restoring a patch. Do not rename the bundle folder or move files outside it.
-
-### iOS 27 remote-access prerequisites
-
-On supported iOS 27 version/build pairs, patch apply and restore use the Airlift pairing tunnel rather than the local app-container browser. Complete pairing in SupportPatch or import a valid pairing file, and activate the supported loopback tunnel before applying or restoring. Apple Books must be installed and opened at least once because Airlift uses its Books sync service for temporary staging and recovery. If the tunnel is interrupted, reconnect and check the recorded transaction/receipt before retrying; do not rerun an operation while the previous transaction's state is unknown.
 
 ## Export, import, and passwords
 

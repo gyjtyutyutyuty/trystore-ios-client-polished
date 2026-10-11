@@ -17,7 +17,8 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            AppPremiumBackdrop()
+            AppTheme.pageBackground
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header
@@ -65,7 +66,6 @@ struct OnboardingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .appGyroTilt(intensity: 0.32)
     }
 
     @ViewBuilder
@@ -95,8 +95,6 @@ struct OnboardingView: View {
             VStack(spacing: 10) {
                 ForEach(AppLanguage.allCases) { option in
                     Button {
-                        guard languageCode != option.rawValue else { return }
-                        AppHaptics.select()
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                             languageCode = option.rawValue
                         }
@@ -132,7 +130,7 @@ struct OnboardingView: View {
                                 )
                         )
                     }
-                    .buttonStyle(AppPressButtonStyle())
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 20)
@@ -292,7 +290,6 @@ struct OnboardingView: View {
             HStack(spacing: 12) {
                 if step != .language {
                     Button {
-                        AppHaptics.tap()
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                             if let prev = step.prev { step = prev }
                         }
@@ -305,7 +302,6 @@ struct OnboardingView: View {
                 }
 
                 Button {
-                    AppHaptics.tap()
                     if let next = step.next {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                             step = next

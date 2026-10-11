@@ -2,14 +2,6 @@
 
 All notable user-facing changes are documented in this file.
 
-## [Unreleased]
-### Documentation
-- Added the compatible patch-workspace guide from the supplied archive in English and Vietnamese.
-- Added the archive’s 1.0.1 release notes under `docs/releases/`.
-- Clarified that TryStore’s existing GUI, cosmetic-preview controls, document picker, backup, atomic replacement, verification, and rollback workflow remain unchanged.
-- Reconciled the English/Vietnamese project documentation, setup notes, eSign guide, attribution notices, and documentation index.
-
-
 ## [1.0.1] - 2026-08-15
 
 ### Added
@@ -38,7 +30,7 @@ All notable user-facing changes are documented in this file.
 ### Compatibility
 
 - Verified iOS 26.0–26.6.1.
-- Verified iOS 27.0 beta/final builds, iOS 27.0.1, and iOS 27.2 pairing-tunnel builds listed in the app.
+- Verified iOS 27 Developer Beta 1–4, including Public Beta 1–2 mappings listed in the app.
 - Added iPhone and iPad interface support; device-level features still require enterprise signing.
 
 ## [1.0 beta 3] - 2026-08-14
@@ -69,5 +61,5 @@ All notable user-facing changes are documented in this file.
 ### Compatibility
 
 - Verified iOS 26.0–26.6.1.
-- Verified iOS 27.0 beta/final builds, iOS 27.0.1, and iOS 27.2 pairing-tunnel builds listed in the app.
+- Verified iOS 27 beta 1–4 builds listed in the app.
 - Unlisted iOS 27 builds remain disabled until explicitly verified.

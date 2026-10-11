@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>TryStore</string>
+    <string>SupportPatch</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>TryStore</string>
+    <string>SupportPatch</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -49,6 +49,8 @@
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>freefiremax</string>
+        <string>freefire</string>
+        <string>com.googleusercontent.apps.753696289953-c71g0mbsqjtrtdgf1ov874fpru7f22g6</string>
         <string>localdevvpn</string>
     </array>
     <key>UTExportedTypeDeclarations</key>
@@ -79,16 +81,10 @@
     <true/>
     <key>AppReleaseDisplayVersion</key>
     <string>1.1.1</string>
-    <key>TRYSTORE_LICENSE_API_URL</key>
-    <string>https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate</string>
-    <key>TRYSTORE_PROJECT_ID</key>
-    <string>trystore</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>3105 needs access to photos for wallpaper customization.</string>
-    <key>NSMotionUsageDescription</key>
-    <string>Try Store uses gentle device tilt to add subtle 3D depth to the interface.</string>
     <key>NSDocumentsFolderUsageDescription</key>
     <string>3105 needs access to documents.</string>
     <key>NSLocalNetworkUsageDescription</key>

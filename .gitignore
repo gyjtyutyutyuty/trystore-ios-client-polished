@@ -10,6 +10,7 @@ xcuserdata/
 # Build products
 build/
 DerivedData/
+/ThreeOneOSFive/airlift-rust-core/target/
 *.ipa
 *.xcarchive
 *.dSYM
@@ -35,6 +36,9 @@ DerivedData/
 /tasks/
 /Tests/
 /.github/
+!/.github/
+!/.github/workflows/
+!/.github/workflows/build.yml
 /CONTRIBUTING.md
 /SECURITY.md
 

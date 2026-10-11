@@ -116,24 +116,6 @@ enum PatchPackageCodec {
         )
     }
 
-    // A pair of historical bundled visual patches were packaged as schema 9,
-    // before the app's current schema-2 format. Accept that version only on
-    // this bundled-resource migration path; normal imports remain strict.
-    static func decodeBundledResource(_ data: Data) throws -> (summary: PatchPackageSummary, decoded: DecodedPatchPackage) {
-        let envelope = try parseEnvelope(data, allowBundledSchema9: true)
-        guard !envelope.isPasswordProtected,
-              let contentKey = envelope.publicContentKey else {
-            throw PatchPackageError.invalidPasswordOrCorruptedPackage
-        }
-        let summary = PatchPackageSummary(
-            packageID: envelope.packageID,
-            schemaVersion: envelope.schemaVersion,
-            isPasswordProtected: envelope.isPasswordProtected,
-            keyFingerprint: envelope.keyFingerprint
-        )
-        return (summary, try decode(envelope: envelope, contentKey: contentKey))
-    }
-
     static func decode(_ data: Data, password: String?) throws -> DecodedPatchPackage {
         do {
             let envelope = try parseEnvelope(data)
@@ -351,7 +333,7 @@ enum PatchPackageCodec {
         }
     }
 
-    private static func parseEnvelope(_ data: Data, allowBundledSchema9: Bool = false) throws -> Envelope {
+    private static func parseEnvelope(_ data: Data) throws -> Envelope {
         guard data.count > magic.count,
               data.prefix(magic.count) == magic
         else {
@@ -364,9 +346,7 @@ enum PatchPackageCodec {
         } catch {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
-        let isSupportedSchema = (minimumSchemaVersion...latestSchemaVersion).contains(envelope.schemaVersion)
-        let isBundledLegacySchema = allowBundledSchema9 && envelope.schemaVersion == 9
-        guard isSupportedSchema || isBundledLegacySchema else {
+        guard (minimumSchemaVersion...latestSchemaVersion).contains(envelope.schemaVersion) else {
             throw PatchPackageError.unsupportedVersion
         }
         guard envelope.keyFingerprint.count == 32,

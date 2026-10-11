@@ -19,9 +19,7 @@ struct LogView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppPremiumBackdrop()
-                Group {
+            Group {
                 if appLog.entries.isEmpty {
                     VStack(spacing: 14) {
                         Image(systemName: "apple.terminal")
@@ -73,10 +71,8 @@ struct LogView: View {
                         }
                     }
                 }
-                }
             }
-            .appCinematicReveal(delay: 0.04)
-            .appGyroTilt(intensity: 0.18)
+            .background(AppTheme.consoleBackground.ignoresSafeArea())
             .navigationTitle(language.text("logs.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -101,10 +97,7 @@ struct LogView: View {
                     .disabled(appLog.entries.isEmpty)
                     .accessibilityLabel(language.text("logs.share"))
 
-                    Button(language.text("common.done")) {
-                        AppHaptics.tap()
-                        dismiss()
-                    }
+                    Button(language.text("common.done")) { dismiss() }
                         .fontWeight(.semibold)
                 }
             }

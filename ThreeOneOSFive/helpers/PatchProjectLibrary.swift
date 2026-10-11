@@ -19,10 +19,16 @@ struct PatchPasswordRequest: Identifiable {
 }
 
 enum PatchProjectLibrary {
-    private static let bundledProjectIDs: [String: UUID] = [:]
+    private static let bundledProjectIDs: [String: UUID] = [
+        "Aim Neck": UUID(uuidString: "8B0E5B4A-DBE7-4B61-9F1A-2F1C4A8E7D10")!,
+        "Chạm Đỏ": UUID(uuidString: "D3A67C21-4F8B-46E2-8A0C-91B5E7D2C634")!
+    ]
     private static let bundledProjectNames: Set<String> = [
-        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
-        "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"
+        "Aim Neck", "Aim Chest", "Aim Body", "Aim Drag", "Aim Magic", "Aim Đầu",
+        "Súng Trắng", "Chạm Đỏ", "Aim Neck Free Fire", "Aim Body Free Fire",
+        "Aim Drag Free Fire", "Aim Head Free Fire", "Aim Magic Free Fire", "Unlock FPS 144",
+        "Chams + Holo tím", "Chams Không màu", "ChamsKhongMau",
+        "Định vị blue", "DinhViBlue", "Định Vị", "Mod Skin Gojo", "CapCut Pro"
     ]
 
     static func isBundledProject(_ project: PatchProject) -> Bool {
@@ -123,20 +129,19 @@ enum PatchProjectLibrary {
         }
     }
 
-    static func installBundledPackageDataIfNeeded(
-        _ sourceData: Data,
+    static func installBundledFileIfNeeded(
+        filename: String,
         projectName: String,
         password: String? = nil,
+        bundle: Bundle = .main,
         fileManager: FileManager = .default
     ) {
-        guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData) else {
-            log("patch: bundled package decode failed: \(projectName)")
-            return
-        }
-        guard let root = try? packageRootURL(fileManager: fileManager) else {
-            log("patch: bundled package storage unavailable: \(projectName)")
-            return
-        }
+        let filenameWithoutExtension = URL(fileURLWithPath: filename).deletingPathExtension().lastPathComponent
+        guard let sourceURL = bundle.url(forResource: filename, withExtension: nil)
+            ?? bundle.url(forResource: filenameWithoutExtension, withExtension: "3105"),
+              let sourceData = try? Data(contentsOf: sourceURL),
+              let sourceSummary = try? PatchPackageCodec.inspect(sourceData),
+              let root = try? packageRootURL(fileManager: fileManager) else { return }
 
         let destination = root.appendingPathComponent("\(projectName).3105")
         if fileManager.fileExists(atPath: destination.path) {
@@ -145,28 +150,16 @@ enum PatchProjectLibrary {
                let key = try? PatchKeyStore.load(for: existingSummary),
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
-                if let expectedID = bundledProjectIDs[projectName], existingDecoded.project.id != expectedID {
-                    try? PatchKeyStore.delete(for: existingSummary)
-                    try? PatchWorkspaceService.deleteWorkspace(
-                        projectID: existingDecoded.project.id,
-                        fileManager: fileManager
-                    )
-                    try? fileManager.removeItem(at: destination)
-                } else {
-                    return
-                }
+                return
             }
-            if fileManager.fileExists(atPath: destination.path) {
-                try? fileManager.removeItem(at: destination)
-            }
+            try? fileManager.removeItem(at: destination)
         }
 
+          guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else { return }
+
         do {
-            var normalizedProject = source.decoded.project
+            var normalizedProject = decoded.project
             normalizedProject.name = projectName
-            if let bundledProjectID = bundledProjectIDs[projectName] {
-                normalizedProject.id = bundledProjectID
-            }
             let normalizedData = try PatchPackageCodec.encodeNew(
                 project: normalizedProject,
                 password: password
@@ -177,12 +170,12 @@ enum PatchProjectLibrary {
                 data: normalizedData.data,
                 decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
                 summary: normalizedSummary,
-                existingURL: nil,
+                existingURL: destination,
                 createWorkspace: false,
                 fileManager: fileManager
             )
         } catch {
-            log("patch: bundled file install failed: \(projectName) — \(error)")
+            log("patch: bundled file unavailable")
         }
     }
 

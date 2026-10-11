@@ -10,7 +10,7 @@
 
 <p align="center">
   <img alt="Version" src="https://img.shields.io/badge/version-1.1.0-E6753A?style=flat-square">
-  <img alt="iOS" src="https://img.shields.io/badge/iOS-17.0–18.7.1%20%7C%2026.0–26.6.1%20%7C%2027.0%2C%2027.0.1%20%26%2027.2-222222?style=flat-square">
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-17.0–18.7.1%20%7C%2026.0–26.6.1%20%7C%2027%20beta%201–4-222222?style=flat-square">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5-F05138?style=flat-square&logo=swift&logoColor=white">
   <img alt="Languages" src="https://img.shields.io/badge/languages-English%20%7C%20Tiếng%20Việt%20%7C%20简体中文-E6753A?style=flat-square">
 </p>
@@ -72,8 +72,6 @@ SupportPatch enables device-level features only for builds explicitly verified b
 | iOS 27 Developer Beta 4 / Public Beta 2 | `24A5390f` |
 | iOS 27.0 RC | `24A435` |
 | iOS 27.0 final | `24A437` |
-| iOS 27.0.1 | `24A446` |
-| iOS 27.2 | `24B5084k`, `24B5089g`, `24B5099f` |
 
 Unlisted iOS 27 builds are marked unsupported rather than assumed compatible. The iOS 17–18 kernel exploit is opt-in (manual button) because a failed exploit attempt may restart the app.
 
@@ -113,14 +111,3 @@ The project also builds on work from Pocket Poster/Nugget, CrazyMind90, forcequi
 ## License
 
 Original portions of SupportPatch are distributed under the [GNU General Public License v3.0](LICENSE). Third-party components remain subject to their respective upstream copyright and license terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## Project merge status
-
-This checkout now uses the uploaded `test1-main` project as the source of truth:
-
-- the Support Patch GUI and patch-workspace flow live under `ThreeOneOSFive/`;
-- Airlift is linked through `ThreeOneOSFive/AirliftFFI.xcframework` and can be rebuilt with `ThreeOneOSFive/build-airlift-ffi.sh`;
-- legacy root-level TryStore sources and old `.3105` payloads were removed;
-- the current bundled patch resources are the `.bin` datasets in `ThreeOneOSFive/Assets.xcassets`.
-
-The application continues to use its existing path-validation, backup/restore, and package-integrity checks. It does not silently fall back to the removed legacy `.3105` files.

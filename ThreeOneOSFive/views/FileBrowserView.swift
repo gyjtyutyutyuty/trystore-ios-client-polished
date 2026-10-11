@@ -92,10 +92,6 @@ struct FileBrowserView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(AppPremiumBackdrop())
-            .appCinematicReveal(delay: 0.06)
-            .appGyroTilt(intensity: 0.18)
             .environment(\.defaultMinListRowHeight, AppTheme.fileRowHeight)
             .scrollDismissesKeyboard(.interactively)
             .overlay {
@@ -116,7 +112,6 @@ struct FileBrowserView: View {
                 .animation(interfaceAnimation, value: overlayState)
             }
         }
-        .background(AppPremiumBackdrop())
         .navigationTitle(currentPath == containerPath ? title : (currentPath as NSString).lastPathComponent)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: FileBrowserDestination.self) { destination in
@@ -370,7 +365,7 @@ struct FileBrowserView: View {
                     selectionState: selectedEntryIDs.contains(entry.id)
                 )
             }
-            .buttonStyle(AppPressButtonStyle())
+            .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 12))
         } else if entry.isDirectory {
             NavigationLink(
@@ -383,7 +378,6 @@ struct FileBrowserView: View {
             ) {
                 FileEntryRow(entry: entry, language: language, selectionState: nil)
             }
-            .simultaneousGesture(TapGesture().onEnded { AppHaptics.tap() })
             .contextMenu { fileActions(for: entry) }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 12))
         } else {
@@ -392,7 +386,6 @@ struct FileBrowserView: View {
             } label: {
                 FileEntryRow(entry: entry, language: language, selectionState: nil)
             }
-            .simultaneousGesture(TapGesture().onEnded { AppHaptics.tap() })
             .contextMenu { fileActions(for: entry) }
             .accessibilityHint(language.text("browser.file_actions_hint"))
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 12))
@@ -667,13 +660,11 @@ struct FileBrowserView: View {
     }
 
     private func toggleSelectionMode() {
-        AppHaptics.tap()
         isSelecting.toggle()
         if !isSelecting { selectedEntryIDs.removeAll() }
     }
 
     private func toggleSelection(_ entry: FileEntry) {
-        AppHaptics.select()
         if selectedEntryIDs.remove(entry.id) == nil {
             selectedEntryIDs.insert(entry.id)
         }
