@@ -67,5 +67,3 @@ workflows:
           python3 scripts/verify_legacy_patch_bundle.py --app "$APP"
     artifacts:
       - build/SupportPatch-unsigned.ipa
-      - build/SupportPatch.xcarchive
-      - /tmp/xcodebuild_logs/*.log
