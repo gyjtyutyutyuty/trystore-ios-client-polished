@@ -421,7 +421,7 @@ enum PatchTransaction {
         remoteReader: RemoteReader?,
         fileManager: FileManager
     ) throws {
-        var resolvedTargets: [(record: Record, target: URL, alreadyRestored: Bool)] = []
+        var resolvedTargets: [(Record, URL)] = []
         for record in records {
             guard let root = roots[record.bundleID],
                   containerFingerprint(root) == record.containerFingerprint else {
@@ -441,54 +441,20 @@ enum PatchTransaction {
                 )
             }
 
-            var alreadyRestored = false
             if requirePatchedDigest {
-                let currentDigest: Data?
-                var currentData: Data?
-                if let remoteReader {
-                    let data = try remoteReader(record.bundleID, record.relativePath)
-                    currentData = data
-                    currentDigest = digest(data)
-                } else if fileManager.fileExists(atPath: target.path) {
-                    currentDigest = try digestFile(target)
-                } else {
-                    currentDigest = nil
-                }
-                if record.originalExisted, currentDigest == record.originalDigest {
-                    alreadyRestored = true
-                } else if !record.originalExisted, currentDigest == nil {
-                    alreadyRestored = true
-                } else if currentDigest != record.replacementDigest {
-                    if let currentDigest {
-                        var snapshotURL = transactionDirectory.appendingPathComponent(
-                            "\(record.ruleID.uuidString).pre-restore"
-                        )
-                        if fileManager.fileExists(atPath: snapshotURL.path),
-                           try digestFile(snapshotURL) != currentDigest {
-                            snapshotURL = transactionDirectory.appendingPathComponent(
-                                "\(record.ruleID.uuidString).pre-restore-\(UUID().uuidString)"
-                            )
-                        }
-                        if !fileManager.fileExists(atPath: snapshotURL.path) {
-                            if let currentData {
-                                try currentData.write(
-                                    to: snapshotURL,
-                                    options: [.atomic, .completeFileProtection]
-                                )
-                            } else {
-                                try fileManager.copyItem(at: target, to: snapshotURL)
-                            }
-                        }
-                        guard try digestFile(snapshotURL) == currentDigest else {
-                            throw PatchPackageError.restoreFailed
-                        }
-                        log("patch: preserved changed target before restoring verified original \(record.bundleID)/\(record.relativePath)")
-                    } else {
-                        log("patch: target missing; restoring verified original \(record.bundleID)/\(record.relativePath)")
+                if let remoteReader, remoteWriter == nil {
+                    guard digest(try remoteReader(record.bundleID, record.relativePath))
+                            == record.replacementDigest else {
+                        throw PatchPackageError.restoreFailed
+                    }
+                } else if remoteWriter == nil {
+                    guard fileManager.fileExists(atPath: target.path),
+                          try digestFile(target) == record.replacementDigest else {
+                        throw PatchPackageError.restoreFailed
                     }
                 }
             }
-            if record.originalExisted && !alreadyRestored {
+            if record.originalExisted {
                 guard let backupFilename = record.backupFilename,
                       let expectedDigest = record.originalDigest else {
                     throw PatchPackageError.restoreFailed
@@ -499,14 +465,10 @@ enum PatchTransaction {
                     throw PatchPackageError.restoreFailed
                 }
             }
-            resolvedTargets.append((record: record, target: target, alreadyRestored: alreadyRestored))
+            resolvedTargets.append((record, target))
         }
 
-        for (record, target, alreadyRestored) in resolvedTargets.reversed() {
-            if alreadyRestored {
-                log("patch: target already matches verified original \(record.bundleID)/\(record.relativePath)")
-                continue
-            }
+        for (record, target) in resolvedTargets.reversed() {
             if record.originalExisted {
                 let backup = transactionDirectory.appendingPathComponent(record.backupFilename!)
                 if let remoteWriter {
