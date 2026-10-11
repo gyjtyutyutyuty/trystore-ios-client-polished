@@ -561,11 +561,7 @@ struct PatchProjectDetailView: View {
             } catch {
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: "patch.error.operation_detail",
-                        messageArgument: String(describing: error)
-                    )
+                    actionAlert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
                 }
             }
         }
@@ -628,11 +624,7 @@ struct PatchProjectDetailView: View {
             } catch {
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: "patch.error.operation_detail",
-                        messageArgument: String(describing: error)
-                    )
+                    actionAlert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
                 }
             }
         }

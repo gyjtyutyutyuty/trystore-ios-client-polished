@@ -39,8 +39,6 @@ enum ExploitSupportPolicy {
         (8, "24A5430a")
     ]
 
-    static let verifiedIOS27_0_1Builds = ["24A446"]
-
     static let verifiedVersions: [VerifiedVersion] = [
         .init(17, 0, builds: ["21A329"]),
         .init(17, 0, 1, builds: ["21A340"]),
@@ -109,8 +107,7 @@ enum ExploitSupportPolicy {
         .init(26, 7, builds: ["23H24"]),
 
         .init(27, 0, builds: verifiedIOS27BetaBuilds.map { $0.build } + ["24A435", "24A437"]),
-        .init(27, 0, 1, builds: verifiedIOS27_0_1Builds),
-        .init(27, 2, builds: ["24B5084k", "24B5089g", "24B5099f"])
+        .init(27, 2, builds: ["24B5084k", "24B5089g"])
     ]
 
     static func iOS27BetaNumber(for build: String) -> Int? {
