@@ -264,11 +264,18 @@ enum PatchTransaction {
                         resolved.rule.relativePath,
                         resolved.rule.replacementData
                     )
-                    // Airlift's writer completes the AirTraffic transfer
-                    // before returning. The original file is already backed
-                    // up before this point, so avoid a second full remote
-                    // read/restore session after every activation.
-                    log("patch: remote write complete; Airlift transfer verified")
+                    guard let remoteReader else { throw PatchPackageError.invalidProject }
+                    let writtenData = try remoteReader(
+                        resolved.rule.bundleID,
+                        resolved.rule.relativePath
+                    )
+                    guard digest(writtenData) == records[index].replacementDigest else {
+                        log("patch: remote write read-back mismatch for \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
+                        throw PatchPackageError.remoteReplacementFailed(
+                            "Remote write verification failed for \(resolved.rule.relativePath)."
+                        )
+                    }
+                    log("patch: remote write read-back verified \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
                 } else {
                     try atomicWrite(
                         resolved.rule.replacementData,
@@ -414,7 +421,7 @@ enum PatchTransaction {
         remoteReader: RemoteReader?,
         fileManager: FileManager
     ) throws {
-        var resolvedTargets: [(Record, URL)] = []
+        var resolvedTargets: [(record: Record, target: URL, alreadyRestored: Bool)] = []
         for record in records {
             guard let root = roots[record.bundleID],
                   containerFingerprint(root) == record.containerFingerprint else {
@@ -434,20 +441,26 @@ enum PatchTransaction {
                 )
             }
 
+            var alreadyRestored = false
             if requirePatchedDigest {
+                let currentDigest: Data?
                 if let remoteReader {
-                    guard digest(try remoteReader(record.bundleID, record.relativePath))
-                            == record.replacementDigest else {
-                        throw PatchPackageError.restoreFailed
-                    }
+                    currentDigest = digest(try remoteReader(record.bundleID, record.relativePath))
+                } else if fileManager.fileExists(atPath: target.path) {
+                    currentDigest = try digestFile(target)
                 } else {
-                    guard fileManager.fileExists(atPath: target.path),
-                          try digestFile(target) == record.replacementDigest else {
-                        throw PatchPackageError.restoreFailed
-                    }
+                    currentDigest = nil
+                }
+                if record.originalExisted, currentDigest == record.originalDigest {
+                    alreadyRestored = true
+                } else if !record.originalExisted, currentDigest == nil {
+                    alreadyRestored = true
+                } else if currentDigest != record.replacementDigest {
+                    log("patch: restore refused changed target \(record.bundleID)/\(record.relativePath)")
+                    throw PatchPackageError.restoreFailed
                 }
             }
-            if record.originalExisted {
+            if record.originalExisted && !alreadyRestored {
                 guard let backupFilename = record.backupFilename,
                       let expectedDigest = record.originalDigest else {
                     throw PatchPackageError.restoreFailed
@@ -458,10 +471,14 @@ enum PatchTransaction {
                     throw PatchPackageError.restoreFailed
                 }
             }
-            resolvedTargets.append((record, target))
+            resolvedTargets.append((record: record, target: target, alreadyRestored: alreadyRestored))
         }
 
-        for (record, target) in resolvedTargets.reversed() {
+        for (record, target, alreadyRestored) in resolvedTargets.reversed() {
+            if alreadyRestored {
+                log("patch: target already matches verified original \(record.bundleID)/\(record.relativePath)")
+                continue
+            }
             if record.originalExisted {
                 let backup = transactionDirectory.appendingPathComponent(record.backupFilename!)
                 if let remoteWriter {
