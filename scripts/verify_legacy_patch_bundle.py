@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import plistlib
 import re
 import sys
 from pathlib import Path
@@ -204,6 +205,40 @@ def check_source() -> None:
         source_file = PATCH_DIR / filename
         require(source_file.is_file() and source_file.stat().st_size > 0,
                 f"source payload missing or empty: {source_file}")
+
+    # These two historical visual packages use schema 9 and share one package
+    # UUID. They must be migrated through the explicitly scoped bundled loader
+    # and assigned distinct stable IDs before entering the app's UUID-indexed list.
+    exclusive_files = [
+        PATCH_DIR / "HOLOGRAMAEXCLUSIVO(4).3105",
+        PATCH_DIR / "HOLOGRAMAEXCLUSIVO(5).3105",
+    ]
+    exclusive_envelopes = [
+        plistlib.loads(path.read_bytes()[len(b"3105PATCH\0"):])
+        for path in exclusive_files
+    ]
+    require(all(envelope.get("schemaVersion") == 9 for envelope in exclusive_envelopes),
+            "exclusive visual legacy package schema changed; review its migration path")
+    require(exclusive_envelopes[0].get("packageID") == exclusive_envelopes[1].get("packageID"),
+            "legacy exclusive package IDs changed; review stable-ID migration")
+    require("decodeBundledResource" in (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text()
+            and "allowBundledSchema9" in (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text(),
+            "schema-9 compatibility must be restricted to bundled-resource migration")
+    require(re.search(
+        r'"HOLOGRAMA EXCLUSIVO VERDE": UUID\(uuidString: "([A-F0-9-]+)"\)!.*?'
+        r'"HOLOGRAMA EXCLUSIVO ROSADO": UUID\(uuidString: "([A-F0-9-]+)"\)!',
+        library,
+        re.S,
+    ) is not None,
+            "exclusive visual packages must be assigned stable package UUIDs")
+    id_matches = re.search(
+        r'"HOLOGRAMA EXCLUSIVO VERDE": UUID\(uuidString: "([A-F0-9-]+)"\)!.*?'
+        r'"HOLOGRAMA EXCLUSIVO ROSADO": UUID\(uuidString: "([A-F0-9-]+)"\)!',
+        library,
+        re.S,
+    )
+    require(id_matches is not None and id_matches.group(1) != id_matches.group(2),
+            "exclusive visual package IDs must be distinct")
 
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),

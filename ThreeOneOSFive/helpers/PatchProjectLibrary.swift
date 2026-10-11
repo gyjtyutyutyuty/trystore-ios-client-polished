@@ -19,7 +19,10 @@ struct PatchPasswordRequest: Identifiable {
 }
 
 enum PatchProjectLibrary {
-    private static let bundledProjectIDs: [String: UUID] = [:]
+    private static let bundledProjectIDs: [String: UUID] = [
+        "HOLOGRAMA EXCLUSIVO VERDE": UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!,
+        "HOLOGRAMA EXCLUSIVO ROSADO": UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!
+    ]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
         "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE",
@@ -130,7 +133,7 @@ enum PatchProjectLibrary {
         password: String? = nil,
         fileManager: FileManager = .default
     ) {
-        guard let sourceSummary = try? PatchPackageCodec.inspect(sourceData),
+        guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData),
               let root = try? packageRootURL(fileManager: fileManager) else { return }
 
         let destination = root.appendingPathComponent("\(projectName).3105")
@@ -140,16 +143,28 @@ enum PatchProjectLibrary {
                let key = try? PatchKeyStore.load(for: existingSummary),
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
-                return
+                if let expectedID = bundledProjectIDs[projectName], existingDecoded.project.id != expectedID {
+                    try? PatchKeyStore.delete(for: existingSummary)
+                    try? PatchWorkspaceService.deleteWorkspace(
+                        projectID: existingDecoded.project.id,
+                        fileManager: fileManager
+                    )
+                    try? fileManager.removeItem(at: destination)
+                } else {
+                    return
+                }
             }
-            try? fileManager.removeItem(at: destination)
+            if fileManager.fileExists(atPath: destination.path) {
+                try? fileManager.removeItem(at: destination)
+            }
         }
 
-          guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else { return }
-
         do {
-            var normalizedProject = decoded.project
+            var normalizedProject = source.decoded.project
             normalizedProject.name = projectName
+            if let bundledProjectID = bundledProjectIDs[projectName] {
+                normalizedProject.id = bundledProjectID
+            }
             let normalizedData = try PatchPackageCodec.encodeNew(
                 project: normalizedProject,
                 password: password
