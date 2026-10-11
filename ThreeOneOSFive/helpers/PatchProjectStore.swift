@@ -378,6 +378,7 @@ final class PatchProjectStore: ObservableObject {
         isBusy = true
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
+                log("patch: operation started")
                 try operation()
                 if let self {
                     await self.finishOperation(
@@ -387,8 +388,10 @@ final class PatchProjectStore: ObservableObject {
                     await onSuccess?()
                 }
             } catch let error as PatchPackageError {
+                log("patch: operation failed: \(error.localizedDescription)")
                 await self?.failOperation(error)
             } catch {
+                log("patch: unexpected operation failure: \(error.localizedDescription)")
                 await self?.failOperation(.invalidProject)
             }
         }

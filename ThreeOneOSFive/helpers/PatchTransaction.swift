@@ -258,6 +258,7 @@ enum PatchTransaction {
             }
             for (index, resolved) in resolvedRules.enumerated() {
                 try beforeWrite?(index)
+                log("patch: applying target \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
                 if let remoteWriter {
                     try remoteWriter(
                         resolved.rule.bundleID,
@@ -296,6 +297,8 @@ enum PatchTransaction {
                 journalURL: journalURL
             )
         } catch {
+            let applyError = error
+            log("patch: apply failed: \(applyError.localizedDescription)")
             do {
                 try restoreRecords(
                     records,
@@ -309,8 +312,14 @@ enum PatchTransaction {
                 )
                 journal.status = .rolledBack
                 try writeJournal(journal, to: journalURL)
+                log("patch: rollback completed and journal updated")
             } catch {
+                log("patch: rollback failed: \(error.localizedDescription)")
                 // Preserve the prepared journal and backups for explicit recovery.
+                throw PatchPackageError.restoreFailed
+            }
+            if let patchError = applyError as? PatchPackageError {
+                throw patchError
             }
             throw PatchPackageError.applyFailed
         }
