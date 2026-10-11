@@ -451,13 +451,14 @@ enum PatchTransaction {
             }
 
             if requirePatchedDigest {
-                if let remoteReader, remoteWriter == nil {
+                if let remoteReader {
                     guard digest(try remoteReader(record.bundleID, record.relativePath))
                             == record.replacementDigest else {
                         throw PatchPackageError.restoreFailed
                     }
-                } else if remoteWriter == nil {
-                    guard fileManager.fileExists(atPath: target.path),
+                } else {
+                    guard remoteWriter == nil,
+                          fileManager.fileExists(atPath: target.path),
                           try digestFile(target) == record.replacementDigest else {
                         throw PatchPackageError.restoreFailed
                     }
