@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-14
@@ -27,18 +30,14 @@ jobs:
       - name: Build unsigned IPA
         run: bash ./build_supportpatch_unsigned.sh
 
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trystore-unsigned-ipa
-          path: build/SupportPatch-unsigned.ipa
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload archive artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trystore-xcarchive
-          path: build/SupportPatch.xcarchive
-          if-no-files-found: error
-          retention-days: 7
+      - name: Upload IPA to temporary draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ipa-build-${{ github.run_id }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --title "Unsigned IPA build $GITHUB_RUN_NUMBER" \
+            --notes "Temporary draft release for IPA delivery." \
+            build/SupportPatch-unsigned.ipa
