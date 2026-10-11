@@ -222,6 +222,7 @@
 "patch.error.app_unavailable" = "未安装应用 bundle %@，或无法打开该应用。未更改任何补丁文件。";
 "patch.error.symlink" = "补丁目标路径不能经过符号链接。";
 "patch.error.apply" = "无法应用补丁。之前的所有写入均已回滚。";
+"patch.error.operation_detail" = "补丁操作失败：%@";
 "patch.error.pairing_tunnel_required" = "在 iOS 18.7.2–18.7.10 和 iOS 27+ 上，应用或恢复补丁前请先连接 LocalDevVPN。";
 "patch.operation_in_progress" = "正在处理补丁…";
 "patch.error.pairing_file_missing" = "没有配对文件。请先配对此 iPhone 或导入配对文件。";

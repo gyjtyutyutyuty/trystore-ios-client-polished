@@ -217,6 +217,7 @@
 "patch.error.app_unavailable" = "Bundle app %@ chưa được cài hoặc không thể mở. Patch chưa thay đổi file nào.";
 "patch.error.symlink" = "Đường dẫn patch không được đi qua liên kết tượng trưng.";
 "patch.error.apply" = "Không thể áp dụng patch. Mọi file đã ghi trước đó đã được rollback.";
+"patch.error.operation_detail" = "Thao tác patch thất bại: %@";
 "patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.10 và iOS 27+, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";
 "patch.operation_in_progress" = "Đang xử lý patch…";
 "patch.error.pairing_file_missing" = "Chưa có file pairing. Hãy ghép nối hoặc nhập file pairing trước.";

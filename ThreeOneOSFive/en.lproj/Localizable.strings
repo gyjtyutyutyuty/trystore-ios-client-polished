@@ -223,6 +223,7 @@
 "patch.error.app_unavailable" = "The app bundle %@ is not installed or cannot be opened. No patch files were changed.";
 "patch.error.symlink" = "Patch targets cannot pass through symbolic links.";
 "patch.error.apply" = "The patch could not be applied. Any earlier writes were rolled back.";
+"patch.error.operation_detail" = "Patch operation failed: %@";
 "patch.error.pairing_tunnel_required" = "On iOS 18.7.2–18.7.10 and iOS 27+, connect LocalDevVPN before applying or restoring a patch.";
 "patch.operation_in_progress" = "Processing patch…";
 "patch.error.pairing_file_missing" = "No pairing file is available. Pair this iPhone or import a pairing file first.";
