@@ -41,9 +41,7 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "HSPESSCOSO.3105", projectName: "HS PESSCOSO", password: nil),
             BundledPatch(resourceName: "HS SLA PECHO.3105", projectName: "HS SLA PECHO", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAARMAS.3105", projectName: "HOLOGRAMA ARMAS", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).3105", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).3105", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil)
+            BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil)
         ]
     }
 }
@@ -380,6 +378,7 @@ final class PatchProjectStore: ObservableObject {
         isBusy = true
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
+                log("patch: operation started")
                 try operation()
                 if let self {
                     await self.finishOperation(
@@ -389,8 +388,10 @@ final class PatchProjectStore: ObservableObject {
                     await onSuccess?()
                 }
             } catch let error as PatchPackageError {
+                log("patch: operation failed: \(error.localizedDescription)")
                 await self?.failOperation(error)
             } catch {
+                log("patch: unexpected operation failure: \(error.localizedDescription)")
                 await self?.failOperation(.invalidProject)
             }
         }

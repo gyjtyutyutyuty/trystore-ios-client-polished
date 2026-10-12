@@ -43,7 +43,7 @@ workflows:
         script: |
           set -euo pipefail
           chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
-          REBUILD_AIRLIFT=0 ./build_supportpatch_unsigned.sh
+          REBUILD_AIRLIFT=1 ./build_supportpatch_unsigned.sh
       - name: Verify unsigned IPA contents
         script: |
           set -euo pipefail

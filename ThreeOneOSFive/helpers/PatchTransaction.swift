@@ -258,21 +258,25 @@ enum PatchTransaction {
             }
             for (index, resolved) in resolvedRules.enumerated() {
                 try beforeWrite?(index)
+                log("patch: applying target \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
                 if let remoteWriter {
                     try remoteWriter(
                         resolved.rule.bundleID,
                         resolved.rule.relativePath,
                         resolved.rule.replacementData
                     )
-                                        log("patch: remote write complete; verifying readback")
-                                        guard let remoteReader,
-                                                    digest(try remoteReader(
-                                                        resolved.rule.bundleID,
-                                                        resolved.rule.relativePath
-                                                    )) == records[index].replacementDigest else {
-                                                throw PatchPackageError.applyFailed
-                                        }
-                                        log("patch: remote readback digest verified")
+                    guard let remoteReader else { throw PatchPackageError.invalidProject }
+                    let writtenData = try remoteReader(
+                        resolved.rule.bundleID,
+                        resolved.rule.relativePath
+                    )
+                    guard digest(writtenData) == records[index].replacementDigest else {
+                        log("patch: remote write read-back mismatch for \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
+                        throw PatchPackageError.remoteReplacementFailed(
+                            "Remote write verification failed for \(resolved.rule.relativePath)."
+                        )
+                    }
+                    log("patch: remote write read-back verified \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
                 } else {
                     try atomicWrite(
                         resolved.rule.replacementData,
@@ -293,6 +297,8 @@ enum PatchTransaction {
                 journalURL: journalURL
             )
         } catch {
+            let applyError = error
+            log("patch: apply failed: \(applyError.localizedDescription)")
             do {
                 try restoreRecords(
                     records,
@@ -306,8 +312,14 @@ enum PatchTransaction {
                 )
                 journal.status = .rolledBack
                 try writeJournal(journal, to: journalURL)
+                log("patch: rollback completed and journal updated")
             } catch {
+                log("patch: rollback failed: \(error.localizedDescription)")
                 // Preserve the prepared journal and backups for explicit recovery.
+                throw PatchPackageError.restoreFailed
+            }
+            if let patchError = applyError as? PatchPackageError {
+                throw patchError
             }
             throw PatchPackageError.applyFailed
         }
@@ -445,7 +457,8 @@ enum PatchTransaction {
                         throw PatchPackageError.restoreFailed
                     }
                 } else {
-                    guard fileManager.fileExists(atPath: target.path),
+                    guard remoteWriter == nil,
+                          fileManager.fileExists(atPath: target.path),
                           try digestFile(target) == record.replacementDigest else {
                         throw PatchPackageError.restoreFailed
                     }
