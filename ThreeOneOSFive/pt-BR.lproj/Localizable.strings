@@ -119,14 +119,14 @@
 "dashboard.device_name" = "Nome do dispositivo";
 "dashboard.hardware_model" = "Modelo de hardware";
 "dashboard.access_footer" = "O acesso só é reportado como bem-sucedido após abrir o arquivo do sistema em modo leitura e gravação.";
-"dashboard.unsupported_footer" = "iOS %@ (%@) está fora da faixa verificada. Suportado: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0 Developer Beta 1–4 e Public Beta 1–2.";
+"dashboard.unsupported_footer" = "iOS %@ (%@) está fora da faixa verificada. Suportado: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4 e Public Beta 1–2.";
 "dashboard.app_browser" = "Navegador de dados do app";
 "dashboard.browser" = "Navegador de arquivos";
 "dashboard.open_browser" = "Abrir navegador de arquivos";
 "dashboard.browser_footer" = "Navegue e leia dados de todos os apps e containers do sistema neste dispositivo.";
 "dashboard.device_actions_warning" = "Salve as alterações pendentes antes de reiniciar o dispositivo.";
 "dashboard.unsupported_device" = "Dispositivo não suportado";
-"dashboard.unsupported_message" = "O iOS %@ ainda não é suportado.\n\nAtualmente suportado:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
+"dashboard.unsupported_message" = "O iOS %@ ainda não é suportado.\n\nAtualmente suportado:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
 "dashboard.installation" = "Instalação";
 "dashboard.kernel_status" = "Status do kernel";
 "dashboard.kernel_running" = "Ativando…";

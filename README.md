@@ -35,7 +35,7 @@
 
 ## What's new in 1.1.0
 
-- **Broader iOS support** — verified range now includes iOS 17.0–17.7.x (kernel exploit), iOS 18.0–18.7.1 (kernel exploit), iOS 26.0–26.6.1 and iOS 27 Developer Beta 1–4 / Public Beta 1–2.
+- **Broader iOS support** — verified range now includes iOS 17.0–17.7.x (kernel exploit), iOS 18.0–18.7.1 (kernel exploit), iOS 26.0–26.6.1, iOS 27 Developer Beta 1–4 / Public Beta 1–2, and iOS 27.0.1 (24A446).
 - **Wrong-password feedback** — importing a `.3105` patch with an incorrect password now shows "Incorrect password" instead of failing silently.
 - **Onboarding for reinstalls** — onboarding reappears after overwriting the app with the same version, so fresh and overwritten installs both see the guided setup.
 
@@ -72,6 +72,8 @@ SupportPatch enables device-level features only for builds explicitly verified b
 | iOS 27 Developer Beta 4 / Public Beta 2 | `24A5390f` |
 | iOS 27.0 RC | `24A435` |
 | iOS 27.0 final | `24A437` |
+| iOS 27.0.1 | `24A446` |
+| iOS 27.2 | `24B5084k`, `24B5089g` |
 
 Unlisted iOS 27 builds are marked unsupported rather than assumed compatible. The iOS 17–18 kernel exploit is opt-in (manual button) because a failed exploit attempt may restart the app.
 
