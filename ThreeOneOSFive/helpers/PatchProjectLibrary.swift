@@ -19,10 +19,12 @@ struct PatchPasswordRequest: Identifiable {
 }
 
 enum PatchProjectLibrary {
-    private static let bundledProjectIDs: [String: UUID] = [:]
+    private static let bundledProjectIDs: [String: UUID] = [
+        "HOLOGRAMA EXCLUSIVO VERDE": UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!
+    ]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
-        "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"
+        "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "HOLOGRAMA EXCLUSIVO VERDE"
     ]
 
     static func isBundledProject(_ project: PatchProject) -> Bool {

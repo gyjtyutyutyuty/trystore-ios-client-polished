@@ -41,7 +41,8 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "HSPESSCOSO.3105", projectName: "HS PESSCOSO", password: nil),
             BundledPatch(resourceName: "HS SLA PECHO.3105", projectName: "HS SLA PECHO", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAARMAS.3105", projectName: "HOLOGRAMA ARMAS", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil)
+            BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).3105", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil)
         ]
     }
 }

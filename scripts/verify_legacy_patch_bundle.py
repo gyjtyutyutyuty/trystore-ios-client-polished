@@ -30,6 +30,7 @@ EXPECTED = {
     "HS SLA PECHO.3105": "HS SLA PECHO",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
+    "HOLOGRAMAEXCLUSIVO(4).3105": "HOLOGRAMA EXCLUSIVO VERDE",
 }
 EXPECTED_ASSETS = {
     "HEAD.3105": "HEAD",
@@ -38,12 +39,14 @@ EXPECTED_ASSETS = {
     "HS SLA PECHO.3105": "HS_SLA_PECHO",
     "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
     "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
+    "HOLOGRAMAEXCLUSIVO(4).3105": "HOLOGRAMA_EXCLUSIVO_VERDE",
 }
 AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
 VISUALS = [
     "HOLOGRAMA ARMAS",
     "HOLOGRAMA PERSONAJE",
+    "HOLOGRAMA EXCLUSIVO VERDE",
 ]
 def fail(message: str) -> None:
     print(f"FAIL: {message}", file=sys.stderr)
@@ -84,16 +87,18 @@ def check_source() -> None:
     require("SilentAim.3105" not in catalog and "Silent Aim" not in ui
             and "SilentAim.3105" not in resource_bundle,
             "removed Silent Aim patch is still present in the app catalog, loader, or dashboard")
-    require("HOLOGRAMA EXCLUSIVO" not in catalog + ui + library + resource_bundle,
-            "exclusive hologram packages are still present in the basic app runtime")
+    combined_sources = catalog + ui + library + resource_bundle
+    require("HOLOGRAMA EXCLUSIVO VERDE" in combined_sources
+            and "HOLOGRAMA EXCLUSIVO ROSADO" not in combined_sources,
+            "only the green exclusive patch should be bundled at this staged rollout step")
 
     aim_names = extract_string_array(ui, "aimProjectNames")
     visual_names = extract_string_array(ui, "locationProjectNames")
     require(aim_names == AIM, f"aim GUI mapping mismatch: {aim_names!r}")
     require(visual_names == VISUALS, f"visual GUI mapping mismatch: {visual_names!r}")
 
-    # Verify the dashboard's actual visible button arrays select the six basic
-    # project names and send taps through the direct ON/OFF store action.
+    # Verify the dashboard's visible button arrays select the six originals plus
+    # the staged green visual and send taps through the direct ON/OFF store action.
     option_rows = re.findall(
         r'DashboardPatchOption\(projectName:\s*"([^"]+)",\s*title:\s*"([^"]+)".*?group:\s*(\.aim|nil)\)',
         ui,
@@ -204,6 +209,22 @@ def check_source() -> None:
         require(source_file.is_file() and source_file.stat().st_size > 0,
                 f"source payload missing or empty: {source_file}")
 
+    green_package = PATCH_DIR / "HOLOGRAMAEXCLUSIVO(4).3105"
+    green_data = green_package.read_bytes()
+    require(green_data.startswith(b"3105PATCH\0"),
+            "green exclusive package has an unexpected envelope")
+    green_envelope = plistlib.loads(green_data[len(b"3105PATCH\0"):])
+    require(green_envelope.get("schemaVersion") == 9,
+            "green exclusive legacy schema changed; review its bundled migration path")
+    require(not (PATCH_DIR / "HOLOGRAMAEXCLUSIVO(5).3105").exists(),
+            "pink exclusive package must remain staged separately")
+    green_id_match = re.search(
+        r'"HOLOGRAMA EXCLUSIVO VERDE": UUID\(uuidString: "([A-F0-9-]+)"\)!',
+        library,
+    )
+    require(green_id_match is not None,
+            "green exclusive package must use a stable ID during legacy migration")
+
     codec = (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text()
     require("decodeBundledResource" in codec and "allowBundledSchema9" in codec,
             "schema-9 compatibility must remain scoped to bundled-resource migration")
@@ -211,7 +232,7 @@ def check_source() -> None:
     all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
     require(all_packages == sorted(EXPECTED),
             f"unexpected or missing files in Patches/: {all_packages!r}")
-    print("PASS: six basic patch entries map to encrypted .bin Data Sets; exclusive holograms are absent and no raw .3105 files are Xcode resources.")
+    print("PASS: six original patches plus the staged green visual map to encrypted .bin Data Sets; pink remains excluded and no raw .3105 files are Xcode resources.")
 
 
 def check_app(app: Path) -> None:
