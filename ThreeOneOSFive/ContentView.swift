@@ -195,7 +195,8 @@ private struct DashboardPatchOption: Identifiable {
 
     static let visuals = [
         DashboardPatchOption(projectName: "HOLOGRAMA ARMAS", title: "HOLOGRAMA ARMAS", icon: "sparkles", color: .purple, group: nil),
-        DashboardPatchOption(projectName: "HOLOGRAMA PERSONAJE", title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, group: nil)
+        DashboardPatchOption(projectName: "HOLOGRAMA PERSONAJE", title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, group: nil),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "HOLOGRAMA EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil)
     ]
 
     static var all: [DashboardPatchOption] { loadout + visuals }
@@ -1171,7 +1172,7 @@ private extension FreeFireGame {
     }
 
     var locationProjectNames: [String] {
-        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
+        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "HOLOGRAMA EXCLUSIVO VERDE"]
     }
 
     var openGameKey: String {
@@ -1321,6 +1322,7 @@ private struct FreeFirePatchView: View {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
         case "HOLOGRAMA ARMAS": return "HOLOGRAMA ARMAS"
         case "HOLOGRAMA PERSONAJE": return "HOLOGRAMA PERSONAJE"
+        case "HOLOGRAMA EXCLUSIVO VERDE": return "HOLOGRAMA EXCLUSIVO VERDE"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }
