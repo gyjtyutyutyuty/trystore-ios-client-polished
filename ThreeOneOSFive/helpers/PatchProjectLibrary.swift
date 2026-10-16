@@ -242,8 +242,10 @@ enum PatchProjectLibrary {
                     }
                 }
                 byID[summary.packageID] = item
+            } catch let error as PatchPackageError {
+                log("patch: skipped invalid local package \(url.lastPathComponent): \(error.localizedDescription)")
             } catch {
-                log("patch: skipped invalid local package \(url.lastPathComponent)")
+                log("patch: skipped invalid local package \(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
         return byID.values.sorted {

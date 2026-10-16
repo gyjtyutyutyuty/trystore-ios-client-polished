@@ -33,6 +33,14 @@ has_export() {
   grep -a -q "$symbol" "$archive"
 }
 
+has_stale_grappa_lookup() {
+  local archive="$1"
+  # Older archives resolved the app-owned helper with dlsym(RTLD_DEFAULT).
+  # That lookup is not reliable once the iOS 27 linker strips the symbol.
+  # The current Rust implementation uses a direct external reference instead.
+  grep -a -q 'ALGetGrappaToken symbol not found' "$archive"
+}
+
 verify_archive() {
   local archive="$1"
   test -s "$archive" || return 1
@@ -42,6 +50,10 @@ verify_archive() {
       return 1
     fi
   done
+  if has_stale_grappa_lookup "$archive"; then
+    echo "Airlift archive contains the stale dynamic Grappa lookup; rebuild it from current sources." >&2
+    return 1
+  fi
 }
 
 if [[ "$REBUILD_AIRLIFT" != "1" ]]; then
