@@ -78,14 +78,14 @@
 "dashboard.device_name" = "Tên thiết bị";
 "dashboard.hardware_model" = "Model phần cứng";
 "dashboard.access_footer" = "App chỉ báo thành công sau khi tệp hệ thống thực sự mở được ở chế độ đọc và ghi.";
-"dashboard.unsupported_footer" = "iOS %@ (%@) nằm ngoài phạm vi đã xác minh. Hỗ trợ: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4 và Public Beta 1–2.";
+"dashboard.unsupported_footer" = "iOS %@ (%@) nằm ngoài phạm vi đã xác minh. Hỗ trợ: iOS 17.0–17.7.x, iOS 18.0–18.7.10, iOS 26.0–26.7, iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4 và Public Beta 1–2.";
 "dashboard.app_browser" = "Duyệt dữ liệu ứng dụng";
 "dashboard.browser" = "Trình duyệt file";
 "dashboard.open_browser" = "Mở trình duyệt file";
 "dashboard.browser_footer" = "Duyệt và đọc dữ liệu từ mọi ứng dụng và system container trên thiết bị.";
 "dashboard.device_actions_warning" = "Hãy lưu thay đổi trước khi khởi động lại thiết bị.";
 "dashboard.unsupported_device" = "Thiết bị không được hỗ trợ";
-"dashboard.unsupported_message" = "iOS %@ chưa được hỗ trợ.\n\nCác phiên bản hiện được hỗ trợ:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
+"dashboard.unsupported_message" = "iOS %@ chưa được hỗ trợ.\n\nCác phiên bản hiện được hỗ trợ:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.10\n• iOS 26.0–26.7\n• iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
 "dashboard.installation" = "Cài đặt ứng dụng";
 "dashboard.kernel_status" = "Trạng thái kernel";
 "dashboard.kernel_running" = "Đang kích hoạt…";
@@ -217,10 +217,10 @@
 "patch.error.app_unavailable" = "Bundle app %@ chưa được cài hoặc không thể mở. Patch chưa thay đổi file nào.";
 "patch.error.symlink" = "Đường dẫn patch không được đi qua liên kết tượng trưng.";
 "patch.error.apply" = "Không thể áp dụng patch. Mọi file đã ghi trước đó đã được rollback.";
-"patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.10 và iOS 27+, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";
+"patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.10 và iOS 26+, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";
 "patch.operation_in_progress" = "Đang xử lý patch…";
 "patch.error.pairing_file_missing" = "Chưa có file pairing. Hãy ghép nối hoặc nhập file pairing trước.";
-"patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 không hỗ trợ pairing trực tiếp. Hãy nhập file pairing trước.";
+"patch.error.pairing_file_import_required" = "Hãy nhập tệp pairing do AirCard tạo trước khi áp dụng hoặc khôi phục patch trên phiên bản iOS này.";
 "patch.error.remote_target_missing" = "Không tìm thấy file đích hoặc thư mục cha. Remote patch chỉ thay file đã tồn tại.";
 "patch.error.remote_replacement_failed" = "Không thể thay file qua pairing: %@";
 "patch.error.restore" = "Không thể khôi phục file gốc an toàn. App không ghi đè đích chưa được xác minh.";
@@ -253,7 +253,7 @@
 "settings.pairing_supported" = "iOS hỗ trợ";
 "settings.pairing_ready" = "Sẵn sàng";
 "settings.pairing_missing" = "Chưa có file pairing";
-"settings.pairing_direct_note" = "Trên iOS 27, ghép trực tiếp bằng nút bên dưới; các phiên bản khác có thể nhập file pairing.";
+"settings.pairing_direct_note" = "Trên iOS 27+, dùng nút bên dưới để ghép nối trực tiếp. Trên iOS 26 và iOS 18.7.2–18.7.10, kết nối LocalDevVPN và nhập tệp pairing AirCard.";
 "settings.pair_on_this_iphone" = "Lấy pairing trên iPhone này";
 "settings.pairing_in_progress" = "Đang lấy pairing…";
 "settings.stop_pairing" = "Dừng ghép nối";
@@ -292,7 +292,7 @@
 "settings.beta_build" = "Beta %lld · %@";
 "settings.developer_beta_build" = "Developer Beta %lld · %@";
 "settings.developer_public_beta_build" = "Developer Beta %lld / Public Beta %lld · %@";
-"settings.supported_range_summary" = "Đã xác minh: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4 và Public Beta 1–2.";
+"settings.supported_range_summary" = "Đã xác minh: iOS 17.0–17.7.x, iOS 18.0–18.7.10, iOS 26.0–26.7 (ghép nối AirCard), iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4 và Public Beta 1–2.";
 
 "kernel.section_title" = "Kernel Exploit";
 "kernel.run_exploit" = "Chạy Kernel Exploit";
@@ -606,3 +606,5 @@
 "license.forget_message" = "Khóa sẽ bị xóa khỏi iPhone này. Cần nhập khóa để mở lại bảng điều khiển.";
 "license.forget_action" = "Xóa khóa";
 "license.cancel" = "Hủy";
+
+"patch.error.container_lookup_failed" = "Không thể tìm bundle %@ qua AirCard. Hãy khởi động lại iPhone, kết nối lại LocalDevVPN rồi thử lại. Chi tiết: %@. Không có tệp patch nào bị thay đổi.";

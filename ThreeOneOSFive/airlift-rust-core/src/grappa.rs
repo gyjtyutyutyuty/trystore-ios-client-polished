@@ -1,41 +1,15 @@
 use std::ffi::CStr;
 
-#[cfg(not(test))]
-unsafe extern "C" {
-    #[link_name = "ALGetGrappaToken"]
-    fn al_get_grappa_token(
-        in_version: u32,
-        in_device_type: u32,
-        in_protocol_version: u32,
-        out_buf: *mut u8,
-        max_len: usize,
-        out_len: *mut usize,
-        err_buf: *mut libc::c_char,
-        err_len: usize,
-    ) -> libc::c_int;
-}
-
-#[cfg(test)]
-unsafe fn al_get_grappa_token(
-    _in_version: u32,
-    _in_device_type: u32,
-    _in_protocol_version: u32,
+type ALGetGrappaTokenFn = unsafe extern "C" fn(
+    in_version: u32,
+    in_device_type: u32,
+    in_protocol_version: u32,
     out_buf: *mut u8,
     max_len: usize,
     out_len: *mut usize,
-    _err_buf: *mut libc::c_char,
-    _err_len: usize,
-) -> libc::c_int {
-    let token = b"test-grappa-token";
-    if out_buf.is_null() || out_len.is_null() || max_len < token.len() {
-        return -1;
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(token.as_ptr(), out_buf, token.len());
-        *out_len = token.len();
-    }
-    0
-}
+    err_buf: *mut libc::c_char,
+    err_len: usize,
+) -> libc::c_int;
 
 /// Generate an authentic Grappa client token for AirTraffic sync.
 ///
@@ -46,12 +20,23 @@ pub fn generate_grappa_token<F: Fn(&str)>(
     log: F,
 ) -> Option<Vec<u8>> {
     unsafe {
+        // Resolve ALGetGrappaToken dynamically (from GrappaHelper.m compiled into the app)
+        let sym_name = b"ALGetGrappaToken\0";
+        let sym_ptr = libc::dlsym(libc::RTLD_DEFAULT, sym_name.as_ptr() as _);
+
+        if sym_ptr.is_null() {
+            log("airlift: grappa: ALGetGrappaToken symbol not found");
+            return None;
+        }
+
+        let get_token_fn: ALGetGrappaTokenFn = std::mem::transmute(sym_ptr);
+
         let (ver, dt, pv) = device_info.unwrap_or((1, 0, 1));
         let mut buf = vec![0u8; 512];
         let mut out_len: usize = 0;
         let mut err_buf = [0 as libc::c_char; 256];
 
-        let rc = al_get_grappa_token(
+        let rc = get_token_fn(
             ver,
             dt,
             pv,
@@ -64,27 +49,12 @@ pub fn generate_grappa_token<F: Fn(&str)>(
 
         if rc != 0 || out_len == 0 {
             let err_str = CStr::from_ptr(err_buf.as_ptr()).to_string_lossy();
-            log(&format!(
-                "airlift: grappa: token generation failed (rc={rc}): {err_str}"
-            ));
+            log(&format!("airlift: grappa: token generation failed (rc={rc}): {err_str}"));
             return None;
         }
 
         buf.truncate(out_len);
-        log(&format!(
-            "airlift: grappa: successfully generated authentic Grappa token ({out_len} bytes) ✅"
-        ));
+        log(&format!("airlift: grappa: successfully generated authentic Grappa token ({out_len} bytes) ✅"));
         Some(buf)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::generate_grappa_token;
-
-    #[test]
-    fn calls_linked_token_helper() {
-        let token = generate_grappa_token(None, |_| {}).expect("test helper token");
-        assert_eq!(token, b"test-grappa-token");
     }
 }

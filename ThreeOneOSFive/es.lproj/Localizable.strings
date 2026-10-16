@@ -27,7 +27,7 @@
 "settings.pairing_supported" = "Compatible con iOS";
 "settings.pairing_ready" = "Listo";
 "settings.pairing_missing" = "No hay archivo de emparejamiento";
-"settings.pairing_direct_note" = "En iOS 27, usa el botón de abajo para emparejar directamente; en otras versiones puedes importar un archivo.";
+"settings.pairing_direct_note" = "En iOS 27+, usa el botón de abajo para emparejar directamente. En iOS 26 y iOS 18.7.2–18.7.10, conecta LocalDevVPN e importa un archivo de AirCard.";
 "settings.pair_on_this_iphone" = "Emparejar en este iPhone";
 "settings.pairing_in_progress" = "Emparejando…";
 "settings.stop_pairing" = "Detener emparejamiento";
@@ -54,10 +54,10 @@
 "update.agree" = "OK";
 "update.dismiss" = "No volver a mostrar";
 "patch.error.wrong_password" = "Contraseña incorrecta.";
-"patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.10 y iOS 27+, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
+"patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.10 y iOS 26+, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
 "patch.operation_in_progress" = "Procesando parche…";
 "patch.error.pairing_file_missing" = "No hay un archivo de emparejamiento. Empareja este iPhone o importa uno primero.";
-"patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 no admite el emparejamiento directo. Importa un archivo de emparejamiento primero.";
+"patch.error.pairing_file_import_required" = "Importa el archivo de emparejamiento generado por AirCard antes de aplicar o restaurar un parche en esta versión de iOS.";
 "patch.error.remote_target_missing" = "No se encontró el archivo o la carpeta de destino. Los parches remotos solo reemplazan archivos existentes.";
 "patch.error.remote_replacement_failed" = "No se pudo reemplazar el archivo mediante el emparejamiento: %@";
 "freefire.title" = "Free Fire Max";
@@ -119,14 +119,14 @@
 "dashboard.device_name" = "Nombre del dispositivo";
 "dashboard.hardware_model" = "Modelo de hardware";
 "dashboard.access_footer" = "El acceso solo se reporta como exitoso después de abrir el archivo del sistema en modo lectura y escritura.";
-"dashboard.unsupported_footer" = "iOS %@ (%@) está fuera del rango verificado. Compatible: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4 y Public Beta 1–2.";
+"dashboard.unsupported_footer" = "iOS %@ (%@) está fuera del rango verificado. Compatible: iOS 17.0–17.7.x, iOS 18.0–18.7.10, iOS 26.0–26.7, iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4 y Public Beta 1–2.";
 "dashboard.app_browser" = "Navegador de datos de la app";
 "dashboard.browser" = "Navegador de archivos";
 "dashboard.open_browser" = "Abrir navegador de archivos";
 "dashboard.browser_footer" = "Navega y lee datos de todas las apps y contenedores del sistema en este dispositivo.";
 "dashboard.device_actions_warning" = "Guarda los cambios pendientes antes de reiniciar el dispositivo.";
 "dashboard.unsupported_device" = "Dispositivo no compatible";
-"dashboard.unsupported_message" = "iOS %@ todavía no es compatible.\n\nActualmente compatible:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
+"dashboard.unsupported_message" = "iOS %@ todavía no es compatible.\n\nActualmente compatible:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.10\n• iOS 26.0–26.7\n• iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
 "dashboard.installation" = "Instalación";
 "dashboard.kernel_status" = "Estado del kernel";
 "dashboard.kernel_running" = "Activando…";
@@ -198,3 +198,5 @@
 "license.forget_message" = "La clave se eliminará de este iPhone. Se necesitará otra clave para volver a abrir la consola.";
 "license.forget_action" = "Olvidar clave";
 "license.cancel" = "Cancelar";
+
+"patch.error.container_lookup_failed" = "No se pudo resolver el bundle %@ mediante AirCard. Reinicia el iPhone, vuelve a conectar LocalDevVPN e inténtalo de nuevo. Detalles: %@. No se modificó ningún archivo del parche.";
