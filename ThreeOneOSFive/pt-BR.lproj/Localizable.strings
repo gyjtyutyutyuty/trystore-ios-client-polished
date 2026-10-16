@@ -27,7 +27,7 @@
 "settings.pairing_supported" = "Compatível com iOS";
 "settings.pairing_ready" = "Pronto";
 "settings.pairing_missing" = "Arquivo de pareamento ausente";
-"settings.pairing_direct_note" = "No iOS 27, use o botão abaixo para parear diretamente; nas outras versões, importe um arquivo de pareamento.";
+"settings.pairing_direct_note" = "No iOS 27+, use o botão abaixo para parear diretamente. No iOS 26 e iOS 18.7.2–18.7.10, conecte o LocalDevVPN e importe um arquivo do AirCard.";
 "settings.pair_on_this_iphone" = "Parear neste iPhone";
 "settings.pairing_in_progress" = "Pareando…";
 "settings.stop_pairing" = "Parar pareamento";
@@ -54,10 +54,10 @@
 "update.agree" = "OK";
 "update.dismiss" = "Não mostrar novamente";
 "patch.error.wrong_password" = "Senha incorreta.";
-"patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.10 e iOS 27+, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
+"patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.10 e iOS 26+, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
 "patch.operation_in_progress" = "Processando patch…";
 "patch.error.pairing_file_missing" = "Não há arquivo de pareamento. Pareie este iPhone ou importe um arquivo primeiro.";
-"patch.error.pairing_file_import_required" = "O iOS 18.7.2–18.7.10 não oferece pareamento direto. Importe um arquivo de pareamento primeiro.";
+"patch.error.pairing_file_import_required" = "Importe o arquivo de pareamento gerado pelo AirCard antes de aplicar ou restaurar um patch nesta versão do iOS.";
 "patch.error.remote_target_missing" = "O arquivo ou diretório de destino não foi encontrado. Patches remotos só substituem arquivos existentes.";
 "patch.error.remote_replacement_failed" = "Não foi possível substituir o arquivo pelo pareamento: %@";
 "freefire.title" = "Free Fire Max";
@@ -119,14 +119,14 @@
 "dashboard.device_name" = "Nome do dispositivo";
 "dashboard.hardware_model" = "Modelo de hardware";
 "dashboard.access_footer" = "O acesso só é reportado como bem-sucedido após abrir o arquivo do sistema em modo leitura e gravação.";
-"dashboard.unsupported_footer" = "iOS %@ (%@) está fora da faixa verificada. Suportado: iOS 17.0–17.7.x, iOS 18.0–18.7.1, iOS 26.0–26.6.1, iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4 e Public Beta 1–2.";
+"dashboard.unsupported_footer" = "iOS %@ (%@) está fora da faixa verificada. Suportado: iOS 17.0–17.7.x, iOS 18.0–18.7.10, iOS 26.0–26.7, iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4 e Public Beta 1–2.";
 "dashboard.app_browser" = "Navegador de dados do app";
 "dashboard.browser" = "Navegador de arquivos";
 "dashboard.open_browser" = "Abrir navegador de arquivos";
 "dashboard.browser_footer" = "Navegue e leia dados de todos os apps e containers do sistema neste dispositivo.";
 "dashboard.device_actions_warning" = "Salve as alterações pendentes antes de reiniciar o dispositivo.";
 "dashboard.unsupported_device" = "Dispositivo não suportado";
-"dashboard.unsupported_message" = "O iOS %@ ainda não é suportado.\n\nAtualmente suportado:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0.1 (24A446), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
+"dashboard.unsupported_message" = "O iOS %@ ainda não é suportado.\n\nAtualmente suportado:\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.10\n• iOS 26.0–26.7\n• iOS 27.0.1 (24A446), iOS 27.2 (24B5084k, 24B5089g), iOS 27.0 Developer Beta 1–4\n• iOS 27.0 Public Beta 1–2";
 "dashboard.installation" = "Instalação";
 "dashboard.kernel_status" = "Status do kernel";
 "dashboard.kernel_running" = "Ativando…";
@@ -198,3 +198,5 @@
 "license.forget_message" = "A chave será removida deste iPhone. Uma chave será necessária para abrir o console novamente.";
 "license.forget_action" = "Esquecer chave";
 "license.cancel" = "Cancelar";
+
+"patch.error.container_lookup_failed" = "Não foi possível localizar o bundle %@ pelo AirCard. Reinicie o iPhone, reconecte o LocalDevVPN e tente novamente. Detalhes: %@. Nenhum arquivo de patch foi alterado.";

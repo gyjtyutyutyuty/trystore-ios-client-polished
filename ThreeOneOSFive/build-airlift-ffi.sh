@@ -20,6 +20,9 @@ required_exports=(
   al_exploit_inject_folder
   al_find_app_container
   al_device_respring
+  al_set_target_host
+  al_set_target_hosts
+  al_clear_target_hosts
 )
 
 has_export() {

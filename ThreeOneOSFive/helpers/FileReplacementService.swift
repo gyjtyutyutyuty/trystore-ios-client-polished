@@ -62,7 +62,7 @@ enum FileReplacementError: Error, Equatable, LocalizedError {
     case pairingFileMissing
     case bundleIdentifierMissing
     case remotePathUnsafe
-    case remoteContainerUnavailable
+    case remoteContainerUnavailable(String)
     case remoteReplacementFailed(String)
 
     var errorDescription: String? {
@@ -79,7 +79,7 @@ enum FileReplacementError: Error, Equatable, LocalizedError {
         case .pairingFileMissing: return "Import or create a pairing file before replacing this file."
         case .bundleIdentifierMissing: return "The app container could not be identified for remote replacement."
         case .remotePathUnsafe: return "The remote target path is invalid."
-        case .remoteContainerUnavailable: return "The remote app container could not be resolved over the pairing tunnel."
+        case .remoteContainerUnavailable(let detail): return detail
         case .remoteReplacementFailed(let detail): return detail
         }
     }
@@ -422,11 +422,14 @@ enum FileReplacementService {
             if let containerPointer { al_string_free(containerPointer) }
             if let errorPointer { al_string_free(errorPointer) }
         }
+        let lookupDetail = errorPointer.flatMap { String(validatingUTF8: $0) }
         guard returnCode == 0,
               let containerPointer,
               let containerPath = String(validatingUTF8: containerPointer),
               containerPath.hasPrefix("/var/mobile/Containers/Data/Application/") else {
-            throw FileReplacementError.remoteContainerUnavailable
+            throw FileReplacementError.remoteContainerUnavailable(
+                lookupDetail ?? "Airlift could not resolve the app container (code \(returnCode))."
+            )
         }
         return containerPath
     }

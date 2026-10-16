@@ -10,7 +10,7 @@
 
 <p align="center">
   <img alt="Phiên bản" src="https://img.shields.io/badge/phiên%20bản-1.1.1-E6753A?style=flat-square">
-  <img alt="iOS" src="https://img.shields.io/badge/iOS-26.0–26.6.1%20%7C%2027%20beta%201–4-222222?style=flat-square">
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-26.0–26.7%20%7C%2027%20beta%201–4-222222?style=flat-square">
   <img alt="Ngôn ngữ" src="https://img.shields.io/badge/ngôn%20ngữ-English%20%7C%20Tiếng%20Việt%20%7C%20简体中文-E6753A?style=flat-square">
 </p>
 
@@ -61,7 +61,7 @@ TryStore giữ nguyên GUI bản xem trước cosmetic, quyền truy cập thư 
 
 | Hệ thống | Phiên bản/build |
 | --- | --- |
-| iOS 26 | 26.0 đến 26.6.1 |
+| iOS 26 | 26.0 đến 26.7 |
 | iOS 27 Developer Beta 1 | `24A5355q` |
 | iOS 27 Developer Beta 2 | `24A5370h` |
 | iOS 27 Developer Beta 3 / Public Beta 1 | `24A5380h` |

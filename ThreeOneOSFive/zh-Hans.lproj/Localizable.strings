@@ -83,14 +83,14 @@
 "dashboard.device_name" = "设备名称";
 "dashboard.hardware_model" = "硬件型号";
 "dashboard.access_footer" = "只有成功以读写模式打开系统文件后，才会报告权限获取成功。";
-"dashboard.unsupported_footer" = "iOS %@（%@）不在已验证范围内。支持：iOS 17.0–17.7.x、iOS 18.0–18.7.1、iOS 26.0–26.6.1、iOS 27.0.1 (24A446)、iOS 27.0 开发者 Beta 1–4 和公开 Beta 1–2。";
+"dashboard.unsupported_footer" = "iOS %@（%@）不在已验证范围内。支持：iOS 17.0–17.7.x、iOS 18.0–18.7.10、iOS 26.0–26.7、iOS 27.0.1 (24A446)、iOS 27.2 (24B5084k, 24B5089g)、iOS 27.0 开发者 Beta 1–4 和公开 Beta 1–2。";
 "dashboard.app_browser" = "应用数据浏览器";
 "dashboard.browser" = "文件浏览器";
 "dashboard.open_browser" = "打开文件浏览器";
 "dashboard.browser_footer" = "浏览并读取此设备上所有应用和系统容器中的数据。";
 "dashboard.device_actions_warning" = "重新启动设备前，请先保存尚未应用的更改。";
 "dashboard.unsupported_device" = "不支持的设备";
-"dashboard.unsupported_message" = "暂不支持 iOS %@。\n\n当前支持：\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.1\n• iOS 26.0–26.6.1\n• iOS 27.0.1 (24A446)、iOS 27.0 开发者 Beta 1–4\n• iOS 27.0 公开 Beta 1–2";
+"dashboard.unsupported_message" = "暂不支持 iOS %@。\n\n当前支持：\n• iOS 17.0–17.7.x\n• iOS 18.0–18.7.10\n• iOS 26.0–26.7\n• iOS 27.0.1 (24A446)、iOS 27.2 (24B5084k, 24B5089g)、iOS 27.0 开发者 Beta 1–4\n• iOS 27.0 公开 Beta 1–2";
 "dashboard.installation" = "应用安装";
 "dashboard.kernel_status" = "内核状态";
 "dashboard.kernel_running" = "正在激活…";
@@ -222,10 +222,10 @@
 "patch.error.app_unavailable" = "未安装应用 bundle %@，或无法打开该应用。未更改任何补丁文件。";
 "patch.error.symlink" = "补丁目标路径不能经过符号链接。";
 "patch.error.apply" = "无法应用补丁。之前的所有写入均已回滚。";
-"patch.error.pairing_tunnel_required" = "在 iOS 18.7.2–18.7.10 和 iOS 27+ 上，应用或恢复补丁前请先连接 LocalDevVPN。";
+"patch.error.pairing_tunnel_required" = "在 iOS 18.7.2–18.7.10 和 iOS 26+ 上，应用或恢复补丁前请先连接 LocalDevVPN。";
 "patch.operation_in_progress" = "正在处理补丁…";
 "patch.error.pairing_file_missing" = "没有配对文件。请先配对此 iPhone 或导入配对文件。";
-"patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 不支持直接配对。请先导入配对文件。";
+"patch.error.pairing_file_import_required" = "在此 iOS 版本应用或恢复补丁前，请先导入 AirCard 生成的配对文件。";
 "patch.error.remote_target_missing" = "未找到目标文件或父目录。远程补丁只替换已存在的文件。";
 "patch.error.remote_replacement_failed" = "无法通过配对替换文件：%@";
 "patch.error.restore" = "无法安全恢复原始文件。未覆盖任何未经验证的目标。";
@@ -258,7 +258,7 @@
 "settings.pairing_supported" = "iOS 支持";
 "settings.pairing_ready" = "就绪";
 "settings.pairing_missing" = "缺少配对文件";
-"settings.pairing_direct_note" = "iOS 27 可使用下方按钮直接配对；其他版本可以导入配对文件。";
+"settings.pairing_direct_note" = "iOS 27+ 可使用下方按钮直接配对。iOS 26 和 iOS 18.7.2–18.7.10 请连接 LocalDevVPN 并导入 AirCard 配对文件。";
 "settings.pair_on_this_iphone" = "在此 iPhone 上配对";
 "settings.pairing_in_progress" = "正在配对…";
 "settings.stop_pairing" = "停止配对";
@@ -297,7 +297,7 @@
 "settings.beta_build" = "Beta %lld · %@";
 "settings.developer_beta_build" = "开发者 Beta %lld · %@";
 "settings.developer_public_beta_build" = "开发者 Beta %lld / 公开 Beta %lld · %@";
-"settings.supported_range_summary" = "已验证：iOS 17.0–17.7.x、iOS 18.0–18.7.1、iOS 26.0–26.6.1、iOS 27.0.1 (24A446)、iOS 27.0 开发者 Beta 1–4 和公开 Beta 1–2。";
+"settings.supported_range_summary" = "已验证：iOS 17.0–17.7.x、iOS 18.0–18.7.10、iOS 26.0–26.7 (AirCard 配对)、iOS 27.0.1 (24A446)、iOS 27.2 (24B5084k, 24B5089g)、iOS 27.0 开发者 Beta 1–4 和公开 Beta 1–2。";
 
 "kernel.section_title" = "内核漏洞利用";
 "kernel.run_exploit" = "运行内核漏洞利用";
@@ -606,3 +606,5 @@
 "license.forget_message" = "此密钥将从此 iPhone 中移除。重新打开控制台需要再次输入密钥。";
 "license.forget_action" = "忘记密钥";
 "license.cancel" = "取消";
+
+"patch.error.container_lookup_failed" = "AirCard 无法解析应用包 %@。请重启 iPhone、重新连接 LocalDevVPN 后重试。详情：%@。未更改任何补丁文件。";

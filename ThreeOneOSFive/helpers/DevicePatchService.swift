@@ -108,10 +108,14 @@ enum DevicePatchService {
                     bundleID: bundleID
                 )
             } catch {
-                throw PatchPackageError.targetAppUnavailable(bundleID)
+                let detail = error.localizedDescription
+                log("patch: remote container lookup failed bundle=\(bundleID) detail=\(detail)")
+                throw PatchPackageError.remoteContainerLookupFailed(bundleID, detail)
             }
             guard ContainerStore.isApplicationContainerPath(path) else {
-                throw PatchPackageError.targetAppUnavailable(bundleID)
+                let detail = "Airlift returned an invalid application-container path: \(path)"
+                log("patch: remote container lookup failed bundle=\(bundleID) detail=\(detail)")
+                throw PatchPackageError.remoteContainerLookupFailed(bundleID, detail)
             }
             containerPaths[bundleID] = path
             roots[bundleID] = PatchPathValidator.canonicalFileURL(

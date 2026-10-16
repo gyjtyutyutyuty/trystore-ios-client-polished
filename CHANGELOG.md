@@ -3,6 +3,10 @@
 All notable user-facing changes are documented in this file.
 
 ## [Unreleased]
+### Fixed
+- Added AirCard-iOS host-route fallback for exact allowlisted iOS 26+ builds while retaining remote-read/rollback behavior; unsupported builds remain blocked.
+- Preserved AirCard's remote app-container lookup details and added English/Spanish restart-and-retry guidance.
+
 ### Documentation
 - Added the compatible patch-workspace guide from the supplied archive in English and Vietnamese.
 - Added the archive’s 1.0.1 release notes under `docs/releases/`.

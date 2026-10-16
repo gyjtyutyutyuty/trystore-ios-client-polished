@@ -107,7 +107,6 @@ enum ExploitSupportPolicy {
         .init(26, 6, 1, builds: ["23G83"]),
         .init(26, 6, 2, builds: ["23G90"]),
         .init(26, 7, builds: ["23H24"]),
-
         .init(27, 0, builds: verifiedIOS27BetaBuilds.map { $0.build } + ["24A435", "24A437"]),
         .init(27, 0, 1, builds: verifiedIOS27_0_1Builds),
         .init(27, 2, builds: ["24B5084k", "24B5089g"])
@@ -130,8 +129,8 @@ enum ExploitSupportPolicy {
     }
 
     static func requiresPairingTunnel(major: Int, minor: Int, patch: Int, build: String) -> Bool {
-        if major >= 27 {
-            return true
+        if major >= 26 {
+            return isSupported(major: major, minor: minor, patch: patch, build: build)
         }
 
         return major == 18
@@ -147,10 +146,8 @@ enum ExploitSupportPolicy {
             return true
         }
 
-        if major == 26 {
-            return true
-        }
-
-        return major == 27 && minor == 0 && patch == 0 && iOS27BetaNumber(for: build) != nil
+        // iOS 26+ is supported through AirCard pairing, not the legacy
+        // native-offset path (which rejects iOS 26.1 and later).
+        return false
     }
 }
