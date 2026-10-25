@@ -151,7 +151,8 @@ enum PatchProjectLibrary {
                let key = try? PatchKeyStore.load(for: existingSummary),
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
-                if let expectedID = bundledProjectIDs[projectName], existingDecoded.project.id != expectedID {
+                let expectedID = bundledProjectIDs[projectName] ?? source.decoded.project.id
+                if existingDecoded.project.id != expectedID {
                     try? PatchKeyStore.delete(for: existingSummary)
                     try? PatchWorkspaceService.deleteWorkspace(
                         projectID: existingDecoded.project.id,
