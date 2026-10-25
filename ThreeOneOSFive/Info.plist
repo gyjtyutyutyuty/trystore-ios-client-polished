@@ -66,6 +66,7 @@
             <dict>
                 <key>public.filename-extension</key>
                 <array>
+                    <string>TRYSTORE</string>
                     <string>3105</string>
                 </array>
                 <key>public.mime-type</key>

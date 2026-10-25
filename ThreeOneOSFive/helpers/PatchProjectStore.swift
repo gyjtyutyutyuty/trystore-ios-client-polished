@@ -36,12 +36,14 @@ enum FreeFireGame: Hashable {
 
     var bundledPatches: [BundledPatch] {
         [
-            BundledPatch(resourceName: "HEAD.3105", projectName: "HEAD", password: nil),
-            BundledPatch(resourceName: "NECK.3105", projectName: "NECK", password: nil),
-            BundledPatch(resourceName: "HSPESSCOSO.3105", projectName: "HS PESSCOSO", password: nil),
-            BundledPatch(resourceName: "HS SLA PECHO.3105", projectName: "HS SLA PECHO", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAARMAS.3105", projectName: "HOLOGRAMA ARMAS", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAPERSONAJE.3105", projectName: "HOLOGRAMA PERSONAJE", password: nil)
+            BundledPatch(resourceName: "HEAD.TRYSTORE", projectName: "HEAD", password: nil),
+            BundledPatch(resourceName: "NECK.TRYSTORE", projectName: "NECK", password: nil),
+            BundledPatch(resourceName: "HSPESSCOSO.TRYSTORE", projectName: "HS PESSCOSO", password: nil),
+            BundledPatch(resourceName: "HS SLA PECHO.TRYSTORE", projectName: "HS SLA PECHO", password: nil),
+            BundledPatch(resourceName: "BALAS.TRYSTORE", projectName: "BALAS", password: nil),
+            BundledPatch(resourceName: "ARMAS.TRYSTORE", projectName: "ARMAS", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil)
         ]
     }
 }
@@ -79,6 +81,9 @@ final class PatchProjectStore: ObservableObject {
             return
         }
         didInstallBundledResources = true
+        for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"] {
+            PatchProjectLibrary.removeBundledPackage(named: obsolete)
+        }
         for patch in game.bundledPatches {
             guard let data = resources[patch.resourceName] else {
                 log("patch: bundled patch asset unavailable: \(patch.resourceName)")
@@ -333,7 +338,7 @@ final class PatchProjectStore: ObservableObject {
     private static func group(for item: PatchLibraryItem) -> PatchToggleGroup? {
         let name = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
         switch name {
-        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO":
+        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS":
             return .aim
         default:
             return nil

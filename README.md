@@ -36,7 +36,7 @@
 ## What's new in 1.1.0
 
 - **Broader iOS support** — verified range now includes iOS 17.0–17.7.x (kernel exploit), iOS 18.0–18.7.1 (kernel exploit), iOS 26.0–26.6.1, iOS 27 Developer Beta 1–4 / Public Beta 1–2, and iOS 27.0.1 (24A446).
-- **Wrong-password feedback** — importing a `.3105` patch with an incorrect password now shows "Incorrect password" instead of failing silently.
+- **Wrong-password feedback** — importing a legacy `.3105` patch with an incorrect password now shows "Incorrect password" instead of failing silently.
 - **Onboarding for reinstalls** — onboarding reappears after overwriting the app with the same version, so fresh and overwritten installs both see the guided setup.
 
 See the complete [Patch workspace guide](docs/PATCH_GUIDE.md).
@@ -53,7 +53,7 @@ See the complete [Patch workspace guide](docs/PATCH_GUIDE.md).
 
 - **App Data Browser** — resolves volatile container UUIDs to stable app bundle identifiers and exposes a native file workspace.
 - **File operations** — search, preview, share, import multiple files, copy, move, paste, rename, delete, create files and folders, make ZIP archives, and safely handle name conflicts.
-- **Portable `.3105` patches** — bundle-based rules survive container-ID changes between devices; projects may include files or folders, support optional password protection, and can be imported from Files or a secure website link.
+- **Portable patch packages** — current bundled patches use `.TRYSTORE`; legacy `.3105` packages remain importable. Bundle-based rules survive container-ID changes between devices; projects may include files or folders, support optional password protection, and can be imported from Files or a secure website link.
 - **No jailbreak installation** — SupportPatch does not install a persistent jailbreak, bootstrap, or daemon and does not inject code into third-party apps. Because it still uses device exploits and can modify app data, no universal guarantee can be made against every app's integrity or jailbreak-detection policy.
 - **Localized interface** — English, Vietnamese, and Simplified Chinese.
 

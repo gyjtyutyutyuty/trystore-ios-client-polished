@@ -12,23 +12,23 @@ if (key.length !== 32) {
 
 // Keep asset catalog folder/file names recognizable in the repository.
 const assetNames = {
-  'HEAD.3105': 'HEAD',
-  'NECK.3105': 'NECK',
-  'HSPESSCOSO.3105': 'HS_PESSCOSO',
-  'HS SLA PECHO.3105': 'HS_SLA_PECHO',
-  'HOLOGRAMAARMAS.3105': 'HOLOGRAMA_ARMAS',
-  'HOLOGRAMAPERSONAJE.3105': 'HOLOGRAMA_PERSONAJE',
-  'HOLOGRAMAEXCLUSIVO(4).3105': 'HOLOGRAMA_EXCLUSIVO_VERDE',
-  'HOLOGRAMAEXCLUSIVO(5).3105': 'HOLOGRAMA_EXCLUSIVO_ROSADO',
+  'HEAD.TRYSTORE': 'HEAD',
+  'NECK.TRYSTORE': 'NECK',
+  'HSPESSCOSO.TRYSTORE': 'HS_PESSCOSO',
+  'HS SLA PECHO.TRYSTORE': 'HS_SLA_PECHO',
+  'BALAS.TRYSTORE': 'BALAS',
+  'ARMAS.TRYSTORE': 'ARMAS',
+  'HOLOGRAMAEXCLUSIVO(4).TRYSTORE': 'HOLOGRAMA_EXCLUSIVO_VERDE',
+  'HOLOGRAMAEXCLUSIVO(5).TRYSTORE': 'HOLOGRAMA_EXCLUSIVO_ROSADO',
 };
 
 const files = (await readdir(sourceDir, { withFileTypes: true }))
-  .filter(entry => entry.isFile() && entry.name.endsWith('.3105'))
+  .filter(entry => entry.isFile() && entry.name.endsWith('.TRYSTORE'))
   .map(entry => entry.name)
   .sort();
 if (files.length !== Object.keys(assetNames).length
     || files.some(name => !(name in assetNames))) {
-  throw new Error(`Expected exactly ${Object.keys(assetNames).length} known .3105 resources in ${sourceDir}`);
+  throw new Error(`Expected exactly ${Object.keys(assetNames).length} known .TRYSTORE resources in ${sourceDir}`);
 }
 
 for (const filename of files) {

@@ -24,26 +24,31 @@ ASSET_CATALOG = ROOT / "ThreeOneOSFive/Assets.xcassets"
 
 # resource filename -> project name shown/selected by the dashboard
 EXPECTED = {
-    "HEAD.3105": "HEAD",
-    "NECK.3105": "NECK",
-    "HSPESSCOSO.3105": "HS PESSCOSO",
-    "HS SLA PECHO.3105": "HS SLA PECHO",
-    "HOLOGRAMAARMAS.3105": "HOLOGRAMA ARMAS",
-    "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA PERSONAJE",
+    "HEAD.TRYSTORE": "HEAD",
+    "NECK.TRYSTORE": "NECK",
+    "HSPESSCOSO.TRYSTORE": "HS PESSCOSO",
+    "HS SLA PECHO.TRYSTORE": "HS SLA PECHO",
+    "BALAS.TRYSTORE": "BALAS",
+    "ARMAS.TRYSTORE": "ARMAS",
+    "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA EXCLUSIVO VERDE",
+    "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA EXCLUSIVO ROSADO",
 }
 EXPECTED_ASSETS = {
-    "HEAD.3105": "HEAD",
-    "NECK.3105": "NECK",
-    "HSPESSCOSO.3105": "HS_PESSCOSO",
-    "HS SLA PECHO.3105": "HS_SLA_PECHO",
-    "HOLOGRAMAARMAS.3105": "HOLOGRAMA_ARMAS",
-    "HOLOGRAMAPERSONAJE.3105": "HOLOGRAMA_PERSONAJE",
+    "HEAD.TRYSTORE": "HEAD",
+    "NECK.TRYSTORE": "NECK",
+    "HSPESSCOSO.TRYSTORE": "HS_PESSCOSO",
+    "HS SLA PECHO.TRYSTORE": "HS_SLA_PECHO",
+    "BALAS.TRYSTORE": "BALAS",
+    "ARMAS.TRYSTORE": "ARMAS",
+    "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA_EXCLUSIVO_VERDE",
+    "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA_EXCLUSIVO_ROSADO",
 }
-AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
-EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
+AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS"]
+EXCLUSIVE_AIM = ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS"]
 VISUALS = [
-    "HOLOGRAMA ARMAS",
-    "HOLOGRAMA PERSONAJE",
+    "HOLOGRAMA EXCLUSIVO VERDE",
+    "HOLOGRAMA EXCLUSIVO ROSADO",
+    "ARMAS",
 ]
 def fail(message: str) -> None:
     print(f"FAIL: {message}", file=sys.stderr)
@@ -81,18 +86,27 @@ def check_source() -> None:
             f"bundled catalog mismatch; found {catalog_entries!r}")
     require(len(catalog_entries) == len(EXPECTED),
             f"expected exactly {len(EXPECTED)} unique bundled catalog entries")
-    require("SilentAim.3105" not in catalog and "Silent Aim" not in ui
-            and "SilentAim.3105" not in resource_bundle,
+    require("SilentAim.TRYSTORE" not in catalog and "Silent Aim" not in ui
+            and "SilentAim.TRYSTORE" not in resource_bundle,
             "removed Silent Aim patch is still present in the app catalog, loader, or dashboard")
-    require("HOLOGRAMA EXCLUSIVO" not in catalog + ui + library + resource_bundle,
-            "exclusive hologram packages are still present in the basic app runtime")
+
+    info_plist = plistlib.loads((ROOT / "ThreeOneOSFive/Info.plist").read_bytes())
+    registered_extensions = {
+        extension
+        for declaration in info_plist.get("UTExportedTypeDeclarations", [])
+        for extension in declaration.get("UTTypeTagSpecification", {}).get("public.filename-extension", [])
+    }
+    require({"TRYSTORE", "3105"}.issubset(registered_extensions),
+            f"app document types must register .TRYSTORE and legacy .3105 imports: {registered_extensions!r}")
+    require(not any((ASSET_CATALOG / f"{name}.dataset").exists() for name in ("HOLOGRAMA_ARMAS", "HOLOGRAMA_PERSONAJE")),
+            "retired hologram asset catalogs are still bundled")
 
     aim_names = extract_string_array(ui, "aimProjectNames")
     visual_names = extract_string_array(ui, "locationProjectNames")
     require(aim_names == AIM, f"aim GUI mapping mismatch: {aim_names!r}")
     require(visual_names == VISUALS, f"visual GUI mapping mismatch: {visual_names!r}")
 
-    # Verify the dashboard's actual visible button arrays select the six basic
+    # Verify the dashboard's actual visible button arrays select all eight
     # project names and send taps through the direct ON/OFF store action.
     option_rows = re.findall(
         r'DashboardPatchOption\(projectName:\s*"([^"]+)",\s*title:\s*"([^"]+)".*?group:\s*(\.aim|nil)\)',
@@ -112,7 +126,7 @@ def check_source() -> None:
     require('Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))' in ui,
             "dashboard ON/OFF status label is missing or changed")
     require('$0.project?.name == option.projectName' in ui
-            and 'caseInsensitiveCompare("\\(option.projectName).3105")' in ui,
+            and 'caseInsensitiveCompare("\\(option.projectName).TRYSTORE")' in ui,
             "dashboard no longer resolves buttons to matching decoded projects/package files")
     require('DevicePatchService.latestReceipt(projectID: item.id) != nil' in ui
             and 'patchStore.setEnabled(!isActive, for: item, group: option.group' in ui,
@@ -162,7 +176,7 @@ def check_source() -> None:
     require('PatchTransaction.apply(' in device_service
             and 'PatchTransaction.restore(' in device_service,
             "device service apply/restore transaction path is missing")
-    require('case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO":' in catalog
+    require('case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS":' in catalog
             and 'return .aim' in catalog,
             "aim group exclusivity mapping is missing")
 
@@ -170,7 +184,7 @@ def check_source() -> None:
     resource_phase = re.search(r'3105A800 /\* Resources \*/ = \{.*?files = \((.*?)\);', pbx, re.S)
     require(resource_phase is not None, "SupportPatch resources build phase was not found")
     require('3105A211' in resource_phase.group(1)
-            and '.3105' not in resource_phase.group(1)
+            and '.TRYSTORE' not in resource_phase.group(1)
             and '.enc' not in resource_phase.group(1),
             "the asset catalog is not in the IPA Resources phase or a raw patch file is listed")
     source_phase = re.search(r'3105A700 /\* Sources \*/ = \{.*?files = \((.*?)\);', pbx, re.S)
@@ -204,20 +218,47 @@ def check_source() -> None:
         require(source_file.is_file() and source_file.stat().st_size > 0,
                 f"source payload missing or empty: {source_file}")
 
+    # The two historical exclusive visual packages use schema 9 and share one
+    # package UUID. Migrate only through the scoped bundled loader and assign
+    # distinct stable IDs before they enter the UUID-indexed library.
+    exclusive_files = [
+        PATCH_DIR / "HOLOGRAMAEXCLUSIVO(4).TRYSTORE",
+        PATCH_DIR / "HOLOGRAMAEXCLUSIVO(5).TRYSTORE",
+    ]
+    exclusive_envelopes = [
+        plistlib.loads(path.read_bytes()[len(b"3105PATCH\0"):])
+        for path in exclusive_files
+    ]
+    require(all(envelope.get("schemaVersion") == 9 for envelope in exclusive_envelopes),
+            "exclusive visual legacy package schema changed; review its migration path")
+    require(exclusive_envelopes[0].get("packageID") == exclusive_envelopes[1].get("packageID"),
+            "legacy exclusive package IDs changed; review stable-ID migration")
+    require("decodeBundledResource" in (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text()
+            and "allowBundledSchema9" in (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text(),
+            "schema-9 compatibility must be restricted to bundled-resource migration")
+    id_matches = re.search(
+        r'"HOLOGRAMA EXCLUSIVO VERDE": UUID\(uuidString: "([A-F0-9-]+)"\)!.*?'
+        r'"HOLOGRAMA EXCLUSIVO ROSADO": UUID\(uuidString: "([A-F0-9-]+)"\)!',
+        library,
+        re.S,
+    )
+    require(id_matches is not None and id_matches.group(1) != id_matches.group(2),
+            "exclusive visual packages must be assigned distinct stable package UUIDs")
+
     codec = (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text()
     require("decodeBundledResource" in codec and "allowBundledSchema9" in codec,
             "schema-9 compatibility must remain scoped to bundled-resource migration")
 
-    all_packages = sorted(p.name for p in PATCH_DIR.glob("*.3105"))
+    all_packages = sorted(p.name for p in PATCH_DIR.glob("*.TRYSTORE"))
     require(all_packages == sorted(EXPECTED),
             f"unexpected or missing files in Patches/: {all_packages!r}")
-    print("PASS: six basic patch entries map to encrypted .bin Data Sets; exclusive holograms are absent and no raw .3105 files are Xcode resources.")
+    print("PASS: eight patch entries, including BALAS, ARMAS, and green/pink exclusives, map to encrypted .bin Data Sets; no raw .TRYSTORE files are Xcode resources.")
 
 
 def check_app(app: Path) -> None:
     require(app.is_dir(), f"app bundle does not exist: {app}")
     files = [path for path in app.rglob("*") if path.is_file()]
-    leaked = [path for path in files if path.name.endswith((".3105", ".3105.enc"))]
+    leaked = [path for path in files if path.name.endswith((".TRYSTORE", ".TRYSTORE.enc"))]
     require(not leaked, f"standalone plaintext patch files are visible in the built app: {leaked!r}")
     asset_bin_names = {f"{asset_name}.bin" for asset_name in EXPECTED_ASSETS.values()}
     asset_bins = [path for path in files if path.name in asset_bin_names]

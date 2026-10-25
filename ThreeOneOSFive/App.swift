@@ -186,6 +186,9 @@ class AppState: ObservableObject {
         case .blockedByDebug:
             securityBlocked = true
             securityMessage = "Debugger đang được phát hiện."
+        case .blockedByInstrumentation:
+            securityBlocked = true
+            securityMessage = "Môi trường instrument không được phép chạy phiên bản này."
         case .blockedBySimulator:
             securityBlocked = true
             securityMessage = "Môi trường giả lập không được phép chạy phiên bản này."

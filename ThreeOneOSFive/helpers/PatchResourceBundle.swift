@@ -8,12 +8,14 @@ enum PatchResourceBundle {
     }
 
     private static let assets: [(resourceName: String, assetName: String)] = [
-        ("HEAD.3105", "HEAD"),
-        ("NECK.3105", "NECK"),
-        ("HSPESSCOSO.3105", "HS_PESSCOSO"),
-        ("HS SLA PECHO.3105", "HS_SLA_PECHO"),
-        ("HOLOGRAMAARMAS.3105", "HOLOGRAMA_ARMAS"),
-        ("HOLOGRAMAPERSONAJE.3105", "HOLOGRAMA_PERSONAJE")
+        ("HEAD.TRYSTORE", "HEAD"),
+        ("NECK.TRYSTORE", "NECK"),
+        ("HSPESSCOSO.TRYSTORE", "HS_PESSCOSO"),
+        ("HS SLA PECHO.TRYSTORE", "HS_SLA_PECHO"),
+        ("BALAS.TRYSTORE", "BALAS"),
+        ("ARMAS.TRYSTORE", "ARMAS"),
+        ("HOLOGRAMAEXCLUSIVO(4).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_VERDE"),
+        ("HOLOGRAMAEXCLUSIVO(5).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_ROSADO")
     ]
 
     static func load(using keyData: Data) throws -> [String: Data] {

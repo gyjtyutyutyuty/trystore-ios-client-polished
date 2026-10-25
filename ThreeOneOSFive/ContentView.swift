@@ -190,12 +190,14 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
-        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim)
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
+        DashboardPatchOption(projectName: "BALAS", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .aim)
     ]
 
     static let visuals = [
-        DashboardPatchOption(projectName: "HOLOGRAMA ARMAS", title: "HOLOGRAMA ARMAS", icon: "sparkles", color: .purple, group: nil),
-        DashboardPatchOption(projectName: "HOLOGRAMA PERSONAJE", title: "HOLOGRAMA PERSONAJE", icon: "person.crop.circle.badge.sparkles", color: .pink, group: nil)
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil),
+        DashboardPatchOption(projectName: "ARMAS", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil)
     ]
 
     static var all: [DashboardPatchOption] { loadout + visuals }
@@ -807,7 +809,7 @@ private struct DashboardView: View {
         let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
         let item = patchStore.items.first {
             $0.project?.name == option.projectName
-                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
         }
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
 
@@ -1167,11 +1169,11 @@ private extension FreeFireGame {
     }
 
     var aimProjectNames: [String] {
-        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO"]
+        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS"]
     }
 
     var locationProjectNames: [String] {
-        ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"]
+        ["HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS"]
     }
 
     var openGameKey: String {
@@ -1313,14 +1315,16 @@ private struct FreeFirePatchView: View {
         case "NECK": return "NECK"
         case "HS PESSCOSO": return "DRAG"
         case "HS SLA PECHO": return "PECHO"
+        case "BALAS": return "Balas Magicas"
         default: return item.project?.name ?? language.text("freefire.aim_file")
         }
     }
 
     private func locationDisplayName(for item: PatchLibraryItem) -> String {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "HOLOGRAMA ARMAS": return "HOLOGRAMA ARMAS"
-        case "HOLOGRAMA PERSONAJE": return "HOLOGRAMA PERSONAJE"
+        case "HOLOGRAMA EXCLUSIVO VERDE": return "EXCLUSIVO VERDE"
+        case "HOLOGRAMA EXCLUSIVO ROSADO": return "EXCLUSIVO ROSADO"
+        case "ARMAS": return "Azul Exclusivo"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }

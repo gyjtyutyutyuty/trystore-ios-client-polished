@@ -19,10 +19,14 @@ struct PatchPasswordRequest: Identifiable {
 }
 
 enum PatchProjectLibrary {
-    private static let bundledProjectIDs: [String: UUID] = [:]
+    private static let bundledProjectIDs: [String: UUID] = [
+        "HOLOGRAMA EXCLUSIVO VERDE": UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!,
+        "HOLOGRAMA EXCLUSIVO ROSADO": UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!
+    ]
+    private static let supportedPackageExtensions: Set<String> = ["trystore", "3105"]
     private static let bundledProjectNames: Set<String> = [
-        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO",
-        "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"
+        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "ARMAS",
+        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
     static func isBundledProject(_ project: PatchProject) -> Bool {
@@ -31,8 +35,10 @@ enum PatchProjectLibrary {
 
     static func removeBundledPackage(named projectName: String, fileManager: FileManager = .default) {
         guard let root = try? packageRootURL(fileManager: fileManager) else { return }
-        let destination = root.appendingPathComponent("\(projectName).3105")
-        try? fileManager.removeItem(at: destination)
+        for extensionName in ["TRYSTORE", "3105"] {
+            let destination = root.appendingPathComponent("\(projectName).\(extensionName)")
+            try? fileManager.removeItem(at: destination)
+        }
     }
 
     static func installBundledPackageIfNeeded(
@@ -48,7 +54,7 @@ enum PatchProjectLibrary {
               let root = try? packageRootURL(fileManager: fileManager) else { return }
 
         let packageName = projectName ?? resourceName
-        let destination = root.appendingPathComponent("\(packageName).3105")
+        let destination = root.appendingPathComponent("\(packageName).TRYSTORE")
         if fileManager.fileExists(atPath: destination.path) {
             if let existingData = try? readPackage(at: destination),
                let existingSummary = try? PatchPackageCodec.inspect(existingData),
@@ -138,7 +144,7 @@ enum PatchProjectLibrary {
             return
         }
 
-        let destination = root.appendingPathComponent("\(projectName).3105")
+        let destination = root.appendingPathComponent("\(projectName).TRYSTORE")
         if fileManager.fileExists(atPath: destination.path) {
             if let existingData = try? readPackage(at: destination),
                let existingSummary = try? PatchPackageCodec.inspect(existingData),
@@ -214,7 +220,7 @@ enum PatchProjectLibrary {
               ) else { return [] }
 
         var byID: [UUID: PatchLibraryItem] = [:]
-        for url in urls where url.pathExtension.lowercased() == "3105" {
+        for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
             do {
                 let data = try readPackage(at: url)
                 let summary = try PatchPackageCodec.inspect(data)
@@ -242,10 +248,8 @@ enum PatchProjectLibrary {
                     }
                 }
                 byID[summary.packageID] = item
-            } catch let error as PatchPackageError {
-                log("patch: skipped invalid local package \(url.lastPathComponent): \(error.localizedDescription)")
             } catch {
-                log("patch: skipped invalid local package \(url.lastPathComponent): \(error.localizedDescription)")
+                log("patch: skipped invalid local package \(url.lastPathComponent)")
             }
         }
         return byID.values.sorted {
@@ -275,10 +279,10 @@ enum PatchProjectLibrary {
         } else {
             let root = try packageRootURL(fileManager: fileManager)
             let baseName = sanitizedFilename(projectName)
-            var candidate = root.appendingPathComponent(baseName).appendingPathExtension("3105")
+            var candidate = root.appendingPathComponent(baseName).appendingPathExtension("TRYSTORE")
             var suffix = 2
             while fileManager.fileExists(atPath: candidate.path) {
-                candidate = root.appendingPathComponent("\(baseName)-\(suffix)").appendingPathExtension("3105")
+                candidate = root.appendingPathComponent("\(baseName)-\(suffix)").appendingPathExtension("TRYSTORE")
                 suffix += 1
             }
             destination = candidate

@@ -6,13 +6,15 @@ The application target is **SupportPatch**, using the shared scheme at `ThreeOne
 
 - The signature-blue TryStore home screen, original character art, and social links.
 - The classic **Loadout / Visuals** patch switcher. Tapping a module applies it; tapping the active module again restores its backup.
-- Six historical `.3105` patch packages, all verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, HOLOGRAMA ARMAS, and HOLOGRAMA PERSONAJE.
+- Eight bundled `.TRYSTORE` packages, verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, BALAS, ARMAS, HOLOGRAMA EXCLUSIVO VERDE, and HOLOGRAMA EXCLUSIVO ROSADO. BALAS appears in AIM as **Balas Magicas**; ARMAS appears in Visuals as **Azul Exclusivo**. The retired HOLOGRAMA ARMAS and HOLOGRAMA PERSONAJE packages are removed. Existing `.3105` files remain supported for legacy imports.
 - Airlift’s `DevicePatchService` integration for patch apply/restore operations.
-- No regular Free Fire catalog or newer `.dataset` patch catalog.
+- Bundled patch files are encrypted into named `.dataset` assets during CI; raw `.TRYSTORE` payloads are not copied into the IPA.
 
 ## Build on macOS or Codemagic
 
 Install a stable Rust toolchain (`rustup` and `cargo`) on the macOS build machine. The unsigned build script rebuilds both Airlift iOS archives before Xcode links the app:
+
+The CI workflow also requires `PATCH_BUNDLE_KEY_BASE64`, a protected CI secret containing the base64-encoded 32-byte asset encryption key. It regenerates the eight encrypted Data Sets before validation/build; do not put the key in source control or logs.
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
