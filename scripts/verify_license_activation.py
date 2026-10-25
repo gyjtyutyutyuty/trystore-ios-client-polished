@@ -102,9 +102,10 @@ def main() -> None:
             "license request is missing key, project, or device identifier fields")
     require('"keyVersion": Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_BUNDLE_KEY_VERSION")' in manager,
             "patch-bundle request does not send its configured key version")
-    require("import MachO" in activation_gate and "_dyld_image_count()" in activation_gate
-            and "_dyld_get_image_name(index)" in activation_gate,
-            "anti-instrumentation dyld image probes must import the MachO SDK declarations")
+    require("blockedByInstrumentation" not in activation_gate
+            and "hasInstrumentationLoaded" not in activation_gate
+            and "blockedByInstrumentation" not in app_source,
+            "instrumentation detection must not hard-block access to the license-entry screen")
     require("b.keyVersion||'1'" in worker
             and "keyVersion==='1'?'PATCH_BUNDLE_ENCRYPTION_KEY'" in worker
             and "keyVersion==='2'?'PATCH_BUNDLE_ENCRYPTION_KEY_V2'" in worker
