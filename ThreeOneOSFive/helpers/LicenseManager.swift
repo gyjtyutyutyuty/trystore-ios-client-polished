@@ -215,7 +215,8 @@ final class LicenseManager: ObservableObject {
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "key": key,
             "deviceId": try deviceID(),
-            "projectId": projectID
+            "projectId": projectID,
+            "keyVersion": Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_BUNDLE_KEY_VERSION") as? String ?? "1"
         ])
 
         let (data, response): (Data, URLResponse)

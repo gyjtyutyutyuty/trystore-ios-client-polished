@@ -15,6 +15,7 @@ PLIST = APP / "Info.plist"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 APP_SOURCE = APP / "App.swift"
 MANAGER = APP / "helpers/LicenseManager.swift"
+WORKER = ROOT / "cloudflare/license-worker.js"
 GATE = APP / "views/LicenseGateView.swift"
 SETTINGS = APP / "views/SettingsView.swift"
 
@@ -59,8 +60,10 @@ def main() -> None:
 
     endpoint = info.get("TRYSTORE_LICENSE_API_URL")
     project_id = info.get("TRYSTORE_PROJECT_ID")
+    bundle_key_version = info.get("TRYSTORE_PATCH_BUNDLE_KEY_VERSION")
     require(endpoint == EXPECTED_ENDPOINT, f"unexpected Cloudflare endpoint: {endpoint!r}")
     require(project_id == EXPECTED_PROJECT, f"unexpected license project slug: {project_id!r}")
+    require(bundle_key_version == "2", f"new release must request bundle-key version 2: {bundle_key_version!r}")
     parsed_endpoint = urlparse(endpoint)
     require(parsed_endpoint.scheme == "https" and parsed_endpoint.path == "/api/v1/keys/validate",
             "license validation endpoint must use HTTPS and the expected validation route")
@@ -77,6 +80,7 @@ def main() -> None:
 
     app_source = APP_SOURCE.read_text()
     manager = MANAGER.read_text()
+    worker = WORKER.read_text()
     gate = GATE.read_text()
     settings = SETTINGS.read_text()
     require("@StateObject private var licenseManager = LicenseManager()" in app_source
@@ -94,6 +98,18 @@ def main() -> None:
     require('"key": key' in manager and '"projectId": projectID' in manager
             and '"deviceId": try deviceID()' in manager,
             "license request is missing key, project, or device identifier fields")
+    require('"keyVersion": Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_BUNDLE_KEY_VERSION")' in manager,
+            "patch-bundle request does not send its configured key version")
+    require("b.keyVersion||'1'" in worker
+            and "keyVersion==='1'?'PATCH_BUNDLE_ENCRYPTION_KEY'" in worker
+            and "keyVersion==='2'?'PATCH_BUNDLE_ENCRYPTION_KEY_V2'" in worker
+            and "const bundleKey=String(e[secretName]||'')" in worker,
+            "Worker must preserve the existing v1 key and select the new v2 key only for versioned clients")
+    require("keyVersion=project==='trystore'?requestedKeyVersion:'1'" in worker
+            and "project==='apple-music'?'APPLE_MUSIC_PATCH_BUNDLE_ENCRYPTION_KEY'" in worker
+            and "if(g.slug!==project)" in worker
+            and "g.slug!==requestedProject" in worker,
+            "Worker must retain live project-scoped checks and Apple Music v1 compatibility")
     require("licenseManager.activate(key: keyInput)" in gate
             and "licenseManager.refresh()" in gate,
             "activation gate does not support activation and retry")
