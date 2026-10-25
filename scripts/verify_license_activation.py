@@ -16,6 +16,7 @@ PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 APP_SOURCE = APP / "App.swift"
 MANAGER = APP / "helpers/LicenseManager.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
+ACTIVATION_GATE = APP / "helpers/ActivationGate.swift"
 GATE = APP / "views/LicenseGateView.swift"
 SETTINGS = APP / "views/SettingsView.swift"
 
@@ -81,6 +82,7 @@ def main() -> None:
     app_source = APP_SOURCE.read_text()
     manager = MANAGER.read_text()
     worker = WORKER.read_text()
+    activation_gate = ACTIVATION_GATE.read_text()
     gate = GATE.read_text()
     settings = SETTINGS.read_text()
     require("@StateObject private var licenseManager = LicenseManager()" in app_source
@@ -100,6 +102,9 @@ def main() -> None:
             "license request is missing key, project, or device identifier fields")
     require('"keyVersion": Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_BUNDLE_KEY_VERSION")' in manager,
             "patch-bundle request does not send its configured key version")
+    require("import MachO" in activation_gate and "_dyld_image_count()" in activation_gate
+            and "_dyld_get_image_name(index)" in activation_gate,
+            "anti-instrumentation dyld image probes must import the MachO SDK declarations")
     require("b.keyVersion||'1'" in worker
             and "keyVersion==='1'?'PATCH_BUNDLE_ENCRYPTION_KEY'" in worker
             and "keyVersion==='2'?'PATCH_BUNDLE_ENCRYPTION_KEY_V2'" in worker
