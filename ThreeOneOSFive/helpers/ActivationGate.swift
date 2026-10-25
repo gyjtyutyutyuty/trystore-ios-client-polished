@@ -4,6 +4,12 @@ import MachO
 import SwiftUI
 import UIKit
 
+@_silgen_name("_dyld_image_count")
+private func trystoreDyldImageCount() -> UInt32
+
+@_silgen_name("_dyld_get_image_name")
+private func trystoreDyldGetImageName(_ index: UInt32) -> UnsafePointer<CChar>?
+
 enum RuntimeProbeState {
     case unavailable
     case blockedByDebug
@@ -63,8 +69,8 @@ enum SecuritySuiteProbe {
     static func hasInstrumentationLoaded() -> Bool {
         if hasInjectedEnvironment() || hasSuspiciousArguments() { return true }
 
-        for index in 0..<_dyld_image_count() {
-            guard let name = _dyld_get_image_name(index) else { continue }
+        for index in 0..<trystoreDyldImageCount() {
+            guard let name = trystoreDyldGetImageName(index) else { continue }
             let image = String(cString: name).lowercased()
             if instrumentationIndicators.contains(where: { image.contains($0) }) {
                 return true
