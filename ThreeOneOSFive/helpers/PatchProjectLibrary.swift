@@ -25,7 +25,7 @@ enum PatchProjectLibrary {
     ]
     private static let supportedPackageExtensions: Set<String> = ["trystore", "3105"]
     private static let bundledProjectNames: Set<String> = [
-        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "EXCLUSIVO AZUL", "TryStore",
+        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "EXCLUSIVO AZUL", "TryStore", "Balas Magicas",
         "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
@@ -147,6 +147,23 @@ enum PatchProjectLibrary {
                 password: password
             )
             let normalizedSummary = try PatchPackageCodec.inspect(normalizedData.data)
+            let root = try packageRootURL(fileManager: fileManager)
+            let existingURLs = try fileManager.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+            )
+            for existingURL in existingURLs where supportedPackageExtensions.contains(existingURL.pathExtension.lowercased()) {
+                guard let existingData = try? readPackage(at: existingURL),
+                      let existingSummary = try? PatchPackageCodec.inspect(existingData),
+                      existingSummary.packageID == normalizedSummary.packageID,
+                      let existingDecoded = try? PatchPackageCodec.decode(existingData, password: password),
+                      existingDecoded.project == normalizedProject else {
+                    continue
+                }
+                log("patch: bundled raw package already installed: \(projectName)")
+                return
+            }
             try PatchKeyStore.store(normalizedData.contentKey, for: normalizedSummary)
             try installImportedPackage(
                 data: normalizedData.data,
@@ -156,6 +173,7 @@ enum PatchProjectLibrary {
                 createWorkspace: false,
                 fileManager: fileManager
             )
+            log("patch: bundled raw package installed: \(projectName)")
         } catch {
             log("patch: bundled raw package install failed: \(projectName) — \(error)")
         }

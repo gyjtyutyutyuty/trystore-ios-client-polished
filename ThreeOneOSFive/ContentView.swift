@@ -809,6 +809,7 @@ private struct DashboardView: View {
         let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
         let item = patchStore.items.first {
             $0.project?.name == option.projectName
+                || (option.projectName == "TryStore" && $0.project?.name == "Balas Magicas")
                 || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
         }
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
@@ -1169,7 +1170,7 @@ private extension FreeFireGame {
     }
 
     var aimProjectNames: [String] {
-        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "TryStore"]
+        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "TryStore", "Balas Magicas"]
     }
 
     var locationProjectNames: [String] {
@@ -1315,8 +1316,7 @@ private struct FreeFirePatchView: View {
         case "NECK": return "NECK"
         case "HS PESSCOSO": return "DRAG"
         case "HS SLA PECHO": return "PECHO"
-        case "BALAS": return "Balas Magicas"
-        case "TryStore": return "Balas Magicas"
+        case "BALAS", "TryStore", "Balas Magicas": return "Balas Magicas"
         default: return item.project?.name ?? language.text("freefire.aim_file")
         }
     }
