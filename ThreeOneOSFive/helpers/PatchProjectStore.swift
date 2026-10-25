@@ -349,8 +349,10 @@ final class PatchProjectStore: ObservableObject {
     private static func group(for item: PatchLibraryItem) -> PatchToggleGroup? {
         let name = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
         switch name {
-        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS":
+        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "TryStore":
             return .aim
+        case "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL":
+            return .location
         default:
             return nil
         }

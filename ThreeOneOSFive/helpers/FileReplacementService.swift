@@ -192,6 +192,9 @@ enum FileReplacementService {
         guard returnCode == 0 else {
             let detail = remoteError ?? "Remote file read failed (\(returnCode))."
             log("patch: Airlift remote read failed \(bundleID)/\(relativePath) rc=\(returnCode) detail=\(detail)")
+            if detail.contains("stat recovered target: Afc(ObjectNotFound)") {
+                throw PatchPackageError.remoteTargetMissing
+            }
             throw PatchPackageError.remoteReplacementFailed(detail)
         }
         let data: Data

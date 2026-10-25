@@ -1169,11 +1169,11 @@ private extension FreeFireGame {
     }
 
     var aimProjectNames: [String] {
-        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS"]
+        ["HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "TryStore"]
     }
 
     var locationProjectNames: [String] {
-        ["HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS"]
+        ["HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL"]
     }
 
     var openGameKey: String {
@@ -1324,7 +1324,7 @@ private struct FreeFirePatchView: View {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
         case "HOLOGRAMA EXCLUSIVO VERDE": return "EXCLUSIVO VERDE"
         case "HOLOGRAMA EXCLUSIVO ROSADO": return "EXCLUSIVO ROSADO"
-        case "ARMAS": return "Azul Exclusivo"
+        case "ARMAS", "EXCLUSIVO AZUL": return "Azul Exclusivo"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }
