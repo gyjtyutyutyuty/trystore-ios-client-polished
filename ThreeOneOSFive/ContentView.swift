@@ -191,7 +191,7 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
         DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
-        DashboardPatchOption(projectName: "TryStore", title: "TryStore", icon: "circle.grid.cross", color: .yellow, group: .aim)
+        DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .aim)
     ]
 
     static let visuals = [
@@ -1316,6 +1316,7 @@ private struct FreeFirePatchView: View {
         case "HS PESSCOSO": return "DRAG"
         case "HS SLA PECHO": return "PECHO"
         case "BALAS": return "Balas Magicas"
+        case "TryStore": return "Balas Magicas"
         default: return item.project?.name ?? language.text("freefire.aim_file")
         }
     }
