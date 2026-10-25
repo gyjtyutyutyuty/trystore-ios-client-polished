@@ -191,13 +191,13 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
         DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
-        DashboardPatchOption(projectName: "BALAS", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .aim)
+        DashboardPatchOption(projectName: "TryStore", title: "TryStore", icon: "circle.grid.cross", color: .yellow, group: .aim)
     ]
 
     static let visuals = [
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil),
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil),
-        DashboardPatchOption(projectName: "ARMAS", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil)
+        DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil)
     ]
 
     static var all: [DashboardPatchOption] { loadout + visuals }

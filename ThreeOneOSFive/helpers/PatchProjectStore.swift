@@ -40,8 +40,8 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "NECK.TRYSTORE", projectName: "NECK", password: nil),
             BundledPatch(resourceName: "HSPESSCOSO.TRYSTORE", projectName: "HS PESSCOSO", password: nil),
             BundledPatch(resourceName: "HS SLA PECHO.TRYSTORE", projectName: "HS SLA PECHO", password: nil),
-            BundledPatch(resourceName: "BALAS.TRYSTORE", projectName: "BALAS", password: nil),
-            BundledPatch(resourceName: "ARMAS.TRYSTORE", projectName: "ARMAS", password: nil),
+            BundledPatch(resourceName: "EXCLUSIVO_AZUL_TRYSTORE", projectName: "EXCLUSIVO AZUL", password: nil),
+            BundledPatch(resourceName: "TryStore_TRYSTORE", projectName: "TryStore", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil)
         ]
@@ -85,11 +85,22 @@ final class PatchProjectStore: ObservableObject {
             PatchProjectLibrary.removeBundledPackage(named: obsolete)
         }
         for patch in game.bundledPatches {
-            guard let data = resources[patch.resourceName] else {
+            if let data = resources[patch.resourceName] {
+                PatchProjectLibrary.installBundledPackageDataIfNeeded(
+                    data,
+                    projectName: patch.projectName,
+                    password: patch.password
+                )
+                continue
+            }
+            // New patch packages are bundled as raw .TRYSTORE files. This keeps
+            // them available in the IPA while preserving the normal install,
+            // activation, and restore flow used by the patch library.
+            guard let data = NSDataAsset(name: patch.resourceName, bundle: .main)?.data else {
                 log("patch: bundled patch asset unavailable: \(patch.resourceName)")
                 continue
             }
-            PatchProjectLibrary.installBundledPackageDataIfNeeded(
+            PatchProjectLibrary.installBundledRawPackageDataIfNeeded(
                 data,
                 projectName: patch.projectName,
                 password: patch.password

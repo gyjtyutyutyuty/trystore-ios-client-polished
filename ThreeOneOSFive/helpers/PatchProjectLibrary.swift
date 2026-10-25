@@ -25,7 +25,7 @@ enum PatchProjectLibrary {
     ]
     private static let supportedPackageExtensions: Set<String> = ["trystore", "3105"]
     private static let bundledProjectNames: Set<String> = [
-        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "ARMAS",
+        "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "EXCLUSIVO AZUL", "TryStore",
         "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
@@ -126,6 +126,38 @@ enum PatchProjectLibrary {
             }
         } catch {
             log("patch: bundled package unavailable")
+        }
+    }
+
+    static func installBundledRawPackageDataIfNeeded(
+        _ sourceData: Data,
+        projectName: String,
+        password: String? = nil,
+        fileManager: FileManager = .default
+    ) {
+        guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else {
+            log("patch: bundled raw package decode failed: \(projectName)")
+            return
+        }
+        do {
+            var normalizedProject = decoded.project
+            normalizedProject.name = projectName
+            let normalizedData = try PatchPackageCodec.encodeNew(
+                project: normalizedProject,
+                password: password
+            )
+            let normalizedSummary = try PatchPackageCodec.inspect(normalizedData.data)
+            try PatchKeyStore.store(normalizedData.contentKey, for: normalizedSummary)
+            try installImportedPackage(
+                data: normalizedData.data,
+                decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
+                summary: normalizedSummary,
+                existingURL: nil,
+                createWorkspace: false,
+                fileManager: fileManager
+            )
+        } catch {
+            log("patch: bundled raw package install failed: \(projectName) — \(error)")
         }
     }
 
