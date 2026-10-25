@@ -75,10 +75,23 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+if [[ -n "${CARGO_HOME:-}" ]]; then
+  CARGO_ENV="$CARGO_HOME/env"
+elif [[ -n "${HOME:-}" ]]; then
+  CARGO_ENV="$HOME/.cargo/env"
+else
+  CARGO_ENV=""
+fi
+if [[ -n "$CARGO_ENV" && -f "$CARGO_ENV" ]]; then
+  source "$CARGO_ENV"
+fi
+
 command -v rustup >/dev/null 2>&1 || { echo "rustup is required for an Airlift rebuild." >&2; exit 1; }
 command -v cargo >/dev/null 2>&1 || { echo "cargo is required for an Airlift rebuild." >&2; exit 1; }
 command -v xcodebuild >/dev/null 2>&1 || { echo "xcodebuild is required for an Airlift rebuild." >&2; exit 1; }
-source "$HOME/.cargo/env" 2>/dev/null || true
+echo "Rust compiler: $(rustc --version)"
+echo "Cargo: $(cargo --version)"
+echo "Installing Rust iOS targets..."
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 
 cargo build --locked --manifest-path "$CORE/Cargo.toml" --release --target aarch64-apple-ios
