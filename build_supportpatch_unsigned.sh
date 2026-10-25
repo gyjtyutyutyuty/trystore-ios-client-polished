@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$ROOT/ThreeOneOSFive.xcodeproj"
