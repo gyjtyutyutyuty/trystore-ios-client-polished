@@ -2203,13 +2203,13 @@ private struct PatchesView: View {
         .padding(14)
         .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-    }
 
-    // Alert for quick actions
-    .alert(alertTitle, isPresented: $showingPatchAlert) {
-        Button(language.text("common.ok"), role: .cancel) {}
-    } message: {
-        Text(alertMessage)
+        // Alert for quick actions
+        .alert(alertTitle, isPresented: $showingPatchAlert) {
+            Button(language.text("common.ok"), role: .cancel) {}
+        } message: {
+            Text(alertMessage)
+        }
     }
 
     // MARK: - Patch Category Enum
@@ -2475,4 +2475,3 @@ struct LiveActivityBanner: View {
         .background(Color.black.opacity(0.4), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
-
