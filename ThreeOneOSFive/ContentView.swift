@@ -106,15 +106,15 @@ struct HomeView: View {
             }
             // Temperature rows
             HStack(spacing: 8) {
-                temperatureRowHome(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: \"%.1f\", appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
-                temperatureRowHome(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: \"%.1f\", appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
+                temperatureRowHome(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: %.1f, appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
+                temperatureRowHome(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: %.1f, appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
             }
             // Launch count
             HStack {
                 Text(language.text("dashboard.launch_count"))
                     .foregroundStyle(.white.opacity(0.57))
                 Spacer(minLength: 10)
-                Text("\\n(appState.totalLaunches) times)"
+                Text("\n(appState.totalLaunches) times)"
                     .fontWeight(.semibold)
                     .foregroundStyle(.white.opacity(0.88))
                     .multilineTextAlignment(.trailing)
@@ -707,14 +707,14 @@ private struct DashboardView: View {
                 )
             }
             HStack(spacing: 8) {
-                temperatureRow(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: \"%.1f\", appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
-                temperatureRow(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: \"%.1f\", appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
+                temperatureRow(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: %.1f, appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
+                temperatureRow(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: %.1f, appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
             }
             HStack {
                 Text(language.text("dashboard.launch_count"))
                     .foregroundStyle(.white.opacity(0.57))
                 Spacer(minLength: 10)
-                Text("\\n(appState.totalLaunches) times)"
+                Text("\(appState.totalLaunches) times")
                     .fontWeight(.semibold)
                     .foregroundStyle(.white.opacity(0.88))
                     .multilineTextAlignment(.trailing)
@@ -1902,7 +1902,7 @@ private struct PatchesView: View {
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
-                Text("\\n(patchStore.activeCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                Text("\n(patchStore.activeCount) / \(DashboardPatchOption.all.count) ACTIVE")
                     .font(.system(size: 8, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(0.78))
                     .padding(.horizontal, 9)
