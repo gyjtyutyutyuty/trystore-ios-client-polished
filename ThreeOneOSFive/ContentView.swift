@@ -2258,93 +2258,83 @@ private struct FreeFireArtwork: View {
     }
 }
 
-// Exotic professional particle field view
-// Exotic professional particle field view - animated particles following gyro tilt
 private struct ParticleFieldView: View {
-    @EnvironmentObject private var appState: AppState
+    @Binding var animateDrift: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @State private var particles: [Particle] = []
-    @State private var drift = Vector()
-    @State private var lastUpdate = Date()
 
-    struct Particle: Identifiable {
-        let id = UUID()
-        var x: Double
-        var y: Double
-        var size: Double
-        var opacity: Double
-        var dx: Double
-        var dy: Double
+    private struct Particle: Identifiable {
+        let id: Int
+        let x: Double
+        let y: Double
+        let size: CGFloat
+        let opacity: Double
+        let speed: Double
+        let phase: Double
     }
 
     var body: some View {
         GeometryReader { geometry in
-            ForEach($particles) { $particle in
-                animatedParticle(geometry: geometry, particle: $particle)
-            }
-            onAppear { startParticleAnimation(geometry: geometry) }
-            onDisappear { stopParticleAnimation() }
-        }
-    }
-
-    private func animatedParticle(geometry: GeometryProxy, particle: inout Particle) -> some View {
-        Circle()
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [AppTheme.accent.opacity(0.4), AppTheme.accent.opacity(0.2), .white.opacity(0.1)]
-                )
-            )
-            .frame(width: particle.size, height: particle.size)
-            .position(x: particle.x, y: particle.y)
-            .opacity(particle.opacity)
-            .background(.ultraThinMaterial)
-            .onAppear {
-                withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
-                    particle.dx = Double.random(in: -0.5...0.5)
-                    particle.dy = Double.random(in: -0.5...0.5)
-                }
-            }
-            .onReceive(Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()) { _ in
-                if !reduceMotion {
-                    particle.x += particle.dx
-                    particle.y += particle.dy
-
-                    // Gyro tilt influence
-                    let tiltFactor: Double = 0.1
-                    let tiltX = Double(appState.deviceTiltMotion.tiltX ?? 0) * tiltFactor
-                    let tiltY = Double(appState.deviceTiltMotion.tiltY ?? 0) * tiltFactor
-
-                    particle.x += tiltX
-                    particle.y += tiltY
-
-                    // Clamp to bounds
-                    withAnimation {
-                        particle.x = particle.x.clamped(to: 0...geometry.size.width)
-                        particle.y = particle.y.clamped(to: 0...geometry.size.height)
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion || !animateDrift)) { timeline in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                ZStack {
+                    ForEach(particles) { particle in
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppTheme.accent.opacity(0.4), AppTheme.accent.opacity(0.2), .white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: particle.size, height: particle.size)
+                            .position(
+                                x: particleX(particle, time: time, width: geometry.size.width),
+                                y: particleY(particle, time: time, height: geometry.size.height)
+                            )
+                            .opacity(particle.opacity)
+                            .background(.ultraThinMaterial)
                     }
                 }
             }
+            .onAppear {
+                if particles.isEmpty {
+                    startParticleAnimation()
+                }
+            }
+            .onDisappear {
+                particles.removeAll()
+            }
         }
     }
 
-    private func startParticleAnimation(geometry: GeometryProxy) {
-        // Initialize particles
-        particles = []
-        for index in 0..<12 {
-            var particle = Particle(
-                x: Double.random(in: 0...geometry.size.width),
-                y: Double.random(in: 0...geometry.size.height),
-                size: Double.random(in: 1...4),
-                opacity: 0.3 + Double(index) * 0.05,
-                dx: 0, dy: 0
+    private func particleX(_ particle: Particle, time: Double, width: CGFloat) -> CGFloat {
+        let position = particle.x * Double(width)
+            + sin(time * particle.speed + particle.phase) * 14
+            + deviceTilt.roll * 8
+        return CGFloat(min(max(position, 0), Double(width)))
+    }
+
+    private func particleY(_ particle: Particle, time: Double, height: CGFloat) -> CGFloat {
+        let position = particle.y * Double(height)
+            + cos(time * particle.speed * 0.8 + particle.phase) * 14
+            - deviceTilt.pitch * 8
+        return CGFloat(min(max(position, 0), Double(height)))
+    }
+
+    private func startParticleAnimation() {
+        particles = (0..<12).map { index in
+            Particle(
+                id: index,
+                x: Double.random(in: 0...1),
+                y: Double.random(in: 0...1),
+                size: CGFloat.random(in: 1...4),
+                opacity: 0.3 + Double(index) * 0.04,
+                speed: Double.random(in: 0.2...0.8),
+                phase: Double.random(in: 0...(Double.pi * 2))
             )
-            particles.append(particle)
         }
-        // Start the timer receive
-    }
-
-    private func stopParticleAnimation() {
-        particles.removeAll()
     }
 }
 
