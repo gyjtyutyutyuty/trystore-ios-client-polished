@@ -67,15 +67,35 @@ enum AppMotion {
 /// smallest size the typography guidance treats as comfortably legible.
 enum AppType {
     static func hero(_ compact: Bool) -> Font {
-        .system(size: compact ? 30 : 38, weight: .black, design: .rounded)
+        scaled(compact ? 30 : 38, weight: .black, textStyle: .largeTitle)
     }
-    static func display() -> Font { .system(size: 22, weight: .black, design: .rounded) }
-    static func section() -> Font { .system(size: 13, weight: .black, design: .rounded) }
-    static func label() -> Font { .system(size: 11, weight: .black, design: .rounded) }
-    static func body() -> Font { .system(size: 13, weight: .semibold, design: .rounded) }
-    static func value() -> Font { .system(size: 15, weight: .bold, design: .rounded) }
-    static func meta() -> Font { .system(size: 11, weight: .medium, design: .rounded) }
-    static func digits(_ size: CGFloat) -> Font { .system(size: size, weight: .bold, design: .monospaced) }
+    static func display() -> Font { scaled(22, weight: .black, textStyle: .title2) }
+    static func section() -> Font { scaled(13, weight: .black, textStyle: .headline) }
+    static func label() -> Font { scaled(11, weight: .black, textStyle: .caption1) }
+    static func body() -> Font { scaled(13, weight: .semibold, textStyle: .body) }
+    static func value() -> Font { scaled(15, weight: .bold, textStyle: .body) }
+    static func meta() -> Font { scaled(11, weight: .medium, textStyle: .footnote) }
+
+    /// Readings are data, not prose. They stay monospaced and unscaled so gauges,
+    /// tabular columns and the progress ring keep their geometry while every
+    /// label around them grows with the user's text size.
+    static func digits(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .bold, design: .monospaced)
+    }
+
+    /// Each size is routed through UIFontMetrics, so the whole interface follows
+    /// Settings > Display & Brightness > Text Size instead of pinning every label
+    /// to a fixed point size. The root clamps the range so fixed-height controls
+    /// (44 pt targets, gauge rings) keep their shape at the largest settings.
+    private static func scaled(
+        _ size: CGFloat,
+        weight: UIFont.Weight,
+        textStyle: UIFont.TextStyle
+    ) -> Font {
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        let dynamic = UIFontMetrics(forTextStyle: textStyle).scaledFont(for: base)
+        return Font(dynamic).withDesign(.rounded) ?? Font(dynamic)
+    }
 }
 
 enum AppTheme {
@@ -475,6 +495,23 @@ extension View {
         modifier(AppPanelSurface(radius: radius, tint: tint))
     }
 
+    func appSpecularSheen(
+        intensity: CGFloat = 1,
+        cornerRadius: CGFloat = AppRadius.panel
+    ) -> some View {
+        modifier(AppSpecularSheen(intensity: intensity, cornerRadius: cornerRadius))
+    }
+
+    /// Tab and module switching answers the hand. No-op before iOS 17.
+    @ViewBuilder
+    func appSelectionFeedback<V: Equatable>(trigger: V) -> some View {
+        if #available(iOS 17.0, *) {
+            self.sensoryFeedback(.selection, trigger: trigger)
+        } else {
+            self
+        }
+    }
+
     /// Discrete symbol bounce, a no-op before iOS 17.
     @ViewBuilder
     func appBounce<V: Equatable>(trigger: V) -> some View {
@@ -772,5 +809,134 @@ struct AppIconBadge: View {
         )
         .shadow(color: tint.opacity(0.18), radius: 10, y: 4)
         .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Specular sheen
+
+/// A wide, low-opacity highlight that leans with the device. Static cards read as
+/// flat rectangles; a surface that catches light reads as a real one. Switched off
+/// for Reduce Motion and Reduce Transparency, and it never intercepts a touch.
+struct AppSpecularSheen: ViewModifier {
+    var intensity: CGFloat = 1
+    var cornerRadius: CGFloat = AppRadius.panel
+
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @EnvironmentObject private var deviceTilt: DeviceTiltMotion
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if !reduceMotion && !reduceTransparency {
+                GeometryReader { proxy in
+                    let lean = min(max(CGFloat((deviceTilt.roll + deviceTilt.pitch) / 2), -1), 1)
+                    LinearGradient(
+                        colors: [
+                            .clear,
+                            Color.white.opacity(0.055 * Double(intensity)),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(width: proxy.size.width * 1.8, height: proxy.size.height * 2.6)
+                    .rotationEffect(.degrees(-14))
+                    .offset(
+                        x: proxy.size.width * (0.30 + lean * 0.40),
+                        y: -proxy.size.height * 0.62
+                    )
+                    .blendMode(.plusLighter)
+                    .animation(reduceMotion ? nil : .linear(duration: 0.20), value: deviceTilt.roll)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+// MARK: - Skeleton
+
+/// Placeholder rows for work that is running, so a list that is still filling
+/// shows its own shape instead of a spinner floating in empty space.
+struct AppSkeleton: View {
+    var height: CGFloat = 56
+    var radius: CGFloat = AppRadius.tile
+
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @State private var sweep: CGFloat = -0.6
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(AppPalette.raised.opacity(0.42))
+            .frame(height: height)
+            .overlay {
+                GeometryReader { proxy in
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.07), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: proxy.size.width * 0.55)
+                    .offset(x: proxy.size.width * sweep)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+                .allowsHitTesting(false)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1)
+            )
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
+                    sweep = 1.4
+                }
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+struct AppSkeletonList: View {
+    var rows: Int = 4
+
+    var body: some View {
+        VStack(spacing: AppSpacing.s) {
+            ForEach(0..<rows, id: \.self) { _ in
+                AppSkeleton()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Empty state
+
+/// One shape for every "nothing here yet": icon badge, headline, one line of
+/// explanation. Keeps the empty screens from each inventing their own layout.
+struct AppEmptyState: View {
+    let icon: String
+    let title: String
+    let message: String
+    var tint: Color = AppTheme.accent
+
+    var body: some View {
+        VStack(spacing: AppSpacing.m) {
+            AppIconBadge(systemName: icon, tint: tint, size: 46)
+            Text(title)
+                .font(AppType.label())
+                .tracking(0.8)
+                .foregroundStyle(AppPalette.textPrimary)
+                .multilineTextAlignment(.center)
+            Text(message)
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textTertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, AppSpacing.l)
+        .accessibilityElement(children: .combine)
     }
 }

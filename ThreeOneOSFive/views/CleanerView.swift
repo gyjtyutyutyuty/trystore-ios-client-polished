@@ -424,8 +424,7 @@ struct CleanerView: View {
     private var emptyState: some View {
         VStack(spacing: AppSpacing.s) {
             if isScanning {
-                ProgressView()
-                    .tint(AppTheme.accent)
+                AppSkeletonList(rows: 4)
                 Text(language.text("cleaner.scanning.title"))
                     .font(AppType.label())
                     .tracking(0.8)

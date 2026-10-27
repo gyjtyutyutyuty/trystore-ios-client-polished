@@ -10,35 +10,39 @@ struct LiveActivityState: ActivityAttributes {
         let gpuTemp: Double?
         let thermalState: String?
         let launchCount: Int
+        /// 0...1 while an operation runs. Surfaced so the Live Activity can show
+        /// the same number the in-app card does.
+        let progress: Double
+        /// What is running: "ACTIVATING", "RESTORING", "Cleaner".
+        let operation: String?
     }
 }
 
 struct ContentView: View {
+    @Environment(\.appLanguage) private var language
     @State private var selectedTab = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(onOpenPatches: { selectedTab = 1 })
                 .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("Home")
+                    Label(language.text("tab.home"), systemImage: "house.fill")
                 }
                 .tag(0)
             PatchesView()
                 .tabItem {
-                    Image(systemName: "square.grid.2x2")
-                    Text("Patches")
+                    Label(language.text("tab.patches"), systemImage: "square.grid.2x2")
                 }
                 .tag(1)
             CleanerView()
                 .tabItem {
-                    Image(systemName: "sparkles")
-                    Text("Clean")
+                    Label(language.text("tab.clean"), systemImage: "sparkles")
                 }
                 .tag(2)
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
+        .appSelectionFeedback(trigger: selectedTab)
     }
 }
 
@@ -213,6 +217,7 @@ struct HomeView: View {
                 )
         )
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .appSpecularSheen(intensity: 1.15, cornerRadius: AppRadius.hero)
         .onAppear {
             guard !reduceMotion else {
                 heroArrived = true
@@ -2612,7 +2617,7 @@ private struct PatchesView: View {
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             panelHeader(title: language.text("patch.library"), subtitle: language.text("patch.library.subtitle"), icon: "checkmark.shield")
-            patchConsole
+            patchConsole.appSpecularSheen(intensity: 0.85)
 
             PlatinumExpiryCard(
                 expirationDate: licenseManager.expirationDate,
@@ -3308,7 +3313,9 @@ struct LiveActivityView: View {
             cpuTemp: nil,
             gpuTemp: nil,
             thermalState: appState.thermalStateLabel,
-            launchCount: appState.totalLaunches
+            launchCount: appState.totalLaunches,
+            progress: 0,
+            operation: nil
         )
 
         do {
@@ -3329,7 +3336,9 @@ struct LiveActivityView: View {
             cpuTemp: nil,
             gpuTemp: nil,
             thermalState: appState.thermalStateLabel,
-            launchCount: appState.totalLaunches
+            launchCount: appState.totalLaunches,
+            progress: 0,
+            operation: nil
         )
         await activity.update(using: updatedState)
     }

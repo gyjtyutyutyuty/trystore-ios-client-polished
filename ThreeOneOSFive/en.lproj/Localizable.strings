@@ -727,3 +727,6 @@
 "liveactivity.title" = "Live Patch Activity";
 "liveactivity.thermal" = "SYSTEM THERMAL";
 "cleaner.stage.preparing" = "PREPARING";
+
+/* Tab bar */
+"tab.clean" = "Clean";

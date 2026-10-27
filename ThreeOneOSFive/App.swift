@@ -93,6 +93,9 @@ struct ThreeOneOSFiveApp: App {
             .environment(\.appReduceMotion, effectiveReduceMotion)
             .environment(\.appLanguage, language)
             .environment(\.locale, language.locale)
+            // The design system scales with the user's text size now; the clamp
+            // keeps 44 pt hit targets and gauge rings intact at the extremes.
+            .dynamicTypeSize(.xSmall ... .accessibility1)
             .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding && licenseManager.isActive)
             .sheet(isPresented: $showAttribution) {
                 DisplayAttributionSheet()

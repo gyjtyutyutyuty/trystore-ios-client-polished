@@ -721,3 +721,6 @@
 "liveactivity.title" = "Hoat dong va truc tiep";
 "liveactivity.thermal" = "NHIET HE THONG";
 "cleaner.stage.preparing" = "DANG CHUAN BI";
+
+/* Tab bar */
+"tab.clean" = "Dọn dẹp";

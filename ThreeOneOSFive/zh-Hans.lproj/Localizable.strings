@@ -719,3 +719,6 @@
 "liveactivity.title" = "实时补丁活动";
 "liveactivity.thermal" = "系统温度";
 "cleaner.stage.preparing" = "准备中";
+
+/* Tab bar */
+"tab.clean" = "清理";
