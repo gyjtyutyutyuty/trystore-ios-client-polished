@@ -2320,6 +2320,14 @@ private struct PatchesView: View {
     @Environment(\.appReduceMotion) private var reduceMotion
     @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedPatchProjectName: String?
+    @State private var patchProgress: Double = 0
+    @State private var patchProgressStage = "PREPARING"
+    @State private var patchProgressSub = "Preparing the patch transaction"
+    @State private var showPatchProgress = false
+    @State private var patchProgressTask: Task<Void, Never>?
+    @State private var patchOperationIsEnabling = true
+    @State private var patchOperationFinished = false
+    @State private var patchOperationSucceeded = true
 
     var body: some View {
         NavigationStack {
@@ -2343,6 +2351,20 @@ private struct PatchesView: View {
                     .padding(.top, AppSpacing.m)
                     .padding(.bottom, AppSpacing.xxl)
                 }
+
+                if showPatchProgress {
+                    patchProgressOverlay
+                        .transition(.opacity)
+                        .zIndex(2)
+                }
+            }
+            .onChange(of: patchStore.isBusy) { isBusy in
+                guard !isBusy, showPatchProgress, !patchOperationFinished else { return }
+                if let option = selectedPatchOption, let item = patchItem(for: option) {
+                    let isActive = DevicePatchService.latestReceipt(projectID: item.id) != nil
+                    patchOperationSucceeded = isActive == patchOperationIsEnabling
+                }
+                finishPatchProgress()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -2741,6 +2763,8 @@ private struct PatchesView: View {
     private func activateSelectedPatch() {
         guard let option = selectedPatchOption, let item = selectedPatchItem else { return }
         let shouldEnable = !selectedPatchIsActive
+        beginPatchProgress(enabling: shouldEnable, title: option.title)
+
         patchStore.setEnabled(
             shouldEnable,
             for: item,
@@ -2748,6 +2772,208 @@ private struct PatchesView: View {
             reportsSuccess: true,
             onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) }
         )
+
+        // A refused request (missing pairing tunnel, bad package) never starts,
+        // so drop the card instead of leaving it frozen at zero.
+        if !patchStore.isBusy {
+            patchProgressTask?.cancel()
+            patchProgressTask = nil
+            showPatchProgress = false
+            patchProgress = 0
+        }
+    }
+
+    // MARK: - Patch progress
+
+    private func beginPatchProgress(enabling: Bool, title: String) {
+        patchOperationIsEnabling = enabling
+        patchOperationFinished = false
+        patchOperationSucceeded = true
+        patchProgress = 0
+        patchProgressStage = title
+        patchProgressSub = enabling
+            ? "Applying the module to the game files"
+            : "Restoring the original files"
+        showPatchProgress = true
+
+        patchProgressTask?.cancel()
+        patchProgressTask = Task { @MainActor in
+            while !Task.isCancelled && patchProgress < 0.94 {
+                try? await Task.sleep(nanoseconds: 24_000_000)
+                if Task.isCancelled { return }
+                patchProgress = min(0.94, patchProgress + 0.012)
+            }
+        }
+    }
+
+    private func finishPatchProgress() {
+        guard !patchOperationFinished else { return }
+        patchOperationFinished = true
+        patchProgressTask?.cancel()
+        patchProgressTask = nil
+        withAnimation(.easeOut(duration: 0.32)) {
+            patchProgress = 1
+        }
+    }
+
+    private func dismissPatchProgress() {
+        AppHaptics.tap()
+        withAnimation(reduceMotion ? nil : AppMotion.surface) {
+            showPatchProgress = false
+        }
+        patchProgress = 0
+        patchOperationFinished = false
+    }
+
+    private var patchProgressOverlay: some View {
+        let accent = patchOperationIsEnabling ? AppPalette.mint : AppPalette.amber
+
+        return ZStack {
+            Color.black.opacity(0.66)
+                .ignoresSafeArea()
+
+            VStack(spacing: AppSpacing.l) {
+                HStack(spacing: AppSpacing.s) {
+                    Circle()
+                        .fill(patchOperationFinished ? (patchOperationSucceeded ? AppPalette.mint : AppPalette.coral) : accent)
+                        .frame(width: 6, height: 6)
+                        .shadow(
+                            color: (patchOperationFinished ? (patchOperationSucceeded ? AppPalette.mint : AppPalette.coral) : accent).opacity(0.9),
+                            radius: 6
+                        )
+                    Text(patchProgressHeader)
+                        .font(AppType.label())
+                        .tracking(1.1)
+                        .foregroundStyle(AppPalette.textSecondary)
+                    Spacer(minLength: AppSpacing.s)
+                    Text("\(Int(patchProgress * 100))%")
+                        .font(AppType.digits(13))
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .monospacedDigit()
+                }
+
+                ZStack {
+                    Circle()
+                        .stroke(AppPalette.hairline.opacity(0.60), lineWidth: 10)
+
+                    Circle()
+                        .trim(from: 0, to: max(0.004, patchProgress))
+                        .stroke(
+                            AngularGradient(
+                                colors: [accent.opacity(0.45), accent, Color.white.opacity(0.9), accent],
+                                center: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .shadow(color: accent.opacity(0.55), radius: 16)
+                        .animation(.linear(duration: 0.12), value: patchProgress)
+
+                    VStack(spacing: 2) {
+                        Text("\(Int(patchProgress * 100))")
+                            .font(.system(size: 54, weight: .black, design: .monospaced))
+                            .foregroundStyle(AppPalette.textPrimary)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                        Text(patchOperationIsEnabling ? "ACTIVATING" : "RESTORING")
+                            .font(AppType.label())
+                            .tracking(1.4)
+                            .foregroundStyle(AppPalette.textTertiary)
+                    }
+                }
+                .frame(width: 196, height: 196)
+
+                VStack(spacing: 6) {
+                    Text(patchProgressStage)
+                        .font(AppType.label())
+                        .tracking(1.0)
+                        .foregroundStyle(AppPalette.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(patchOperationFinished ? patchProgressFooter : patchProgressSub)
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .multilineTextAlignment(.center)
+                }
+
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(AppPalette.hairline.opacity(0.55))
+                        Capsule()
+                            .fill(LinearGradient(colors: [accent, accent.opacity(0.65)], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: max(proxy.size.width * patchProgress, patchProgress > 0 ? 6 : 0))
+                            .shadow(color: accent.opacity(0.45), radius: 8)
+                    }
+                }
+                .frame(height: 6)
+
+                if patchOperationFinished {
+                    AppActionButton(
+                        title: "DONE",
+                        icon: "checkmark",
+                        tint: patchOperationSucceeded ? AppPalette.mint : AppPalette.amber
+                    ) {
+                        dismissPatchProgress()
+                    }
+                } else {
+                    Text("Do not close the app while the transaction runs.")
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(AppSpacing.xl)
+            .frame(maxWidth: 340)
+            .background(
+                RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.surface, AppPalette.canvas],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                    .strokeBorder(
+                        AngularGradient(
+                            colors: [
+                                accent.opacity(0.70),
+                                AppPalette.hairline.opacity(0.35),
+                                Color.white.opacity(0.35),
+                                AppPalette.hairline.opacity(0.35),
+                                accent.opacity(0.70)
+                            ],
+                            center: .center
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .overlay(alignment: .top) {
+                Circle()
+                    .fill(accent.opacity(0.30))
+                    .frame(width: 190, height: 190)
+                    .blur(radius: 60)
+                    .offset(y: -80)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: Color.black.opacity(0.55), radius: 30, y: 16)
+            .padding(.horizontal, AppSpacing.xl)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(patchOperationFinished ? patchProgressFooter : "Patch operation in progress")
+    }
+
+    private var patchProgressHeader: String {
+        guard patchOperationFinished else { return "PATCH OPERATION" }
+        return patchOperationSucceeded ? "OPERATION COMPLETE" : "OPERATION FAILED"
+    }
+
+    private var patchProgressFooter: String {
+        guard patchOperationSucceeded else { return "The transaction did not complete. Check the log." }
+        return patchOperationIsEnabling ? "PATCH IS ACTIVE ON DEVICE" : "ORIGINAL FILES RESTORED"
     }
 
     private var selectedPatchActionView: some View {
