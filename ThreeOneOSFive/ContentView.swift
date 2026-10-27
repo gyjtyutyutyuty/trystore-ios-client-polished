@@ -2806,7 +2806,7 @@ private struct PatchesView: View {
         } label: {
             ZStack {
                 patchCategoryButtonBackground(isSelected: isSelected)
-                Label(category.rawValue, systemImage: category.icon)
+                Label(language.text(category.titleKey), systemImage: category.icon)
                     .font(AppType.label())
                     .tracking(0.4)
                     .foregroundStyle(isSelected ? Color(red: 0.02, green: 0.07, blue: 0.07) : AppPalette.textSecondary)
@@ -3419,12 +3419,12 @@ private struct PatchesView: View {
     }
 
     // MARK: - Patch Category Enum
-    private enum PatchCategory: String, CaseIterable, Identifiable {
-        case loadout = language.text("patch.mode.loadout")
-        case visuals = language.text("patch.mode.visuals")
+    private enum PatchCategory: CaseIterable, Identifiable {
+        case loadout
+        case visuals
 
-        var id: String { rawValue }
-        var title: String { rawValue }
+        var id: String { self == .loadout ? "loadout" : "visuals" }
+        var titleKey: String { self == .loadout ? "patch.mode.loadout" : "patch.mode.visuals" }
         var icon: String { self == .loadout ? "viewfinder" : "sparkles" }
     }
 
