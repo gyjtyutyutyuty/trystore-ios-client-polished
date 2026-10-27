@@ -315,15 +315,18 @@ final class PatchProjectStore: ObservableObject {
 
         // Reported from the transaction itself, so the bar measures rules
         // written rather than time elapsed. Nil when nobody is watching.
-        let reporter: (@Sendable (Int, Int) -> Void)? = reportsProgress
-            ? { [weak self] done, total in
+        let reporter: (@Sendable (Int, Int) -> Void)?
+        if reportsProgress {
+            reporter = { [weak self] done, total in
                 guard total > 0 else { return }
                 let value = min(1, max(0, Double(done) / Double(total)))
                 Task { @MainActor in
                     self?.operationProgress = value
                 }
             }
-            : nil
+        } else {
+            reporter = nil
+        }
         if reportsProgress {
             operationProgress = 0
         }

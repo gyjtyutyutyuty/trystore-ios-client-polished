@@ -94,7 +94,8 @@ enum AppType {
     ) -> Font {
         let base = UIFont.systemFont(ofSize: size, weight: weight)
         let dynamic = UIFontMetrics(forTextStyle: textStyle).scaledFont(for: base)
-        return Font(dynamic).withDesign(.rounded) ?? Font(dynamic)
+        let roundedDescriptor = dynamic.fontDescriptor.withDesign(.rounded) ?? dynamic.fontDescriptor
+        return Font(dynamic.withDescriptor(roundedDescriptor))
     }
 }
 

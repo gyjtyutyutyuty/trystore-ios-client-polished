@@ -1324,6 +1324,25 @@ private struct DashboardView: View {
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
     }
 
+    private func deviceMetricCardHome(icon: String, label: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(label, systemImage: icon)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(tint)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
+        }
+        .frame(maxWidth: .infinity, minHeight: 67, alignment: .leading)
+        .padding(10)
+        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
+    }
+
     private var deviceSection: some View {
         VStack(alignment: .leading, spacing: 11) {
             panelHeader(title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH", icon: "waveform.path.ecg")
@@ -2663,8 +2682,8 @@ private struct PatchesView: View {
     @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedPatchProjectName: String?
     @State private var patchProgress: Double = 0
-    @State private var patchProgressStage = language.text("patch.stage.preparing")
-    @State private var patchProgressSub = language.text("patch.stage.preparing_detail")
+    @State private var patchProgressStage = ""
+    @State private var patchProgressSub = ""
     @State private var showPatchProgress = false
     @State private var patchProgressTask: Task<Void, Never>?
     @State private var patchOperationIsEnabling = true
@@ -3516,6 +3535,7 @@ private struct ParticleFieldView: View {
 @available(iOS 16.1, *)
 struct LiveActivityView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.appLanguage) private var language
     @State private var activity: Activity<LiveActivityState>?
 
     var body: some View {
@@ -3598,7 +3618,11 @@ enum PatchActivityController {
         )
         Task {
             for existing in Activity<LiveActivityState>.activities {
-                await existing.end(nil, dismissalPolicy: .immediate)
+                if #available(iOS 16.2, *) {
+                    await existing.end(nil, dismissalPolicy: .immediate)
+                } else {
+                    await existing.end(using: nil, dismissalPolicy: .immediate)
+                }
             }
             _ = try? Activity<LiveActivityState>.request(
                 attributes: attributes,
@@ -3652,6 +3676,7 @@ enum PatchActivityController {
 struct LiveActivityBanner: View {
     let activity: Activity<LiveActivityState>
     let onRefresh: () async -> Void
+    @Environment(\.appLanguage) private var language
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
