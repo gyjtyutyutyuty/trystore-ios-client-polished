@@ -80,37 +80,25 @@ struct HomeView: View {
                     .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
                     .foregroundStyle(.white)
                 Text("MAX CONTROL  /  VISUAL LAB")
-                    .font(.system(size: 6, weight: .black, design: .rounded))
-                    .tracking(1.0)
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .tracking(0.75)
                     .foregroundStyle(AppTheme.accent.opacity(0.82))
             }
             Spacer(minLength: 2)
-            Circle()
-                .fill(appState.isSupported ? Color.green : Color.orange)
-                .frame(width: 8, height: 8)
-                .padding(8)
-                .background(Color.black.opacity(0.38), in: Capsule())
-                .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
-            Button { showLogs = true } label: {
-                Image(systemName: "apple.terminal")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundStyle(AppTheme.accent)
-                    .frame(width: 30, height: 30)
-                    .background(Color.black.opacity(0.38), in: Circle())
-                    .overlay(Circle().stroke(AppTheme.accent.opacity(0.30), lineWidth: 1))
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(appState.isSupported ? Color.green : Color.orange)
+                    .frame(width: 7, height: 7)
+                Text(appState.isSupported ? "READY" : "REVIEW")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.55)
+                    .foregroundStyle(.white.opacity(0.86))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(language.text("accessibility.open_logs"))
-            Button { showSettings = true } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundStyle(AppTheme.accent)
-                    .frame(width: 30, height: 30)
-                    .background(Color.black.opacity(0.38), in: Circle())
-                    .overlay(Circle().stroke(AppTheme.accent.opacity(0.30), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(language.text("accessibility.open_settings"))
+            .padding(.horizontal, 11)
+            .frame(height: 34)
+            .background(Color.white.opacity(0.07), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 1))
+            .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
         }
         .padding(.bottom, 2)
     }
@@ -143,13 +131,13 @@ struct HomeView: View {
                 .background(Color.black.opacity(0.22), in: Capsule())
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("MAKE YOUR SETUP\nFEEL YOURS")
-                        .font(.system(size: horizontalSizeClass == .compact ? 23 : 29, weight: .black, design: .rounded))
+                    Text("YOUR PATCH\nCONTROL CENTER")
+                        .font(.system(size: horizontalSizeClass == .compact ? 25 : 31, weight: .black, design: .rounded))
                         .tracking(0.35)
                         .lineSpacing(-1)
                         .foregroundStyle(.white)
-                    Text("Your patch studio, connections, and device status in one place.")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                    Text("Manage modules, connections, and device health from one focused workspace.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.62))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -157,14 +145,14 @@ struct HomeView: View {
 
                 Button(action: onOpenPatches) {
                     HStack(spacing: 8) {
-                        Text("OPEN PATCH LIBRARY")
+                        Text("EXPLORE PATCH STUDIO")
                             .tracking(0.65)
                         Image(systemName: "arrow.up.right")
                     }
-                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .font(.system(size: 12, weight: .black, design: .rounded))
                     .foregroundStyle(Color.black.opacity(0.90))
                     .padding(.horizontal, 14)
-                    .frame(height: 38)
+                    .frame(height: 44)
                     .background(AppTheme.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -205,43 +193,49 @@ struct HomeView: View {
     private func quickAccessCardHome(icon: String, title: String, detail: String) -> some View {
         HStack(spacing: 9) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(AppTheme.accent)
-                .frame(width: 34, height: 34)
-                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .frame(width: 40, height: 40)
+                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .font(.system(size: 11, weight: .black, design: .rounded))
                     .tracking(0.45)
                     .foregroundStyle(.white)
                 Text(detail)
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.50))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.38))
         }
-        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-        .padding(.horizontal, 10)
-        .background(AppTheme.consoleBackground.opacity(0.78), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+        .padding(.horizontal, 12)
+        .background(AppTheme.consoleBackground.opacity(0.82), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
     }
 
     private var deviceSectionHome: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            panelHeader(title: "DEVICE OVERVIEW", subtitle: "LIVE SYSTEM STATUS", icon: "iphone.gen3")
-            statusRow(title: language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
-            statusRow(title: language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
-            HStack {
-                Text(language.text("settings.exploit_compatibility"))
-                    .foregroundStyle(.white.opacity(0.62))
-                Spacer()
-                Text(language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"))
-                    .fontWeight(.bold)
-                    .foregroundStyle(appState.isSupported ? .green : .orange)
+        VStack(alignment: .leading, spacing: 13) {
+            panelHeader(title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH", icon: "waveform.path.ecg")
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)],
+                spacing: 9
+            ) {
+                deviceMetricCardHome(icon: "iphone.gen3", label: language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName, tint: AppTheme.accent)
+                deviceMetricCardHome(icon: "gearshape.2.fill", label: language.text("settings.ios_version"), value: "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))", tint: .cyan)
+                deviceMetricCardHome(icon: "thermometer.medium", label: "THERMAL", value: appState.thermalStateLabel, tint: .orange)
+                deviceMetricCardHome(
+                    icon: "checkmark.shield.fill",
+                    label: language.text("settings.exploit_compatibility"),
+                    value: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
+                    tint: appState.isSupported ? .green : .orange
+                )
             }
-            .font(.system(size: 10, design: .rounded))
             if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
                 statusRow(
                     title: language.text("dashboard.kernel_status"),
@@ -250,74 +244,111 @@ struct HomeView: View {
                         : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
                 )
             }
-            statusRow(title: "Device thermal state", value: appState.thermalStateLabel)
-            Text("iOS does not expose raw CPU/GPU temperatures in °C to apps.")
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.44))
-            // Launch count
-            HStack {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.white.opacity(0.42))
+                Text("Thermal state is shown; iOS does not expose raw CPU/GPU temperatures.")
+                    .foregroundStyle(.white.opacity(0.46))
+            }
+            .font(.system(size: 10, weight: .medium, design: .rounded))
+            HStack(spacing: 7) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(AppTheme.accent)
                 Text(language.text("dashboard.launch_count"))
-                    .foregroundStyle(.white.opacity(0.57))
-                Spacer(minLength: 10)
-                Text("\(appState.totalLaunches) times")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white.opacity(0.88))
-                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.white.opacity(0.58))
+                Spacer()
+                Text("\(appState.totalLaunches)")
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
             }
             .font(.system(size: 11, design: .rounded))
         }
-        .padding(14)
-        .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [AppTheme.consoleBackground, Color.black.opacity(0.78)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(Color.white.opacity(0.11), lineWidth: 1))
+    }
+
+    private func deviceMetricCardHome(icon: String, label: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(tint)
+                Text(label)
+                    .tracking(0.65)
+                    .foregroundStyle(.white.opacity(0.56))
+            }
+            .font(.system(size: 9, weight: .black, design: .rounded))
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.94))
+                .lineLimit(2)
+                .minimumScaleFactor(0.80)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 67, alignment: .leading)
+        .padding(11)
+        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 
     private var quickStartPanelHome: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            panelHeader(title: "QUICK START", subtitle: "YOUR MAX SESSION", icon: "bolt.fill")
-            HStack(alignment: .top, spacing: 8) {
-                quickStartStepHome(number: "01", title: "CHOOSE", detail: "Pick LOADOUT or VISUALS")
-                quickStartStepHome(number: "02", title: "ACTIVATE", detail: "Select a patch, then tap ACTIVATE")
-                quickStartStepHome(number: "03", title: "RESTORE", detail: "Use RESTORE to undo a patch")
+        VStack(alignment: .leading, spacing: 12) {
+            panelHeader(title: "START HERE", subtitle: "THREE STEPS TO A PATCH", icon: "bolt.fill")
+            VStack(spacing: 8) {
+                quickStartStepHome(number: "01", title: "Choose a category", detail: "Select LOADOUT or VISUALS.")
+                quickStartStepHome(number: "02", title: "Activate a patch", detail: "Select a module, then tap ACTIVATE PATCH.")
+                quickStartStepHome(number: "03", title: "Restore safely", detail: "Use RESTORE PATCH when you are finished.")
             }
         }
-        .padding(14)
-        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+        .padding(16)
+        .background(AppTheme.consoleBackground.opacity(0.84), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
     }
 
     private func quickStartStepHome(number: String, title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        HStack(spacing: 11) {
             Text(number)
-                .font(.system(size: 9, weight: .black, design: .rounded))
+                .font(.system(size: 11, weight: .black, design: .rounded))
                 .foregroundStyle(AppTheme.accent)
-            Text(title)
-                .font(.system(size: 8, weight: .black, design: .rounded))
-                .tracking(0.4)
-                .foregroundStyle(.white)
-            Text(detail)
-                .font(.system(size: 8, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.48))
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 36, height: 36)
+                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(detail)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.56))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(9)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+        .padding(.horizontal, 10)
+        .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .black))
+                .font(.system(size: 13, weight: .black))
                 .foregroundStyle(AppTheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .font(.system(size: 12, weight: .black, design: .rounded))
                     .tracking(0.85)
                     .foregroundStyle(.white)
                 Text(subtitle)
-                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
                     .tracking(0.5)
-                    .foregroundStyle(.white.opacity(0.40))
+                    .foregroundStyle(.white.opacity(0.52))
             }
             Spacer()
         }
@@ -369,6 +400,7 @@ private struct PlatinumExpiryCard: View {
     let expirationDate: Date?
     let isActive: Bool
 
+    @Environment(\.appReduceMotion) private var reduceMotion
     @State private var sweep = false
     @State private var ringRotation = 0.0
 
@@ -391,18 +423,18 @@ private struct PlatinumExpiryCard: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(PlatinumPalette.bright)
             }
-            .frame(width: 39, height: 39)
+            .frame(width: 44, height: 44)
             .shadow(color: PlatinumPalette.silver.opacity(0.32), radius: 9)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text("LICENSE WINDOW")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .font(.system(size: 10, weight: .black, design: .rounded))
                         .tracking(1.1)
                         .foregroundStyle(PlatinumPalette.bright)
                     Spacer(minLength: 4)
                     Text(isActive ? "AUTHORIZED" : "VERIFYING")
-                        .font(.system(size: 6, weight: .black, design: .rounded))
+                        .font(.system(size: 8, weight: .black, design: .rounded))
                         .tracking(0.7)
                         .foregroundStyle(isActive ? PlatinumPalette.graphite : .white.opacity(0.76))
                         .padding(.horizontal, 7)
@@ -412,25 +444,25 @@ private struct PlatinumExpiryCard: View {
 
                 if let expirationDate {
                     Text(expiryStamp(expirationDate))
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.92))
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
                         .fixedSize(horizontal: false, vertical: true)
                     TimelineView(.periodic(from: Date(), by: 1)) { context in
                         Text(countdown(to: expirationDate, now: context.date))
-                            .font(.system(size: 8, weight: .black, design: .monospaced))
+                            .font(.system(size: 10, weight: .black, design: .monospaced))
                             .tracking(0.65)
                             .foregroundStyle(PlatinumPalette.silver)
                             .monospacedDigit()
                     }
                 } else {
                     Text("NO EXPIRY TIMESTAMP PROVIDED")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .font(.system(size: 9, weight: .black, design: .rounded))
                         .tracking(0.45)
                         .foregroundStyle(PlatinumPalette.bright)
                     Text("The license service did not return an expiry date.")
-                        .font(.system(size: 7, weight: .medium, design: .rounded))
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.58))
                 }
             }
@@ -475,11 +507,25 @@ private struct PlatinumExpiryCard: View {
         .shadow(color: PlatinumPalette.silver.opacity(0.12), radius: 13, y: 5)
         .accessibilityElement(children: .combine)
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(.linear(duration: 4.4).repeatForever(autoreverses: false)) {
                 sweep = true
             }
             withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
                 ringRotation = 360
+            }
+        }
+        .onChange(of: reduceMotion) { isReduced in
+            if isReduced {
+                sweep = false
+                ringRotation = 0
+            } else {
+                withAnimation(.linear(duration: 4.4).repeatForever(autoreverses: false)) {
+                    sweep = true
+                }
+                withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
+                    ringRotation = 360
+                }
             }
         }
     }
@@ -876,18 +922,21 @@ private struct DashboardView: View {
 
     private var deviceSection: some View {
         VStack(alignment: .leading, spacing: 11) {
-            panelHeader(title: "DEVICE OVERVIEW", subtitle: "LIVE SYSTEM STATUS", icon: "iphone.gen3")
-            statusRow(title: language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
-            statusRow(title: language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
-            HStack {
-                Text(language.text("settings.exploit_compatibility"))
-                    .foregroundStyle(.white.opacity(0.62))
-                Spacer()
-                Text(language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"))
-                    .fontWeight(.bold)
-                    .foregroundStyle(appState.isSupported ? .green : .orange)
+            panelHeader(title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH", icon: "waveform.path.ecg")
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)],
+                spacing: 9
+            ) {
+                deviceMetricCardHome(icon: "iphone.gen3", label: "DEVICE", value: AppInfo.displayMachineName, tint: AppTheme.accent)
+                deviceMetricCardHome(icon: "gearshape.2.fill", label: "SOFTWARE", value: "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))", tint: .cyan)
+                deviceMetricCardHome(icon: "thermometer.medium", label: "THERMAL", value: appState.thermalStateLabel, tint: .orange)
+                deviceMetricCardHome(
+                    icon: "checkmark.shield.fill",
+                    label: "COMPATIBILITY",
+                    value: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
+                    tint: appState.isSupported ? .green : .orange
+                )
             }
-            .font(.system(size: 10, design: .rounded))
             if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
                 statusRow(
                     title: language.text("dashboard.kernel_status"),
@@ -897,10 +946,9 @@ private struct DashboardView: View {
                 )
             }
             HStack(spacing: 8) {
-                statusRow(title: "Device thermal state", value: appState.thermalStateLabel)
-                Text("iOS does not expose raw CPU/GPU temperatures in °C to apps.")
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.44))
+            Text("Thermal state is shown; iOS does not expose raw CPU/GPU temperatures.")
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.44))
             }
             HStack {
                 Text(language.text("dashboard.launch_count"))
@@ -913,9 +961,16 @@ private struct DashboardView: View {
             }
             .font(.system(size: 9, design: .rounded))
         }
-        .padding(14)
-        .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [AppTheme.consoleBackground, Color.black.opacity(0.78)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(Color.white.opacity(0.11), lineWidth: 1))
     }
     private func temperatureRow(icon: String, label: String, value: String, color: Color) -> some View {
         HStack(spacing: 8) {
@@ -1978,6 +2033,7 @@ private struct PatchesView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.openURL) private var openURL
+    @Environment(\.appReduceMotion) private var reduceMotion
     @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedPatchProjectName: String?
 
@@ -2031,61 +2087,71 @@ private struct PatchesView: View {
                 .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(AppTheme.accent.opacity(0.36), lineWidth: 1))
             VStack(alignment: .leading, spacing: 2) {
-                Text("TRY STORE")
-                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 18, weight: .black, design: .rounded))
+                Text("PATCH STUDIO")
+                    .font(.system(size: horizontalSizeClass == .compact ? 16 : 20, weight: .black, design: .rounded))
                     .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
                     .foregroundStyle(.white)
-                Text("PATCH MANAGEMENT")
-                    .font(.system(size: 6, weight: .black, design: .rounded))
-                    .tracking(1.0)
+                Text("FREE FIRE MAX  •  MODULE CONTROL")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.55)
                     .foregroundStyle(AppTheme.accent.opacity(0.82))
             }
             Spacer(minLength: 2)
-            Circle()
-                .fill(appState.isSupported ? Color.green : Color.orange)
-                .frame(width: 8, height: 8)
-                .padding(8)
-                .background(Color.black.opacity(0.38), in: Capsule())
-                .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+            HStack(spacing: 6) {
+                Image(systemName: appState.isSupported ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(appState.isSupported ? .green : .orange)
+                Text(appState.isSupported ? "READY" : "REVIEW")
+                    .foregroundStyle(.white.opacity(0.86))
+            }
+            .font(.system(size: 9, weight: .black, design: .rounded))
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Color.white.opacity(0.06), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.11), lineWidth: 1))
+            .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
         }
-        .padding(.bottom, 2)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 12)
+        .background(
+            LinearGradient(
+                colors: [AppTheme.accent.opacity(0.14), AppTheme.consoleBackground.opacity(0.96), Color.black.opacity(0.80)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(AppTheme.accent.opacity(0.18), lineWidth: 1))
     }
 
     private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .black))
+                .font(.system(size: 13, weight: .black))
                 .foregroundStyle(AppTheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .font(.system(size: 12, weight: .black, design: .rounded))
                     .tracking(0.85)
                     .foregroundStyle(.white)
                 Text(subtitle)
-                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
                     .tracking(0.5)
-                    .foregroundStyle(.white.opacity(0.40))
+                    .foregroundStyle(.white.opacity(0.52))
             }
             Spacer()
         }
     }
 
     private var patchCategoriesView: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            panelHeader(title: "PATCH CATEGORIES", subtitle: "CHOOSE A MODULE TYPE", icon: "square.grid.2x2.fill")
             HStack(spacing: 7) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
                     patchCategoryButton(category)
                 }
             }
-
-            if selectedPatchCategory == .loadout {
-                Text("Aim modules share a game file, so only one aim option is active at a time.")
-                    .font(.system(size: 7, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.40))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
-        .padding(14)
+        .padding(16)
         .background(
             LinearGradient(
                 colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
@@ -2102,7 +2168,7 @@ private struct PatchesView: View {
         let isSelected = selectedPatchCategory == category
         return Button {
             AppHaptics.select()
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.72)) {
                 selectedPatchCategory = category
                 selectedPatchProjectName = nil
             }
@@ -2110,11 +2176,11 @@ private struct PatchesView: View {
             ZStack {
                 patchCategoryButtonBackground(isSelected: isSelected)
                 Label(category.rawValue, systemImage: category.icon)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .tracking(0.55)
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .tracking(0.25)
                     .foregroundStyle(isSelected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
             }
-            .frame(maxWidth: .infinity, minHeight: 38)
+            .frame(maxWidth: .infinity, minHeight: 50)
             .overlay(patchCategoryButtonOutline(isSelected: isSelected))
         }
         .buttonStyle(PlatinumPressStyle())
@@ -2123,10 +2189,10 @@ private struct PatchesView: View {
 
     private func patchCategoryButtonBackground(isSelected: Bool) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
                 .fill(Color.white.opacity(0.045))
             if isSelected {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
                     .fill(LinearGradient(
                         colors: [PlatinumPalette.bright, PlatinumPalette.silver],
                         startPoint: .topLeading,
@@ -2138,7 +2204,7 @@ private struct PatchesView: View {
     }
 
     private func patchCategoryButtonOutline(isSelected: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
             .stroke(
                 isSelected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08),
                 lineWidth: 1
@@ -2147,16 +2213,16 @@ private struct PatchesView: View {
 
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            panelHeader(title: "PATCH LIBRARY", subtitle: "SELECT ONE PATCH TO APPLY", icon: "checkmark.shield")
+            panelHeader(title: "PATCH LIBRARY", subtitle: "SELECT • ACTIVATE • RESTORE", icon: "checkmark.shield")
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("TRYSTORE PATCHES")
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(1.0)
+                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .tracking(0.65)
                         .foregroundStyle(.white)
                     Text("FREE FIRE MAX  •  ORIGINAL MODULES")
-                        .font(.system(size: 7, weight: .bold, design: .rounded))
-                        .tracking(0.55)
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(0.35)
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
@@ -2164,10 +2230,10 @@ private struct PatchesView: View {
                     ProgressView().tint(AppTheme.accent)
                 } else {
                     Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .font(.system(size: 10, weight: .black, design: .rounded))
                         .foregroundStyle(.white.opacity(0.78))
                         .padding(.horizontal, 9)
-                        .frame(height: 25)
+                        .frame(height: 28)
                         .background(Color.white.opacity(0.07), in: Capsule())
                 }
             }
@@ -2179,7 +2245,7 @@ private struct PatchesView: View {
 
             if selectedPatchCategory == .visuals { visualPatchPreview }
 
-            VStack(spacing: 7) {
+            VStack(spacing: 9) {
                 ForEach(visiblePatchOptions) { option in
                     legacyPatchButton(option)
                 }
@@ -2192,14 +2258,14 @@ private struct PatchesView: View {
 
             if selectedPatchCategory == .loadout {
                 Text("Aim modules share a game file, so only one aim option is active at a time.")
-                    .font(.system(size: 7, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.40))
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             selectedPatchActionView
         }
-        .padding(14)
+        .padding(16)
         .background(
             LinearGradient(
                 colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
@@ -2208,8 +2274,8 @@ private struct PatchesView: View {
             ),
             in: RoundedRectangle(cornerRadius: 23, style: .continuous)
         )
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
-        .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: AppTheme.accent.opacity(0.10), radius: 17, y: 7)
     }
 
     private var visualPatchPreview: some View {
@@ -2223,16 +2289,16 @@ private struct PatchesView: View {
             Image("CleanCharacter")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 132)
+                .frame(height: 148)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .shadow(color: AppTheme.accent.opacity(0.22), radius: 14, y: 4)
             Label("TRYSTORE CLASSIC CHARACTER", systemImage: "sparkles")
-                .font(.system(size: 7, weight: .black, design: .rounded))
+                .font(.system(size: 10, weight: .black, design: .rounded))
                 .tracking(0.55)
                 .foregroundStyle(.white.opacity(0.82))
                 .padding(10)
         }
-        .frame(height: 142)
+        .frame(height: 158)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.accent.opacity(0.20), lineWidth: 1))
     }
@@ -2251,52 +2317,55 @@ private struct PatchesView: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: option.icon)
-                        .font(.system(size: 13, weight: .black))
+                        .font(.system(size: 16, weight: .black))
                         .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
-                        .frame(width: 34, height: 34)
-                        .background(isActive ? activeTint : option.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(width: 44, height: 44)
+                        .background(isActive ? activeTint : option.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(option.title)
-                            .font(.system(size: 10, weight: .black, design: .rounded))
-                            .tracking(0.45)
+                            .font(.system(size: 13, weight: .black, design: .rounded))
+                            .tracking(0.25)
                             .foregroundStyle(.white)
-                        Text(item == nil ? "PACKAGE MISSING" : (isActive ? "ACTIVE" : "READY"))
-                            .font(.system(size: 7, weight: .bold, design: .rounded))
-                            .foregroundStyle(item == nil ? .orange : .white.opacity(0.48))
+                        Text(item == nil ? "Package not installed" : (isActive ? "Active on device; restore below" : (isSelected ? "Selected for manual activation" : "Select to review this module")))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(item == nil ? .orange : .white.opacity(0.60))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.80)
                     }
-                    Spacer(minLength: 4)
-                    Text(item == nil ? "MISSING" : (isActive ? "ON" : (isSelected ? "SELECTED" : "OFF")))
-                        .font(.system(size: 7, weight: .black, design: .rounded))
-                        .tracking(0.45)
+                    Spacer(minLength: 2)
+                    Text(item == nil ? "MISSING" : (isActive ? "ACTIVE" : (isSelected ? "SELECTED" : "READY")))
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(0.2)
                         .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.graphite : .white.opacity(0.72)))
-                        .padding(.horizontal, 8)
-                        .frame(minHeight: 23)
+                        .padding(.horizontal, 9)
+                        .frame(minHeight: 28)
                         .background(isActive ? activeTint : Color.white.opacity(0.07), in: Capsule())
                 }
-                .padding(.horizontal, 10)
-                .frame(minHeight: 54)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 68)
                 .background(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(isSelected ? activeTint.opacity(0.16) : Color.white.opacity(0.045))
+                        .fill(isSelected ? AppTheme.accent.opacity(0.16) : Color.white.opacity(0.045))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(isSelected ? PlatinumPalette.bright : Color.white.opacity(0.09), lineWidth: isSelected ? 1.4 : 0.8)
+                        .stroke(isSelected ? AppTheme.accent : Color.white.opacity(0.09), lineWidth: isSelected ? 1.5 : 0.8)
                 )
             }
             .buttonStyle(.plain)
             .disabled(patchStore.isBusy)
             .accessibilityLabel("Select \(option.title)")
+            .accessibilityValue(item == nil ? "Package missing" : (isActive ? "Active on device" : (isSelected ? "Selected, ready for activation" : "Available")))
 
             Button {
                 AppHaptics.tap()
                 appState.toggleFavorite(option.projectName)
             } label: {
                 Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(isFavorite ? .yellow : .white.opacity(0.56))
-                    .frame(width: 32, height: 32)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isFavorite ? "Remove favorite" : "Add favorite")
@@ -2355,20 +2424,52 @@ private struct PatchesView: View {
     }
 
     private var selectedPatchActionView: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if let option = selectedPatchOption {
-                Text("Selected patch: \(option.title)")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.78))
+                HStack(spacing: 11) {
+                    Image(systemName: option.icon)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 44, height: 44)
+                        .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("SELECTED PATCH")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .tracking(0.7)
+                            .foregroundStyle(.white.opacity(0.52))
+                        Text(option.title)
+                            .font(.system(size: 15, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                    }
+                    Spacer(minLength: 0)
+                    if selectedPatchIsActive {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(Color(red: 0.34, green: 0.94, blue: 0.74))
+                            .accessibilityLabel("Patch active")
+                    }
+                }
                 if selectedPatchItem == nil {
                     Text("This patch package is missing from the library and cannot be activated.")
-                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.orange)
+                } else {
+                    Text(selectedPatchIsActive ? "Active on device. Restore when you are finished." : "Ready to activate when you are ready.")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.62))
                 }
             } else {
-                Text("Select a patch above, then activate it.")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.58))
+                HStack(spacing: 10) {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(AppTheme.accent)
+                    Text("Choose a patch above to review its status and activate it.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.66))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Button(action: activateSelectedPatch) {
@@ -2379,14 +2480,21 @@ private struct PatchesView: View {
                         Image(systemName: selectedPatchIsActive ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill")
                     }
                     Text(selectedPatchIsActive ? "RESTORE PATCH" : "ACTIVATE PATCH")
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(0.6)
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .tracking(0.4)
                 }
                 .foregroundStyle(.black)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(selectedPatchIsActive ? Color.orange.opacity(0.92) : PlatinumPalette.bright, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(
+                    LinearGradient(
+                        colors: selectedPatchIsActive ? [.orange, Color(red: 1.0, green: 0.68, blue: 0.29)] : [PlatinumPalette.bright, PlatinumPalette.silver],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PlatinumPressStyle())
             .disabled(selectedPatchItem == nil || patchStore.isBusy)
             .opacity(selectedPatchItem == nil || patchStore.isBusy ? 0.52 : 1)
         }
