@@ -3426,7 +3426,7 @@ struct LiveActivityBanner: View {
                     .tracking(0.5)
                     .foregroundStyle(.white)
                 
-                Label("SYSTEM THERMAL", systemImage: "thermometer.medium")
+                Label(language.text("liveactivity.thermal"), systemImage: "thermometer.medium")
                     .font(.system(size: 8, weight: .black, design: .rounded))
                     .foregroundStyle(.orange)
                 Text(activity.contentState.thermalState ?? "Unknown")
