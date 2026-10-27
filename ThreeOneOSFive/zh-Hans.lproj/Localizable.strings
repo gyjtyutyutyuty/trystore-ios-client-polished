@@ -722,3 +722,9 @@
 
 /* Tab bar */
 "tab.clean" = "清理";
+
+/* Matched to the English key set: this bundle was missing 4 keys. */
+"dashboard.cpu_temp" = "CPU 温度";
+"dashboard.gpu_temp" = "GPU 温度";
+"activate_all_patches" = "全部启用";
+"deactivate_all_patches" = "全部停用";
