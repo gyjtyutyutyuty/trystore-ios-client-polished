@@ -8,13 +8,9 @@ struct LiveActivityState: ActivityAttributes {
         let isActive: Bool
         let cpuTemp: Double?
         let gpuTemp: Double?
+        let thermalState: String?
         let launchCount: Int
     }
-}
-
-private func temperatureDisplayValue(_ value: Double?, unit: TemperatureUnit) -> String {
-    guard let value, value.isFinite else { return "N/A" }
-    return String(format: "%.1f", value) + " " + unit.rawValue
 }
 
 struct ContentView: View {
@@ -41,6 +37,8 @@ struct HomeView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var showSettings = false
+    @State private var showLogs = false
 
     var body: some View {
         NavigationStack {
@@ -60,6 +58,8 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .tint(AppTheme.accent)
         }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showLogs) { LogView() }
     }
 
     private var topBarHome: some View {
@@ -85,6 +85,26 @@ struct HomeView: View {
                 .padding(8)
                 .background(Color.black.opacity(0.38), in: Capsule())
                 .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+            Button { showLogs = true } label: {
+                Image(systemName: "apple.terminal")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30, height: 30)
+                    .background(Color.black.opacity(0.38), in: Circle())
+                    .overlay(Circle().stroke(AppTheme.accent.opacity(0.30), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(language.text("accessibility.open_logs"))
+            Button { showSettings = true } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30, height: 30)
+                    .background(Color.black.opacity(0.38), in: Circle())
+                    .overlay(Circle().stroke(AppTheme.accent.opacity(0.30), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(language.text("accessibility.open_settings"))
         }
         .padding(.bottom, 2)
     }
@@ -111,11 +131,10 @@ struct HomeView: View {
                         : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
                 )
             }
-            // Temperature rows
-            HStack(spacing: 8) {
-                temperatureRowHome(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: temperatureDisplayValue(appState.cpuTemperature, unit: appState.temperatureUnit), color: .orange)
-                temperatureRowHome(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: temperatureDisplayValue(appState.gpuTemperature, unit: appState.temperatureUnit), color: .green)
-            }
+            statusRow(title: "Device thermal state", value: appState.thermalStateLabel)
+            Text("iOS does not expose raw CPU/GPU temperatures in °C to apps.")
+                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.44))
             // Launch count
             HStack {
                 Text(language.text("dashboard.launch_count"))
@@ -131,26 +150,6 @@ struct HomeView: View {
         .padding(14)
         .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
-    }
-
-    private func temperatureRowHome(icon: String, label: String, value: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 9, weight: .black))
-                .foregroundStyle(color)
-            Label(label, systemImage: icon)
-                .font(.system(size: 7, weight: .black, design: .rounded))
-                .foregroundStyle(color)
-                .lineLimit(1)
-            Text(value)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.88))
-                .minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, minHeight: 35, alignment: .leading)
-        .padding(.horizontal, 8)
-        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(color.opacity(0.20), lineWidth: 0.5))
     }
 
     private var telemetryStripHome: some View {
@@ -806,8 +805,10 @@ private struct DashboardView: View {
                 )
             }
             HStack(spacing: 8) {
-                temperatureRow(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: temperatureDisplayValue(appState.cpuTemperature, unit: appState.temperatureUnit), color: .orange)
-                temperatureRow(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: temperatureDisplayValue(appState.gpuTemperature, unit: appState.temperatureUnit), color: .green)
+                statusRow(title: "Device thermal state", value: appState.thermalStateLabel)
+                Text("iOS does not expose raw CPU/GPU temperatures in °C to apps.")
+                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.44))
             }
             HStack {
                 Text(language.text("dashboard.launch_count"))
@@ -1884,10 +1885,9 @@ private struct PatchesView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.openURL) private var openURL
     @StateObject private var patchStore = PatchProjectStore(game: .max)
-    @State private var showingPatchAlert = false
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
+    @State private var selectedPatchProjectName: String?
 
     var body: some View {
         NavigationStack {
@@ -1896,7 +1896,6 @@ private struct PatchesView: View {
                     topBarPatches.appCinematicReveal(delay: 0.02)
                     patchCategoriesView
                     activePatchesView
-                    quickActionsView
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -1906,6 +1905,30 @@ private struct PatchesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .tint(AppTheme.accent)
+        }
+        .task {
+            guard let key = licenseManager.patchBundleKey else { return }
+            patchStore.installBundledResources(bundleKey: key)
+            patchStore.reload()
+        }
+        .alert(item: $patchStore.alert) { alert in
+            let title = Text(language.text(alert.titleKey))
+            let message = Text(alert.message(language: language))
+            if alert.messageKey == "patch.error.pairing_tunnel_required" {
+                return Alert(
+                    title: title,
+                    message: message,
+                    primaryButton: .default(Text(language.text("settings.open_localdevvpn"))) {
+                        if let url = URL(string: "localdevvpn://") { openURL(url) }
+                    },
+                    secondaryButton: .cancel(Text(language.text("common.cancel")))
+                )
+            }
+            return Alert(
+                title: title,
+                message: message,
+                dismissButton: .default(Text(language.text("common.ok")))
+            )
         }
     }
 
@@ -1989,6 +2012,7 @@ private struct PatchesView: View {
             AppHaptics.select()
             withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
                 selectedPatchCategory = category
+                selectedPatchProjectName = nil
             }
         } label: {
             ZStack {
@@ -2031,7 +2055,7 @@ private struct PatchesView: View {
 
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            panelHeader(title: "ACTIVE PATCHES", subtitle: "YOUR CURRENT APPLIED PATCHES", icon: "checkmark.shield")
+            panelHeader(title: "PATCH LIBRARY", subtitle: "SELECT ONE PATCH TO APPLY", icon: "checkmark.shield")
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("TRYSTORE PATCHES")
@@ -2044,12 +2068,16 @@ private struct PatchesView: View {
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
-                Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.78))
-                    .padding(.horizontal, 9)
-                    .frame(height: 25)
-                    .background(Color.white.opacity(0.07), in: Capsule())
+                if patchStore.isBusy {
+                    ProgressView().tint(AppTheme.accent)
+                } else {
+                    Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.78))
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(Color.white.opacity(0.07), in: Capsule())
+                }
             }
 
             PlatinumExpiryCard(
@@ -2057,61 +2085,27 @@ private struct PatchesView: View {
                 isActive: licenseManager.isActive
             )
 
-            HStack(spacing: 7) {
-                ForEach(DashboardPatchTab.allCases) { tab in
-                    let selected = selectedPatchTab == tab
-                    Button {
-                        guard selectedPatchTab != tab else { return }
-                        AppHaptics.select()
-                        withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
-                            selectedPatchTab = tab
-                        }
-                    } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.white.opacity(0.045))
-                            if selected {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(LinearGradient(colors: [PlatinumPalette.bright, PlatinumPalette.silver], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
-                            }
-                            Label(tab.title, systemImage: tab.icon)
-                                .font(.system(size: 9, weight: .black, design: .rounded))
-                                .tracking(0.55)
-                                .foregroundStyle(selected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 38)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(selected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(PlatinumPressStyle())
-                    .accessibilityAddTraits(selected ? .isSelected : [])
-                }
-            }
-
-            if selectedPatchTab == .visuals {
-                visualPatchPreview
-            }
+            if selectedPatchCategory == .visuals { visualPatchPreview }
 
             VStack(spacing: 7) {
-                ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals) { option in
+                ForEach(visiblePatchOptions) { option in
                     legacyPatchButton(option)
                 }
             }
-            .id(selectedPatchTab)
+            .id(selectedPatchCategory)
             .transition(.asymmetric(
                 insertion: .move(edge: .trailing).combined(with: .opacity),
                 removal: .move(edge: .leading).combined(with: .opacity)
             ))
 
-            if selectedPatchTab == .loadout {
+            if selectedPatchCategory == .loadout {
                 Text("Aim modules share a game file, so only one aim option is active at a time.")
                     .font(.system(size: 7, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.40))
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            selectedPatchActionView
         }
         .padding(14)
         .background(
@@ -2124,12 +2118,6 @@ private struct PatchesView: View {
         )
         .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
         .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.linear(duration: 3.4).repeatForever(autoreverses: false)) {
-                patchSheen = true
-            }
-        }
     }
 
     private var visualPatchPreview: some View {
@@ -2159,208 +2147,160 @@ private struct PatchesView: View {
 
     private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
         let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
-        let item = patchStore.items.first {
-            $0.project?.name == option.projectName
-                || (option.projectName == "TryStore" && $0.project?.name == "Balas Magicas")
-                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        let item = patchItem(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
+        let isSelected = selectedPatchProjectName == option.projectName
         let isFavorite = appState.favorites.contains(option.projectName)
 
-        return Button {
-            guard let item else { return }
-            AppHaptics.tap()
-            patchStore.setEnabled(!isActive, for: item, group: option.group, reportsSuccess: false, onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) })
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: option.icon)
-                    .font(.system(size: 13, weight: .black))
-                    .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
-                    .frame(width: 34, height: 34)
-                    .background(
-                        (isActive ? activeTint : option.color.opacity(0.16)),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(option.title)
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(0.45)
-                        .foregroundStyle(.white)
-                }
-                Spacer(minLength: 4)
-                HStack(spacing: 4) {
-                    if isActive {
-                        Circle()
-                            .fill(PlatinumPalette.graphite)
-                            .frame(width: 4, height: 4)
-                            .shadow(color: .white.opacity(0.8), radius: 3)
+        return HStack(spacing: 8) {
+            Button {
+                AppHaptics.select()
+                selectedPatchProjectName = option.projectName
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: option.icon)
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
+                        .frame(width: 34, height: 34)
+                        .background(isActive ? activeTint : option.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(option.title)
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .tracking(0.45)
+                            .foregroundStyle(.white)
+                        Text(item == nil ? "PACKAGE MISSING" : (isActive ? "ACTIVE" : "READY"))
+                            .font(.system(size: 7, weight: .bold, design: .rounded))
+                            .foregroundStyle(item == nil ? .orange : .white.opacity(0.48))
                     }
-                    Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))
+                    Spacer(minLength: 4)
+                    Text(item == nil ? "MISSING" : (isActive ? "ON" : (isSelected ? "SELECTED" : "OFF")))
                         .font(.system(size: 7, weight: .black, design: .rounded))
-                        .tracking(0.65)
+                        .tracking(0.45)
+                        .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.graphite : .white.opacity(0.72)))
+                        .padding(.horizontal, 8)
+                        .frame(minHeight: 23)
+                        .background(isActive ? activeTint : Color.white.opacity(0.07), in: Capsule())
                 }
-                .foregroundStyle(item == nil ? Color.orange : (isActive ? PlatinumPalette.graphite : Color.white.opacity(0.56)))
-                .padding(.horizontal, 8)
-                .frame(minWidth: 39, minHeight: 23)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 54)
                 .background(
-                    isActive
-                        ? LinearGradient(colors: [activeTint, Color.cyan.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: Capsule()
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(isSelected ? activeTint.opacity(0.16) : Color.white.opacity(0.045))
                 )
-                .overlay(Capsule().stroke(isActive ? Color.white.opacity(0.70) : Color.white.opacity(0.08), lineWidth: 0.8))
-                .shadow(color: isActive ? activeTint.opacity(0.45) : .clear, radius: 9, y: 1)
-                Image(systemName: item == nil ? "exclamationmark.triangle.fill" : (isActive ? "checkmark.circle.fill" : "circle"))
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.silver : .white.opacity(0.30)))
-                Spacer(minLength: 4)
-                Button {
-                    AppHaptics.tap()
-                    appState.toggleFavorite(option.projectName)
-                } label: {
-                    Image(systemName: isFavorite ? "star.fill" : "star")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(isFavorite ? .yellow : .white.opacity(0.56))
-                        .padding(6)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(isSelected ? PlatinumPalette.bright : Color.white.opacity(0.09), lineWidth: isSelected ? 1.4 : 0.8)
+                )
             }
-            .padding(.horizontal, 10)
-            .frame(minHeight: 52)
-            .background {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: isActive
-                            ? [activeTint.opacity(0.24), Color.cyan.opacity(0.10), PlatinumPalette.silver.opacity(0.06)]
-                            : [Color.white.opacity(0.065), Color.black.opacity(0.12)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+            .buttonStyle(.plain)
+            .disabled(patchStore.isBusy)
+            .accessibilityLabel("Select \(option.title)")
+
+            Button {
+                AppHaptics.tap()
+                appState.toggleFavorite(option.projectName)
+            } label: {
+                Image(systemName: isFavorite ? "star.fill" : "star")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(isFavorite ? .yellow : .white.opacity(0.56))
+                    .frame(width: 32, height: 32)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
-            .overlay {
-                if isActive && !reduceMotion {
-                    LinearGradient(
-                        colors: [.clear, Color.white.opacity(0.22), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .rotationEffect(.degrees(22))
-                    .offset(x: patchSheen ? 180 : -180)
-                    .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .allowsHitTesting(false)
-                }
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(
-                        isActive
-                            ? LinearGradient(colors: [Color.white.opacity(0.96), activeTint.opacity(0.92), Color.cyan.opacity(0.70)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            : LinearGradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: isActive ? activeTint.opacity(0.25) : .clear, radius: 16, y: 4)
-            .scaleEffect(isActive ? 1.018 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.68), value: isActive)
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .buttonStyle(.plain)
+            .accessibilityLabel(isFavorite ? "Remove favorite" : "Add favorite")
         }
-        .disabled(patchStore.isBusy || item == nil)
-        .opacity(patchStore.isBusy ? 0.72 : (item == nil ? 0.52 : 1))
-        .buttonStyle(PlatinumPressStyle())
-        .accessibilityLabel("\(option.title), \(isActive ? "on" : "off")")
+        .opacity(patchStore.isBusy ? 0.72 : 1)
+    }
+
+    private var visiblePatchOptions: [DashboardPatchOption] {
+        selectedPatchCategory == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals
+    }
+
+    private var selectedPatchOption: DashboardPatchOption? {
+        guard let selectedPatchProjectName else { return nil }
+        return visiblePatchOptions.first { $0.projectName == selectedPatchProjectName }
+    }
+
+    private var selectedPatchItem: PatchLibraryItem? {
+        guard let option = selectedPatchOption else { return nil }
+        return patchItem(for: option)
+    }
+
+    private var selectedPatchIsActive: Bool {
+        guard let item = selectedPatchItem else { return false }
+        return DevicePatchService.latestReceipt(projectID: item.id) != nil
+    }
+
+    private func patchItem(for option: DashboardPatchOption) -> PatchLibraryItem? {
+        patchStore.items.first { item in
+            let projectName = item.project?.name ?? ""
+            let packageName = item.packageURL.lastPathComponent
+            return projectName == option.projectName
+                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
+                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
+                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+        }
     }
 
     private var activeLegacyPatchCount: Int {
         DashboardPatchOption.all.reduce(into: 0) { count, option in
-            guard let item = patchStore.items.first(where: { $0.project?.name == option.projectName }),
+            guard let item = patchItem(for: option),
                   DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
             count += 1
         }
     }
 
-    private func patchItem(named projectName: String) -> PatchLibraryItem? {
-        for item in patchStore.items {
-            guard let project = item.project else { continue }
-            if project.name == projectName { return item }
-        }
-        return nil
+    private func activateSelectedPatch() {
+        guard let option = selectedPatchOption, let item = selectedPatchItem else { return }
+        let shouldEnable = !selectedPatchIsActive
+        patchStore.setEnabled(
+            shouldEnable,
+            for: item,
+            group: option.group,
+            reportsSuccess: true,
+            onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) }
+        )
     }
 
-    private func setAllPatches(enabled: Bool) {
-        for option in DashboardPatchOption.all {
-            guard let item = patchItem(named: option.projectName) else { continue }
-            let isActive = DevicePatchService.latestReceipt(projectID: item.id) != nil
-            guard isActive != enabled else { continue }
-            patchStore.setEnabled(
-                enabled,
-                for: item,
-                group: option.group,
-                reportsSuccess: false,
-                onSuccess: { _ in PatchAudioFeedback.play(enabled: enabled) }
-            )
-        }
-    }
-
-    private var quickActionsView: some View {
-        VStack(spacing: 12) {
-            panelHeader(title: "QUICK ACTIONS", subtitle: "APPLY OR REMOVE PATCHES", icon: "arrow.counterclockwise")
-            HStack(spacing: 12) {
-                // Activate All Button
-                Button {
-                    AppHaptics.tap()
-                    setAllPatches(enabled: true)
-                    alertTitle = "SUCCES"
-                    alertMessage = "All patches applied successfully"
-                    showingPatchAlert = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 12, weight: .black))
-                            .foregroundStyle(.black)
-                        Text(language.text("activate_all_patches"))
-                            .font(.system(size: 9, weight: .black, design: .rounded))
-                            .foregroundStyle(.black)
-                    }
-                    .frame(width: 120, height: 40)
-                    .background(Color.white.opacity(0.90), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(AppTheme.accent, lineWidth: 1))
+    private var selectedPatchActionView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let option = selectedPatchOption {
+                Text("Selected patch: \(option.title)")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.78))
+                if selectedPatchItem == nil {
+                    Text("This patch package is missing from the library and cannot be activated.")
+                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .foregroundStyle(.orange)
                 }
-                .buttonStyle(.plain)
-
-                // Deactivate All Button
-                Button {
-                    AppHaptics.tap()
-                    setAllPatches(enabled: false)
-                    alertTitle = "DEACTIVATED"
-                    alertMessage = "All patches removed successfully"
-                    showingPatchAlert = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "play.slash.fill")
-                            .font(.system(size: 12, weight: .black))
-                            .foregroundStyle(.black)
-                        Text(language.text("deactivate_all_patches"))
-                            .font(.system(size: 9, weight: .black, design: .rounded))
-                            .foregroundStyle(.black)
-                    }
-                    .frame(width: 120, height: 40)
-                    .background(Color.white.opacity(0.90), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(.red, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
+            } else {
+                Text("Select a patch above, then activate it.")
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.58))
             }
-            .padding(.horizontal, 4)
-        }
-        .padding(14)
-        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
 
-        // Alert for quick actions
-        .alert(alertTitle, isPresented: $showingPatchAlert) {
-            Button(language.text("common.ok"), role: .cancel) {}
-        } message: {
-            Text(alertMessage)
+            Button(action: activateSelectedPatch) {
+                HStack(spacing: 8) {
+                    if patchStore.isBusy {
+                        ProgressView().tint(.black)
+                    } else {
+                        Image(systemName: selectedPatchIsActive ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill")
+                    }
+                    Text(selectedPatchIsActive ? "RESTORE PATCH" : "ACTIVATE PATCH")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(0.6)
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(selectedPatchIsActive ? Color.orange.opacity(0.92) : PlatinumPalette.bright, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(selectedPatchItem == nil || patchStore.isBusy)
+            .opacity(selectedPatchItem == nil || patchStore.isBusy ? 0.52 : 1)
         }
+        .padding(12)
+        .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
     }
 
     // MARK: - Patch Category Enum
@@ -2376,9 +2316,6 @@ private struct PatchesView: View {
     // Navigation namespace for tab matching
     @Namespace private var patchTabNamespace
     @State private var selectedPatchCategory: PatchCategory = .loadout
-    @State private var selectedPatchTab: DashboardPatchTab = .loadout
-    @Environment(\.appReduceMotion) private var reduceMotion
-    @State private var patchSheen = false
 }
 
 private struct ParticleFieldView: View {
@@ -2491,8 +2428,9 @@ struct LiveActivityView: View {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let initialState = LiveActivityState.ContentState(
             isActive: true,
-            cpuTemp: appState.cpuTemperature,
-            gpuTemp: appState.gpuTemperature,
+            cpuTemp: nil,
+            gpuTemp: nil,
+            thermalState: appState.thermalStateLabel,
             launchCount: appState.totalLaunches
         )
 
@@ -2511,8 +2449,9 @@ struct LiveActivityView: View {
         guard let activity = activity else { return }
         let updatedState = LiveActivityState.ContentState(
             isActive: true,
-            cpuTemp: appState.cpuTemperature,
-            gpuTemp: appState.gpuTemperature,
+            cpuTemp: nil,
+            gpuTemp: nil,
+            thermalState: appState.thermalStateLabel,
             launchCount: appState.totalLaunches
         )
         await activity.update(using: updatedState)
@@ -2539,24 +2478,12 @@ struct LiveActivityBanner: View {
                     .tracking(0.5)
                     .foregroundStyle(.white)
                 
-                HStack(spacing: 8) {
-                    HStack(spacing: 3) {
-                        Image("cpu")
-                            .font(.system(size: 7, weight: .black))
-                            .foregroundStyle(.orange)
-                        Text(temperatureDisplayValue(activity.contentState.cpuTemp, unit: .celsius))
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .foregroundStyle(.orange)
-                    }
-                    HStack(spacing: 3) {
-                        Image("gpu")
-                            .font(.system(size: 7, weight: .black))
-                            .foregroundStyle(.green)
-                        Text(temperatureDisplayValue(activity.contentState.gpuTemp, unit: .celsius))
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .foregroundStyle(.green)
-                    }
-                }
+                Label("SYSTEM THERMAL", systemImage: "thermometer.medium")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .foregroundStyle(.orange)
+                Text(activity.contentState.thermalState ?? "Unknown")
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
             }
             
             Spacer(minLength: 4)

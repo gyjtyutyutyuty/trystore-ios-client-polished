@@ -60,15 +60,11 @@ struct SettingsView: View {
                     Toggle(language.text("settings.stats_overlay_toggle"), isOn: $appState.showStatsOverlay)
                         .labelsHidden()
                     if appState.showStatsOverlay {
-                        HStack {
-                            Toggle("CPU Temp", isOn: .constant(true))
-                                .labelsHidden()
-                            Toggle("GPU Temp", isOn: .constant(true))
-                                .labelsHidden()
-                            Toggle("Launch Count", isOn: .constant(true))
-                                .labelsHidden()
-                        }
-                        .padding(.vertical, 4)
+                        LabeledContent("System thermal state", value: appState.thermalStateLabel)
+                        Text("iOS does not expose raw CPU/GPU temperatures in °C to apps.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        LabeledContent(language.text("dashboard.launch_count"), value: "\(appState.totalLaunches)")
                     }
                 }
 
@@ -321,6 +317,7 @@ struct SettingsView: View {
         let version = AppInfo.versionTuple
         return appState.isSupported
             || version.major >= 27
+            || DevicePatchService.requiresPairingTunnel
             || (version.major == 18 && version.minor == 7 && version.patch == 10)
     }
 

@@ -114,6 +114,7 @@ struct ThreeOneOSFiveApp: App {
             }
             .onAppear {
                 appState.recordLaunch()
+                appState.refreshThermalState()
                 appState.evaluateRuntimeSecurity()
                 if scenePhase == .active && !effectiveReduceMotion {
                     deviceTiltMotion.start()
@@ -124,6 +125,9 @@ struct ThreeOneOSFiveApp: App {
                     checkForUpdate()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification)) { _ in
+                appState.refreshThermalState()
+            }
             .onChange(of: scenePhase) { phase in
                 if phase == .active && !effectiveReduceMotion {
                     deviceTiltMotion.start()
@@ -132,6 +136,7 @@ struct ThreeOneOSFiveApp: App {
                 }
                 guard phase == .active else { return }
                 appState.evaluateRuntimeSecurity()
+                appState.refreshThermalState()
                 guard !showOnboarding else { return }
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
@@ -148,6 +153,7 @@ struct ThreeOneOSFiveApp: App {
                     try? await Task.sleep(nanoseconds: 30_000_000_000)
                     guard scenePhase == .active else { continue }
                     appState.evaluateRuntimeSecurity()
+                    appState.refreshThermalState()
                 }
             }
         }
@@ -175,11 +181,6 @@ struct SecurityBlockView: View {
             .padding(24)
         }
     }
-}
-
-enum TemperatureUnit: String {
-    case celsius = "°C"
-    case fahrenheit = "°F"
 }
 
 class AppState: ObservableObject {
@@ -250,12 +251,25 @@ class AppState: ObservableObject {
     // Stats overlay toggle
     @AppStorage("stats_overlay_enabled") var showStatsOverlay = false
     var statsOverlayItems: [String] {
-        showStatsOverlay ? ["CPU Temp", "GPU Temp", "Launch Count"] : []
+        showStatsOverlay ? ["Thermal State", "Launch Count"] : []
     }
-    // Public iOS APIs do not expose CPU/GPU die temperatures; nil renders as unavailable.
-    @Published var cpuTemperature: Double? = nil
-    @Published var gpuTemperature: Double? = nil
-    var temperatureUnit: TemperatureUnit = .celsius
+    @Published private(set) var thermalStateLabel = "Unknown"
+
+    func refreshThermalState() {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal:
+            thermalStateLabel = "Nominal"
+        case .fair:
+            thermalStateLabel = "Fair"
+        case .serious:
+            thermalStateLabel = "Serious"
+        case .critical:
+            thermalStateLabel = "Critical"
+        @unknown default:
+            thermalStateLabel = "Unknown"
+        }
+    }
+
     var kernelExploitApplicable: Bool {
         KernelExploit.isApplicable(
             major: AppInfo.versionTuple.major,
