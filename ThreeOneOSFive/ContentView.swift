@@ -30,6 +30,12 @@ struct ContentView: View {
                     Text("Patches")
                 }
                 .tag(1)
+            CleanerView()
+                .tabItem {
+                    Image(systemName: "sparkles")
+                    Text("Clean")
+                }
+                .tag(2)
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
@@ -58,7 +64,6 @@ struct HomeView: View {
                         vitalPanelHome.appCinematicReveal(delay: 0.15)
                         quickAccessHome.appCinematicReveal(delay: 0.21)
                         deviceSectionHome.appCinematicReveal(delay: 0.27)
-                        quickStartPanelHome.appCinematicReveal(delay: 0.33)
                         footerHome.appCinematicReveal(delay: 0.39)
                     }
                     .padding(.horizontal, AppSpacing.screenInset)
@@ -408,49 +413,6 @@ struct HomeView: View {
                 .foregroundStyle(AppPalette.textPrimary)
                 .multilineTextAlignment(.trailing)
         }
-    }
-
-    // MARK: - Start here
-
-    private var quickStartPanelHome: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.m) {
-            AppSectionHeader(icon: "bolt.fill", title: "START HERE", subtitle: "THREE STEPS TO A PATCH")
-
-            VStack(spacing: AppSpacing.s) {
-                quickStartStepHome(number: "01", title: "Choose a category", detail: "Select LOADOUT or VISUALS.")
-                quickStartStepHome(number: "02", title: "Activate a patch", detail: "Select a module, then tap ACTIVATE PATCH.")
-                quickStartStepHome(number: "03", title: "Restore safely", detail: "Use RESTORE PATCH when you are finished.")
-            }
-        }
-        .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
-    }
-
-    private func quickStartStepHome(number: String, title: String, detail: String) -> some View {
-        HStack(spacing: AppSpacing.m) {
-            Text(number)
-                .font(AppType.digits(13))
-                .foregroundStyle(AppTheme.accent)
-                .frame(width: 40, height: 40)
-                .background(AppTheme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous)
-                        .stroke(AppTheme.accent.opacity(0.22), lineWidth: 1)
-                )
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(AppType.body())
-                    .foregroundStyle(AppPalette.textPrimary)
-                Text(detail)
-                    .font(AppType.meta())
-                    .foregroundStyle(AppPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-        .padding(.horizontal, AppSpacing.m)
-        .background(AppPalette.raised.opacity(0.42), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
     }
 
     // MARK: - Footer

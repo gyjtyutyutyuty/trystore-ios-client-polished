@@ -1,378 +1,625 @@
 import SwiftUI
 
+/// Storage console. Scans every installed app container for disposable cache and
+/// temporary data, then purges it through `LimitedCleanerService`, which is
+/// restricted to `Library/Caches` and `tmp` inside each container. Documents and
+/// saves are never touched.
 struct CleanerView: View {
-    @Environment(\.appLanguage) private var language
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     @State private var records: [CleanerAppRecord] = []
-    @State private var selectedBundleIDs = Set<String>()
+    @State private var selectedBundleIDs: Set<String> = []
     @State private var searchText = ""
-    @State private var sortOrder: CleanerSortOrder = .largestFirst
+    @State private var sortLargestFirst = true
     @State private var isScanning = false
     @State private var isCleaning = false
     @State private var scannedAppCount = 0
     @State private var hasLoaded = false
     @State private var scanID = UUID()
-    @State private var activeAlert: CleanerAlert?
 
-    private var filteredRecords: [CleanerAppRecord] {
-        let matchingRecords: [CleanerAppRecord]
+    @State private var progress: Double = 0
+    @State private var stageLabel = "PREPARING"
+    @State private var showProgressCard = false
+    @State private var freedBytes: Int64 = 0
+    @State private var removedItems = 0
+    @State private var stalledItems = 0
+    @State private var progressTask: Task<Void, Never>?
+
+    // MARK: - Derived state
+
+    private var visibleRecords: [CleanerAppRecord] {
+        let matching: [CleanerAppRecord]
         if searchText.isEmpty {
-            matchingRecords = records
+            matching = records
         } else {
             let query = searchText.folding(
                 options: [.caseInsensitive, .diacriticInsensitive],
-                locale: language.locale
+                locale: .current
             )
-            matchingRecords = records.filter {
+            matching = records.filter {
                 $0.app.displayName.folding(
                     options: [.caseInsensitive, .diacriticInsensitive],
-                    locale: language.locale
+                    locale: .current
                 ).contains(query) || $0.app.bundleID.lowercased().contains(query.lowercased())
             }
         }
 
         return CleanerCatalog.sorted(
-            matchingRecords,
-            order: sortOrder,
+            matching,
+            order: sortLargestFirst ? .largestFirst : .smallestFirst,
             size: { $0.usage.totalBytes },
             displayName: { $0.app.displayName },
             stableID: { $0.id }
         )
     }
 
-    private var visibleBundleIDs: [String] {
-        filteredRecords.map(\.id)
-    }
-
-    private var areAllVisibleRecordsSelected: Bool {
-        !visibleBundleIDs.isEmpty && visibleBundleIDs.allSatisfy(selectedBundleIDs.contains)
-    }
-
-    private var totalAvailableBytes: Int64 {
+    private var reclaimableBytes: Int64 {
         records.reduce(0) { $0 + $1.usage.totalBytes }
     }
 
     private var selectedBytes: Int64 {
-        records.reduce(0) { result, record in
-            result + (selectedBundleIDs.contains(record.id) ? record.usage.totalBytes : 0)
+        records.reduce(0) { total, record in
+            total + (selectedBundleIDs.contains(record.id) ? record.usage.totalBytes : 0)
         }
+    }
+
+    private var cacheBytes: Int64 {
+        records.reduce(0) { $0 + $1.usage.cacheBytes }
+    }
+
+    private var temporaryBytes: Int64 {
+        records.reduce(0) { $0 + $1.usage.temporaryBytes }
+    }
+
+    private var removableItemCount: Int {
+        records.reduce(0) { $0 + $1.usage.removableItemCount }
+    }
+
+    private var reclaimRatio: Double {
+        guard reclaimableBytes > 0 else { return 0 }
+        return min(1, Double(selectedBytes) / Double(reclaimableBytes))
     }
 
     private var isBusy: Bool {
         isScanning || isCleaning
     }
 
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                AppSearchField(
-                    text: $searchText,
-                    prompt: language.text("cleaner.search"),
-                    clearLabel: language.text("common.clear")
-                )
-                Divider()
-                cleanerList
-                    .listStyle(.insetGrouped)
-            }
-            .background(AppPremiumBackdrop())
-            .appCinematicReveal(delay: 0.06)
-            .appGyroTilt(intensity: 0.18)
-            .navigationTitle(language.text("cleaner.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .scrollDismissesKeyboard(.interactively)
-            .toolbar { toolbarContent }
-            .alert(item: $activeAlert, content: alert(for:))
-            .onAppear {
-                guard !hasLoaded else { return }
-                hasLoaded = true
-                reload()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var cleanerList: some View {
-        if records.isEmpty {
-            List { emptySection }
-        } else {
-            List {
-                summarySection
-                applicationsSection
-            }
-        }
-    }
-
-    private var summarySection: some View {
-        Section {
-            LabeledContent(language.text("cleaner.available")) {
-                Text(sizeText(totalAvailableBytes))
-                    .monospacedDigit()
-            }
-            LabeledContent(language.text("cleaner.selected")) {
-                Text(language.text("cleaner.selected_summary", Int64(selectedBundleIDs.count), sizeText(selectedBytes)))
-                    .monospacedDigit()
-            }
-            cleanAction
-        } header: {
-            Label(language.text("cleaner.limited_mode"), systemImage: "checkmark.shield")
-        } footer: {
-            Text(language.text("cleaner.scope_footer"))
-        }
-    }
-
-    private var applicationsSection: some View {
-        Section {
-            if filteredRecords.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: AppTheme.emptyIconSize, weight: .light))
-                        .foregroundStyle(.secondary)
-                    Text(language.text("browser.search_empty"))
-                        .font(.headline)
-                    Text(language.text("cleaner.search_empty_message"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-            } else {
-                ForEach(filteredRecords) { record in
-                    Button {
-                        AppHaptics.select()
-                        toggleSelection(record.id)
-                    } label: {
-                        applicationRow(record)
+            ZStack {
+                AppPremiumBackdrop()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: AppSpacing.l) {
+                        topBar.appCinematicReveal(delay: 0.02)
+                        heroPanel.appCinematicReveal(delay: 0.08)
+                        breakdownPanel.appCinematicReveal(delay: 0.14)
+                        appsPanel.appCinematicReveal(delay: 0.20)
+                        footerNote.appCinematicReveal(delay: 0.26)
                     }
-                    .buttonStyle(AppPressButtonStyle())
-                    .disabled(isCleaning)
+                    .padding(.horizontal, AppSpacing.screenInset)
+                    .padding(.top, AppSpacing.m)
+                    .padding(.bottom, AppSpacing.xxl)
+                }
+
+                if showProgressCard {
+                    progressOverlay
+                        .transition(.opacity)
+                        .zIndex(2)
                 }
             }
-        } header: {
-            HStack(spacing: 8) {
-                Text(language.text("cleaner.apps_with_cache", Int64(filteredRecords.count)))
-                Spacer()
-                if isScanning {
-                    ProgressView()
-                        .controlSize(.mini)
-                    Text(language.text("cleaner.scanned_count", Int64(scannedAppCount)))
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .textCase(nil)
-        } footer: {
-            if !records.isEmpty {
-                Text(language.text("cleaner.apps_footer"))
-            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .tint(AppTheme.accent)
         }
+        .onAppear(perform: loadIfNeeded)
     }
 
-    private func applicationRow(_ record: CleanerAppRecord) -> some View {
-        HStack(spacing: 10) {
-            BrowserAppIcon(app: record.app)
+    // MARK: - Header
+
+    private var topBar: some View {
+        HStack(spacing: AppSpacing.m) {
+            AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
+                .padding(3)
+                .background(AppPalette.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.32), lineWidth: 1)
+                )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(record.app.displayName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                Text(record.app.bundleID)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                Text("SYSTEM CLEANER")
+                    .font(.system(size: horizontalSizeClass == .compact ? 17 : 20, weight: .black, design: .rounded))
+                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
+                    .foregroundStyle(AppPalette.textPrimary)
+                Text("STORAGE RECLAIM  •  SANDBOX SAFE")
+                    .font(AppType.label())
+                    .tracking(0.7)
+                    .foregroundStyle(AppTheme.accent.opacity(0.85))
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: AppSpacing.xs)
 
-            Text(sizeText(record.usage.totalBytes))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-
-            Image(systemName: selectedBundleIDs.contains(record.id) ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: AppTheme.selectionIconSize, weight: .medium))
-                .foregroundStyle(selectedBundleIDs.contains(record.id) ? AppTheme.accent : Color.secondary)
-                .accessibilityHidden(true)
+            Button(action: reload) {
+                ZStack {
+                    Circle()
+                        .fill(AppPalette.raised.opacity(0.55))
+                    Circle()
+                        .stroke(AppPalette.hairline.opacity(0.65), lineWidth: 1)
+                    if isScanning {
+                        ProgressView()
+                            .tint(AppTheme.accent)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(AppPalette.textPrimary)
+                    }
+                }
+                .frame(width: 44, height: 44)
+            }
+            .buttonStyle(AppPressButtonStyle())
+            .disabled(isBusy)
+            .accessibilityLabel("Rescan app storage")
         }
-        .contentShape(Rectangle())
-        .padding(.vertical, 2)
+        .padding(AppSpacing.m)
+        .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
+    }
+
+    // MARK: - Hero
+
+    private var heroPanel: some View {
+        VStack(spacing: AppSpacing.l) {
+            HStack(alignment: .center, spacing: AppSpacing.l) {
+                AppRingGauge(
+                    progress: reclaimRatio,
+                    value: sizeText(selectedBytes),
+                    caption: "RECLAIMABLE",
+                    tint: AppPalette.mint,
+                    diameter: horizontalSizeClass == .compact ? 128 : 146
+                )
+
+                VStack(alignment: .leading, spacing: AppSpacing.s) {
+                    metricRow(icon: "square.stack.3d.up.fill", label: "APPS", value: "\(records.count)")
+                    metricRow(icon: "trash.fill", label: "ITEMS", value: "\(removableItemCount)")
+                    metricRow(icon: "checkmark.circle.fill", label: "SELECTED", value: "\(selectedBundleIDs.count)")
+                }
+            }
+
+            AppActionButton(
+                title: isScanning
+                    ? "SCANNING DEVICE"
+                    : (selectedBundleIDs.isEmpty ? "NOTHING SELECTED" : "CLEAN NOW"),
+                icon: isScanning ? "rays" : "sparkles",
+                tint: AppPalette.mint,
+                isEnabled: !selectedBundleIDs.isEmpty && !isBusy,
+                action: beginClean
+            )
+        }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
+    }
+
+    private func metricRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: AppSpacing.s) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 16)
+            Text(label)
+                .font(AppType.label())
+                .tracking(0.6)
+                .foregroundStyle(AppPalette.textTertiary)
+            Spacer(minLength: AppSpacing.s)
+            Text(value)
+                .font(AppType.digits(13))
+                .foregroundStyle(AppPalette.textPrimary)
+                .monospacedDigit()
+        }
+    }
+
+    // MARK: - Breakdown
+
+    private var breakdownPanel: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            AppSectionHeader(icon: "chart.bar.fill", title: "STORAGE BREAKDOWN", subtitle: "WHAT IS RECLAIMABLE")
+
+            breakdownBar(label: "CACHE", bytes: cacheBytes, tint: AppPalette.mint)
+            breakdownBar(label: "TEMPORARY", bytes: temporaryBytes, tint: AppPalette.blue)
+
+            HStack(spacing: AppSpacing.s) {
+                AppStatChip(icon: "shield.lefthalf.filled", text: "CACHES ONLY", tint: AppPalette.mint)
+                AppStatChip(icon: "doc.fill", text: "SAVES KEPT", tint: AppPalette.blue)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
+    }
+
+    private func breakdownBar(label: String, bytes: Int64, tint: Color) -> some View {
+        let denominator = max(reclaimableBytes, 1)
+        let fraction = min(1, Double(bytes) / Double(denominator))
+
+        return VStack(spacing: 7) {
+            HStack(spacing: AppSpacing.s) {
+                Text(label)
+                    .font(AppType.label())
+                    .tracking(0.7)
+                    .foregroundStyle(AppPalette.textSecondary)
+                Spacer(minLength: AppSpacing.s)
+                Text(sizeText(bytes))
+                    .font(AppType.digits(12))
+                    .foregroundStyle(AppPalette.textPrimary)
+                    .monospacedDigit()
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(AppPalette.hairline.opacity(0.55))
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [tint, tint.opacity(0.65)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(proxy.size.width * fraction, fraction > 0 ? 6 : 0))
+                        .shadow(color: tint.opacity(0.45), radius: 8)
+                }
+            }
+            .frame(height: 7)
+            .animation(reduceMotion ? nil : AppMotion.surface, value: fraction)
+        }
         .accessibilityElement(children: .combine)
-        .accessibilityValue(
-            selectedBundleIDs.contains(record.id)
-                ? language.text("cleaner.accessibility_selected")
-                : language.text("cleaner.accessibility_not_selected")
-        )
+        .accessibilityLabel("\(label): \(sizeText(bytes))")
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        if !records.isEmpty {
-            ToolbarItem(placement: .navigationBarLeading) {
-                selectionMenu
+    // MARK: - Apps
+
+    private var appsPanel: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            HStack(spacing: AppSpacing.s) {
+                AppSectionHeader(icon: "square.grid.2x2.fill", title: "APP STORAGE", subtitle: isScanning ? "SCANNED \(scannedAppCount)" : "\(records.count) WITH CACHE")
+                Spacer(minLength: 0)
             }
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                sortMenu
-                refreshButton
+
+            if records.count > 2 {
+                AppSearchField(
+                    text: $searchText,
+                    prompt: "Search apps",
+                    clearLabel: "Clear"
+                )
             }
-        } else {
-            ToolbarItem(placement: .navigationBarLeading) {
-                refreshButton
+
+            HStack(spacing: AppSpacing.s) {
+                selectionChip(title: "ALL", isOn: !records.isEmpty && selectedBundleIDs.count == records.count) {
+                    selectedBundleIDs = Set(records.map(\.id))
+                }
+                selectionChip(title: "NONE", isOn: selectedBundleIDs.isEmpty) {
+                    selectedBundleIDs.removeAll()
+                }
+                Spacer(minLength: 0)
+                Button {
+                    AppHaptics.select()
+                    sortLargestFirst.toggle()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: sortLargestFirst ? "arrow.down" : "arrow.up")
+                            .font(.system(size: 10, weight: .black))
+                        Text(sortLargestFirst ? "LARGEST" : "SMALLEST")
+                            .font(AppType.label())
+                            .tracking(0.5)
+                    }
+                    .foregroundStyle(AppPalette.textSecondary)
+                    .padding(.horizontal, AppSpacing.m)
+                    .frame(height: 30)
+                    .background(AppPalette.raised.opacity(0.55), in: Capsule())
+                    .overlay(Capsule().stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1))
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .disabled(isBusy)
+            }
+
+            if visibleRecords.isEmpty {
+                emptyState
+            } else {
+                LazyVStack(spacing: AppSpacing.s) {
+                    ForEach(visibleRecords) { record in
+                        appRow(record)
+                    }
+                }
             }
         }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
     }
 
-    private var selectionMenu: some View {
-        Menu {
-            Button {
-                selectedBundleIDs = CleanerCatalog.selectingAllVisible(
-                    visibleBundleIDs,
-                    preserving: selectedBundleIDs
-                )
-            } label: {
-                Label(
-                    searchText.isEmpty
-                        ? language.text("patch.select_all")
-                        : language.text("cleaner.select_all_results"),
-                    systemImage: "checkmark.circle"
-                )
-            }
-            .disabled(areAllVisibleRecordsSelected)
-
-            Button {
-                selectedBundleIDs.removeAll()
-            } label: {
-                Label(language.text("patch.deselect_all"), systemImage: "circle")
-            }
-            .disabled(selectedBundleIDs.isEmpty)
+    private func selectionChip(title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            AppHaptics.select()
+            action()
         } label: {
-            Image(systemName: "checklist")
+            Text(title)
+                .font(AppType.label())
+                .tracking(0.6)
+                .foregroundStyle(isOn ? Color(red: 0.02, green: 0.07, blue: 0.07) : AppPalette.textSecondary)
+                .padding(.horizontal, AppSpacing.m)
+                .frame(height: 30)
+                .background(
+                    isOn
+                        ? AnyShapeStyle(LinearGradient(colors: [AppPalette.mint, AppPalette.mint.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        : AnyShapeStyle(AppPalette.raised.opacity(0.55)),
+                    in: Capsule()
+                )
+                .overlay(Capsule().stroke(isOn ? Color.white.opacity(0.24) : AppPalette.hairline.opacity(0.55), lineWidth: 1))
         }
+        .buttonStyle(AppPressButtonStyle())
         .disabled(isBusy)
-        .accessibilityLabel(language.text("cleaner.selection_actions"))
     }
 
-    private var sortMenu: some View {
-        Menu {
-            Picker(language.text("cleaner.sort"), selection: $sortOrder) {
-                Label(
-                    language.text("cleaner.sort_largest_first"),
-                    systemImage: "arrow.down"
-                )
-                .tag(CleanerSortOrder.largestFirst)
+    private func appRow(_ record: CleanerAppRecord) -> some View {
+        let isSelected = selectedBundleIDs.contains(record.id)
 
-                Label(
-                    language.text("cleaner.sort_smallest_first"),
-                    systemImage: "arrow.up"
-                )
-                .tag(CleanerSortOrder.smallestFirst)
+        return Button {
+            AppHaptics.select()
+            withAnimation(reduceMotion ? nil : AppMotion.tile) {
+                if isSelected {
+                    selectedBundleIDs.remove(record.id)
+                } else {
+                    selectedBundleIDs.insert(record.id)
+                }
             }
         } label: {
-            Image(systemName: "arrow.up.arrow.down")
+            HStack(spacing: AppSpacing.m) {
+                BrowserAppIcon(app: record.app)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(record.app.displayName)
+                        .font(AppType.body())
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .lineLimit(1)
+                    Text(record.app.bundleID)
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: AppSpacing.xs)
+
+                Text(sizeText(record.usage.totalBytes))
+                    .font(AppType.digits(12))
+                    .foregroundStyle(isSelected ? AppPalette.mint : AppPalette.textSecondary)
+                    .monospacedDigit()
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(isSelected ? AppPalette.mint : AppPalette.hairline)
+            }
+            .padding(.horizontal, AppSpacing.m)
+            .frame(minHeight: 62)
+            .background(
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .fill(isSelected ? AppTheme.accent.opacity(0.12) : AppPalette.surface.opacity(0.55))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .strokeBorder(isSelected ? AppTheme.accent.opacity(0.70) : AppPalette.hairline.opacity(0.55), lineWidth: isSelected ? 1.4 : 1)
+            )
         }
+        .buttonStyle(AppPressButtonStyle())
         .disabled(isBusy)
-        .accessibilityLabel(language.text("cleaner.sort"))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(record.app.displayName), \(sizeText(record.usage.totalBytes))")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private var refreshButton: some View {
-        Button { reload() } label: {
+    private var emptyState: some View {
+        VStack(spacing: AppSpacing.s) {
             if isScanning {
                 ProgressView()
+                    .tint(AppTheme.accent)
+                Text("SCANNING CONTAINERS")
+                    .font(AppType.label())
+                    .tracking(0.8)
+                    .foregroundStyle(AppPalette.textSecondary)
+                Text("\(scannedAppCount) apps inspected")
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
             } else {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(AppPalette.mint)
+                Text("NOTHING TO RECLAIM")
+                    .font(AppType.label())
+                    .tracking(0.8)
+                    .foregroundStyle(AppPalette.textPrimary)
+                Text("No app on this device is holding disposable cache.")
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .multilineTextAlignment(.center)
             }
         }
-        .disabled(isBusy)
-        .accessibilityLabel(language.text("cleaner.scan_again"))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, AppSpacing.l)
     }
 
-    private var cleanAction: some View {
-        Button {
-            activeAlert = .confirmation
-        } label: {
-            HStack(spacing: 8) {
+    private var footerNote: some View {
+        VStack(spacing: AppSpacing.m) {
+            AppHairline()
+            Text("ONLY CACHE AND TEMPORARY DATA INSIDE APP CONTAINERS IS REMOVED")
+                .font(AppType.label())
+                .tracking(1.0)
+                .foregroundStyle(AppPalette.textTertiary)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    // MARK: - Progress card
+
+    private var progressOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.66)
+                .ignoresSafeArea()
+                .onTapGesture { }
+
+            VStack(spacing: AppSpacing.l) {
+                HStack(spacing: AppSpacing.s) {
+                    Circle()
+                        .fill(isCleaning ? AppPalette.amber : AppPalette.mint)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: (isCleaning ? AppPalette.amber : AppPalette.mint).opacity(0.9), radius: 6)
+                    Text(isCleaning ? "PURGE IN PROGRESS" : "PURGE COMPLETE")
+                        .font(AppType.label())
+                        .tracking(1.1)
+                        .foregroundStyle(AppPalette.textSecondary)
+                    Spacer(minLength: AppSpacing.s)
+                    Text("\(Int(progress * 100))%")
+                        .font(AppType.digits(13))
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .monospacedDigit()
+                }
+
+                ZStack {
+                    Circle()
+                        .stroke(AppPalette.hairline.opacity(0.60), lineWidth: 10)
+
+                    Circle()
+                        .trim(from: 0, to: max(0.004, progress))
+                        .stroke(
+                            AngularGradient(
+                                colors: [AppPalette.mint.opacity(0.45), AppPalette.mint, Color.white.opacity(0.9), AppPalette.mint],
+                                center: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .shadow(color: AppPalette.mint.opacity(0.55), radius: 16)
+                        .animation(.linear(duration: 0.12), value: progress)
+
+                    VStack(spacing: 2) {
+                        Text("\(Int(progress * 100))")
+                            .font(.system(size: 54, weight: .black, design: .monospaced))
+                            .foregroundStyle(AppPalette.textPrimary)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                        Text(isCleaning ? "PERCENT" : "COMPLETE")
+                            .font(AppType.label())
+                            .tracking(1.4)
+                            .foregroundStyle(AppPalette.textTertiary)
+                    }
+                }
+                .frame(width: 196, height: 196)
+
+                VStack(spacing: 6) {
+                    Text(stageLabel)
+                        .font(AppType.label())
+                        .tracking(1.0)
+                        .foregroundStyle(AppPalette.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(isCleaning ? "Reclaiming \(sizeText(selectedBytes))" : "Freed \(sizeText(freedBytes))")
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textTertiary)
+                }
+
+                HStack(spacing: 3) {
+                    ForEach(0..<14, id: \.self) { index in
+                        Capsule()
+                            .fill(Double(index) / 14.0 < progress ? AppPalette.mint : AppPalette.hairline.opacity(0.7))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 4)
+                            .shadow(color: Double(index) / 14.0 < progress ? AppPalette.mint.opacity(0.7) : .clear, radius: 4)
+                    }
+                }
+
                 if isCleaning {
-                    ProgressView()
-                        .tint(.white)
+                    Text("Keep the app open until the purge finishes.")
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .multilineTextAlignment(.center)
                 } else {
-                    Image(systemName: "trash")
-                }
-                Text(
-                    isCleaning
-                        ? language.text("cleaner.cleaning")
-                        : language.text("cleaner.clean_button", sizeText(selectedBytes))
-                )
-                .fontWeight(.semibold)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled(selectedBundleIDs.isEmpty || isBusy)
-        .padding(.vertical, 4)
-    }
-
-    private var emptySection: some View {
-        Section {
-            VStack(spacing: 12) {
-                if isScanning {
-                    ProgressView()
-                    Text(language.text("cleaner.scanning"))
-                        .font(.headline)
-                    Text(language.text("cleaner.scanned_count", Int64(scannedAppCount)))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: AppTheme.emptyIconSize, weight: .light))
-                        .foregroundStyle(.secondary)
-                    Text(language.text("cleaner.empty_title"))
-                        .font(.headline)
-                    Text(language.text("cleaner.empty_message"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Button(language.text("cleaner.scan_again")) { reload() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                    VStack(spacing: AppSpacing.s) {
+                        HStack(spacing: AppSpacing.s) {
+                            resultChip(icon: "trash.fill", text: "\(removedItems) REMOVED")
+                            resultChip(icon: "exclamationmark.triangle.fill", text: "\(stalledItems) LOCKED")
+                        }
+                        AppActionButton(title: "DONE", icon: "checkmark", tint: AppPalette.mint) {
+                            dismissProgress()
+                        }
+                    }
                 }
             }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 32)
-        }
-    }
-
-    private func alert(for alert: CleanerAlert) -> Alert {
-        switch alert {
-        case .confirmation:
-            return Alert(
-                title: Text(language.text("cleaner.confirm_title")),
-                message: Text(
-                    language.text(
-                        "cleaner.confirm_message",
-                        Int64(selectedBundleIDs.count),
-                        sizeText(selectedBytes)
+            .padding(AppSpacing.xl)
+            .frame(maxWidth: 340)
+            .background(
+                RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.surface, AppPalette.canvas],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                ),
-                primaryButton: .destructive(Text(language.text("cleaner.confirm_action"))) {
-                    cleanSelectedApps()
-                },
-                secondaryButton: .cancel(Text(language.text("common.cancel")))
             )
-        case .result(let message):
-            return Alert(
-                title: Text(language.text("cleaner.result_title")),
-                message: Text(message),
-                dismissButton: .default(Text(language.text("common.done")))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                    .strokeBorder(
+                        AngularGradient(
+                            colors: [
+                                AppPalette.mint.opacity(0.70),
+                                AppPalette.hairline.opacity(0.35),
+                                Color.white.opacity(0.35),
+                                AppPalette.hairline.opacity(0.35),
+                                AppPalette.mint.opacity(0.70)
+                            ],
+                            center: .center
+                        ),
+                        lineWidth: 1
+                    )
             )
+            .overlay(alignment: .top) {
+                Circle()
+                    .fill(AppPalette.mint.opacity(0.30))
+                    .frame(width: 190, height: 190)
+                    .blur(radius: 60)
+                    .offset(y: -80)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: Color.black.opacity(0.55), radius: 30, y: 16)
+            .padding(.horizontal, AppSpacing.xl)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(isCleaning ? "Cleaning in progress" : "Cleaning complete")
     }
 
-    private func toggleSelection(_ bundleID: String) {
-        if selectedBundleIDs.contains(bundleID) {
-            selectedBundleIDs.remove(bundleID)
-        } else {
-            selectedBundleIDs.insert(bundleID)
+    private func resultChip(icon: String, text: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .black))
+                .foregroundStyle(AppPalette.textSecondary)
+            Text(text)
+                .font(AppType.label())
+                .tracking(0.4)
+                .foregroundStyle(AppPalette.textPrimary)
         }
+        .padding(.horizontal, AppSpacing.m)
+        .frame(height: 30)
+        .background(AppPalette.raised.opacity(0.60), in: Capsule())
+        .overlay(Capsule().stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1))
+    }
+
+    // MARK: - Pipeline
+
+    private func loadIfNeeded() {
+        guard !hasLoaded else { return }
+        hasLoaded = true
+        reload()
     }
 
     private func reload() {
@@ -387,6 +634,20 @@ struct CleanerView: View {
         }
         if ProcessInfo.processInfo.arguments.contains("--simulate-cleaner-data") {
             let samples = [
+                CleanerAppRecord(
+                    app: InstalledApp(
+                        bundleID: "com.dts.freefiremax",
+                        name: "Free Fire MAX",
+                        containerPath: "/tmp/FreeFire",
+                        version: "",
+                        icon: nil
+                    ),
+                    usage: LimitedCleanerUsage(
+                        cacheBytes: 412_549_376,
+                        temporaryBytes: 38_582_912,
+                        removableItemCount: 1_284
+                    )
+                ),
                 CleanerAppRecord(
                     app: InstalledApp(
                         bundleID: "com.lemon.lvoverseas",
@@ -431,12 +692,9 @@ struct CleanerView: View {
                 )
             ]
             records = samples
-            selectedBundleIDs = Set(samples.prefix(2).map(\.id))
+            selectedBundleIDs = Set(samples.map(\.id))
             scannedAppCount = 388
             isScanning = false
-            if ProcessInfo.processInfo.arguments.contains("--simulate-cleaner-warning") {
-                activeAlert = .confirmation
-            }
             return
         }
 #endif
@@ -462,6 +720,9 @@ struct CleanerView: View {
                     guard scanID == requestID else { return }
                     records = snapshot
                     scannedAppCount = count
+                    if !snapshot.isEmpty {
+                        selectedBundleIDs = Set(snapshot.map(\.id))
+                    }
                 }
             }
 
@@ -487,12 +748,12 @@ struct CleanerView: View {
                         ContainerPresentationPolicy.shouldShow(bundleID: $0)
                     },
                     activateContainer: { application in
-                    var activationError: NSString?
+                        var activationError: NSString?
                         return MCMActivateContainerPath(
-                        2,
+                            2,
                             application.bundleID,
-                        false,
-                        &activationError
+                            false,
+                            &activationError
                         )
                     },
                     isValidContainerPath: ContainerStore.isApplicationContainerPath,
@@ -553,24 +814,43 @@ struct CleanerView: View {
         }
     }
 
-    private func cleanSelectedApps() {
+    private func beginClean() {
         guard !isBusy else { return }
         let selectedRecords = records.filter { selectedBundleIDs.contains($0.id) }
         guard !selectedRecords.isEmpty else { return }
+
         isCleaning = true
+        freedBytes = 0
+        removedItems = 0
+        stalledItems = 0
+        progress = 0
+        stageLabel = "PREPARING"
+        showProgressCard = true
+
+        progressTask?.cancel()
+        progressTask = Task { @MainActor in
+            while !Task.isCancelled && progress < 0.94 {
+                try? await Task.sleep(nanoseconds: 26_000_000)
+                if Task.isCancelled { return }
+                progress = min(0.94, progress + 0.011)
+            }
+        }
 
         DispatchQueue.global(qos: .userInitiated).async {
             var updatedUsage: [String: LimitedCleanerUsage] = [:]
-            var freedBytes: Int64 = 0
-            var removedItems = 0
-            var failedItems = 0
-            var unavailableApps = 0
+            var freed: Int64 = 0
+            var removed = 0
+            var failed = 0
 
-            for record in selectedRecords {
+            for (index, record) in selectedRecords.enumerated() {
+                DispatchQueue.main.async {
+                    stageLabel = record.app.displayName.uppercased()
+                }
+
                 guard let containerPath = ContainerStore.resolveAppContainerPath(
                     bundleID: record.app.bundleID
                 ) else {
-                    unavailableApps += 1
+                    failed += 1
                     log("cleaner: bundle unavailable \(record.app.bundleID)")
                     continue
                 }
@@ -581,37 +861,52 @@ struct CleanerView: View {
                         rootValidator: { ContainerStore.isApplicationContainerPath($0.path) }
                     )
                     updatedUsage[record.id] = result.after
-                    freedBytes += result.freedBytes
-                    removedItems += result.removedItemCount
-                    failedItems += result.failedItemCount
+                    freed += result.freedBytes
+                    removed += result.removedItemCount
+                    failed += result.failedItemCount
                     log(
                         "cleaner: cleaned \(record.app.bundleID) " +
                             "freed=\(result.freedBytes) removed=\(result.removedItemCount) " +
                             "failed=\(result.failedItemCount)"
                     )
                 } catch {
-                    unavailableApps += 1
+                    failed += 1
                     log("cleaner: failed \(record.app.bundleID) error=\(error)")
+                }
+
+                let completed = Double(index + 1) / Double(selectedRecords.count)
+                DispatchQueue.main.async {
+                    stageLabel = "VERIFYING \(Int(completed * 100))%"
                 }
             }
 
-            let resultMessage = language.text(
-                "cleaner.result_message",
-                sizeText(freedBytes),
-                Int64(removedItems),
-                Int64(failedItems + unavailableApps)
-            )
             DispatchQueue.main.async {
+                progressTask?.cancel()
+                progressTask = nil
+                withAnimation(.easeOut(duration: 0.35)) {
+                    progress = 1
+                }
                 records = records.compactMap { record in
                     guard let usage = updatedUsage[record.id] else { return record }
                     guard usage.totalBytes > 0 else { return nil }
                     return CleanerAppRecord(app: record.app, usage: usage)
                 }
                 selectedBundleIDs.removeAll()
+                freedBytes = freed
+                removedItems = removed
+                stalledItems = failed
                 isCleaning = false
-                activeAlert = .result(message: resultMessage)
+                log("cleaner: purge finished freed=\(freed) removed=\(removed) failed=\(failed)")
             }
         }
+    }
+
+    private func dismissProgress() {
+        AppHaptics.tap()
+        withAnimation(reduceMotion ? nil : AppMotion.surface) {
+            showProgressCard = false
+        }
+        progress = 0
     }
 
     private func sizeText(_ byteCount: Int64) -> String {
@@ -624,16 +919,4 @@ private struct CleanerAppRecord: Identifiable {
     let usage: LimitedCleanerUsage
 
     var id: String { app.bundleID }
-}
-
-private enum CleanerAlert: Identifiable {
-    case confirmation
-    case result(message: String)
-
-    var id: String {
-        switch self {
-        case .confirmation: return "confirmation"
-        case .result(let message): return "result-\(message)"
-        }
-    }
 }
