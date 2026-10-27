@@ -202,10 +202,12 @@
 "license.forget_title" = "Remover a chave salva?";
 "license.forget_message" = "A chave será removida deste iPhone. Uma chave será necessária para abrir o console novamente.";
 "license.forget_action" = "Esquecer chave";
-  settings.stats_overlay = "Estatísticas em Sobrepor";
-  settings.stats_overlay_toggle = "Ativar Estatísticas";
-  settings.stats_overlay_cp = "Temp. do CPU";
-  settings.stats_overlay_gpu = "Temp. da GPU";
-  settings.stats_overlay_launch = "Contador de inicializações";
-  settings.reduce_motion = "Reduzir Movimento";
-  settings.reduce_motion_toggle = "Reduzir movimento";
+"license.cancel" = "Cancelar";
+"settings.stats_overlay" = "Sobreposição de Estatísticas";
+"settings.stats_overlay_toggle" = "Ativar sobreposição de estatísticas";
+"settings.reduce_motion" = "Reduzir Movimento";
+"settings.reduce_motion_toggle" = "Reduzir movimento";
+
+/* MARK: Chaves que estavam sem tradução */
+"freefire.loading" = "Carregando…";
+"wallpaper.installed_by_3105" = "Instalado por 3105";

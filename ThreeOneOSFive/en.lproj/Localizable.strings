@@ -317,11 +317,8 @@
 "settings.sandbox_token" = "Sandbox Token";
 "settings.generate_token" = "Generate Token";
 "settings.token_footer" = "Available after exploit access succeeds.";
-  settings.stats_overlay = "Stats Overlay";
-  settings.stats_overlay_toggle = "Enable Stats Overlay";
-  settings.stats_overlay_cp = "CPU Temp";
-  settings.stats_overlay_gpu = "GPU Temp";
-  settings.stats_overlay_launch = "Launch Count";
+"settings.stats_overlay" = "Stats Overlay";
+"settings.stats_overlay_toggle" = "Enable Stats Overlay";
 
 "gestalt.title" = "Gestalt Editor";
 "gestalt.apply_changes" = "Apply Changes";
@@ -622,5 +619,9 @@
 "license.forget_message" = "This removes the saved key from this iPhone. A key will be required to reopen the console.";
 "license.forget_action" = "Forget key";
 "license.cancel" = "Cancel";
-  settings.reduce_motion = "Reduce Motion";
-  settings.reduce_motion_toggle = "Reduce Motion Toggle";
+"settings.reduce_motion" = "Reduce Motion";
+"settings.reduce_motion_toggle" = "Reduce Motion Toggle";
+
+/* MARK: Previously untranslated keys */
+"freefire.loading" = "Loading…";
+"wallpaper.installed_by_3105" = "Installed by 3105";

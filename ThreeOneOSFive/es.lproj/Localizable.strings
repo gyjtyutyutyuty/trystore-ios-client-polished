@@ -198,3 +198,14 @@
 "license.forget_message" = "La clave se eliminará de este iPhone. Se necesitará otra clave para volver a abrir la consola.";
 "license.forget_action" = "Olvidar clave";
 "license.cancel" = "Cancelar";
+
+/* MARK: Sección de ajustes */
+"settings.stats_overlay" = "Superposición de Estadísticas";
+"settings.stats_overlay_toggle" = "Activar superposición de estadísticas";
+"settings.reduce_motion" = "Reducir Movimiento";
+"settings.reduce_motion_toggle" = "Reducir movimiento";
+
+/* MARK: Claves que faltaban */
+"freefire.loading" = "Cargando…";
+"wallpaper.installed_by_3105" = "Instalado por 3105";
+"dashboard.launch_count" = "Contador de inicios";

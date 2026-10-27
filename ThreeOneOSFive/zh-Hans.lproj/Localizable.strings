@@ -606,3 +606,14 @@
 "license.forget_message" = "此密钥将从此 iPhone 中移除。重新打开控制台需要再次输入密钥。";
 "license.forget_action" = "忘记密钥";
 "license.cancel" = "取消";
+
+/* MARK: 设置部分 */
+"settings.stats_overlay" = "统计浮层";
+"settings.stats_overlay_toggle" = "启用统计浮层";
+"settings.reduce_motion" = "减弱动效";
+"settings.reduce_motion_toggle" = "减弱动效";
+
+/* MARK: 之前缺失的键 */
+"freefire.loading" = "加载中…";
+"wallpaper.installed_by_3105" = "由 3105 安装";
+"dashboard.launch_count" = "启动次数";

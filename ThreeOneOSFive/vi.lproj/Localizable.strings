@@ -611,10 +611,11 @@
 "license.forget_message" = "Khóa sẽ bị xóa khỏi iPhone này. Cần nhập khóa để mở lại bảng điều khiển.";
 "license.forget_action" = "Xóa khóa";
 "license.cancel" = "Hủy";
-  settings.stats_overlay = "Nhật Bản trạng thái thống kê";
-  settings.stats_overlay_toggle = "Kích hoạt bảng điều khiển thống kê";
-  settings.stats_overlay_cp = "Nhiệt độ CPU";
-  settings.stats_overlay_gpu = "Nhiệt độ GPU";
-  settings.stats_overlay_launch = "Lần khởi động";
-  settings.reduce_motion = "Giảm Nhiễu";
-  settings.reduce_motion_toggle = "Bật Giảm Nhiễu";
+"settings.stats_overlay" = "Lớp phủ thống kê";
+"settings.stats_overlay_toggle" = "Bật lớp phủ thống kê";
+"settings.reduce_motion" = "Giảm chuyển động";
+"settings.reduce_motion_toggle" = "Bật giảm chuyển động";
+
+/* MARK: Các khoá trước đây chưa dịch */
+"freefire.loading" = "Đang tải…";
+"wallpaper.installed_by_3105" = "Được cài bởi 3105";
