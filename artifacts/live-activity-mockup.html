@@ -1,0 +1,92 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>TryStore — measured progress and Live Activity</title><style>
+:root{--mint:#65d6c2;--blue:#8ba8ff;--amber:#ffc66d;--coral:#ff938a;--canvas:#0b0f14;--surface:#111821;--raised:#19232d;--hairline:#293542;--t1:#f2f5f7;--t2:#a7b2bf;--t3:#8f9ba8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:var(--t1);display:flex;gap:34px;padding:34px;align-items:flex-start}
+.frame{width:400px;border:1px solid var(--hairline);border-radius:26px;padding:24px;background:linear-gradient(165deg,#0e161d,#0a0e13)}
+.cap{font:600 10px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.20em;color:var(--t3);margin-bottom:18px}
+.ringwrap{display:flex;flex-direction:column;align-items:center;gap:16px}
+.ring{width:184px;height:184px;border-radius:50%;position:relative;background:conic-gradient(from -90deg,var(--mint) calc(var(--p) * 1%), rgba(41,53,66,.5) 0);box-shadow:0 0 40px rgba(101,214,194,.30)}
+.ring:after{content:'';position:absolute;inset:11px;border-radius:50%;background:#0c1218}
+.hole{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.hole b{font:900 52px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.02em}
+.hole span{font:600 9px/1 ui-monospace,monospace;letter-spacing:.22em;color:var(--t3)}
+.stage{font:600 11px/1 ui-monospace,monospace;letter-spacing:.14em;color:var(--t2)}
+.sub{font:400 11px/1.5 ui-monospace,monospace;color:var(--t3);text-align:center}
+.seg{display:flex;gap:3px;width:100%}
+.seg i{flex:1;height:14px;border-radius:3px;background:rgba(41,53,66,.75)}
+.seg i.on{background:var(--mint);box-shadow:0 0 10px rgba(101,214,194,.75)}
+.hdr{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.hdr .d{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 9px var(--mint)}
+.hdr .t{font:600 10px/1 ui-monospace,monospace;letter-spacing:.18em;color:var(--t2)}
+.hdr .v{font:700 12px/1 ui-monospace,monospace;margin-left:auto}
+.la{background:rgba(20,27,34,.92);border:1px solid rgba(101,214,194,.20);border-radius:22px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 18px 44px rgba(0,0,0,.55)}
+.larow{display:flex;align-items:center;gap:9px}
+.glyph{width:20px;height:20px;border-radius:6px;background:linear-gradient(140deg,var(--mint),#37a894);color:#06120f;font:900 11px/20px ui-monospace,monospace;text-align:center;box-shadow:0 0 14px rgba(101,214,194,.5)}
+.op{font:600 11px/1 ui-monospace,monospace;letter-spacing:.10em;color:var(--t2)}
+.pct{margin-left:auto;font:800 15px/1 ui-monospace,monospace}
+.bar{height:6px;border-radius:999px;background:rgba(41,53,66,.75);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#3fae99,var(--mint));box-shadow:0 0 14px rgba(101,214,194,.7)}
+.lafoot{display:flex;align-items:center;gap:10px;font:600 9px/1 ui-monospace,monospace;letter-spacing:.16em;color:var(--t3)}
+.chip{margin-left:auto;padding:5px 9px;border-radius:999px;border:1px solid rgba(101,214,194,.32);color:var(--mint)}
+.lock{background:radial-gradient(120% 90% at 20% 0%,#16222c,#080c11 70%);border:1px solid var(--hairline);border-radius:34px;padding:22px 18px 26px}
+.clock{text-align:center;margin-bottom:6px}
+.clock b{display:block;font:290 46px/1 -apple-system,'Segoe UI',sans-serif;letter-spacing:-.02em}
+.clock span{font:500 11px/1.6 ui-monospace,monospace;color:var(--t3);letter-spacing:.18em}
+.island{width:126px;height:36px;border-radius:999px;background:#000;margin:16px auto 18px;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid #161c22}
+.island b{font:900 12px/1 ui-monospace,monospace;color:var(--mint)}
+.island span{font:700 12px/1 ui-monospace,monospace;margin-left:auto;font-variant-numeric:tabular-nums}
+.islexp{width:100%;background:#000;border-radius:26px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;border:1px solid #161c22;margin-bottom:14px}
+.note{font:400 11px/1.6 -apple-system,'Segoe UI',sans-serif;color:var(--t3);margin-top:16px}
+.k{font:600 10px/1 ui-monospace,monospace;letter-spacing:.14em;color:var(--t2);margin:18px 0 8px}
+
+/* The render container has none of the Apple/Windows families named above, so
+   text came out blank. These two stacks exist in the VM and in iOS alike. */
+*{font-family:'DejaVu Sans Mono','Liberation Mono','Courier New',monospace !important}
+.clock b{font-family:'DejaVu Sans','Liberation Sans',Arial,sans-serif !important;font-weight:300 !important}
+.note,.sub{font-family:'DejaVu Sans','Liberation Sans',Arial,sans-serif !important}
+</style></head><body>
+
+<div class="frame" id="progress">
+  <div class="cap">DETERMINATE PATCH PROGRESS</div>
+  <div class="ringwrap">
+    <div class="ring" style="--p:68">
+      <div class="hole"><b>68</b><span>ACTIVATING</span></div>
+    </div>
+    <div class="stage">HEAD LOADOUT</div>
+    <div class="sub">3 of 5 rules written to the container</div>
+    <div class="seg">
+      <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+      <i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div class="note">The number now comes from the transaction itself: one step per rule written, read-back verified. The paced floor only carries it to 35% while the first write is in flight, so the bar cannot outrun the work.</div>
+  </div>
+</div>
+
+<div class="frame" id="liveactivity">
+  <div class="cap">LOCK SCREEN &amp; DYNAMIC ISLAND</div>
+  <div class="lock">
+    <div class="clock"><b>21:04</b><span>TUESDAY 27 OCTOBER</span></div>
+    <div class="island"><b>T</b><span>68</span></div>
+    <div class="islexp">
+      <div class="larow">
+        <span class="glyph">T</span>
+        <span class="op">ACTIVATING</span>
+        <span class="pct">68%</span>
+      </div>
+      <div class="bar"><i style="width:68%"></i></div>
+    </div>
+    <div class="la">
+      <div class="larow">
+        <span class="glyph">T</span>
+        <span class="op">TRYSTORE PATCHES</span>
+        <span class="pct">68%</span>
+      </div>
+      <div class="bar"><i style="width:68%"></i></div>
+      <div class="lafoot"><span>HEAD LOADOUT &middot; 3 / 5 RULES</span><span class="chip">THERMAL NOMINAL</span></div>
+    </div>
+    <div class="note">The card ends itself when the operation finishes, showing the real outcome for six seconds &mdash; active on device, or restored. The widget view is shipped in LiveActivityWidget.swift; it needs a Widget Extension target to draw.</div>
+  </div>
+</div>
+
+</body></html>

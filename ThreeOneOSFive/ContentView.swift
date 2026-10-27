@@ -57,6 +57,13 @@ struct HomeView: View {
     @State private var showLogs = false
     @State private var heroArrived = false
     @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @StateObject private var pairingController = PairingController()
+    @State private var isPairingReady = false
+    @State private var isTunnelConnected: Bool?
+    @State private var isPairingImporterPresented = false
+    @State private var isPairingImporting = false
+    @State private var isPairingDeleteConfirmationPresented = false
+    @State private var pairingImportErrorKey: String?
 
     var body: some View {
         NavigationStack {
@@ -68,7 +75,8 @@ struct HomeView: View {
                         heroHome.appCinematicReveal(delay: 0.08)
                         vitalPanelHome.appCinematicReveal(delay: 0.15)
                         moduleStatusPanelHome.appCinematicReveal(delay: 0.19)
-                        quickAccessHome.appCinematicReveal(delay: 0.21)
+                        connectionPanelHome.appCinematicReveal(delay: 0.21)
+                        quickAccessHome.appCinematicReveal(delay: 0.24)
                         deviceSectionHome.appCinematicReveal(delay: 0.27)
                         footerHome.appCinematicReveal(delay: 0.39)
                     }
@@ -83,10 +91,58 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showLogs) { LogView() }
+        .sheet(isPresented: $isPairingImporterPresented) {
+            PairingDocumentPicker { url in
+                isPairingImporterPresented = false
+                importPairing(from: url)
+            }
+        }
+        .confirmationDialog(
+            language.text("settings.delete_pairing_confirm_title"),
+            isPresented: $isPairingDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button(language.text("settings.delete_pairing"), role: .destructive) {
+                do {
+                    try PairingFileStore.delete()
+                    isPairingReady = false
+                } catch {
+                    pairingImportErrorKey = "settings.delete_pairing_failed"
+                }
+            }
+            Button(language.text("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(language.text("settings.delete_pairing_confirm_message"))
+        }
+        .alert(
+            language.text(pairingErrorTitleKey),
+            isPresented: Binding(
+                get: { pairingImportErrorKey != nil },
+                set: { if !$0 { pairingImportErrorKey = nil } }
+            )
+        ) {
+            Button(language.text("common.ok"), role: .cancel) {
+                pairingImportErrorKey = nil
+            }
+        } message: {
+            Text(language.text(pairingImportErrorKey ?? "settings.pairing_import_failed"))
+        }
+        .onAppear { isPairingReady = PairingFileStore.isReady }
+        .onReceive(pairingController.$status) { status in
+            if status == "Pairing ready" {
+                isPairingReady = PairingFileStore.isReady
+            }
+        }
         .task {
             guard let key = licenseManager.patchBundleKey else { return }
             patchStore.installBundledResources(bundleKey: key)
             patchStore.reload()
+        }
+        .task {
+            while !Task.isCancelled {
+                isTunnelConnected = LocalDevTunnelProbe.isConnected
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+            }
         }
     }
 
@@ -387,6 +443,188 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Connections
+
+    private var tunnelConnected: Bool {
+        isTunnelConnected == true
+    }
+
+    private var tunnelStatusKeyHome: String {
+        guard let isTunnelConnected else { return "settings.tunnel_checking" }
+        return isTunnelConnected ? "settings.tunnel_connected" : "settings.tunnel_disconnected"
+    }
+
+    private var pairingErrorTitleKey: String {
+        pairingImportErrorKey == "settings.delete_pairing_failed"
+            ? "settings.delete_pairing_error_title"
+            : "settings.pairing_import_error_title"
+    }
+
+    private var connectActionTitleKey: String {
+        if pairingController.isRunning { return "settings.stop_pairing" }
+        return tunnelConnected ? "settings.pair_on_this_iphone" : "settings.open_localdevvpn"
+    }
+
+    private var connectActionIcon: String {
+        if pairingController.isRunning { return "stop.circle.fill" }
+        return tunnelConnected ? "iphone.gen3" : "network"
+    }
+
+    /// Airlift and the tunnel used to live in Settings. They are the two links
+    /// every patch funnels through, so their state belongs on the Home surface.
+    private var connectionPanelHome: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            AppSectionHeader(
+                icon: "antenna.radiowaves.left.and.right",
+                title: language.text("home.shortcut.connections"),
+                subtitle: language.text("home.shortcut.connections_detail"),
+                tint: tunnelConnected ? AppPalette.mint : AppTheme.accent
+            )
+
+            VStack(spacing: AppSpacing.s) {
+                connectionRow(
+                    icon: "iphone.gen3",
+                    title: language.text("settings.pairing"),
+                    value: language.text(isPairingReady ? "settings.pairing_ready" : "settings.pairing_missing"),
+                    tint: isPairingReady ? AppPalette.mint : AppPalette.amber
+                )
+                connectionRow(
+                    icon: "network",
+                    title: language.text("settings.tunnel"),
+                    value: language.text(tunnelStatusKeyHome),
+                    tint: tunnelConnected ? AppPalette.mint : AppPalette.textTertiary
+                )
+            }
+
+            if AppInfo.versionTuple.major >= 27 || DevicePatchService.requiresPairingTunnel {
+                AppActionButton(
+                    title: language.text(connectActionTitleKey),
+                    icon: connectActionIcon,
+                    tint: tunnelConnected ? AppPalette.mint : AppTheme.accent
+                ) {
+                    handleConnectAction()
+                }
+            }
+
+            if let pin = pairingController.pin {
+                Text(language.text("settings.pairing_pin", pin))
+                    .font(AppType.value())
+                    .foregroundStyle(AppTheme.accent)
+                    .monospacedDigit()
+            }
+
+            if pairingController.isRunning {
+                Text(pairingController.status)
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let error = pairingController.errorMessage {
+                Text(error)
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.coral)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text(language.text("settings.pairing_direct_note"))
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: AppSpacing.s) {
+                AppActionButton(
+                    title: language.text("settings.import_pairing"),
+                    icon: "square.and.arrow.down",
+                    tint: AppTheme.accentSecondary,
+                    isProminent: false,
+                    isEnabled: !isPairingImporting
+                ) {
+                    isPairingImporterPresented = true
+                }
+
+                if isPairingReady {
+                    AppActionButton(
+                        title: language.text("settings.delete_pairing"),
+                        icon: "trash",
+                        tint: AppPalette.coral,
+                        isProminent: false
+                    ) {
+                        isPairingDeleteConfirmationPresented = true
+                    }
+                }
+            }
+        }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel, tint: tunnelConnected ? AppPalette.mint : AppTheme.accent)
+    }
+
+    private func connectionRow(icon: String, title: String, value: String, tint: Color) -> some View {
+        HStack(spacing: AppSpacing.m) {
+            AppIconBadge(systemName: icon, tint: tint, size: 34)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textSecondary)
+                Text(value)
+                    .font(AppType.label())
+                    .foregroundStyle(tint)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
+    }
+
+    private func handleConnectAction() {
+        AppHaptics.tap()
+        if pairingController.isRunning {
+            pairingController.cancel()
+        } else if tunnelConnected {
+            pairingController.start(
+                pinNotificationTitle: language.text("settings.pairing_pin_notification_title"),
+                pinNotificationBodyFormat: language.text("settings.pairing_pin_notification_body")
+            )
+        } else {
+            openLocalDevVPN()
+        }
+    }
+
+    private func openLocalDevVPN() {
+        let appURL = URL(string: "localdevvpn://")!
+        let appStoreURL = URL(string: "https://apps.apple.com/app/id6755608044")!
+        UIApplication.shared.open(appURL) { opened in
+            if !opened {
+                UIApplication.shared.open(appStoreURL)
+            }
+        }
+    }
+
+    private func importPairing(from url: URL) {
+        isPairingImporting = true
+        pairingImportErrorKey = nil
+        Task { @MainActor in
+            do {
+                let isReady = try await Task.detached(priority: .userInitiated) {
+                    try PairingFileStore.importFile(from: url)
+                    return PairingFileStore.isReady
+                }.value
+                isPairingReady = isReady
+                isPairingImporting = false
+            } catch PairingFileImportError.invalidPropertyList {
+                pairingImportErrorKey = "settings.pairing_import_invalid"
+                isPairingImporting = false
+            } catch PairingFileImportError.fileTooLarge {
+                pairingImportErrorKey = "settings.pairing_import_too_large"
+                isPairingImporting = false
+            } catch {
+                pairingImportErrorKey = "settings.pairing_import_failed"
+                isPairingImporting = false
+            }
+        }
+    }
+
     // MARK: - Quick access
 
     private var quickAccessHome: some View {
@@ -415,14 +653,6 @@ struct HomeView: View {
             }
             .accessibilityLabel(language.text("accessibility.open_logs"))
 
-            quickAccessCardHome(
-                icon: "slider.horizontal.3",
-                title: language.text("home.shortcut.connections"),
-                detail: language.text("home.shortcut.connections_detail")
-            ) {
-                showSettings = true
-            }
-            .accessibilityLabel(language.text("home.shortcut.connections"))
         }
     }
 

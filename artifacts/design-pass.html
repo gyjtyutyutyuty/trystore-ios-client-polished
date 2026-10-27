@@ -1,0 +1,82 @@
+<!doctype html><html><head><meta charset="utf-8"><title>TryStore — design pass</title><style>
+:root{--mint:#65d6c2;--blue:#8ba8ff;--amber:#ffc66d;--coral:#ff938a;--canvas:#0b0f14;--surface:#111821;--raised:#19232d;--hairline:#293542;--t1:#f2f5f7;--t2:#a7b2bf;--t3:#8f9ba8}
+*{box-sizing:border-box;font-family:'DejaVu Sans Mono','Liberation Mono',monospace}
+body{margin:0;background:var(--canvas);color:var(--t1);display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:30px;width:1180px}
+.card{background:linear-gradient(165deg,#0e161d,#0a0e13);border:1px solid var(--hairline);border-radius:22px;padding:22px;position:relative;overflow:hidden}
+.cap{font-size:10px;letter-spacing:.20em;color:var(--t3);margin-bottom:18px}
+.sub{font-size:10.5px;line-height:1.7;color:var(--t3);margin-top:14px}
+/* specular */
+.spec{position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,transparent 28%,rgba(255,255,255,.075) 45%,transparent 62%);transform:rotate(-14deg) scale(1.6)}
+.spec.left{transform:translateX(-26%) rotate(-14deg) scale(1.6)}
+.spec.right{transform:translateX(26%) rotate(-14deg) scale(1.6)}
+.two{display:flex;gap:14px}
+.two .card{flex:1;min-height:150px;display:flex;flex-direction:column;justify-content:flex-end}
+.tag{font-size:9px;letter-spacing:.16em;color:var(--t3);position:absolute;top:14px;left:18px}
+.h{font-size:13px;font-weight:700;letter-spacing:.06em}
+.v{font-size:15px;font-weight:700}
+.n{font-size:30px;font-weight:900;letter-spacing:-.01em}
+/* skeleton */
+.sk{height:56px;border-radius:18px;background:rgba(25,35,45,.42);border:1px solid rgba(41,53,66,.55);position:relative;overflow:hidden;margin-bottom:8px}
+.sk i{position:absolute;top:0;bottom:0;width:52%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent)}
+.sk.a i{left:-10%}.sk.b i{left:12%}.sk.c i{left:34%}.sk.d i{left:56%}
+/* tabbar */
+.tb{display:flex;justify-content:space-around;padding:9px;border-radius:26px;background:rgba(30,40,50,.72);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(20px)}
+.tbi{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9px;letter-spacing:.06em;color:var(--t3);width:88px}
+.tbi.on{color:var(--mint)}
+.tbi .ic{font-size:16px}
+.tbi.on .ic{filter:drop-shadow(0 0 8px rgba(101,214,194,.85))}
+/* type scale */
+.row{display:flex;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid rgba(41,53,66,.55)}
+.row:last-child{border-bottom:0}
+.row .lab{font-size:9px;letter-spacing:.14em;color:var(--t3);width:86px}
+.grow{font-size:13px;font-weight:700;letter-spacing:.05em}
+.fixed{font-size:13px;font-weight:700}
+.big{font-size:19px;font-weight:900}
+.dg{font-size:21px;font-weight:700;color:var(--mint)}
+.chip{display:inline-block;padding:4px 8px;border:1px solid rgba(101,214,194,.35);border-radius:999px;font-size:9px;letter-spacing:.12em;color:var(--mint);margin-top:12px}
+</style></head><body>
+
+<div class="card">
+  <div class="cap">01 / SPECULAR SURFACE — LIGHT LEANS WITH THE DEVICE</div>
+  <div class="two">
+    <div class="card"><span class="tag">TILT LEFT</span><div class="spec left"></div><div class="h">HEAD LOADOUT</div><div class="sub" style="margin-top:6px">5.5% white, plusLighter</div></div>
+    <div class="card"><span class="tag">TILT RIGHT</span><div class="spec right"></div><div class="h">HEAD LOADOUT</div><div class="sub" style="margin-top:6px">Sweep ≤ 0.20 s, linear</div></div>
+  </div>
+  <div class="sub">One gradient per lit panel, driven by the motion manager already feeding the backdrop. Reduce Motion and Reduce Transparency each switch it off, and it never takes a touch.</div>
+</div>
+
+<div class="card">
+  <div class="cap">02 / DYNAMIC TYPE — LABELS GROW, READINGS HOLD</div>
+  <div class="row"><span class="lab">DEFAULT</span><span class="grow">MODULE BUS</span><span class="dg" style="margin-left:auto">1 / 8</span></div>
+  <div class="row"><span class="lab">LARGE</span><span class="grow" style="font-size:15px">MODULE BUS</span><span class="dg" style="margin-left:auto">1 / 8</span></div>
+  <div class="row"><span class="lab">AX1 (CLAMP)</span><span class="grow" style="font-size:18px">MODULE BUS</span><span class="dg" style="margin-left:auto">1 / 8</span></div>
+  <div class="row"><span class="lab">CAPTION</span><span class="grow" style="font-weight:400;color:var(--t2);font-size:11px">Only Library/Caches and tmp are removed.</span></div>
+  <div class="sub">Every size goes through UIFontMetrics. Digits stay monospaced and unscaled so rings and columns keep their geometry; the root clamps to accessibility1 so 44 pt targets survive.</div>
+</div>
+
+<div class="card">
+  <div class="cap">03 / SKELETON — THE LIST SHOWS ITS OWN SHAPE</div>
+  <div class="sk a"><i></i></div>
+  <div class="sk b"><i></i></div>
+  <div class="sk c"><i></i></div>
+  <div class="sk d"><i></i></div>
+  <div class="sub">Replaces the lone spinner in the cleaner while a scan runs. 1.4 s sweep, static under Reduce Motion.</div>
+</div>
+
+<div class="card">
+  <div class="cap">04 / TAB BAR — STOCK GLASS, LOCALISED, HAPTIC</div>
+  <div class="tb">
+    <div class="tbi on"><span class="ic">⌂</span>Home</div>
+    <div class="tbi"><span class="ic">▦</span>Patches</div>
+    <div class="tbi"><span class="ic">✦</span>Clean</div>
+  </div>
+  <div class="tb" style="margin-top:12px">
+    <div class="tbi on"><span class="ic">⌂</span>Trang chủ</div>
+    <div class="tbi"><span class="ic">▦</span>Bản vá</div>
+    <div class="tbi"><span class="ic">✦</span>Dọn dẹp</div>
+  </div>
+  <div class="sub">Still the system TabView — it keeps Liquid Glass, safe areas and switch control for free. Titles now come from the string table in five languages, and a selection haptic confirms the switch.</div>
+  <span class="chip">NO CUSTOM TAB BAR</span>
+</div>
+
+</body></html>
