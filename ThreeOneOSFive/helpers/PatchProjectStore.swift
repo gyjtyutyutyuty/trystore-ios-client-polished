@@ -52,6 +52,7 @@ enum FreeFireGame: Hashable {
 final class PatchProjectStore: ObservableObject {
     @Published private(set) var items: [PatchLibraryItem] = []
     @Published private(set) var isBusy = false
+    @Published private(set) var operationProgress: Double = 0
     @Published var passwordRequest: PatchPasswordRequest?
     @Published var alert: PatchStoreAlert?
     @Published var unlockErrorKey: String?
@@ -301,6 +302,7 @@ final class PatchProjectStore: ObservableObject {
         for item: PatchLibraryItem,
         group: PatchToggleGroup? = nil,
         reportsSuccess: Bool = true,
+        reportsProgress: Bool = false,
         onSuccess: (@MainActor @Sendable (Bool) -> Void)? = nil
     ) {
         guard !isBusy else { return }
@@ -310,6 +312,21 @@ final class PatchProjectStore: ObservableObject {
         }
 
         let resolvedGroup = group ?? Self.group(for: item)
+
+        // Reported from the transaction itself, so the bar measures rules
+        // written rather than time elapsed. Nil when nobody is watching.
+        let reporter: (@Sendable (Int, Int) -> Void)? = reportsProgress
+            ? { [weak self] done, total in
+                guard total > 0 else { return }
+                let value = min(1, max(0, Double(done) / Double(total)))
+                Task { @MainActor in
+                    self?.operationProgress = value
+                }
+            }
+            : nil
+        if reportsProgress {
+            operationProgress = 0
+        }
 
         if enabled {
             guard let baseProject = item.project else {
@@ -325,7 +342,7 @@ final class PatchProjectStore: ObservableObject {
                 if let resolvedGroup {
                     for candidate in self.items where Self.group(for: candidate) == resolvedGroup && candidate.id != item.id {
                         if let receipt = DevicePatchService.latestReceipt(projectID: candidate.id) {
-                            try DevicePatchService.restore(receipt: receipt)
+                            try DevicePatchService.restore(receipt: receipt, progress: reporter)
                         }
                     }
                 }
@@ -333,7 +350,7 @@ final class PatchProjectStore: ObservableObject {
                 let project = item.summary.schemaVersion >= 2
                     ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
                     : baseProject
-                _ = try DevicePatchService.apply(project: project)
+                _ = try DevicePatchService.apply(project: project, progress: reporter)
             }
         } else if let receipt = DevicePatchService.latestReceipt(projectID: item.id) {
             runOperation(
@@ -341,7 +358,7 @@ final class PatchProjectStore: ObservableObject {
                 reportsSuccess: reportsSuccess,
                 onSuccess: { onSuccess?(false) }
             ) {
-                try DevicePatchService.restore(receipt: receipt)
+                try DevicePatchService.restore(receipt: receipt, progress: reporter)
             }
         }
     }
@@ -461,6 +478,7 @@ final class PatchProjectStore: ObservableObject {
 
     private func finishOperation(successMessageKey: String, reportsSuccess: Bool = true) {
         reload()
+        operationProgress = 1
         isBusy = false
         alert = reportsSuccess
             ? PatchStoreAlert(titleKey: "common.done", messageKey: successMessageKey)
@@ -468,6 +486,7 @@ final class PatchProjectStore: ObservableObject {
     }
 
     private func failOperation(_ error: PatchPackageError) {
+        operationProgress = 1
         isBusy = false
         present(error)
     }

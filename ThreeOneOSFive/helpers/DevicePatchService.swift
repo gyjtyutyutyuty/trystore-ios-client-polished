@@ -1,7 +1,10 @@
 import Foundation
 
 enum DevicePatchService {
-    static func apply(project: PatchProject) throws -> PatchTransactionReceipt {
+    static func apply(
+        project: PatchProject,
+        progress: (@Sendable (Int, Int) -> Void)? = nil
+    ) throws -> PatchTransactionReceipt {
         let bundleIDs = orderedBundleIdentifiers(in: project)
         if requiresPairingTunnel {
             let context = try pairingRemoteContext(bundleIDs: bundleIDs)
@@ -15,7 +18,8 @@ enum DevicePatchService {
                     return root
                 },
                 remoteWriter: pairingRemoteWriter(context: context),
-                remoteReader: pairingRemoteReader(context: context)
+                remoteReader: pairingRemoteReader(context: context),
+                progress: progress
             )
         }
         return try withResolvedContainers(bundleIDs: bundleIDs) { roots in
@@ -27,12 +31,16 @@ enum DevicePatchService {
                         throw PatchPackageError.targetAppUnavailable(bundleID)
                     }
                     return root
-                }
+                },
+                progress: progress
             )
         }
     }
 
-    static func restore(receipt: PatchTransactionReceipt) throws {
+    static func restore(
+        receipt: PatchTransactionReceipt,
+        progress: (@Sendable (Int, Int) -> Void)? = nil
+    ) throws {
         let bundleIDs = try PatchTransaction.requiredBundleIdentifiers(for: receipt)
         if requiresPairingTunnel {
             let context = try pairingRemoteContext(bundleIDs: bundleIDs)
@@ -45,7 +53,8 @@ enum DevicePatchService {
                     return root
                 },
                 remoteWriter: pairingRemoteWriter(context: context),
-                remoteReader: pairingRemoteReader(context: context)
+                remoteReader: pairingRemoteReader(context: context),
+                progress: progress
             )
             return
         }
@@ -57,7 +66,8 @@ enum DevicePatchService {
                         throw PatchPackageError.targetAppUnavailable(bundleID)
                     }
                     return root
-                }
+                },
+                progress: progress
             )
         }
     }

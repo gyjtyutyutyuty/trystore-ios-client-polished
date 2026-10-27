@@ -5,6 +5,8 @@ import SwiftUI
 /// restricted to `Library/Caches` and `tmp` inside each container. Documents and
 /// saves are never touched.
 struct CleanerView: View {
+    @Environment(\.appLanguage) private var language
+    @EnvironmentObject private var appState: AppState
     @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -19,7 +21,7 @@ struct CleanerView: View {
     @State private var scanID = UUID()
 
     @State private var progress: Double = 0
-    @State private var stageLabel = "PREPARING"
+    @State private var stageLabel = ""
     @State private var showProgressCard = false
     @State private var freedBytes: Int64 = 0
     @State private var removedItems = 0
@@ -130,11 +132,11 @@ struct CleanerView: View {
                 )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("SYSTEM CLEANER")
+                Text(language.text("cleaner.console.title"))
                     .font(.system(size: horizontalSizeClass == .compact ? 17 : 20, weight: .black, design: .rounded))
                     .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
                     .foregroundStyle(AppPalette.textPrimary)
-                Text("STORAGE RECLAIM  •  SANDBOX SAFE")
+                Text(language.text("cleaner.console.subtitle"))
                     .font(AppType.label())
                     .tracking(0.7)
                     .foregroundStyle(AppTheme.accent.opacity(0.85))
@@ -161,7 +163,7 @@ struct CleanerView: View {
             }
             .buttonStyle(AppPressButtonStyle())
             .disabled(isBusy)
-            .accessibilityLabel("Rescan app storage")
+            .accessibilityLabel(language.text("cleaner.rescan"))
         }
         .padding(AppSpacing.m)
         .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
@@ -175,22 +177,22 @@ struct CleanerView: View {
                 AppRingGauge(
                     progress: reclaimRatio,
                     value: sizeText(selectedBytes),
-                    caption: "RECLAIMABLE",
+                    caption: language.text("cleaner.reclaimable"),
                     tint: AppPalette.mint,
                     diameter: horizontalSizeClass == .compact ? 128 : 146
                 )
 
                 VStack(alignment: .leading, spacing: AppSpacing.s) {
-                    metricRow(icon: "square.stack.3d.up.fill", label: "APPS", value: "\(records.count)")
-                    metricRow(icon: "trash.fill", label: "ITEMS", value: "\(removableItemCount)")
-                    metricRow(icon: "checkmark.circle.fill", label: "SELECTED", value: "\(selectedBundleIDs.count)")
+                    metricRow(icon: "square.stack.3d.up.fill", label: language.text("cleaner.metric.apps"), value: "\(records.count)")
+                    metricRow(icon: "trash.fill", label: language.text("cleaner.metric.items"), value: "\(removableItemCount)")
+                    metricRow(icon: "checkmark.circle.fill", label: language.text("cleaner.metric.selected"), value: "\(selectedBundleIDs.count)")
                 }
             }
 
             AppActionButton(
                 title: isScanning
-                    ? "SCANNING DEVICE"
-                    : (selectedBundleIDs.isEmpty ? "NOTHING SELECTED" : "CLEAN NOW"),
+                    ? language.text("cleaner.button.scanning")
+                    : language.text(selectedBundleIDs.isEmpty ? "cleaner.button.none" : "cleaner.button.clean"),
                 icon: isScanning ? "rays" : "sparkles",
                 tint: AppPalette.mint,
                 isEnabled: !selectedBundleIDs.isEmpty && !isBusy,
@@ -223,14 +225,14 @@ struct CleanerView: View {
 
     private var breakdownPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            AppSectionHeader(icon: "chart.bar.fill", title: "STORAGE BREAKDOWN", subtitle: "WHAT IS RECLAIMABLE")
+            AppSectionHeader(icon: "chart.bar.fill", title: language.text("cleaner.section.breakdown"), subtitle: language.text("cleaner.section.breakdown_sub"))
 
-            breakdownBar(label: "CACHE", bytes: cacheBytes, tint: AppPalette.mint)
-            breakdownBar(label: "TEMPORARY", bytes: temporaryBytes, tint: AppPalette.blue)
+            breakdownBar(label: language.text("cleaner.label.cache"), bytes: cacheBytes, tint: AppPalette.mint)
+            breakdownBar(label: language.text("cleaner.label.temporary"), bytes: temporaryBytes, tint: AppPalette.blue)
 
             HStack(spacing: AppSpacing.s) {
-                AppStatChip(icon: "shield.lefthalf.filled", text: "CACHES ONLY", tint: AppPalette.mint)
-                AppStatChip(icon: "doc.fill", text: "SAVES KEPT", tint: AppPalette.blue)
+                AppStatChip(icon: "shield.lefthalf.filled", text: language.text("cleaner.chip.caches_only"), tint: AppPalette.mint)
+                AppStatChip(icon: "doc.fill", text: language.text("cleaner.chip.saves_kept"), tint: AppPalette.blue)
                 Spacer(minLength: 0)
             }
         }
@@ -283,23 +285,23 @@ struct CleanerView: View {
     private var appsPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             HStack(spacing: AppSpacing.s) {
-                AppSectionHeader(icon: "square.grid.2x2.fill", title: "APP STORAGE", subtitle: isScanning ? "SCANNED \(scannedAppCount)" : "\(records.count) WITH CACHE")
+                AppSectionHeader(icon: "square.grid.2x2.fill", title: language.text("cleaner.section.apps"), subtitle: isScanning ? language.text("cleaner.apps.scanned", Int64(scannedAppCount)) : language.text("cleaner.apps.with_cache", Int64(records.count)))
                 Spacer(minLength: 0)
             }
 
             if records.count > 2 {
                 AppSearchField(
                     text: $searchText,
-                    prompt: "Search apps",
-                    clearLabel: "Clear"
+                    prompt: language.text("cleaner.search"),
+                    clearLabel: language.text("common.clear")
                 )
             }
 
             HStack(spacing: AppSpacing.s) {
-                selectionChip(title: "ALL", isOn: !records.isEmpty && selectedBundleIDs.count == records.count) {
+                selectionChip(title: language.text("cleaner.select.all"), isOn: !records.isEmpty && selectedBundleIDs.count == records.count) {
                     selectedBundleIDs = Set(records.map(\.id))
                 }
-                selectionChip(title: "NONE", isOn: selectedBundleIDs.isEmpty) {
+                selectionChip(title: language.text("cleaner.select.none"), isOn: selectedBundleIDs.isEmpty) {
                     selectedBundleIDs.removeAll()
                 }
                 Spacer(minLength: 0)
@@ -310,7 +312,7 @@ struct CleanerView: View {
                     HStack(spacing: 5) {
                         Image(systemName: sortLargestFirst ? "arrow.down" : "arrow.up")
                             .font(.system(size: 10, weight: .black))
-                        Text(sortLargestFirst ? "LARGEST" : "SMALLEST")
+                        Text(language.text(sortLargestFirst ? "cleaner.sort.largest" : "cleaner.sort.smallest"))
                             .font(AppType.label())
                             .tracking(0.5)
                     }
@@ -424,22 +426,22 @@ struct CleanerView: View {
             if isScanning {
                 ProgressView()
                     .tint(AppTheme.accent)
-                Text("SCANNING CONTAINERS")
+                Text(language.text("cleaner.scanning.title"))
                     .font(AppType.label())
                     .tracking(0.8)
                     .foregroundStyle(AppPalette.textSecondary)
-                Text("\(scannedAppCount) apps inspected")
+                Text(language.text("cleaner.scanning.detail", Int64(scannedAppCount)))
                     .font(AppType.meta())
                     .foregroundStyle(AppPalette.textTertiary)
             } else {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(AppPalette.mint)
-                Text("NOTHING TO RECLAIM")
+                Text(language.text("cleaner.empty.title"))
                     .font(AppType.label())
                     .tracking(0.8)
                     .foregroundStyle(AppPalette.textPrimary)
-                Text("No app on this device is holding disposable cache.")
+                Text(language.text("cleaner.empty.message"))
                     .font(AppType.meta())
                     .foregroundStyle(AppPalette.textTertiary)
                     .multilineTextAlignment(.center)
@@ -452,7 +454,7 @@ struct CleanerView: View {
     private var footerNote: some View {
         VStack(spacing: AppSpacing.m) {
             AppHairline()
-            Text("ONLY CACHE AND TEMPORARY DATA INSIDE APP CONTAINERS IS REMOVED")
+            Text(language.text("cleaner.footer"))
                 .font(AppType.label())
                 .tracking(1.0)
                 .foregroundStyle(AppPalette.textTertiary)
@@ -474,7 +476,7 @@ struct CleanerView: View {
                         .fill(isCleaning ? AppPalette.amber : AppPalette.mint)
                         .frame(width: 6, height: 6)
                         .shadow(color: (isCleaning ? AppPalette.amber : AppPalette.mint).opacity(0.9), radius: 6)
-                    Text(isCleaning ? "PURGE IN PROGRESS" : "PURGE COMPLETE")
+                    Text(language.text(isCleaning ? "cleaner.purge.in_progress" : "cleaner.purge.complete"))
                         .font(AppType.label())
                         .tracking(1.1)
                         .foregroundStyle(AppPalette.textSecondary)
@@ -508,7 +510,7 @@ struct CleanerView: View {
                             .foregroundStyle(AppPalette.textPrimary)
                             .monospacedDigit()
                             .contentTransition(.numericText())
-                        Text(isCleaning ? "PERCENT" : "COMPLETE")
+                        Text(language.text(isCleaning ? "cleaner.percent" : "cleaner.complete"))
                             .font(AppType.label())
                             .tracking(1.4)
                             .foregroundStyle(AppPalette.textTertiary)
@@ -523,7 +525,7 @@ struct CleanerView: View {
                         .foregroundStyle(AppPalette.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Text(isCleaning ? "Reclaiming \(sizeText(selectedBytes))" : "Freed \(sizeText(freedBytes))")
+                    Text(isCleaning ? language.text("cleaner.reclaiming", sizeText(selectedBytes)) : language.text("cleaner.freed", sizeText(freedBytes)))
                         .font(AppType.meta())
                         .foregroundStyle(AppPalette.textTertiary)
                 }
@@ -539,17 +541,17 @@ struct CleanerView: View {
                 }
 
                 if isCleaning {
-                    Text("Keep the app open until the purge finishes.")
+                    Text(language.text("cleaner.keep_open"))
                         .font(AppType.meta())
                         .foregroundStyle(AppPalette.textTertiary)
                         .multilineTextAlignment(.center)
                 } else {
                     VStack(spacing: AppSpacing.s) {
                         HStack(spacing: AppSpacing.s) {
-                            resultChip(icon: "trash.fill", text: "\(removedItems) REMOVED")
-                            resultChip(icon: "exclamationmark.triangle.fill", text: "\(stalledItems) LOCKED")
+                            resultChip(icon: "trash.fill", text: language.text("cleaner.removed_count", Int64(removedItems)))
+                            resultChip(icon: "exclamationmark.triangle.fill", text: language.text("cleaner.locked_count", Int64(stalledItems)))
                         }
-                        AppActionButton(title: "DONE", icon: "checkmark", tint: AppPalette.mint) {
+                        AppActionButton(title: language.text("cleaner.done"), icon: "checkmark", tint: AppPalette.mint) {
                             dismissProgress()
                         }
                     }
@@ -595,7 +597,7 @@ struct CleanerView: View {
             .padding(.horizontal, AppSpacing.xl)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(isCleaning ? "Cleaning in progress" : "Cleaning complete")
+        .accessibilityLabel(language.text(isCleaning ? "cleaner.progress.running" : "cleaner.progress.done"))
     }
 
     private func resultChip(icon: String, text: String) -> some View {
@@ -824,15 +826,23 @@ struct CleanerView: View {
         removedItems = 0
         stalledItems = 0
         progress = 0
-        stageLabel = "PREPARING"
+        stageLabel = language.text("cleaner.stage.preparing")
         showProgressCard = true
+        if #available(iOS 16.1, *) {
+            PatchActivityController.start(
+                operation: language.text("cleaner.title"),
+                detail: language.text("cleaner.available"),
+                thermal: appState.thermalStateLabel
+            )
+        }
 
         progressTask?.cancel()
         progressTask = Task { @MainActor in
-            while !Task.isCancelled && progress < 0.94 {
-                try? await Task.sleep(nanoseconds: 26_000_000)
+            // Floor only: measured progress from the purge loop leads this.
+            while !Task.isCancelled && progress < 0.30 {
+                try? await Task.sleep(nanoseconds: 30_000_000)
                 if Task.isCancelled { return }
-                progress = min(0.94, progress + 0.011)
+                progress = min(0.30, progress + 0.006)
             }
         }
 
@@ -841,6 +851,8 @@ struct CleanerView: View {
             var freed: Int64 = 0
             var removed = 0
             var failed = 0
+            var doneBytes: Int64 = 0
+            let totalBytes = max(1, selectedRecords.reduce(Int64(0)) { $0 + max(1, $1.usage.totalBytes) })
 
             for (index, record) in selectedRecords.enumerated() {
                 DispatchQueue.main.async {
@@ -874,9 +886,10 @@ struct CleanerView: View {
                     log("cleaner: failed \(record.app.bundleID) error=\(error)")
                 }
 
-                let completed = Double(index + 1) / Double(selectedRecords.count)
+                doneBytes += max(1, record.usage.totalBytes)
+                let measured = min(0.98, Double(doneBytes) / Double(totalBytes) * 0.98)
                 DispatchQueue.main.async {
-                    stageLabel = "VERIFYING \(Int(completed * 100))%"
+                    progress = max(progress, measured)
                 }
             }
 
@@ -896,6 +909,9 @@ struct CleanerView: View {
                 removedItems = removed
                 stalledItems = failed
                 isCleaning = false
+                if #available(iOS 16.1, *) {
+                    PatchActivityController.finish(detail: language.text("cleaner.scope_footer"))
+                }
                 log("cleaner: purge finished freed=\(freed) removed=\(removed) failed=\(failed)")
             }
         }

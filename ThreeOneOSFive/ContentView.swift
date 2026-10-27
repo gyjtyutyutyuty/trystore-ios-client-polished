@@ -52,6 +52,7 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var showLogs = false
     @State private var heroArrived = false
+    @StateObject private var patchStore = PatchProjectStore(game: .max)
 
     var body: some View {
         NavigationStack {
@@ -62,6 +63,7 @@ struct HomeView: View {
                         topBarHome.appCinematicReveal(delay: 0.02)
                         heroHome.appCinematicReveal(delay: 0.08)
                         vitalPanelHome.appCinematicReveal(delay: 0.15)
+                        moduleStatusPanelHome.appCinematicReveal(delay: 0.19)
                         quickAccessHome.appCinematicReveal(delay: 0.21)
                         deviceSectionHome.appCinematicReveal(delay: 0.27)
                         footerHome.appCinematicReveal(delay: 0.39)
@@ -77,6 +79,11 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showLogs) { LogView() }
+        .task {
+            guard let key = licenseManager.patchBundleKey else { return }
+            patchStore.installBundledResources(bundleKey: key)
+            patchStore.reload()
+        }
     }
 
     // MARK: - Header
@@ -215,6 +222,82 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Module control
+
+    private func patchItemHome(for option: DashboardPatchOption) -> PatchLibraryItem? {
+        patchStore.items.first { item in
+            let projectName = item.project?.name ?? ""
+            let packageName = item.packageURL.lastPathComponent
+            return projectName == option.projectName
+                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
+                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
+                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+        }
+    }
+
+    private func isModuleActiveHome(_ option: DashboardPatchOption) -> Bool {
+        guard let item = patchItemHome(for: option) else { return false }
+        return DevicePatchService.latestReceipt(projectID: item.id) != nil
+    }
+
+    private var activeModuleCountHome: Int {
+        DashboardPatchOption.all.reduce(into: 0) { count, option in
+            if isModuleActiveHome(option) { count += 1 }
+        }
+    }
+
+    /// The patch store lives in the Patches tab, so Home reads the same receipts
+    /// the device already carries rather than keeping a second copy of the state.
+    private var moduleStatusPanelHome: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            AppSectionHeader(
+                icon: "square.grid.2x2.fill",
+                title: language.text("home.modules.title"),
+                subtitle: language.text("home.modules.subtitle")
+            )
+
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(activeModuleCountHome)")
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(AppPalette.textPrimary)
+                    .monospacedDigit()
+                Text("/ \(DashboardPatchOption.all.count)")
+                    .font(AppType.value())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .monospacedDigit()
+                Spacer(minLength: AppSpacing.s)
+                AppStatChip(
+                    icon: activeModuleCountHome > 0 ? "checkmark.seal.fill" : "circle.dashed",
+                    text: language.text(activeModuleCountHome > 0 ? "home.modules.patched" : "home.modules.clean"),
+                    tint: activeModuleCountHome > 0 ? AppPalette.mint : AppPalette.textTertiary
+                )
+            }
+            .accessibilityElement(children: .combine)
+
+            HStack(spacing: 3) {
+                ForEach(DashboardPatchOption.all) { option in
+                    Capsule()
+                        .fill(isModuleActiveHome(option) ? AppPalette.mint : AppPalette.hairline.opacity(0.75))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 5)
+                        .shadow(color: isModuleActiveHome(option) ? AppPalette.mint.opacity(0.80) : .clear, radius: 5)
+                }
+            }
+            .accessibilityHidden(true)
+
+            Text(language.text("home.modules.caption"))
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            AppActionButton(title: language.text("home.modules.open"), icon: "arrow.up.right") {
+                onOpenPatches()
+            }
+        }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
+    }
+
     // MARK: - Vitals
 
     private var thermalProgress: Double {
@@ -301,16 +384,39 @@ struct HomeView: View {
     // MARK: - Quick access
 
     private var quickAccessHome: some View {
-        HStack(spacing: AppSpacing.m) {
-            quickAccessCardHome(icon: "apple.terminal", title: "LOGS", detail: "Recent activity") {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: AppSpacing.m),
+                GridItem(.flexible(), spacing: AppSpacing.m)
+            ],
+            spacing: AppSpacing.m
+        ) {
+            quickAccessCardHome(
+                icon: "square.grid.2x2",
+                title: language.text("home.shortcut.patches"),
+                detail: language.text("home.shortcut.patches_detail")
+            ) {
+                onOpenPatches()
+            }
+            .accessibilityLabel(language.text("home.shortcut.patches"))
+
+            quickAccessCardHome(
+                icon: "apple.terminal",
+                title: language.text("home.shortcut.logs"),
+                detail: language.text("home.shortcut.logs_detail")
+            ) {
                 showLogs = true
             }
             .accessibilityLabel(language.text("accessibility.open_logs"))
 
-            quickAccessCardHome(icon: "slider.horizontal.3", title: "CONNECTIONS", detail: "Airlift and VPN") {
+            quickAccessCardHome(
+                icon: "slider.horizontal.3",
+                title: language.text("home.shortcut.connections"),
+                detail: language.text("home.shortcut.connections_detail")
+            ) {
                 showSettings = true
             }
-            .accessibilityLabel("Open Airlift and VPN settings")
+            .accessibilityLabel(language.text("home.shortcut.connections"))
         }
     }
 
@@ -2321,8 +2427,8 @@ private struct PatchesView: View {
     @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedPatchProjectName: String?
     @State private var patchProgress: Double = 0
-    @State private var patchProgressStage = "PREPARING"
-    @State private var patchProgressSub = "Preparing the patch transaction"
+    @State private var patchProgressStage = language.text("patch.stage.preparing")
+    @State private var patchProgressSub = language.text("patch.stage.preparing_detail")
     @State private var showPatchProgress = false
     @State private var patchProgressTask: Task<Void, Never>?
     @State private var patchOperationIsEnabling = true
@@ -2422,7 +2528,7 @@ private struct PatchesView: View {
             HStack(spacing: 6) {
                 Image(systemName: appState.isSupported ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(appState.isSupported ? AppPalette.mint : AppPalette.amber)
-                Text(appState.isSupported ? "READY" : "REVIEW")
+                Text(appState.isSupported ? language.text("patch.status.ready") : language.text("patch.status.review"))
                     .foregroundStyle(AppPalette.textPrimary)
             }
             .font(AppType.label())
@@ -2430,7 +2536,7 @@ private struct PatchesView: View {
             .frame(height: 38)
             .background(AppPalette.raised.opacity(0.55), in: Capsule())
             .overlay(Capsule().stroke(AppPalette.hairline.opacity(0.65), lineWidth: 1))
-            .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+            .accessibilityLabel(appState.isSupported ? language.text("patch.compat.ready") : language.text("patch.compat.review"))
         }
         .padding(AppSpacing.m)
         .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
@@ -2442,7 +2548,7 @@ private struct PatchesView: View {
 
     private var patchCategoriesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            panelHeader(title: "PATCH CATEGORIES", subtitle: "CHOOSE A MODULE TYPE", icon: "square.grid.2x2.fill")
+            panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
             HStack(spacing: AppSpacing.s) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
                     patchCategoryButton(category)
@@ -2505,7 +2611,7 @@ private struct PatchesView: View {
 
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            panelHeader(title: "PATCH LIBRARY", subtitle: "SELECT • ACTIVATE • RESTORE", icon: "checkmark.shield")
+            panelHeader(title: language.text("patch.library"), subtitle: language.text("patch.library.subtitle"), icon: "checkmark.shield")
             patchConsole
 
             PlatinumExpiryCard(
@@ -2520,7 +2626,7 @@ private struct PatchesView: View {
                     patchModuleCard(featured, index: 1, isFeatured: true)
                 }
                 HStack(spacing: AppSpacing.s) {
-                    Text("OTHER MODULES")
+                    Text(language.text("patch.other_modules"))
                         .font(AppType.label())
                         .tracking(1.1)
                         .foregroundStyle(AppPalette.textTertiary)
@@ -2545,7 +2651,7 @@ private struct PatchesView: View {
             ))
 
             if selectedPatchCategory == .loadout {
-                Text("Aim modules share a game file, so only one aim option is active at a time.")
+                Text(language.text("patch.note.aim_group"))
                     .font(AppType.meta())
                     .foregroundStyle(AppPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2654,12 +2760,12 @@ private struct PatchesView: View {
                 }
             }
             HStack(spacing: 6) {
-                Text("MODULE BUS")
+                Text(language.text("patch.module_bus"))
                     .font(AppType.label())
                     .tracking(0.7)
                     .foregroundStyle(AppPalette.textTertiary)
                 Spacer(minLength: AppSpacing.s)
-                Text(patchStore.isBusy ? "SYNCING" : "\(activeLegacyPatchCount) ONLINE")
+                Text(patchStore.isBusy ? language.text("patch.status.syncing") : "\(activeLegacyPatchCount) ONLINE")
                     .font(AppType.label())
                     .tracking(0.5)
                     .foregroundStyle(activeLegacyPatchCount > 0 ? AppPalette.mint : AppPalette.textTertiary)
@@ -2711,15 +2817,15 @@ private struct PatchesView: View {
     }
 
     private func patchRowLabel(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
-        if item == nil { return "MISSING" }
-        if isActive { return "ACTIVE" }
-        return isSelected ? "SELECTED" : "READY"
+        if item == nil { return language.text("patch.status.missing") }
+        if isActive { return language.text("patch.status.active") }
+        return isSelected ? language.text("patch.status.selected") : language.text("patch.status.ready")
     }
 
     private func patchRowAccessibilityValue(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
-        if item == nil { return "Package missing" }
-        if isActive { return "Active on device" }
-        return isSelected ? "Selected, ready for activation" : "Available"
+        if item == nil { return language.text("patch.detail.package_missing") }
+        if isActive { return language.text("patch.detail.active") }
+        return isSelected ? language.text("patch.detail.selected_ready") : language.text("patch.detail.available")
     }
 
     private var visiblePatchOptions: [DashboardPatchOption] {
@@ -2770,6 +2876,7 @@ private struct PatchesView: View {
             for: item,
             group: option.group,
             reportsSuccess: true,
+            reportsProgress: true,
             onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) }
         )
 
@@ -2791,19 +2898,31 @@ private struct PatchesView: View {
         patchOperationSucceeded = true
         patchProgress = 0
         patchProgressStage = title
-        patchProgressSub = enabling
-            ? "Applying the module to the game files"
-            : "Restoring the original files"
+        patchProgressSub = language.text(enabling ? "patch.progress.applying" : "patch.progress.restoring")
         showPatchProgress = true
+        if #available(iOS 16.1, *) {
+            PatchActivityController.start(
+                operation: language.text(enabling ? "patch.activating" : "patch.restoring"),
+                detail: title,
+                thermal: appState.thermalStateLabel
+            )
+        }
 
         patchProgressTask?.cancel()
         patchProgressTask = Task { @MainActor in
-            while !Task.isCancelled && patchProgress < 0.94 {
-                try? await Task.sleep(nanoseconds: 24_000_000)
+            // Floor only: the paced value keeps the card alive while the
+            // measured progress arrives from the transaction itself.
+            while !Task.isCancelled && patchProgress < 0.35 {
+                try? await Task.sleep(nanoseconds: 26_000_000)
                 if Task.isCancelled { return }
-                patchProgress = min(0.94, patchProgress + 0.012)
+                patchProgress = min(0.35, patchProgress + 0.008)
             }
         }
+    }
+
+    /// Measured progress from the store wins whenever it is ahead of the floor.
+    private var shownPatchProgress: Double {
+        patchOperationFinished ? 1 : max(patchProgress, patchStore.operationProgress)
     }
 
     private func finishPatchProgress() {
@@ -2813,6 +2932,9 @@ private struct PatchesView: View {
         patchProgressTask = nil
         withAnimation(.easeOut(duration: 0.32)) {
             patchProgress = 1
+        }
+        if #available(iOS 16.1, *) {
+            PatchActivityController.finish(detail: patchProgressFooter)
         }
     }
 
@@ -2846,7 +2968,7 @@ private struct PatchesView: View {
                         .tracking(1.1)
                         .foregroundStyle(AppPalette.textSecondary)
                     Spacer(minLength: AppSpacing.s)
-                    Text("\(Int(patchProgress * 100))%")
+                    Text("\(Int(shownPatchProgress * 100))%")
                         .font(AppType.digits(13))
                         .foregroundStyle(AppPalette.textPrimary)
                         .monospacedDigit()
@@ -2857,7 +2979,7 @@ private struct PatchesView: View {
                         .stroke(AppPalette.hairline.opacity(0.60), lineWidth: 10)
 
                     Circle()
-                        .trim(from: 0, to: max(0.004, patchProgress))
+                        .trim(from: 0, to: max(0.004, shownPatchProgress))
                         .stroke(
                             AngularGradient(
                                 colors: [accent.opacity(0.45), accent, Color.white.opacity(0.9), accent],
@@ -2867,15 +2989,15 @@ private struct PatchesView: View {
                         )
                         .rotationEffect(.degrees(-90))
                         .shadow(color: accent.opacity(0.55), radius: 16)
-                        .animation(.linear(duration: 0.12), value: patchProgress)
+                        .animation(.linear(duration: 0.12), value: shownPatchProgress)
 
                     VStack(spacing: 2) {
-                        Text("\(Int(patchProgress * 100))")
+                        Text("\(Int(shownPatchProgress * 100))")
                             .font(.system(size: 54, weight: .black, design: .monospaced))
                             .foregroundStyle(AppPalette.textPrimary)
                             .monospacedDigit()
                             .contentTransition(.numericText())
-                        Text(patchOperationIsEnabling ? "ACTIVATING" : "RESTORING")
+                        Text(language.text(patchOperationIsEnabling ? "patch.activating" : "patch.restoring"))
                             .font(AppType.label())
                             .tracking(1.4)
                             .foregroundStyle(AppPalette.textTertiary)
@@ -2902,7 +3024,7 @@ private struct PatchesView: View {
                             .fill(AppPalette.hairline.opacity(0.55))
                         Capsule()
                             .fill(LinearGradient(colors: [accent, accent.opacity(0.65)], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: max(proxy.size.width * patchProgress, patchProgress > 0 ? 6 : 0))
+                            .frame(width: max(proxy.size.width * shownPatchProgress, shownPatchProgress > 0 ? 6 : 0))
                             .shadow(color: accent.opacity(0.45), radius: 8)
                     }
                 }
@@ -2917,7 +3039,7 @@ private struct PatchesView: View {
                         dismissPatchProgress()
                     }
                 } else {
-                    Text("Do not close the app while the transaction runs.")
+                    Text(language.text("patch.progress.keep_open"))
                         .font(AppType.meta())
                         .foregroundStyle(AppPalette.textTertiary)
                         .multilineTextAlignment(.center)
@@ -2963,17 +3085,17 @@ private struct PatchesView: View {
             .padding(.horizontal, AppSpacing.xl)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(patchOperationFinished ? patchProgressFooter : "Patch operation in progress")
+        .accessibilityLabel(patchOperationFinished ? patchProgressFooter : language.text("patch.operation.title"))
     }
 
     private var patchProgressHeader: String {
-        guard patchOperationFinished else { return "PATCH OPERATION" }
-        return patchOperationSucceeded ? "OPERATION COMPLETE" : "OPERATION FAILED"
+        guard patchOperationFinished else { return language.text("patch.operation.title") }
+        return language.text(patchOperationSucceeded ? "patch.operation.complete" : "patch.operation.failed")
     }
 
     private var patchProgressFooter: String {
-        guard patchOperationSucceeded else { return "The transaction did not complete. Check the log." }
-        return patchOperationIsEnabling ? "PATCH IS ACTIVE ON DEVICE" : "ORIGINAL FILES RESTORED"
+        guard patchOperationSucceeded else { return language.text("patch.progress.failed") }
+        return language.text(patchOperationIsEnabling ? "patch.progress.active" : "patch.progress.restored")
     }
 
     private var selectedPatchActionView: some View {
@@ -2982,7 +3104,7 @@ private struct PatchesView: View {
                 HStack(spacing: AppSpacing.m) {
                     AppIconBadge(systemName: option.icon, tint: AppTheme.accent, size: 46)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("SELECTED PATCH")
+                        Text(language.text("patch.selected_patch"))
                             .font(AppType.label())
                             .tracking(0.8)
                             .foregroundStyle(AppPalette.textTertiary)
@@ -2997,15 +3119,15 @@ private struct PatchesView: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundStyle(Color(red: 0.34, green: 0.94, blue: 0.74))
-                            .accessibilityLabel("Patch active")
+                            .accessibilityLabel(language.text("patch.detail.patch_active"))
                     }
                 }
                 if selectedPatchItem == nil {
-                    Text("This patch package is missing from the library and cannot be activated.")
+                    Text(language.text("patch.detail.package_missing_long"))
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.orange)
                 } else {
-                    Text(selectedPatchIsActive ? "Active on device. Restore when you are finished." : "Ready to activate when you are ready.")
+                    Text(selectedPatchIsActive ? language.text("patch.detail.active_hint") : language.text("patch.detail.ready_hint"))
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.62))
                 }
@@ -3014,7 +3136,7 @@ private struct PatchesView: View {
                     Image(systemName: "hand.tap.fill")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(AppTheme.accent)
-                    Text("Choose a patch above to review its status and activate it.")
+                    Text(language.text("patch.detail.empty_hint"))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.66))
                         .fixedSize(horizontal: false, vertical: true)
@@ -3028,7 +3150,7 @@ private struct PatchesView: View {
                     } else {
                         Image(systemName: selectedPatchIsActive ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill")
                     }
-                    Text(selectedPatchIsActive ? "RESTORE PATCH" : "ACTIVATE PATCH")
+                    Text(selectedPatchIsActive ? language.text("patch.action.restore") : language.text("patch.action.activate"))
                         .font(AppType.label())
                         .tracking(0.5)
                 }
@@ -3060,8 +3182,8 @@ private struct PatchesView: View {
 
     // MARK: - Patch Category Enum
     private enum PatchCategory: String, CaseIterable, Identifiable {
-        case loadout = "LOADOUT"
-        case visuals = "VISUALS"
+        case loadout = language.text("patch.mode.loadout")
+        case visuals = language.text("patch.mode.visuals")
 
         var id: String { rawValue }
         var title: String { rawValue }
@@ -3165,7 +3287,7 @@ struct LiveActivityView: View {
                     await updateLiveActivity()
                 }
             } else {
-                Button("Start Live Activity") {
+                Button(language.text("liveactivity.start")) {
                     Task {
                         await startLiveActivity()
                     }
@@ -3213,6 +3335,77 @@ struct LiveActivityView: View {
     }
 }
 
+/// Mirrors a running patch or purge onto the Lock Screen and Dynamic Island.
+/// Display needs a Widget Extension target holding an `ActivityConfiguration`
+/// for `LiveActivityState`; `LiveActivityWidget.swift` is that widget, ready to
+/// join such a target. Until it does, request() simply returns nothing on the
+/// display side — which is why every call site is availability guarded.
+@available(iOS 16.1, *)
+enum PatchActivityController {
+    static func start(operation: String, detail: String, thermal: String) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let attributes = LiveActivityState()
+        let state = LiveActivityState.ContentState(
+            isActive: true,
+            cpuTemp: nil,
+            gpuTemp: nil,
+            thermalState: thermal,
+            launchCount: 0,
+            progress: 0,
+            operation: operation
+        )
+        Task {
+            for existing in Activity<LiveActivityState>.activities {
+                await existing.end(nil, dismissalPolicy: .immediate)
+            }
+            _ = try? Activity<LiveActivityState>.request(
+                attributes: attributes,
+                contentState: state,
+                pushType: nil
+            )
+        }
+    }
+
+    static func update(progress: Double) {
+        Task {
+            for activity in Activity<LiveActivityState>.activities {
+                let current = activity.contentState
+                let next = LiveActivityState.ContentState(
+                    isActive: true,
+                    cpuTemp: current.cpuTemp,
+                    gpuTemp: current.gpuTemp,
+                    thermalState: current.thermalState,
+                    launchCount: current.launchCount,
+                    progress: min(1, max(0, progress)),
+                    operation: current.operation
+                )
+                await activity.update(using: next)
+            }
+        }
+    }
+
+    static func finish(detail: String) {
+        Task {
+            for activity in Activity<LiveActivityState>.activities {
+                let current = activity.contentState
+                let next = LiveActivityState.ContentState(
+                    isActive: false,
+                    cpuTemp: current.cpuTemp,
+                    gpuTemp: current.gpuTemp,
+                    thermalState: current.thermalState,
+                    launchCount: current.launchCount,
+                    progress: 1,
+                    operation: detail
+                )
+                await activity.end(
+                    using: next,
+                    dismissalPolicy: .after(Date().addingTimeInterval(6))
+                )
+            }
+        }
+    }
+}
+
 @available(iOS 16.1, *)
 struct LiveActivityBanner: View {
     let activity: Activity<LiveActivityState>
@@ -3228,7 +3421,7 @@ struct LiveActivityBanner: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("Live Patch Activity")
+                Text(language.text("liveactivity.title"))
                     .font(.system(size: 10, weight: .black, design: .rounded))
                     .tracking(0.5)
                     .foregroundStyle(.white)

@@ -67,6 +67,7 @@ enum PatchTransaction {
         backupRoot: URL,
         containerResolver: (String) throws -> URL,
         beforeWrite: ((Int) throws -> Void)? = nil,
+        progress: (@Sendable (Int, Int) -> Void)? = nil,
         remoteWriter: RemoteWriter? = nil,
         remoteReader: RemoteReader? = nil,
         fileManager: FileManager = .default
@@ -258,6 +259,7 @@ enum PatchTransaction {
             }
             for (index, resolved) in resolvedRules.enumerated() {
                 try beforeWrite?(index)
+                progress?(index, resolvedRules.count)
                 log("patch: applying target \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
                 if let remoteWriter {
                     try remoteWriter(
@@ -289,6 +291,7 @@ enum PatchTransaction {
                     }
                 }
             }
+            progress?(resolvedRules.count, resolvedRules.count)
             journal.status = .applied
             try writeJournal(journal, to: journalURL)
             return PatchTransactionReceipt(
@@ -308,6 +311,7 @@ enum PatchTransaction {
                     createdDirectories: createdDirectories,
                     remoteWriter: remoteWriter,
                     remoteReader: remoteReader,
+                    progress: nil,
                     fileManager: fileManager
                 )
                 journal.status = .rolledBack
@@ -330,6 +334,7 @@ enum PatchTransaction {
         containerResolver: (String) throws -> URL,
         remoteWriter: RemoteWriter? = nil,
         remoteReader: RemoteReader? = nil,
+        progress: (@Sendable (Int, Int) -> Void)? = nil,
         fileManager: FileManager = .default
     ) throws {
         guard (remoteWriter == nil) == (remoteReader == nil) else {
@@ -367,6 +372,7 @@ enum PatchTransaction {
                 createdDirectories: journal.createdDirectories ?? [],
                 remoteWriter: remoteWriter,
                 remoteReader: remoteReader,
+                progress: progress,
                 fileManager: fileManager
             )
             journal.status = .restored
@@ -428,10 +434,12 @@ enum PatchTransaction {
         createdDirectories: [DirectoryRecord],
         remoteWriter: RemoteWriter?,
         remoteReader: RemoteReader?,
+        progress: (@Sendable (Int, Int) -> Void)?,
         fileManager: FileManager
     ) throws {
         var resolvedTargets: [(Record, URL)] = []
-        for record in records {
+        for (index, record) in records.enumerated() {
+            progress?(index, records.count)
             guard let root = roots[record.bundleID],
                   containerFingerprint(root) == record.containerFingerprint else {
                 throw PatchPackageError.restoreFailed
