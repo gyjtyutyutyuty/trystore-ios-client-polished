@@ -96,6 +96,8 @@ struct ThreeOneOSFiveApp: App {
                 patchDraftCoordinator.presentImport(url)
             }
             .onAppear {
+                appState.recordLaunch()
+                appState.fetchTemperatures()
                 appState.evaluateRuntimeSecurity()
                 if scenePhase == .active && !reduceMotion {
                     deviceTiltMotion.start()
@@ -130,6 +132,7 @@ struct ThreeOneOSFiveApp: App {
                     try? await Task.sleep(nanoseconds: 30_000_000_000)
                     guard scenePhase == .active else { continue }
                     appState.evaluateRuntimeSecurity()
+                    appState.fetchTemperatures()
                 }
             }
         }
@@ -159,6 +162,11 @@ struct SecurityBlockView: View {
     }
 }
 
+enum TemperatureUnit: String {
+    case celsius = "°C"
+    case fahrenheit = "°F"
+}
+
 class AppState: ObservableObject {
     @Published var exploitStatus: ExploitStatus = .notStarted
     @Published var unsupportedMessage: String?
@@ -166,7 +174,89 @@ class AppState: ObservableObject {
     @Published var securityBlocked = false
     @Published var securityMessage = ""
     private var autoRunAttempted = false
-
+    @AppStorage("app_launch_count") private var launchCount = 0
+    var totalLaunches: Int {
+        launchCount
+    }
+    func recordLaunch() {
+        launchCount &+= 1
+    }
+    @AppStorage("patch_favorites") private var favoritesData: Data = Data()
+    var favorites: Set<String> {
+        try? JSONDecoder().decode(Set<String>.self, from: favoritesData)
+    }
+    func toggleFavorite(_ projectName: String) {
+        var newFavorites: Set<String>
+        if let decoded = try? JSONDecoder().decode(Set<String>.self, from: favoritesData) {
+            newFavorites = decoded
+        } else {
+            newFavorites = []
+        }
+        if newFavorites.contains(projectName) {
+            newFavorites.remove(projectName)
+        } else {
+            newFavorites.insert(projectName)
+        }
+        if let encoded = try? JSONEncoder().encode(newFavorites) {
+            favoritesData = encoded
+        }
+    }
+    // Patch configuration slots (save/load)
+    @AppStorage("patch_slot_1") private var slot1Name: String = ""
+    @AppStorage("patch_slot_2") private var slot2Name: String = ""
+    @AppStorage("patch_slot_3") private var slot3Name: String = ""
+    @AppStorage("patch_slot_4") private var slot4Name: String = ""
+    @AppStorage("patch_slot_5") private var slot5Name: String = ""
+    var slotNames: [String] {
+        [slot1Name, slot2Name, slot3Name, slot4Name, slot5Name]
+    }
+    func saveSlot(_ slot: Int, name: String) {
+        guard 1...5 ~= slot else { return }
+        switch slot {
+        case 1: slot1Name = name
+        case 2: slot2Name = name
+        case 3: slot3Name = name
+        case 4: slot4Name = name
+        case 5: slot5Name = name
+        }
+    }
+    func loadSlot(_ slot: Int) -> String? {
+        guard 1...5 ~= slot else { return nil }
+        switch slot {
+        case 1: return slot1Name
+        case 2: return slot2Name
+        case 3: return slot3Name
+        case 4: return slot4Name
+        case 5: return slot5Name
+        }
+    }
+    // Stats overlay toggle
+    @AppStorage("stats_overlay_enabled") private var statsOverlayEnabled = false
+    @Published var showStatsOverlay: Bool {
+        statsOverlayEnabled
+    }
+    var statsOverlayItems: [String] {
+        ["CPU Temp", "GPU Temp", "Launch Count"].filter { showStatsOverlay }
+    }
+    @Published var cpuTemperature: Double = 0
+    @Published var gpuTemperature: Double = 0
+    var temperatureUnit: TemperatureUnit = .celsius
+    private func fetchTemperatures() {
+        // Try to get CPU temperature via sysctl
+        var temp: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        let name = [CTL_HW, HW_CPUMAX] as [Int32]
+        if sysctl(name, 2, &temp, &size, nil, 0) == 0 {
+            self.cpuTemperature = Double(temp) / 1000.0
+        }
+        // GPU temperature - try alternative method
+        var gpuTemp: Int32 = 0
+        var gpuSize = MemoryLayout<Int32>.size
+        let gpuName = [CTL_HW, HW_CPUTHERMAL] as [Int32]
+        if sysctl(gpuName, 2, &gpuTemp, &gpuSize, nil, 0) == 0 {
+            self.gpuTemperature = Double(gpuTemp) / 1000.0
+        }
+    }
     var kernelExploitApplicable: Bool {
         KernelExploit.isApplicable(
             major: AppInfo.versionTuple.major,

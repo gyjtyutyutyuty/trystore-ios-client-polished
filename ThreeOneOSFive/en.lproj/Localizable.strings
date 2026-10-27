@@ -100,6 +100,9 @@
 "dashboard.enterprise_signing" = "Support Patch only works when signed with an enterprise certificate. SideStore, AltStore, 3uTools and LiveContainer are not supported.";
 "dashboard.features" = "Features";
 "dashboard.features_footer" = "Turn on Cleaner or Wallpapers to show it in the app navigation.";
+"dashboard.cpu_temp" = "CPU Temp";
+"dashboard.gpu_temp" = "GPU Temp";
+"dashboard.launch_count" = "Launch Count";
 "tab.home" = "Home";
 "tab.files" = "Files";
 "tab.patches" = "Patches";
@@ -224,6 +227,8 @@
 "patch.error.symlink" = "Patch targets cannot pass through symbolic links.";
 "patch.error.apply" = "The patch could not be applied. Any earlier writes were rolled back.";
 "patch.error.pairing_tunnel_required" = "On iOS 18.7.2–18.7.10 and iOS 27+, connect LocalDevVPN before applying or restoring a patch.";
+"activate_all_patches" = "Activate All";
+"deactivate_all_patches" = "Deactivate All";
 "patch.operation_in_progress" = "Processing patch…";
 "patch.error.pairing_file_missing" = "No pairing file is available. Pair this iPhone or import a pairing file first.";
 "patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 does not support direct pairing. Import a pairing file first.";
@@ -312,6 +317,11 @@
 "settings.sandbox_token" = "Sandbox Token";
 "settings.generate_token" = "Generate Token";
 "settings.token_footer" = "Available after exploit access succeeds.";
+  settings.stats_overlay = "Stats Overlay";
+  settings.stats_overlay_toggle = "Enable Stats Overlay";
+  settings.stats_overlay_cp = "CPU Temp";
+  settings.stats_overlay_gpu = "GPU Temp";
+  settings.stats_overlay_launch = "Launch Count";
 
 "gestalt.title" = "Gestalt Editor";
 "gestalt.apply_changes" = "Apply Changes";

@@ -94,6 +94,9 @@
 "dashboard.enterprise_signing" = "Support Patch chỉ hoạt động khi được ký bằng chứng chỉ doanh nghiệp. Không hỗ trợ SideStore, AltStore, 3uTools hoặc LiveContainer.";
 "dashboard.features" = "Tính năng";
 "dashboard.features_footer" = "Bật Dọn dẹp hoặc Hình nền để hiển thị tính năng đó trong thanh điều hướng.";
+"dashboard.cpu_temp" = "Nhiệt độ CPU";
+"dashboard.gpu_temp" = "Nhiệt độ GPU";
+"dashboard.launch_count" = "Lần khởi động";
 "tab.home" = "Trang chủ";
 "tab.files" = "Tệp";
 "tab.patches" = "Patch";
@@ -218,6 +221,8 @@
 "patch.error.symlink" = "Đường dẫn patch không được đi qua liên kết tượng trưng.";
 "patch.error.apply" = "Không thể áp dụng patch. Mọi file đã ghi trước đó đã được rollback.";
 "patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.10 và iOS 27+, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";
+"activate_all_patches" = "Kích hoạt tất cả";
+"deactivate_all_patches" = "Tắt tất cả";
 "patch.operation_in_progress" = "Đang xử lý patch…";
 "patch.error.pairing_file_missing" = "Chưa có file pairing. Hãy ghép nối hoặc nhập file pairing trước.";
 "patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 không hỗ trợ pairing trực tiếp. Hãy nhập file pairing trước.";
@@ -606,3 +611,8 @@
 "license.forget_message" = "Khóa sẽ bị xóa khỏi iPhone này. Cần nhập khóa để mở lại bảng điều khiển.";
 "license.forget_action" = "Xóa khóa";
 "license.cancel" = "Hủy";
+  settings.stats_overlay = "Nhật Bản trạng thái thống kê";
+  settings.stats_overlay_toggle = "Kích hoạt bảng điều khiển thống kê";
+  settings.stats_overlay_cp = "Nhiệt độ CPU";
+  settings.stats_overlay_gpu = "Nhiệt độ GPU";
+  settings.stats_overlay_launch = "Lần khởi động";

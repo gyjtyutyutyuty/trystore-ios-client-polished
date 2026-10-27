@@ -55,6 +55,22 @@ struct SettingsView: View {
                     LabeledContent(language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
                 }
 
+                Section(language.text("settings.stats_overlay")) {
+                    Toggle(language.text("settings.stats_overlay_toggle"), isOn: $appState.showStatsOverlay)
+                        .labelsHidden()
+                    if appState.showStatsOverlay {
+                        HStack {
+                            Toggle("CPU Temp", isOn: .constant(true))
+                                .labelsHidden()
+                            Toggle("GPU Temp", isOn: .constant(true))
+                                .labelsHidden()
+                            Toggle("Launch Count", isOn: .constant(true))
+                                .labelsHidden()
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
                 Section(language.text("license.settings_section")) {
                     LabeledContent(
                         language.text("license.settings_status"),

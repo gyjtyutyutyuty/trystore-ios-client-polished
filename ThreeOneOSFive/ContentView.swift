@@ -1,16 +1,153 @@
 import SwiftUI
+import ActivityKit
 import UIKit
+
+@available(iOS 16.1, *)
+struct LiveActivityState: Codable {
+    let isActive: Bool
+    let cpuTemp: Double
+    let gpuTemp: Double
+    let launchCount: Int
+}
 
 struct ContentView: View {
     var body: some View {
-        DashboardView()
-            .tint(AppTheme.accent)
-            .imageScale(.small)
-            .preferredColorScheme(.dark)
+        TabView {
+            HomeView()
+                .tabItem {
+                    Image(systemName: "house.fill")
+                    Text("Home")
+                }
+            PatchesView()
+                .tabItem {
+                    Image(systemName: "square.grid.2x2")
+                    Text("Patches")
+                }
+        }
+        .tint(AppTheme.accent)
+        .preferredColorScheme(.dark)
     }
 }
 
-// MARK: - DashboardView
+struct HomeView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
+    @Environment(\.appLanguage) private var language
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 14) {
+                    topBarHome.appCinematicReveal(delay: 0.02)
+                    deviceSectionHome.appCinematicReveal(delay: 0.15)
+                    telemetryStripHome.appCinematicReveal(delay: 0.22)
+                    quickStartPanelHome.appCinematicReveal(delay: 0.30)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 28)
+            }
+            .background(AppTheme.pageBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .tint(AppTheme.accent)
+        }
+    }
+
+    private var topBarHome: some View {
+        HStack(spacing: horizontalSizeClass == .compact ? 6 : 11) {
+            AppLogo(size: horizontalSizeClass == .compact ? 36 : 44)
+                .padding(3)
+                .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(AppTheme.accent.opacity(0.36), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("TRY STORE")
+                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 18, weight: .black, design: .rounded))
+                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
+                    .foregroundStyle(.white)
+                Text("MAX CONTROL  /  VISUAL LAB")
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(AppTheme.accent.opacity(0.82))
+            }
+            Spacer(minLength: 2)
+            Circle()
+                .fill(appState.isSupported ? Color.green : Color.orange)
+                .frame(width: 8, height: 8)
+                .padding(8)
+                .background(Color.black.opacity(0.38), in: Capsule())
+                .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+        }
+        .padding(.bottom, 2)
+    }
+
+    private var deviceSectionHome: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            panelHeader(title: "DEVICE OVERVIEW", subtitle: "LIVE SYSTEM STATUS", icon: "iphone.gen3")
+            statusRow(title: language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
+            statusRow(title: language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
+            HStack {
+                Text(language.text("settings.exploit_compatibility"))
+                    .foregroundStyle(.white.opacity(0.62))
+                Spacer()
+                Text(language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"))
+                    .fontWeight(.bold)
+                    .foregroundStyle(appState.isSupported ? .green : .orange)
+            }
+            .font(.system(size: 10, design: .rounded))
+            if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
+                statusRow(
+                    title: language.text("dashboard.kernel_status"),
+                    value: appState.kernelExploitRunning
+                        ? language.text("dashboard.kernel_running")
+                        : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
+                )
+            }
+            // Temperature rows
+            HStack(spacing: 8) {
+                temperatureRowHome(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: \"%.1f\", appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
+                temperatureRowHome(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: \"%.1f\", appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
+            }
+            // Launch count
+            HStack {
+                Text(language.text("dashboard.launch_count"))
+                    .foregroundStyle(.white.opacity(0.57))
+                Spacer(minLength: 10)
+                Text("\\n(appState.totalLaunches) times)"
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white.opacity(0.88))
+                    .multilineTextAlignment(.trailing)
+            }
+            .font(.system(size: 9, design: .rounded))
+        }
+        .padding(14)
+        .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
+    }
+
+    private func temperatureRowHome(icon: String, label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(color)
+            Label(label, systemImage: icon)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .foregroundStyle(color)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.88))
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, minHeight: 35, alignment: .leading)
+        .padding(.horizontal, 8)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(color.opacity(0.20), lineWidth: 0.5))
+    }
+}
+
+// MARK: - PatchesView
 private enum DashboardPatchTab: String, CaseIterable, Identifiable {
     case loadout
     case visuals
@@ -569,10 +706,43 @@ private struct DashboardView: View {
                         : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
                 )
             }
+            HStack(spacing: 8) {
+                temperatureRow(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: \"%.1f\", appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
+                temperatureRow(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: \"%.1f\", appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
+            }
+            HStack {
+                Text(language.text("dashboard.launch_count"))
+                    .foregroundStyle(.white.opacity(0.57))
+                Spacer(minLength: 10)
+                Text("\\n(appState.totalLaunches) times)"
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white.opacity(0.88))
+                    .multilineTextAlignment(.trailing)
+            }
+            .font(.system(size: 9, design: .rounded))
         }
         .padding(14)
         .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
+    }
+    private func temperatureRow(icon: String, label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(color)
+            Label(label, systemImage: icon)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .foregroundStyle(color)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.88))
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, minHeight: 35, alignment: .leading)
+        .padding(.horizontal, 8)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(color.opacity(0.20), lineWidth: 0.5))
     }
 
     private var quickStartPanel: some View {
@@ -813,6 +983,7 @@ private struct DashboardView: View {
                 || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
         }
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
+        let isFavorite = appState.favorites.contains(option.projectName)
 
         return Button {
             guard let item else { return }
@@ -860,6 +1031,17 @@ private struct DashboardView: View {
                 Image(systemName: item == nil ? "exclamationmark.triangle.fill" : (isActive ? "checkmark.circle.fill" : "circle"))
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.silver : .white.opacity(0.30)))
+                Spacer(minLength: 4)
+                Button {
+                    AppHaptics.tap()
+                    appState.toggleFavorite(option.projectName)
+                } label: {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(isFavorite ? .yellow : .white.opacity(0.56))
+                        .padding(6)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
             }
             .padding(.horizontal, 10)
             .frame(minHeight: 52)
@@ -1031,23 +1213,24 @@ private struct TryStoreAmbientBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @State private var drift = false
+    @State private var showLiveActivity = false
     let touchPoint: CGPoint
     let touchStrength: Double
 
-    private let particleColors: [Color] = [.cyan, .purple, .pink, .blue, .mint]
-
-    init(touchPoint: CGPoint = .zero, touchStrength: Double = 0) {
-        self.touchPoint = touchPoint
-        self.touchStrength = touchStrength
-    }
-
     var body: some View {
         ZStack {
+            // Exotic professional gradient base
             LinearGradient(
                 colors: [Color(red: 0.008, green: 0.022, blue: 0.052), AppTheme.pageBackground, Color.black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            // Live Activity banner - shows real-time patch status
+            LiveActivityView()
+                .frame(height: 36)
+            // Ambient particle field - subtle and performance-friendly
+            ParticleFieldView(animateDrift: $drift)
+                .opacity(0.4)
             Image("TryStoreTheme")
                 .resizable()
                 .scaledToFit()
@@ -1590,3 +1773,706 @@ private struct FreeFireArtwork: View {
             .background(AppTheme.accent)
     }
 }
+
+// MARK: - PatchesView
+private struct PatchesView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
+    @Environment(\.appLanguage) private var language
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @State private var showingPatchAlert = false
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 14) {
+                    topBarPatches.appCinematicReveal(delay: 0.02)
+                    patchCategoriesView
+                    activePatchesView
+                    quickActionsView
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 28)
+            }
+            .background(AppTheme.pageBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .tint(AppTheme.accent)
+        }
+    }
+
+    private var topBarPatches: some View {
+        HStack(spacing: horizontalSizeClass == .compact ? 6 : 11) {
+            AppLogo(size: horizontalSizeClass == .compact ? 36 : 44)
+                .padding(3)
+                .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(AppTheme.accent.opacity(0.36), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("TRY STORE")
+                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 18, weight: .black, design: .rounded))
+                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
+                    .foregroundStyle(.white)
+                Text("PATCH MANAGEMENT")
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(AppTheme.accent.opacity(0.82))
+            }
+            Spacer(minLength: 2)
+            Circle()
+                .fill(appState.isSupported ? Color.green : Color.orange)
+                .frame(width: 8, height: 8)
+                .padding(8)
+                .background(Color.black.opacity(0.38), in: Capsule())
+                .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+        }
+        .padding(.bottom, 2)
+    }
+
+    private var patchCategoriesView: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 7) {
+                ForEach(PatchCategory.allCases, id: \.self) { category in
+                    let isSelected = selectedPatchCategory == category
+                    Button {
+                        AppHaptics.select()
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+                            selectedPatchCategory = category
+                        }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(isSelected ? LinearGradient(colors: [PlatinumPalette.bright, PlatinumPalette.silver], startPoint: .topLeading, endPoint: .bottomTrailing) : Color.white.opacity(0.045))
+                            if isSelected {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(LinearGradient(colors: [PlatinumPalette.bright, PlatinumPalette.silver], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
+                            }
+                            Label(category.rawValue, systemImage: category.icon)
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .tracking(0.55)
+                                .foregroundStyle(isSelected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 38)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(isSelected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(PlatinumPressStyle())
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+
+            if selectedPatchCategory == .loadout {
+                Text("Aim modules share a game file, so only one aim option is active at a time.")
+                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.40))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
+        .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
+    }
+
+    private var activePatchesView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            panelHeader(title: "ACTIVE PATCHES", subtitle: "YOUR CURRENT APPLIED PATCHES", icon: "checkmark.shield")
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("TRYSTORE PATCHES")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundStyle(.white)
+                    Text("FREE FIRE MAX  •  ORIGINAL MODULES")
+                        .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .tracking(0.55)
+                        .foregroundStyle(AppTheme.accent)
+                }
+                Spacer()
+                Text("\\n(patchStore.activeCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .padding(.horizontal, 9)
+                    .frame(height: 25)
+                    .background(Color.white.opacity(0.07), in: Capsule())
+            }
+
+            PlatinumExpiryCard(
+                expirationDate: licenseManager.expirationDate,
+                isActive: licenseManager.isActive
+            )
+
+            HStack(spacing: 7) {
+                ForEach(DashboardPatchTab.allCases) { tab in
+                    let selected = selectedPatchTab == tab
+                    Button {
+                        guard selectedPatchTab != tab else { return }
+                        AppHaptics.select()
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.76)) {
+                            selectedPatchTab = tab
+                        }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.045))
+                            if selected {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(LinearGradient(colors: [PlatinumPalette.bright, PlatinumPalette.silver], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
+                            }
+                            Label(tab.title, systemImage: tab.icon)
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .tracking(0.55)
+                                .foregroundStyle(selected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 38)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(selected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(PlatinumPressStyle())
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+
+            if selectedPatchTab == .visuals {
+                visualPatchPreview
+            }
+
+            VStack(spacing: 7) {
+                ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals) { option in
+                    legacyPatchButton(option)
+                }
+            }
+            .id(selectedPatchTab)
+            .transition(.asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            ))
+
+            if selectedPatchTab == .loadout {
+                Text("Aim modules share a game file, so only one aim option is active at a time.")
+                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.40))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
+        .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 3.4).repeatForever(autoreverses: false)) {
+                patchSheen = true
+            }
+        }
+    }
+
+    private var visualPatchPreview: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.03, green: 0.13, blue: 0.27), Color.black.opacity(0.82)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+            Image("CleanCharacter")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 132)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .shadow(color: AppTheme.accent.opacity(0.22), radius: 14, y: 4)
+            Label("TRYSTORE CLASSIC CHARACTER", systemImage: "sparkles")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(.white.opacity(0.82))
+                .padding(10)
+        }
+        .frame(height: 142)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.accent.opacity(0.20), lineWidth: 1))
+    }
+
+    private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
+        let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
+        let item = patchStore.items.first {
+            $0.project?.name == option.projectName
+                || (option.projectName == "TryStore" && $0.project?.name == "Balas Magicas")
+                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+        }
+        let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
+        let isFavorite = appState.favorites.contains(option.projectName)
+
+        return Button {
+            guard let item else { return }
+            AppHaptics.tap()
+            patchStore.setEnabled(!isActive, for: item, group: option.group, reportsSuccess: false, onSuccess: { enabled in PatchAudioFeedback.play(enabled: enabled) })
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        (isActive ? activeTint : option.color.opacity(0.16)),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.title)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(0.45)
+                        .foregroundStyle(.white)
+                }
+                Spacer(minLength: 4)
+                HStack(spacing: 4) {
+                    if isActive {
+                        Circle()
+                            .fill(PlatinumPalette.graphite)
+                            .frame(width: 4, height: 4)
+                            .shadow(color: .white.opacity(0.8), radius: 3)
+                    }
+                    Text(item == nil ? "MISSING" : (isActive ? "ON" : "OFF"))
+                        .font(.system(size: 7, weight: .black, design: .rounded))
+                        .tracking(0.65)
+                }
+                .foregroundStyle(item == nil ? Color.orange : (isActive ? PlatinumPalette.graphite : Color.white.opacity(0.56)))
+                .padding(.horizontal, 8)
+                .frame(minWidth: 39, minHeight: 23)
+                .background(
+                    isActive
+                        ? LinearGradient(colors: [activeTint, Color.cyan.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: Capsule()
+                )
+                .overlay(Capsule().stroke(isActive ? Color.white.opacity(0.70) : Color.white.opacity(0.08), lineWidth: 0.8))
+                .shadow(color: isActive ? activeTint.opacity(0.45) : .clear, radius: 9, y: 1)
+                Image(systemName: item == nil ? "exclamationmark.triangle.fill" : (isActive ? "checkmark.circle.fill" : "circle"))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.silver : .white.opacity(0.30)))
+                Spacer(minLength: 4)
+                Button {
+                    AppHaptics.tap()
+                    appState.toggleFavorite(option.projectName)
+                } label: {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(isFavorite ? .yellow : .white.opacity(0.56))
+                        .padding(6)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 52)
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: isActive
+                            ? [activeTint.opacity(0.24), Color.cyan.opacity(0.10), PlatinumPalette.silver.opacity(0.06)]
+                            : [Color.white.opacity(0.065), Color.black.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+            }
+            .overlay {
+                if isActive && !reduceMotion {
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.22), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .rotationEffect(.degrees(22))
+                    .offset(x: patchSheen ? 180 : -180)
+                    .mask(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .allowsHitTesting(false)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(
+                        isActive
+                            ? LinearGradient(colors: [Color.white.opacity(0.96), activeTint.opacity(0.92), Color.cyan.opacity(0.70)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: isActive ? activeTint.opacity(0.25) : .clear, radius: 16, y: 4)
+            .scaleEffect(isActive ? 1.018 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.68), value: isActive)
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .disabled(patchStore.isBusy || item == nil)
+        .opacity(patchStore.isBusy ? 0.72 : (item == nil ? 0.52 : 1))
+        .buttonStyle(PlatinumPressStyle())
+        .accessibilityLabel("\(option.title), \(isActive ? "on" : "off")")
+    }
+
+    private var activeLegacyPatchCount: Int {
+        DashboardPatchOption.all.reduce(into: 0) { count, option in
+            guard let item = patchStore.items.first(where: { $0.project?.name == option.projectName }),
+                  DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
+            count += 1
+        }
+    }
+
+    private var quickActionsView: some View {
+        VStack(spacing: 12) {
+            panelHeader(title: "QUICK ACTIONS", subtitle: "APPLY OR REMOVE PATCHES", icon: "arrow.counterclockwise")
+            HStack(spacing: 12) {
+                // Activate All Button
+                Button {
+                    AppHaptics.tap()
+                    // Activate all available patches
+                    DashboardPatchOption.all.forEach { option in
+                        let item = patchStore.items.first(where: { $0.project?.name == option.projectName })
+                        if let item = item,
+                           !DevicePatchService.latestReceipt(projectID: item.id).isSome {
+                            patchStore.setEnabled(true, for: item, group: option.group, reportsSuccess: false, onSuccess: { _ in PatchAudioFeedback.play(enabled: true) })
+                        }
+                    }
+                    alertTitle = "SUCCES"
+                    alertMessage = "All patches applied successfully"
+                    showingPatchAlert = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 12, weight: .black))
+                            .foregroundStyle(.black)
+                        Text(language.text("activate_all_patches"))
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.black)
+                    }
+                    .frame(width: 120, height: 40)
+                    .background(Color.white.opacity(0.90), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(AppTheme.accent, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                // Deactivate All Button
+                Button {
+                    AppHaptics.tap()
+                    // Deactivate all active patches
+                    DashboardPatchOption.all.forEach { option in
+                        let item = patchStore.items.first(where: { $0.project?.name == option.projectName })
+                        if let item = item,
+                           DevicePatchService.latestReceipt(projectID: item.id).isSome {
+                            patchStore.setEnabled(false, for: item, group: option.group, reportsSuccess: false, onSuccess: { _ in PatchAudioFeedback.play(enabled: true) })
+                        }
+                    }
+                    alertTitle = "DEACTIVATED"
+                    alertMessage = "All patches removed successfully"
+                    showingPatchAlert = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.slash.fill")
+                            .font(.system(size: 12, weight: .black))
+                            .foregroundStyle(.black)
+                        Text(language.text("deactivate_all_patches"))
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.black)
+                    }
+                    .frame(width: 120, height: 40)
+                    .background(Color.white.opacity(0.90), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(.red, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 4)
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+    }
+
+    // Alert for quick actions
+    .alert(alertTitle, isPresented: $showingPatchAlert) {
+        Button(language.text("common.ok"), role: .cancel) {}
+    } message: {
+        Text(alertMessage)
+    }
+
+    // MARK: - Patch Category Enum
+    private enum PatchCategory: String, CaseIterable, Identifiable {
+        case loadout = "LOADOUT"
+        case visuals = "VISUALS"
+
+        var id: String { rawValue }
+        var title: String { rawValue }
+        var icon: String { self == .loadout ? "viewfinder" : "sparkles" }
+    }
+
+    // Navigation namespace for tab matching
+    @Namespace private var patchTabNamespace
+    @State private var selectedPatchCategory: PatchCategory = .loadout
+    @State private var selectedPatchTab: DashboardPatchTab = .loadout
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var patchSheen = false
+}
+
+// MARK: - FreeFireArtwork
+private struct FreeFireArtwork: View {
+    let game: FreeFireGame
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let image = UIImage(named: game.artworkName) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                fallbackArtwork
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
+    }
+
+    private var fallbackArtwork: some View {
+        Image(systemName: "gamecontroller.fill")
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(AppTheme.accent)
+    }
+}
+
+// Exotic professional particle field view
+// Exotic professional particle field view - animated particles following gyro tilt
+private struct ParticleFieldView: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var particles: [Particle] = []
+    @State private var drift = Vector()
+    @State private var lastUpdate = Date()
+
+    struct Particle: Identifiable {
+        let id = UUID()
+        var x: Double
+        var y: Double
+        var size: Double
+        var opacity: Double
+        var dx: Double
+        var dy: Double
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ForEach($particles) { $particle in
+                animatedParticle(geometry: geometry, particle: $particle)
+            }
+            onAppear { startParticleAnimation(geometry: geometry) }
+            onDisappear { stopParticleAnimation() }
+        }
+    }
+
+    private func animatedParticle(geometry: GeometryProxy, particle: inout Particle) -> some View {
+        Circle()
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [AppTheme.accent.opacity(0.4), AppTheme.accent.opacity(0.2), .white.opacity(0.1)]
+                )
+            )
+            .frame(width: particle.size, height: particle.size)
+            .position(x: particle.x, y: particle.y)
+            .opacity(particle.opacity)
+            .background(.ultraThinMaterial)
+            .onAppear {
+                withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
+                    particle.dx = Double.random(in: -0.5...0.5)
+                    particle.dy = Double.random(in: -0.5...0.5)
+                }
+            }
+            .onReceive(Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()) { _ in
+                if !reduceMotion {
+                    particle.x += particle.dx
+                    particle.y += particle.dy
+
+                    // Gyro tilt influence
+                    let tiltFactor: Double = 0.1
+                    let tiltX = Double(appState.deviceTiltMotion.tiltX ?? 0) * tiltFactor
+                    let tiltY = Double(appState.deviceTiltMotion.tiltY ?? 0) * tiltFactor
+
+                    particle.x += tiltX
+                    particle.y += tiltY
+
+                    // Clamp to bounds
+                    withAnimation {
+                        particle.x = particle.x.clamped(to: 0...geometry.size.width)
+                        particle.y = particle.y.clamped(to: 0...geometry.size.height)
+                    }
+                }
+            }
+        }
+    }
+
+    private func startParticleAnimation(geometry: GeometryProxy) {
+        // Initialize particles
+        particles = []
+        for index in 0..<12 {
+            var particle = Particle(
+                x: Double.random(in: 0...geometry.size.width),
+                y: Double.random(in: 0...geometry.size.height),
+                size: Double.random(in: 1...4),
+                opacity: 0.3 + Double(index) * 0.05,
+                dx: 0, dy: 0
+            )
+            particles.append(particle)
+        }
+        // Start the timer receive
+    }
+
+    private func stopParticleAnimation() {
+        particles.removeAll()
+    }
+}
+
+@available(iOS 16.1, *)
+struct LiveActivityView: View {
+    @EnvironmentObject private var appState: AppState
+    @State private var activity: Activity<LiveActivityState>?
+    @State private var isActivityActive = false
+    
+    var body: some View {
+        if isActivityActive, let activity = activity {
+            LiveActivityBanner(activity: activity)
+        } else {
+            Button("Start Live Activity") {
+                Task {
+                    await startLiveActivity()
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    
+    private func startLiveActivity() async {
+        // Request authorization
+        await ActivityAuthorization.request()
+        
+        // Create the initial state
+        let initialState = LiveActivityState(
+            isActive: true,
+            cpuTemp: appState.cpuTemperature,
+            gpuTemp: appState.gpuTemperature,
+            launchCount: appState.totalLaunches
+        )
+        
+        // Schedule the activity
+        let content = ActivityContent(
+            id: UUID(),
+            state: initialState,
+            staleDate: Date().addingTimeInterval(30)
+        )
+        
+        do {
+            activity = try await Activity<LiveActivityState>.request(
+                content: content,
+                authorization: .enabled
+            )
+            isActivityActive = true
+        } catch {
+            print("Failed to start Live Activity: \(error)")
+        }
+    }
+    
+    private func updateLiveActivity() {
+        guard let activity = activity else { return }
+        
+        let updatedState = LiveActivityState(
+            isActive: true,
+            cpuTemp: appState.cpuTemperature,
+            gpuTemp: appState.gpuTemperature,
+            launchCount: appState.totalLaunches
+        )
+        
+        let content = ActivityContent(
+            id: activity.id,
+            state: updatedState,
+            staleDate: Date().addingTimeInterval(30)
+        )
+        
+        Task {
+            await activity.update(content)
+        }
+    }
+}
+
+struct LiveActivityBanner: View {
+    let activity: Activity<LiveActivityState>
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "bell.fill")
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(AppTheme.accent)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Live Patch Activity")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(.white)
+                
+                HStack(spacing: 8) {
+                    HStack(spacing: 3) {
+                        Image("cpu")
+                            .font(.system(size: 7, weight: .black))
+                            .foregroundStyle(.orange)
+                        Text("\(String(format: "%.1f", activity.state.cpuTemp))°C")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundStyle(.orange)
+                    }
+                    HStack(spacing: 3) {
+                        Image("gpu")
+                            .font(.system(size: 7, weight: .black))
+                            .foregroundStyle(.green)
+                        Text("\(String(format: "%.1f", activity.state.gpuTemp))°C")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+            
+            Spacer(minLength: 4)
+            
+            Button {
+                Task { await updateLiveActivity() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.accent.opacity(0.3), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .background(Color.black.opacity(0.4), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+

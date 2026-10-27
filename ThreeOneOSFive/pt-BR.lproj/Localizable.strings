@@ -55,6 +55,8 @@
 "update.dismiss" = "Não mostrar novamente";
 "patch.error.wrong_password" = "Senha incorreta.";
 "patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.10 e iOS 27+, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
+"activate_all_patches" = "Ativar Todos";
+"deactivate_all_patches" = "Desativar Todos";
 "patch.operation_in_progress" = "Processando patch…";
 "patch.error.pairing_file_missing" = "Não há arquivo de pareamento. Pareie este iPhone ou importe um arquivo primeiro.";
 "patch.error.pairing_file_import_required" = "O iOS 18.7.2–18.7.10 não oferece pareamento direto. Importe um arquivo de pareamento primeiro.";
@@ -135,6 +137,9 @@
 "dashboard.enterprise_signing" = "O Support Patch só funciona quando assinado com certificado empresarial. SideStore, AltStore, 3uTools e LiveContainer não são suportados.";
 "dashboard.features" = "Recursos";
 "dashboard.features_footer" = "Ative Limpeza ou Papel de parede para mostrar o recurso na navegação do app.";
+"dashboard.cpu_temp" = "Temp. do CPU";
+"dashboard.gpu_temp" = "Temp. da GPU";
+"dashboard.launch_count" = "Contador de inicializações";
 "tab.home" = "Início";
 "tab.files" = "Arquivos";
 "tab.patches" = "Patches";
@@ -197,4 +202,8 @@
 "license.forget_title" = "Remover a chave salva?";
 "license.forget_message" = "A chave será removida deste iPhone. Uma chave será necessária para abrir o console novamente.";
 "license.forget_action" = "Esquecer chave";
-"license.cancel" = "Cancelar";
+  settings.stats_overlay = "Estatísticas em Sobrepor";
+  settings.stats_overlay_toggle = "Ativar Estatísticas";
+  settings.stats_overlay_cp = "Temp. do CPU";
+  settings.stats_overlay_gpu = "Temp. da GPU";
+  settings.stats_overlay_launch = "Contador de inicializações";
