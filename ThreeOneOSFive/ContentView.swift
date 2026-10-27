@@ -2314,16 +2314,10 @@ private struct PatchesView: View {
                 Spacer()
                 if patchStore.isBusy {
                     ProgressView().tint(AppTheme.accent)
-                } else {
-                    Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
-                        .font(AppType.label())
-                        .foregroundStyle(AppPalette.textPrimary)
-                        .padding(.horizontal, AppSpacing.m)
-                        .frame(height: 32)
-                        .background(AppPalette.raised.opacity(0.70), in: Capsule())
-                        .overlay(Capsule().stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1))
                 }
             }
+
+            moduleRail
 
             PlatinumExpiryCard(
                 expirationDate: licenseManager.expirationDate,
@@ -2332,9 +2326,15 @@ private struct PatchesView: View {
 
             if selectedPatchCategory == .visuals { visualPatchPreview }
 
-            VStack(spacing: 9) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: AppSpacing.s),
+                    GridItem(.flexible(), spacing: AppSpacing.s)
+                ],
+                spacing: AppSpacing.s
+            ) {
                 ForEach(visiblePatchOptions) { option in
-                    legacyPatchButton(option)
+                    patchModuleCard(option)
                 }
             }
             .id(selectedPatchCategory)
@@ -2353,6 +2353,12 @@ private struct PatchesView: View {
             selectedPatchActionView
         }
         .padding(AppSpacing.l)
+        .overlay(alignment: .topTrailing) {
+            AppLogo(size: 148)
+                .opacity(0.05)
+                .offset(x: 30, y: -14)
+                .allowsHitTesting(false)
+        }
         .appPanel(radius: AppRadius.panel)
     }
 
@@ -2381,81 +2387,88 @@ private struct PatchesView: View {
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.accent.opacity(0.20), lineWidth: 1))
     }
 
-    private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
+    private func patchModuleCard(_ option: DashboardPatchOption) -> some View {
         let item = patchItem(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
         let isSelected = selectedPatchProjectName == option.projectName
         let isFavorite = appState.favorites.contains(option.projectName)
+        let tint = isActive ? AppPalette.mint : (item == nil ? AppPalette.amber : patchTint)
 
-        return HStack(spacing: AppSpacing.s) {
+        return ZStack(alignment: .topTrailing) {
             Button {
                 AppHaptics.select()
-                selectedPatchProjectName = option.projectName
+                withAnimation(reduceMotion ? nil : AppMotion.tile) {
+                    selectedPatchProjectName = option.projectName
+                }
             } label: {
-                HStack(spacing: AppSpacing.m) {
-                    AppIconBadge(systemName: option.icon, tint: isActive ? AppPalette.mint : option.color, size: 46)
+                VStack(alignment: .leading, spacing: 0) {
+                    ZStack {
+                        Circle()
+                            .fill(tint.opacity(isActive ? 0.26 : 0.12))
+                            .frame(width: 58, height: 58)
+                            .blur(radius: 15)
+                        AppIconBadge(systemName: option.icon, tint: tint, size: 40)
+                    }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(option.title)
-                            .font(AppType.body())
-                            .tracking(0.3)
-                            .foregroundStyle(AppPalette.textPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                        Text(patchRowDetail(item: item, isActive: isActive, isSelected: isSelected))
-                            .font(AppType.meta())
-                            .foregroundStyle(item == nil ? AppPalette.amber : AppPalette.textSecondary)
+                    Spacer(minLength: AppSpacing.s)
+
+                    Text(option.title)
+                        .font(AppType.body())
+                        .tracking(0.2)
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .minimumScaleFactor(0.78)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: AppSpacing.s)
+
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(tint)
+                            .frame(width: 5, height: 5)
+                            .shadow(color: tint.opacity(0.9), radius: 4)
+                        Text(patchRowLabel(item: item, isActive: isActive, isSelected: isSelected))
+                            .font(AppType.label())
+                            .tracking(0.5)
+                            .foregroundStyle(isActive ? AppPalette.mint : (item == nil ? AppPalette.amber : AppPalette.textSecondary))
                             .lineLimit(1)
                             .minimumScaleFactor(0.78)
                     }
-
-                    Spacer(minLength: AppSpacing.xs)
-
-                    Text(patchRowLabel(item: item, isActive: isActive, isSelected: isSelected))
-                        .font(AppType.label())
-                        .tracking(0.4)
-                        .foregroundStyle(isActive ? Color(red: 0.02, green: 0.07, blue: 0.07) : AppPalette.textSecondary)
-                        .padding(.horizontal, AppSpacing.m)
-                        .frame(minHeight: 30)
-                        .background(
-                            isActive
-                                ? AnyShapeStyle(LinearGradient(colors: [AppPalette.mint, AppPalette.mint.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                : AnyShapeStyle(AppPalette.raised.opacity(0.75)),
-                            in: Capsule()
-                        )
                 }
-                .padding(.horizontal, AppSpacing.m)
-                .frame(minHeight: 74)
-                .background(
-                    RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
-                        .fill(isSelected ? AppTheme.accent.opacity(0.14) : AppPalette.surface.opacity(0.55))
+                .frame(maxWidth: .infinity, minHeight: 136, alignment: .leading)
+                .padding(AppSpacing.m)
+                .background(moduleCardFill(isActive: isActive, isSelected: isSelected, tint: tint))
+                .overlay(moduleCardBorder(isActive: isActive, isSelected: isSelected, tint: tint))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+                .shadow(
+                    color: isSelected ? tint.opacity(0.26) : Color.black.opacity(0.24),
+                    radius: isSelected ? 16 : 8,
+                    y: isSelected ? 6 : 4
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
-                        .strokeBorder(
-                            isSelected ? AppTheme.accent.opacity(0.85) : AppPalette.hairline.opacity(0.55),
-                            lineWidth: isSelected ? 1.5 : 1
-                        )
-                )
+                .contentShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
             }
             .buttonStyle(AppPressButtonStyle())
             .disabled(patchStore.isBusy)
             .accessibilityLabel("Select \(option.title)")
             .accessibilityValue(patchRowAccessibilityValue(item: item, isActive: isActive, isSelected: isSelected))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
 
             Button {
                 AppHaptics.tap()
                 appState.toggleFavorite(option.projectName)
             } label: {
                 Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(isFavorite ? AppPalette.amber : AppPalette.textTertiary)
-                    .frame(width: 46, height: 46)
-                    .background(AppPalette.raised.opacity(0.60), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                    .frame(width: 28, height: 28)
+                    .background(AppPalette.canvas.opacity(0.60), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                            .stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(isFavorite ? AppPalette.amber.opacity(0.40) : AppPalette.hairline.opacity(0.55), lineWidth: 1)
                     )
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(AppPressButtonStyle())
             .accessibilityLabel(isFavorite ? "Remove favorite" : "Add favorite")
@@ -2464,10 +2477,99 @@ private struct PatchesView: View {
         .animation(reduceMotion ? nil : AppMotion.tile, value: isSelected)
     }
 
-    private func patchRowDetail(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
-        if item == nil { return "Package not installed" }
-        if isActive { return "Active on device; restore below" }
-        return isSelected ? "Selected for manual activation" : "Select to review this module"
+    /// One accent per category keeps the grid readable while staying inside the
+    /// TryStore palette: mint for loadout modules, blue for visual overlays.
+    private var patchTint: Color {
+        selectedPatchCategory == .visuals ? AppPalette.blue : AppPalette.mint
+    }
+
+    private func isPatchActive(_ option: DashboardPatchOption) -> Bool {
+        guard let item = patchItem(for: option) else { return false }
+        return DevicePatchService.latestReceipt(projectID: item.id) != nil
+    }
+
+    /// Full-width bus strip: eight segments, one per module, so the whole
+    /// library state reads at a glance without a second list of numbers.
+    private var moduleRail: some View {
+        VStack(spacing: 9) {
+            HStack(spacing: 3) {
+                ForEach(DashboardPatchOption.all) { option in
+                    Capsule()
+                        .fill(isPatchActive(option) ? AppPalette.mint : AppPalette.hairline.opacity(0.75))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 5)
+                        .shadow(color: isPatchActive(option) ? AppPalette.mint.opacity(0.75) : .clear, radius: 4)
+                }
+            }
+            HStack(spacing: 6) {
+                Text("MODULE BUS")
+                    .font(AppType.label())
+                    .tracking(0.6)
+                    .foregroundStyle(AppPalette.textTertiary)
+                Spacer(minLength: AppSpacing.s)
+                Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                    .font(AppType.label())
+                    .tracking(0.4)
+                    .foregroundStyle(AppPalette.textPrimary)
+            }
+        }
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.vertical, 10)
+        .background(AppPalette.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private func moduleCardFill(isActive: Bool, isSelected: Bool, tint: Color) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [AppPalette.surface.opacity(0.94), AppPalette.canvas.opacity(0.92)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            tint.opacity(isSelected ? 0.20 : (isActive ? 0.13 : 0.05)),
+                            tint.opacity(0.01)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .center
+                    )
+                )
+            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.14), .clear, .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+    }
+
+    private func moduleCardBorder(isActive: Bool, isSelected: Bool, tint: Color) -> some View {
+        RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+            .strokeBorder(
+                isSelected
+                    ? AnyShapeStyle(
+                        AngularGradient(
+                            colors: [tint, tint.opacity(0.28), Color.white.opacity(0.55), tint.opacity(0.30), tint],
+                            center: .center
+                        )
+                    )
+                    : AnyShapeStyle(AppPalette.hairline.opacity(isActive ? 0.90 : 0.55)),
+                lineWidth: isSelected ? 1.6 : 1
+            )
+            .allowsHitTesting(false)
     }
 
     private func patchRowLabel(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
