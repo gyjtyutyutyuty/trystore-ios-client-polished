@@ -65,7 +65,7 @@ struct OnboardingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .appGyroTilt(intensity: 0.32)
+        .appDepthLayer(.hero)
     }
 
     @ViewBuilder

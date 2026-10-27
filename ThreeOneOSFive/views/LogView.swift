@@ -76,7 +76,7 @@ struct LogView: View {
                 }
             }
             .appCinematicReveal(delay: 0.04)
-            .appGyroTilt(intensity: 0.18)
+            .appDepthLayer(.card)
             .navigationTitle(language.text("logs.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

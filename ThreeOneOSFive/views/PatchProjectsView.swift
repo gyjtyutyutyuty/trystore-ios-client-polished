@@ -41,7 +41,7 @@ struct PatchProjectsView: View {
                         ForEach(store.items) { item in
                             itemTile(item).appCinematicReveal(
                                 delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
-                            ).appGyroTilt(intensity: 0.72)
+                            ).appDepthLayer(.hero)
                         }
                     }
                     .padding(.horizontal, 16)

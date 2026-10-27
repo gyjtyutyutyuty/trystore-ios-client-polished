@@ -218,6 +218,7 @@ struct HomeView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .appSpecularSheen(intensity: 1.15, cornerRadius: AppRadius.hero)
+        .appDepthLayer(.hero)
         .onAppear {
             guard !reduceMotion else {
                 heroArrived = true
@@ -2617,7 +2618,9 @@ private struct PatchesView: View {
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             panelHeader(title: language.text("patch.library"), subtitle: language.text("patch.library.subtitle"), icon: "checkmark.shield")
-            patchConsole.appSpecularSheen(intensity: 0.85)
+            patchConsole
+                .appSpecularSheen(intensity: 0.85)
+                .appDepthLayer(.card)
 
             PlatinumExpiryCard(
                 expirationDate: licenseManager.expirationDate,

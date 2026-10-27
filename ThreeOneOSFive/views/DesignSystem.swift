@@ -225,8 +225,16 @@ extension View {
         modifier(AppCinematicReveal(delay: delay))
     }
 
+    /// Parallax for a named layer. New code uses this; the scalar below is legacy.
+    func appDepthLayer(_ layer: AppDepthLayer) -> some View {
+        modifier(AppDepthMotion(travel: layer.travel, rotation: layer.rotation))
+    }
+
+    /// Legacy scalar entry point, kept so older screens still compile. Treat the value as
+    /// a fraction of the caps rather than an effect strength.
     func appGyroTilt(intensity: CGFloat = 1) -> some View {
-        modifier(AppGyroTilt(intensity: intensity))
+        let fraction = min(max(intensity, 0), 1)
+        return modifier(AppDepthMotion(travel: fraction, rotation: fraction))
     }
 }
 
@@ -267,29 +275,75 @@ final class DeviceTiltMotion: ObservableObject {
     }
 }
 
-struct AppGyroTilt: ViewModifier {
+/// The screen is a stack, not a plane. Each layer states how far it travels, so the
+/// parallax is a property of the layout instead of a number someone guessed at the call
+/// site. Backdrop moves most, type never moves: text that drifts is text that reads worse.
+enum AppDepthLayer {
+    case backdrop
+    case hero
+    case card
+    case type
+
+    /// Fraction of the capped travel, in points.
+    var travel: CGFloat {
+        switch self {
+        case .backdrop: return 1.00
+        case .hero: return 0.55
+        case .card: return 0.30
+        case .type: return 0
+        }
+    }
+
+    /// Fraction of the capped rotation, in degrees. Type stays flat for legibility.
+    var rotation: CGFloat {
+        switch self {
+        case .backdrop: return 0.25
+        case .hero: return 1.00
+        case .card: return 0.45
+        case .type: return 0
+        }
+    }
+}
+
+enum AppDepthMetrics {
+    /// Past roughly 8 pt of travel and 5 degrees of rotation the illusion stops reading
+    /// as depth and starts reading as a wobble, so both are hard caps rather than hints.
+    static let maxTravel: CGFloat = 8
+    static let maxRotation: Double = 5
+    static let perspective: CGFloat = 0.78
+    /// Matches the 30 Hz motion update: fast enough to feel attached, slow enough not to
+    /// chase the sensor's noise.
+    static let follow: Double = 0.07
+}
+
+struct AppDepthMotion: ViewModifier {
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @Environment(\.appReduceMotion) private var reduceMotion
-    let intensity: CGFloat
+
+    let travel: CGFloat
+    let rotation: CGFloat
+
+    private var roll: CGFloat { reduceMotion ? 0 : CGFloat(deviceTilt.roll) }
+    private var pitch: CGFloat { reduceMotion ? 0 : CGFloat(deviceTilt.pitch) }
 
     func body(content: Content) -> some View {
         content
             .rotation3DEffect(
-                .degrees(reduceMotion ? 0 : deviceTilt.pitch * 2.8 * Double(intensity)),
+                .degrees(Double(pitch) * AppDepthMetrics.maxRotation * Double(rotation)),
                 axis: (x: 1, y: 0, z: 0),
-                perspective: 0.78
+                perspective: AppDepthMetrics.perspective
             )
             .rotation3DEffect(
-                .degrees(reduceMotion ? 0 : deviceTilt.roll * 3.6 * Double(intensity)),
+                .degrees(Double(roll) * AppDepthMetrics.maxRotation * Double(rotation)),
                 axis: (x: 0, y: 1, z: 0),
-                perspective: 0.78
+                perspective: AppDepthMetrics.perspective
             )
             .offset(
-                x: reduceMotion ? 0 : CGFloat(deviceTilt.roll) * 3.5 * intensity,
-                y: reduceMotion ? 0 : CGFloat(deviceTilt.pitch) * -2.5 * intensity
+                x: roll * AppDepthMetrics.maxTravel * travel,
+                y: pitch * -AppDepthMetrics.maxTravel * 0.6 * travel
             )
-            .animation(reduceMotion ? nil : .linear(duration: 0.07), value: deviceTilt.roll)
-            .animation(reduceMotion ? nil : .linear(duration: 0.07), value: deviceTilt.pitch)
+            .animation(reduceMotion ? nil : .linear(duration: AppDepthMetrics.follow), value: deviceTilt.roll)
+            .animation(reduceMotion ? nil : .linear(duration: AppDepthMetrics.follow), value: deviceTilt.pitch)
     }
 }
 
@@ -336,10 +390,17 @@ struct AppPressButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.965 : 1)
-            .brightness(configuration.isPressed ? 0.04 : 0)
-            .shadow(color: AppTheme.accent.opacity(configuration.isPressed ? 0.16 : 0), radius: 12, y: 3)
-            .animation(.spring(response: 0.28, dampingFraction: 0.66), value: configuration.isPressed)
+            // A card that is pushed compresses slightly and its shadow tightens: the
+            // surface moves down, it does not shrink away from the finger.
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .offset(y: configuration.isPressed && !reduceMotion ? 1 : 0)
+            .brightness(configuration.isPressed ? 0.02 : 0)
+            .shadow(
+                color: AppTheme.accent.opacity(configuration.isPressed ? 0.10 : 0),
+                radius: configuration.isPressed ? 7 : 12,
+                y: configuration.isPressed ? 1 : 3
+            )
+            .animation(.spring(response: 0.28, dampingFraction: 0.72), value: configuration.isPressed)
     }
 }
 
@@ -432,7 +493,7 @@ struct AppLogo: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
-        .appGyroTilt(intensity: 0.38)
+        .appDepthLayer(.card)
         .accessibilityHidden(true)
     }
 }
@@ -589,6 +650,8 @@ struct AppMetricTile: View {
     var tint: Color = AppTheme.accent
     var minHeight: CGFloat = 78
 
+    @Environment(\.appReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
             HStack(spacing: 6) {
@@ -608,6 +671,8 @@ struct AppMetricTile: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.78)
                 .fixedSize(horizontal: false, vertical: true)
+                .contentTransition(.numericText())
+                .animation(reduceMotion ? nil : AppMotion.tile, value: value)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)

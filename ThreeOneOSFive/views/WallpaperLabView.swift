@@ -37,7 +37,7 @@ struct WallpaperLabView: View {
             .scrollContentBackground(.hidden)
             .background(AppPremiumBackdrop())
             .appCinematicReveal(delay: 0.06)
-            .appGyroTilt(intensity: 0.18)
+            .appDepthLayer(.card)
             .listStyle(.insetGrouped)
             .navigationTitle(language.text("wallpaper.title"))
             .navigationBarTitleDisplayMode(.inline)

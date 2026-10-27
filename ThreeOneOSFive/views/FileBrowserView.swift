@@ -95,7 +95,7 @@ struct FileBrowserView: View {
             .scrollContentBackground(.hidden)
             .background(AppPremiumBackdrop())
             .appCinematicReveal(delay: 0.06)
-            .appGyroTilt(intensity: 0.18)
+            .appDepthLayer(.card)
             .environment(\.defaultMinListRowHeight, AppTheme.fileRowHeight)
             .scrollDismissesKeyboard(.interactively)
             .overlay {

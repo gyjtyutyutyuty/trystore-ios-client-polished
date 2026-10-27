@@ -40,6 +40,8 @@ State must never ride on colour alone: pair every tint with an icon, a label or 
 - Depth comes from tone plus one soft shadow, not from stacking borders.
 - `appSpecularSheen` is the signature effect: a wide 5.5 % white sweep that leans with the
   device. Budget: at most three lit surfaces per screen, and it never takes a touch.
+- Depth is a stack, not a per-view value: `appDepthLayer(.backdrop | .hero | .card | .type)`
+  with travel capped at 8 pt and rotation at 5 degrees. Never pass an ad-hoc intensity.
 - Glass honours Reduce Transparency by falling back to an opaque fill. Blurred ambient
   lights should flatten under the same setting.
 

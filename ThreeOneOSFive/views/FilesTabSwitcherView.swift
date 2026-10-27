@@ -37,7 +37,7 @@ struct FilesTabSwitcherView: View {
                     }
                 }
             }
-            .appGyroTilt(intensity: 0.18)
+            .appDepthLayer(.card)
             .navigationTitle(language.text("browser.tabs"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

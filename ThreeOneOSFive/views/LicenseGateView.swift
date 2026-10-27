@@ -163,7 +163,7 @@ struct LicenseGateView: View {
                 .padding(.horizontal, 20)
                 .frame(maxWidth: .infinity)
             }
-            .appGyroTilt(intensity: 0.20)
+            .appDepthLayer(.card)
         }
         .preferredColorScheme(.dark)
     }

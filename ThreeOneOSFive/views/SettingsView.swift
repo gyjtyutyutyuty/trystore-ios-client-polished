@@ -236,7 +236,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(AppPremiumBackdrop())
             .appCinematicReveal(delay: 0.05)
-            .appGyroTilt(intensity: 0.18)
+            .appDepthLayer(.card)
             .tint(AppTheme.accent)
             .navigationTitle(language.text("settings.title"))
             .navigationBarTitleDisplayMode(.inline)
