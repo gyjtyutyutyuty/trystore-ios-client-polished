@@ -2,12 +2,12 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-// Not part of the app target. This file belongs to a Widget Extension target
-// (File > New > Target > Widget Extension, then add this file to it) which is the
-// only way iOS will render a Live Activity on the Lock Screen or in the Dynamic
-// Island. The app side is already wired: PatchActivityController starts one when a
-// patch or purge begins and ends it when the work finishes. Add the target when you
-// want the display; nothing else in the app has to change.
+// This file is not currently in an Xcode Widget Extension target. To render a Live
+// Activity, create that target and add this file plus the shared declarations it uses:
+// LiveActivityState (currently in ContentView.swift) and AppPalette (in
+// views/DesignSystem.swift). Prefer moving those declarations into extension-safe shared
+// source files with membership in both targets; adding this file alone will not compile
+// in a separate target. The app-side controller already starts and ends the activity.
 @available(iOS 16.1, *)
 struct LiveActivityWidget: Widget {
     var body: some WidgetConfiguration {

@@ -6,9 +6,9 @@
 //
 // Deploy:
 //   wrangler deploy cloudflare/asset-worker.js --name trystore-assets
-//   wrangler secret put HIGGSFIELD_API_KEY_ID
-//   wrangler secret put HIGGSFIELD_API_KEY_SECRET
-//   wrangler secret put ASSET_API_TOKEN
+//   wrangler secret put HIGGSFIELD_API_KEY_ID --name trystore-assets
+//   wrangler secret put HIGGSFIELD_API_KEY_SECRET --name trystore-assets
+//   wrangler secret put ASSET_API_TOKEN --name trystore-assets
 //
 // Requests fail closed while ASSET_API_TOKEN is unset, so a fresh deploy cannot spend
 // the account balance by accident.
@@ -38,6 +38,8 @@ const json = (body, status = 200) =>
       'access-control-allow-methods': 'GET, POST, OPTIONS'
     }
   });
+
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const upstreamAuth = (env) => `Key ${env.HIGGSFIELD_API_KEY_ID}:${env.HIGGSFIELD_API_KEY_SECRET}`;
 
@@ -128,7 +130,10 @@ async function submit(env, spec, webhook) {
     body = { raw: text.slice(0, 400) };
   }
   if (!response.ok) return json({ error: 'upstream_error', upstreamStatus: response.status, detail: body }, 502);
-  return json({ ...body, model: spec.path, poll: body.request_id ? `/api/assets/status?id=${body.request_id}` : null });
+  if (!isRecord(body) || typeof body.request_id !== 'string' || body.request_id.length === 0) {
+    return json({ error: 'invalid_upstream_response' }, 502);
+  }
+  return json({ ...body, model: spec.path, poll: `/api/assets/status?id=${encodeURIComponent(body.request_id)}` });
 }
 
 async function poll(env, id) {
@@ -143,6 +148,7 @@ async function poll(env, id) {
     body = { raw: text.slice(0, 400) };
   }
   if (!response.ok) return json({ error: 'upstream_error', upstreamStatus: response.status, detail: body }, 502);
+  if (!isRecord(body)) return json({ error: 'invalid_upstream_response' }, 502);
   const media = collectMedia(body);
   return json({
     ...body,
@@ -165,6 +171,7 @@ async function cancel(env, id) {
     body = { raw: text.slice(0, 400) };
   }
   if (!response.ok) return json({ error: 'upstream_error', upstreamStatus: response.status, detail: body }, 502);
+  if (!isRecord(body)) return json({ error: 'invalid_upstream_response' }, 502);
   return json(body);
 }
 

@@ -1,6 +1,5 @@
 # TryStore (ThreeOneOSFive) — working notes for agents
-
-iOS client: SwiftUI, iOS 16.1 deployment target (ActivityKit guarded at 16.1), five
+iOS client: SwiftUI, iOS 16.0 deployment target (ActivityKit guarded at 16.1), five
 shipped languages (en, es, pt-BR, vi, zh-Hans). Patch packages are applied through a
 transaction that writes backups, journals its intent, then verifies every written file by
 digest and rolls back on mismatch. `cloudflare/` holds the licence-activation and Telegram
@@ -30,7 +29,7 @@ Signing and archiving happen on the maintainer's Mac — see `BUILD_ON_MAC.md`,
 ## Project conventions
 
 - Never hardcode user-facing English in a view. Add the key to all five `.lproj` files.
-- Colours, type, spacing, radii and motion come from `views/DesignSystem.swift` only.
+- Colours, type, spacing, radii and motion come from `ThreeOneOSFive/views/DesignSystem.swift` only.
   No new hex values, no one-off shadows, no second accent.
 - Accessibility is part of done: Dynamic Type via `AppType`, VoiceOver labels and traits
   on every control, Reduce Motion and Reduce Transparency branches for anything that moves

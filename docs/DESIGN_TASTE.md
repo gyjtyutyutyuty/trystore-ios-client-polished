@@ -43,7 +43,7 @@ State must never ride on colour alone: pair every tint with an icon, a label or 
 - Depth is a stack, not a per-view value: `appDepthLayer(.backdrop | .hero | .card | .type)`
   with travel capped at 8 pt and rotation at 5 degrees. Never pass an ad-hoc intensity.
 - Glass honours Reduce Transparency by falling back to an opaque fill. Blurred ambient
-  lights should flatten under the same setting.
+  lights and the blurred sweep are omitted under the same setting.
 
 ## 4. Motion
 

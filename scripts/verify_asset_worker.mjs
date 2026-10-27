@@ -18,28 +18,31 @@ const copy = path.join(scratch, 'worker.mjs');
 await copyFile(source, copy);
 
 const calls = [];
+const submitResponse = {
+  status: 'queued',
+  request_id: 'abc12345',
+  status_url: 'https://api.higgsfield.ai/requests/abc12345/status'
+};
+const statusResponse = {
+  status: 'completed',
+  request_id: 'abc12345',
+  images: [{ url: 'https://cdn.example/x.png', content_type: 'image/png' }]
+};
+const cancelResponse = { status: 'canceled', request_id: 'abc12345' };
+let nextSubmitResponse = submitResponse;
+let nextStatusResponse = statusResponse;
+let nextCancelResponse = cancelResponse;
 globalThis.fetch = async (url, init = {}) => {
   calls.push({ url: String(url), init });
   const target = String(url);
   const headers = { 'content-type': 'application/json' };
   if (target.includes('/requests/') && target.endsWith('/status')) {
-    return new Response(
-      JSON.stringify({
-        status: 'completed',
-        request_id: 'abc12345',
-        images: [{ url: 'https://cdn.example/x.png', content_type: 'image/png' }]
-      }),
-      { status: 200, headers }
-    );
+    return new Response(JSON.stringify(nextStatusResponse), { status: 200, headers });
   }
-  return new Response(
-    JSON.stringify({
-      status: 'queued',
-      request_id: 'abc12345',
-      status_url: 'https://api.higgsfield.ai/requests/abc12345/status'
-    }),
-    { status: 200, headers }
-  );
+  if (target.includes('/requests/') && target.endsWith('/cancel')) {
+    return new Response(JSON.stringify(nextCancelResponse), { status: 200, headers });
+  }
+  return new Response(JSON.stringify(nextSubmitResponse), { status: 200, headers });
 };
 
 const worker = (await import(pathToFileURL(copy).href)).default;
@@ -108,6 +111,18 @@ check('status refuses a traversal attempt', (await worker.fetch(req('/api/assets
 check('empty body is refused', (await post('/api/assets/image', '{}')).status === 400);
 check('bad json is refused', (await post('/api/assets/image', 'not json')).status === 400);
 check('missing credentials fail closed', (await worker.fetch(req('/api/assets/image', { method: 'POST', headers: auth, body: JSON.stringify({ prompt: 'valid prompt' }) }), { ASSET_API_TOKEN: 'tok' })).status === 503);
+
+nextSubmitResponse = [];
+check('malformed submit response is rejected', (await post('/api/assets/image', { prompt: 'valid prompt' })).status === 502);
+nextSubmitResponse = submitResponse;
+
+nextStatusResponse = [];
+check('malformed status response is rejected', (await worker.fetch(req('/api/assets/status?id=abc12345', { headers: auth }), env)).status === 502);
+nextStatusResponse = statusResponse;
+
+nextCancelResponse = [];
+check('malformed cancel response is rejected', (await post('/api/assets/cancel', { id: 'abc12345' })).status === 502);
+nextCancelResponse = cancelResponse;
 
 response = await worker.fetch(req('/nope', { headers: auth }), env);
 check('authenticated unknown route is 404', response.status === 404);

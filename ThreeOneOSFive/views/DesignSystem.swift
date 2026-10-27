@@ -150,40 +150,42 @@ struct AppPremiumBackdrop: View {
                     .opacity(0.72)
                     .blendMode(.plusLighter)
                 }
-                Circle()
-                    .fill(Color(red: 0.34, green: 0.28, blue: 0.95).opacity(0.15))
-                    .frame(width: min(proxy.size.width * 0.90, 390))
-                    .blur(radius: 100)
-                    .offset(
-                        x: proxy.size.width * (lightsDrift ? 0.42 : 0.30) + CGFloat(deviceTilt.roll) * 18,
-                        y: -proxy.size.height * (lightsDrift ? 0.34 : 0.42) - CGFloat(deviceTilt.pitch) * 16
+                if !reduceTransparency {
+                    Circle()
+                        .fill(Color(red: 0.34, green: 0.28, blue: 0.95).opacity(0.15))
+                        .frame(width: min(proxy.size.width * 0.90, 390))
+                        .blur(radius: 100)
+                        .offset(
+                            x: proxy.size.width * (lightsDrift ? 0.42 : 0.30) + CGFloat(deviceTilt.roll) * 18,
+                            y: -proxy.size.height * (lightsDrift ? 0.34 : 0.42) - CGFloat(deviceTilt.pitch) * 16
+                        )
+                    Circle()
+                        .fill(Color(red: 0.12, green: 0.78, blue: 0.76).opacity(0.10))
+                        .frame(width: min(proxy.size.width * 0.72, 310))
+                        .blur(radius: 94)
+                        .offset(
+                            x: proxy.size.width * (lightsDrift ? -0.42 : -0.30) + CGFloat(deviceTilt.roll) * 12,
+                            y: proxy.size.height * (lightsDrift ? 0.36 : 0.46) - CGFloat(deviceTilt.pitch) * 11
+                        )
+                    Circle()
+                        .fill(Color(red: 0.94, green: 0.34, blue: 0.60).opacity(0.075))
+                        .frame(width: min(proxy.size.width * 0.56, 240))
+                        .blur(radius: 88)
+                        .offset(
+                            x: proxy.size.width * (lightsDrift ? 0.18 : -0.05),
+                            y: proxy.size.height * (lightsDrift ? 0.10 : -0.04)
+                        )
+                    LinearGradient(
+                        colors: [.clear, Color.cyan.opacity(0.025), Color.white.opacity(0.035), Color.purple.opacity(0.025), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                Circle()
-                    .fill(Color(red: 0.12, green: 0.78, blue: 0.76).opacity(0.10))
-                    .frame(width: min(proxy.size.width * 0.72, 310))
-                    .blur(radius: 94)
-                    .offset(
-                        x: proxy.size.width * (lightsDrift ? -0.42 : -0.30) + CGFloat(deviceTilt.roll) * 12,
-                        y: proxy.size.height * (lightsDrift ? 0.36 : 0.46) - CGFloat(deviceTilt.pitch) * 11
-                    )
-                Circle()
-                    .fill(Color(red: 0.94, green: 0.34, blue: 0.60).opacity(0.075))
-                    .frame(width: min(proxy.size.width * 0.56, 240))
-                    .blur(radius: 88)
-                    .offset(
-                        x: proxy.size.width * (lightsDrift ? 0.18 : -0.05),
-                        y: proxy.size.height * (lightsDrift ? 0.10 : -0.04)
-                    )
-                LinearGradient(
-                    colors: [.clear, Color.cyan.opacity(0.025), Color.white.opacity(0.035), Color.purple.opacity(0.025), .clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .frame(width: proxy.size.width * 0.9)
-                .rotationEffect(.degrees(-18))
-                .offset(x: proxy.size.width * (lightsDrift ? 1.1 : -1.1) + CGFloat(deviceTilt.roll) * 14)
-                .blur(radius: 18)
-                .blendMode(.screen)
+                    .frame(width: proxy.size.width * 0.9)
+                    .rotationEffect(.degrees(-18))
+                    .offset(x: proxy.size.width * (lightsDrift ? 1.1 : -1.1) + CGFloat(deviceTilt.roll) * 14)
+                    .blur(radius: 18)
+                    .blendMode(.screen)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
