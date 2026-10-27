@@ -229,13 +229,6 @@ extension View {
     func appDepthLayer(_ layer: AppDepthLayer) -> some View {
         modifier(AppDepthMotion(travel: layer.travel, rotation: layer.rotation))
     }
-
-    /// Legacy scalar entry point, kept so older screens still compile. Treat the value as
-    /// a fraction of the caps rather than an effect strength.
-    func appGyroTilt(intensity: CGFloat = 1) -> some View {
-        let fraction = min(max(intensity, 0), 1)
-        return modifier(AppDepthMotion(travel: fraction, rotation: fraction))
-    }
 }
 
 @MainActor

@@ -152,7 +152,7 @@ struct HomeView: View {
                         .rotationEffect(.degrees(heroArrived ? 12 : -12))
                 }
                 .offset(x: 70, y: -46)
-                .appGyroTilt(intensity: 0.9)
+                .appDepthLayer(.card)
 
             VStack(alignment: .leading, spacing: AppSpacing.m) {
                 HStack(spacing: AppSpacing.s) {
@@ -779,15 +779,15 @@ private struct DashboardView: View {
                 )
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
-                        topBar.appCinematicReveal(delay: 0.02).appGyroTilt(intensity: 0.40)
-                        heroPanel.appCinematicReveal(delay: 0.08).appGyroTilt(intensity: 1.20)
-                        telemetryStrip.appCinematicReveal(delay: 0.15).appGyroTilt(intensity: 0.48)
-                        legacyPatchPanel.appCinematicReveal(delay: 0.22).appGyroTilt(intensity: 0.92)
-                        deviceSection.appCinematicReveal(delay: 0.29).appGyroTilt(intensity: 0.62)
-                        quickStartPanel.appCinematicReveal(delay: 0.36).appGyroTilt(intensity: 0.60)
-                        characterPreviewPanel.appCinematicReveal(delay: 0.43).appGyroTilt(intensity: 0.82)
-                        socialLinksPanel.appCinematicReveal(delay: 0.50).appGyroTilt(intensity: 0.42)
-                        footerBar.appCinematicReveal(delay: 0.56).appGyroTilt(intensity: 0.30)
+                        topBar.appCinematicReveal(delay: 0.02).appDepthLayer(.card)
+                        heroPanel.appCinematicReveal(delay: 0.08).appDepthLayer(.hero)
+                        telemetryStrip.appCinematicReveal(delay: 0.15).appDepthLayer(.card)
+                        legacyPatchPanel.appCinematicReveal(delay: 0.22).appDepthLayer(.card)
+                        deviceSection.appCinematicReveal(delay: 0.29).appDepthLayer(.card)
+                        quickStartPanel.appCinematicReveal(delay: 0.36).appDepthLayer(.card)
+                        characterPreviewPanel.appCinematicReveal(delay: 0.43).appDepthLayer(.hero)
+                        socialLinksPanel.appCinematicReveal(delay: 0.50).appDepthLayer(.card)
+                        footerBar.appCinematicReveal(delay: 0.56).appDepthLayer(.card)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -2073,7 +2073,7 @@ private struct FreeFirePatchView: View {
                             ForEach(aimItems) { item in
                                 patchToggleCard(item, title: aimDisplayName(for: item), icon: "scope", group: .aim)
                                     .appCinematicReveal(delay: 0.22)
-                                    .appGyroTilt(intensity: 0.78)
+                                    .appDepthLayer(.card)
                             }
                         } else {
                             if locationItems.isEmpty {
@@ -2082,7 +2082,7 @@ private struct FreeFirePatchView: View {
                             ForEach(locationItems) { item in
                                 patchToggleCard(item, title: locationDisplayName(for: item), icon: "location.fill", group: .location)
                                     .appCinematicReveal(delay: 0.22)
-                                    .appGyroTilt(intensity: 0.78)
+                                    .appDepthLayer(.card)
                             }
                         }
 
