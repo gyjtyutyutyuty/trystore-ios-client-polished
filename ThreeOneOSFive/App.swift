@@ -26,6 +26,7 @@ struct ThreeOneOSFiveApp: App {
     @State private var updateOffer: AppUpdateChecker.Offer?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("settings_reduce_motion_enabled") private var appReduceMotionEnabled = false
 
     init() {
         _ = retainGrappaTokenSymbol(0, 0, 0, nil, 0, nil, nil, 0)
@@ -74,6 +75,7 @@ struct ThreeOneOSFiveApp: App {
             .environmentObject(patchDraftCoordinator)
             .environmentObject(fileOperationCoordinator)
             .environmentObject(deviceTiltMotion)
+            .environment(\.accessibilityReduceMotion, reduceMotion || appReduceMotionEnabled)
             .environment(\.appLanguage, language)
             .environment(\.locale, language.locale)
             .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding && licenseManager.isActive)
@@ -231,10 +233,7 @@ class AppState: ObservableObject {
         }
     }
     // Stats overlay toggle
-    @AppStorage("stats_overlay_enabled") private var statsOverlayEnabled = false
-    @Published var showStatsOverlay: Bool {
-        statsOverlayEnabled
-    }
+    @AppStorage("stats_overlay_enabled") var showStatsOverlay = false
     var statsOverlayItems: [String] {
         ["CPU Temp", "GPU Temp", "Launch Count"].filter { showStatsOverlay }
     }

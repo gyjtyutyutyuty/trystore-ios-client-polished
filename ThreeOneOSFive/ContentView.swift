@@ -3,11 +3,13 @@ import ActivityKit
 import UIKit
 
 @available(iOS 16.1, *)
-struct LiveActivityState: Codable {
-    let isActive: Bool
-    let cpuTemp: Double
-    let gpuTemp: Double
-    let launchCount: Int
+struct LiveActivityState: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        let isActive: Bool
+        let cpuTemp: Double
+        let gpuTemp: Double
+        let launchCount: Int
+    }
 }
 
 struct ContentView: View {
@@ -1213,9 +1215,12 @@ private struct TryStoreAmbientBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @State private var drift = false
-    @State private var showLiveActivity = false
-    let touchPoint: CGPoint
-    let touchStrength: Double
+    var touchPoint: CGPoint = .zero
+    var touchStrength: Double = 0
+
+    private var particleColors: [Color] {
+        [AppTheme.accent, .cyan, .purple, .pink]
+    }
 
     var body: some View {
         ZStack {
@@ -1226,8 +1231,10 @@ private struct TryStoreAmbientBackground: View {
                 endPoint: .bottomTrailing
             )
             // Live Activity banner - shows real-time patch status
-            LiveActivityView()
-                .frame(height: 36)
+            if #available(iOS 16.1, *) {
+                LiveActivityView()
+                    .frame(height: 36)
+            }
             // Ambient particle field - subtle and performance-friendly
             ParticleFieldView(animateDrift: $drift)
                 .opacity(0.4)
@@ -1832,38 +1839,30 @@ private struct PatchesView: View {
         .padding(.bottom, 2)
     }
 
+    private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.85)
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+            Spacer()
+        }
+    }
+
     private var patchCategoriesView: some View {
         VStack(spacing: 8) {
             HStack(spacing: 7) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
-                    let isSelected = selectedPatchCategory == category
-                    Button {
-                        AppHaptics.select()
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
-                            selectedPatchCategory = category
-                        }
-                    } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(isSelected ? LinearGradient(colors: [PlatinumPalette.bright, PlatinumPalette.silver], startPoint: .topLeading, endPoint: .bottomTrailing) : Color.white.opacity(0.045))
-                            if isSelected {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(LinearGradient(colors: [PlatinumPalette.bright, PlatinumPalette.silver], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
-                            }
-                            Label(category.rawValue, systemImage: category.icon)
-                                .font(.system(size: 9, weight: .black, design: .rounded))
-                                .tracking(0.55)
-                                .foregroundStyle(isSelected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 38)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(isSelected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(PlatinumPressStyle())
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                    patchCategoryButton(category)
                 }
             }
 
@@ -1887,6 +1886,52 @@ private struct PatchesView: View {
         .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
     }
 
+    private func patchCategoryButton(_ category: PatchCategory) -> some View {
+        let isSelected = selectedPatchCategory == category
+        return Button {
+            AppHaptics.select()
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+                selectedPatchCategory = category
+            }
+        } label: {
+            ZStack {
+                patchCategoryButtonBackground(isSelected: isSelected)
+                Label(category.rawValue, systemImage: category.icon)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.55)
+                    .foregroundStyle(isSelected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
+            }
+            .frame(maxWidth: .infinity, minHeight: 38)
+            .overlay(patchCategoryButtonOutline(isSelected: isSelected))
+        }
+        .buttonStyle(PlatinumPressStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func patchCategoryButtonBackground(isSelected: Bool) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.045))
+            if isSelected {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [PlatinumPalette.bright, PlatinumPalette.silver],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .matchedGeometryEffect(id: "platinum-patch-category-tab", in: patchTabNamespace)
+            }
+        }
+    }
+
+    private func patchCategoryButtonOutline(isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .stroke(
+                isSelected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08),
+                lineWidth: 1
+            )
+    }
+
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: 12) {
             panelHeader(title: "ACTIVE PATCHES", subtitle: "YOUR CURRENT APPLIED PATCHES", icon: "checkmark.shield")
@@ -1902,7 +1947,7 @@ private struct PatchesView: View {
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
-                Text("\n(patchStore.activeCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                Text("\(patchStore.activeCount) / \(DashboardPatchOption.all.count) ACTIVE")
                     .font(.system(size: 8, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(0.78))
                     .padding(.horizontal, 9)
@@ -2342,75 +2387,64 @@ private struct ParticleFieldView: View {
 struct LiveActivityView: View {
     @EnvironmentObject private var appState: AppState
     @State private var activity: Activity<LiveActivityState>?
-    @State private var isActivityActive = false
-    
+
     var body: some View {
-        if isActivityActive, let activity = activity {
-            LiveActivityBanner(activity: activity)
-        } else {
-            Button("Start Live Activity") {
-                Task {
-                    await startLiveActivity()
+        Group {
+            if let activity = activity {
+                LiveActivityBanner(activity: activity) {
+                    await updateLiveActivity()
                 }
+            } else {
+                Button("Start Live Activity") {
+                    Task {
+                        await startLiveActivity()
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(!ActivityAuthorizationInfo().areActivitiesEnabled)
             }
-            .buttonStyle(.plain)
+        }
+        .task {
+            activity = Activity<LiveActivityState>.activities.first
         }
     }
-    
+
     private func startLiveActivity() async {
-        // Request authorization
-        await ActivityAuthorization.request()
-        
-        // Create the initial state
-        let initialState = LiveActivityState(
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let initialState = LiveActivityState.ContentState(
             isActive: true,
             cpuTemp: appState.cpuTemperature,
             gpuTemp: appState.gpuTemperature,
             launchCount: appState.totalLaunches
         )
-        
-        // Schedule the activity
-        let content = ActivityContent(
-            id: UUID(),
-            state: initialState,
-            staleDate: Date().addingTimeInterval(30)
-        )
-        
+
         do {
-            activity = try await Activity<LiveActivityState>.request(
-                content: content,
-                authorization: .enabled
+            activity = try Activity<LiveActivityState>.request(
+                attributes: LiveActivityState(),
+                contentState: initialState,
+                pushType: nil
             )
-            isActivityActive = true
         } catch {
             print("Failed to start Live Activity: \(error)")
         }
     }
-    
-    private func updateLiveActivity() {
+
+    private func updateLiveActivity() async {
         guard let activity = activity else { return }
-        
-        let updatedState = LiveActivityState(
+        let updatedState = LiveActivityState.ContentState(
             isActive: true,
             cpuTemp: appState.cpuTemperature,
             gpuTemp: appState.gpuTemperature,
             launchCount: appState.totalLaunches
         )
-        
-        let content = ActivityContent(
-            id: activity.id,
-            state: updatedState,
-            staleDate: Date().addingTimeInterval(30)
-        )
-        
-        Task {
-            await activity.update(content)
-        }
+        await activity.update(using: updatedState)
     }
 }
 
+@available(iOS 16.1, *)
 struct LiveActivityBanner: View {
     let activity: Activity<LiveActivityState>
+    let onRefresh: () async -> Void
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -2432,7 +2466,7 @@ struct LiveActivityBanner: View {
                         Image("cpu")
                             .font(.system(size: 7, weight: .black))
                             .foregroundStyle(.orange)
-                        Text("\(String(format: "%.1f", activity.state.cpuTemp))°C")
+                        Text("\(String(format: "%.1f", activity.contentState.cpuTemp))°C")
                             .font(.system(size: 8, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
                     }
@@ -2440,7 +2474,7 @@ struct LiveActivityBanner: View {
                         Image("gpu")
                             .font(.system(size: 7, weight: .black))
                             .foregroundStyle(.green)
-                        Text("\(String(format: "%.1f", activity.state.gpuTemp))°C")
+                        Text("\(String(format: "%.1f", activity.contentState.gpuTemp))°C")
                             .font(.system(size: 8, weight: .bold, design: .rounded))
                             .foregroundStyle(.green)
                     }
@@ -2450,7 +2484,7 @@ struct LiveActivityBanner: View {
             Spacer(minLength: 4)
             
             Button {
-                Task { await updateLiveActivity() }
+                Task { await onRefresh() }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 9, weight: .black))

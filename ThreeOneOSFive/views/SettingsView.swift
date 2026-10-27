@@ -13,6 +13,7 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+    @AppStorage("settings_reduce_motion_enabled") private var reduceMotionEnabled = false
     @StateObject private var pairingController = PairingController()
     @State private var isPairingReady = false
     @State private var isTunnelConnected: Bool?
@@ -72,7 +73,7 @@ struct SettingsView: View {
                 }
 
                 Section(language.text("settings.reduce_motion")) {
-                    Toggle(language.text("settings.reduce_motion_toggle"), isOn: $appState.reduceMotion)
+                    Toggle(language.text("settings.reduce_motion_toggle"), isOn: $reduceMotionEnabled)
                         .labelsHidden()
                 }
 

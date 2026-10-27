@@ -88,6 +88,8 @@
     <string>2</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>3105 needs access to photos for wallpaper customization.</string>
     <key>NSMotionUsageDescription</key>
