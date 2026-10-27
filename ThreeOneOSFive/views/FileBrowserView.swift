@@ -5,7 +5,7 @@ import QuickLook
 
 struct FileBrowserView: View {
     @Environment(\.appLanguage) private var language
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var patchDraftCoordinator: PatchDraftCoordinator
     @EnvironmentObject private var fileOperationCoordinator: FileOperationCoordinator

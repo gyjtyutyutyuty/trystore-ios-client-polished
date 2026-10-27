@@ -22,7 +22,7 @@ enum AppTheme {
 }
 
 struct AppPremiumBackdrop: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @State private var lightsDrift = false
 
@@ -84,7 +84,7 @@ struct AppPremiumBackdrop: View {
 }
 
 struct AppCinematicReveal: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @State private var isVisible = false
     let delay: Double
 
@@ -154,7 +154,7 @@ final class DeviceTiltMotion: ObservableObject {
 
 struct AppGyroTilt: ViewModifier {
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     let intensity: CGFloat
 
     func body(content: Content) -> some View {
@@ -217,7 +217,7 @@ enum PatchAudioFeedback {
 }
 
 struct AppPressButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

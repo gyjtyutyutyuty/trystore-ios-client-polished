@@ -3,7 +3,7 @@ import SwiftUI
 struct LogView: View {
     @ObservedObject var appLog = AppLog.shared
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.appLanguage) private var language
     @State private var copied = false
 

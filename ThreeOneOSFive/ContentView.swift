@@ -6,10 +6,15 @@ import UIKit
 struct LiveActivityState: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         let isActive: Bool
-        let cpuTemp: Double
-        let gpuTemp: Double
+        let cpuTemp: Double?
+        let gpuTemp: Double?
         let launchCount: Int
     }
+}
+
+private func temperatureDisplayValue(_ value: Double?, unit: TemperatureUnit) -> String {
+    guard let value, value.isFinite else { return "N/A" }
+    return String(format: "%.1f", value) + " " + unit.rawValue
 }
 
 struct ContentView: View {
@@ -108,8 +113,8 @@ struct HomeView: View {
             }
             // Temperature rows
             HStack(spacing: 8) {
-                temperatureRowHome(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: "%.1f", appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
-                temperatureRowHome(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: "%.1f", appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
+                temperatureRowHome(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: temperatureDisplayValue(appState.cpuTemperature, unit: appState.temperatureUnit), color: .orange)
+                temperatureRowHome(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: temperatureDisplayValue(appState.gpuTemperature, unit: appState.temperatureUnit), color: .green)
             }
             // Launch count
             HStack {
@@ -147,6 +152,98 @@ struct HomeView: View {
         .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(color.opacity(0.20), lineWidth: 0.5))
     }
+
+    private var telemetryStripHome: some View {
+        HStack(spacing: 8) {
+            telemetryCellHome(icon: "iphone", label: "DEVICE", value: AppInfo.displayMachineName)
+            telemetryCellHome(icon: "gearshape.2.fill", label: "iOS", value: AppInfo.osVersion)
+            telemetryCellHome(icon: "shield.lefthalf.filled", label: "STATUS", value: appState.isSupported ? "SUPPORTED" : "REVIEW")
+        }
+    }
+
+    private func telemetryCellHome(icon: String, label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(label, systemImage: icon)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(AppTheme.accent)
+                .lineLimit(1)
+            Text(value)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.88))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, minHeight: 47, alignment: .leading)
+        .padding(.horizontal, 9)
+        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
+    }
+
+    private var quickStartPanelHome: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            panelHeader(title: "QUICK START", subtitle: "YOUR MAX SESSION", icon: "bolt.fill")
+            HStack(alignment: .top, spacing: 8) {
+                quickStartStepHome(number: "01", title: "CHOOSE", detail: "Pick LOADOUT or VISUALS")
+                quickStartStepHome(number: "02", title: "TOGGLE", detail: "Tap a patch to apply")
+                quickStartStepHome(number: "03", title: "RESTORE", detail: "Tap the active patch again")
+            }
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+    }
+
+    private func quickStartStepHome(number: String, title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(number)
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .foregroundStyle(AppTheme.accent)
+            Text(title)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .tracking(0.4)
+                .foregroundStyle(.white)
+            Text(detail)
+                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.48))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(9)
+        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.85)
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+            Spacer()
+        }
+    }
+
+    private func statusRow(title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .foregroundStyle(.white.opacity(0.57))
+            Spacer(minLength: 10)
+            Text(value)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white.opacity(0.88))
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.system(size: 9, design: .rounded))
+    }
 }
 
 // MARK: - PatchesView
@@ -167,7 +264,7 @@ private enum PlatinumPalette {
 }
 
 private struct PlatinumPressStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -345,7 +442,7 @@ private struct DashboardPatchOption: Identifiable {
 private struct DashboardView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var patchStore = PatchProjectStore(game: .max)
@@ -709,8 +806,8 @@ private struct DashboardView: View {
                 )
             }
             HStack(spacing: 8) {
-                temperatureRow(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: "\(String(format: "%.1f", appState.cpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .orange)
-                temperatureRow(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: "\(String(format: "%.1f", appState.gpuTemperature)) \(appState.temperatureUnit.rawValue)", color: .green)
+                temperatureRow(icon: "cpu", label: language.text("dashboard.cpu_temp"), value: temperatureDisplayValue(appState.cpuTemperature, unit: appState.temperatureUnit), color: .orange)
+                temperatureRow(icon: "gpu", label: language.text("dashboard.gpu_temp"), value: temperatureDisplayValue(appState.gpuTemperature, unit: appState.temperatureUnit), color: .green)
             }
             HStack {
                 Text(language.text("dashboard.launch_count"))
@@ -1212,7 +1309,7 @@ private struct HeroCornerMark: Shape {
 }
 
 private struct TryStoreAmbientBackground: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @State private var drift = false
     var touchPoint: CGPoint = .zero
@@ -1449,7 +1546,7 @@ private struct FreeFireGameEntryView: View {
 private struct FreeFirePatchView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.openURL) private var openURL
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var licenseManager: LicenseManager
     let game: FreeFireGame
     @StateObject private var store: PatchProjectStore
@@ -1947,7 +2044,7 @@ private struct PatchesView: View {
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
-                Text("\(patchStore.activeCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
                     .font(.system(size: 8, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(0.78))
                     .padding(.horizontal, 9)
@@ -2181,6 +2278,29 @@ private struct PatchesView: View {
         }
     }
 
+    private func patchItem(named projectName: String) -> PatchLibraryItem? {
+        for item in patchStore.items {
+            guard let project = item.project else { continue }
+            if project.name == projectName { return item }
+        }
+        return nil
+    }
+
+    private func setAllPatches(enabled: Bool) {
+        for option in DashboardPatchOption.all {
+            guard let item = patchItem(named: option.projectName) else { continue }
+            let isActive = DevicePatchService.latestReceipt(projectID: item.id) != nil
+            guard isActive != enabled else { continue }
+            patchStore.setEnabled(
+                enabled,
+                for: item,
+                group: option.group,
+                reportsSuccess: false,
+                onSuccess: { _ in PatchAudioFeedback.play(enabled: enabled) }
+            )
+        }
+    }
+
     private var quickActionsView: some View {
         VStack(spacing: 12) {
             panelHeader(title: "QUICK ACTIONS", subtitle: "APPLY OR REMOVE PATCHES", icon: "arrow.counterclockwise")
@@ -2188,14 +2308,7 @@ private struct PatchesView: View {
                 // Activate All Button
                 Button {
                     AppHaptics.tap()
-                    // Activate all available patches
-                    DashboardPatchOption.all.forEach { option in
-                        let item = patchStore.items.first(where: { $0.project?.name == option.projectName })
-                        if let item = item,
-                           !DevicePatchService.latestReceipt(projectID: item.id).isSome {
-                            patchStore.setEnabled(true, for: item, group: option.group, reportsSuccess: false, onSuccess: { _ in PatchAudioFeedback.play(enabled: true) })
-                        }
-                    }
+                    setAllPatches(enabled: true)
                     alertTitle = "SUCCES"
                     alertMessage = "All patches applied successfully"
                     showingPatchAlert = true
@@ -2217,14 +2330,7 @@ private struct PatchesView: View {
                 // Deactivate All Button
                 Button {
                     AppHaptics.tap()
-                    // Deactivate all active patches
-                    DashboardPatchOption.all.forEach { option in
-                        let item = patchStore.items.first(where: { $0.project?.name == option.projectName })
-                        if let item = item,
-                           DevicePatchService.latestReceipt(projectID: item.id).isSome {
-                            patchStore.setEnabled(false, for: item, group: option.group, reportsSuccess: false, onSuccess: { _ in PatchAudioFeedback.play(enabled: true) })
-                        }
-                    }
+                    setAllPatches(enabled: false)
                     alertTitle = "DEACTIVATED"
                     alertMessage = "All patches removed successfully"
                     showingPatchAlert = true
@@ -2271,41 +2377,13 @@ private struct PatchesView: View {
     @Namespace private var patchTabNamespace
     @State private var selectedPatchCategory: PatchCategory = .loadout
     @State private var selectedPatchTab: DashboardPatchTab = .loadout
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @State private var patchSheen = false
-}
-
-// MARK: - FreeFireArtwork
-private struct FreeFireArtwork: View {
-    let game: FreeFireGame
-    let size: CGFloat
-
-    var body: some View {
-        Group {
-            if let image = UIImage(named: game.artworkName) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                fallbackArtwork
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
-    }
-
-    private var fallbackArtwork: some View {
-        Image(systemName: "gamecontroller.fill")
-            .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(AppTheme.accent)
-    }
 }
 
 private struct ParticleFieldView: View {
     @Binding var animateDrift: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @State private var particles: [Particle] = []
 
@@ -2466,7 +2544,7 @@ struct LiveActivityBanner: View {
                         Image("cpu")
                             .font(.system(size: 7, weight: .black))
                             .foregroundStyle(.orange)
-                        Text("\(String(format: "%.1f", activity.contentState.cpuTemp))°C")
+                        Text(temperatureDisplayValue(activity.contentState.cpuTemp, unit: .celsius))
                             .font(.system(size: 8, weight: .bold, design: .rounded))
                             .foregroundStyle(.orange)
                     }
@@ -2474,7 +2552,7 @@ struct LiveActivityBanner: View {
                         Image("gpu")
                             .font(.system(size: 7, weight: .black))
                             .foregroundStyle(.green)
-                        Text("\(String(format: "%.1f", activity.contentState.gpuTemp))°C")
+                        Text(temperatureDisplayValue(activity.contentState.gpuTemp, unit: .celsius))
                             .font(.system(size: 8, weight: .bold, design: .rounded))
                             .foregroundStyle(.green)
                     }

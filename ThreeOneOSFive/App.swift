@@ -1,6 +1,17 @@
 import SwiftUI
 import UIKit
 
+private struct AppReduceMotionKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var appReduceMotion: Bool {
+        get { self[AppReduceMotionKey.self] }
+        set { self[AppReduceMotionKey.self] = newValue }
+    }
+}
+
 @_silgen_name("ALGetGrappaToken")
 private func retainGrappaTokenSymbol(
     _ version: UInt32,
@@ -42,6 +53,10 @@ struct ThreeOneOSFiveApp: App {
         AppLanguage(rawValue: languageCode) ?? .english
     }
 
+    private var effectiveReduceMotion: Bool {
+        reduceMotion || appReduceMotionEnabled
+    }
+
     private func checkForUpdate() {
         Task {
             guard let offer = await AppUpdateChecker.check() else { return }
@@ -75,7 +90,7 @@ struct ThreeOneOSFiveApp: App {
             .environmentObject(patchDraftCoordinator)
             .environmentObject(fileOperationCoordinator)
             .environmentObject(deviceTiltMotion)
-            .environment(\.accessibilityReduceMotion, reduceMotion || appReduceMotionEnabled)
+            .environment(\.appReduceMotion, effectiveReduceMotion)
             .environment(\.appLanguage, language)
             .environment(\.locale, language.locale)
             .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding && licenseManager.isActive)
@@ -99,9 +114,8 @@ struct ThreeOneOSFiveApp: App {
             }
             .onAppear {
                 appState.recordLaunch()
-                appState.fetchTemperatures()
                 appState.evaluateRuntimeSecurity()
-                if scenePhase == .active && !reduceMotion {
+                if scenePhase == .active && !effectiveReduceMotion {
                     deviceTiltMotion.start()
                 }
                 if !showOnboarding {
@@ -111,7 +125,7 @@ struct ThreeOneOSFiveApp: App {
                 }
             }
             .onChange(of: scenePhase) { phase in
-                if phase == .active && !reduceMotion {
+                if phase == .active && !effectiveReduceMotion {
                     deviceTiltMotion.start()
                 } else {
                     deviceTiltMotion.stop()
@@ -122,7 +136,7 @@ struct ThreeOneOSFiveApp: App {
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
             }
-            .onChange(of: reduceMotion) { isReduced in
+            .onChange(of: effectiveReduceMotion) { isReduced in
                 if isReduced {
                     deviceTiltMotion.stop()
                 } else if scenePhase == .active {
@@ -134,7 +148,6 @@ struct ThreeOneOSFiveApp: App {
                     try? await Task.sleep(nanoseconds: 30_000_000_000)
                     guard scenePhase == .active else { continue }
                     appState.evaluateRuntimeSecurity()
-                    appState.fetchTemperatures()
                 }
             }
         }
@@ -185,7 +198,7 @@ class AppState: ObservableObject {
     }
     @AppStorage("patch_favorites") private var favoritesData: Data = Data()
     var favorites: Set<String> {
-        try? JSONDecoder().decode(Set<String>.self, from: favoritesData)
+        (try? JSONDecoder().decode(Set<String>.self, from: favoritesData)) ?? []
     }
     func toggleFavorite(_ projectName: String) {
         var newFavorites: Set<String>
@@ -220,6 +233,7 @@ class AppState: ObservableObject {
         case 3: slot3Name = name
         case 4: slot4Name = name
         case 5: slot5Name = name
+        default: return
         }
     }
     func loadSlot(_ slot: Int) -> String? {
@@ -230,32 +244,18 @@ class AppState: ObservableObject {
         case 3: return slot3Name
         case 4: return slot4Name
         case 5: return slot5Name
+        default: return nil
         }
     }
     // Stats overlay toggle
     @AppStorage("stats_overlay_enabled") var showStatsOverlay = false
     var statsOverlayItems: [String] {
-        ["CPU Temp", "GPU Temp", "Launch Count"].filter { showStatsOverlay }
+        showStatsOverlay ? ["CPU Temp", "GPU Temp", "Launch Count"] : []
     }
-    @Published var cpuTemperature: Double = 0
-    @Published var gpuTemperature: Double = 0
+    // Public iOS APIs do not expose CPU/GPU die temperatures; nil renders as unavailable.
+    @Published var cpuTemperature: Double? = nil
+    @Published var gpuTemperature: Double? = nil
     var temperatureUnit: TemperatureUnit = .celsius
-    private func fetchTemperatures() {
-        // Try to get CPU temperature via sysctl
-        var temp: Int32 = 0
-        var size = MemoryLayout<Int32>.size
-        let name = [CTL_HW, HW_CPUMAX] as [Int32]
-        if sysctl(name, 2, &temp, &size, nil, 0) == 0 {
-            self.cpuTemperature = Double(temp) / 1000.0
-        }
-        // GPU temperature - try alternative method
-        var gpuTemp: Int32 = 0
-        var gpuSize = MemoryLayout<Int32>.size
-        let gpuName = [CTL_HW, HW_CPUTHERMAL] as [Int32]
-        if sysctl(gpuName, 2, &gpuTemp, &gpuSize, nil, 0) == 0 {
-            self.gpuTemperature = Double(gpuTemp) / 1000.0
-        }
-    }
     var kernelExploitApplicable: Bool {
         KernelExploit.isApplicable(
             major: AppInfo.versionTuple.major,
