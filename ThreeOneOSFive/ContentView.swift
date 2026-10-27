@@ -41,25 +41,31 @@ struct HomeView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.appReduceMotion) private var reduceMotion
     var onOpenPatches: () -> Void = {}
     @State private var showSettings = false
     @State private var showLogs = false
+    @State private var heroArrived = false
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
-                    topBarHome.appCinematicReveal(delay: 0.02)
-                    heroHome.appCinematicReveal(delay: 0.12)
-                    quickAccessHome.appCinematicReveal(delay: 0.19)
-                    deviceSectionHome.appCinematicReveal(delay: 0.26)
-                    quickStartPanelHome.appCinematicReveal(delay: 0.33)
+            ZStack {
+                AppPremiumBackdrop()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: AppSpacing.l) {
+                        topBarHome.appCinematicReveal(delay: 0.02)
+                        heroHome.appCinematicReveal(delay: 0.08)
+                        vitalPanelHome.appCinematicReveal(delay: 0.15)
+                        quickAccessHome.appCinematicReveal(delay: 0.21)
+                        deviceSectionHome.appCinematicReveal(delay: 0.27)
+                        quickStartPanelHome.appCinematicReveal(delay: 0.33)
+                        footerHome.appCinematicReveal(delay: 0.39)
+                    }
+                    .padding(.horizontal, AppSpacing.screenInset)
+                    .padding(.top, AppSpacing.m)
+                    .padding(.bottom, AppSpacing.xxl)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 28)
             }
-            .background(AppTheme.pageBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .tint(AppTheme.accent)
@@ -68,174 +74,307 @@ struct HomeView: View {
         .sheet(isPresented: $showLogs) { LogView() }
     }
 
+    // MARK: - Header
+
     private var topBarHome: some View {
-        HStack(spacing: horizontalSizeClass == .compact ? 6 : 11) {
-            AppLogo(size: horizontalSizeClass == .compact ? 36 : 44)
+        HStack(spacing: AppSpacing.m) {
+            AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
                 .padding(3)
-                .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(AppTheme.accent.opacity(0.36), lineWidth: 1))
+                .background(AppPalette.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.32), lineWidth: 1)
+                )
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("TRY STORE")
-                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 18, weight: .black, design: .rounded))
+                    .font(.system(size: horizontalSizeClass == .compact ? 16 : 19, weight: .black, design: .rounded))
                     .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppPalette.textPrimary)
                 Text("MAX CONTROL  /  VISUAL LAB")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .tracking(0.75)
-                    .foregroundStyle(AppTheme.accent.opacity(0.82))
+                    .font(AppType.label())
+                    .tracking(0.9)
+                    .foregroundStyle(AppTheme.accent.opacity(0.85))
             }
-            Spacer(minLength: 2)
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(appState.isSupported ? Color.green : Color.orange)
-                    .frame(width: 7, height: 7)
-                Text(appState.isSupported ? "READY" : "REVIEW")
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .tracking(0.55)
-                    .foregroundStyle(.white.opacity(0.86))
+
+            Spacer(minLength: AppSpacing.xs)
+
+            headerButtonHome(icon: "apple.terminal", label: language.text("accessibility.open_logs")) {
+                showLogs = true
             }
-            .padding(.horizontal, 11)
-            .frame(height: 34)
-            .background(Color.white.opacity(0.07), in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 1))
-            .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
+            headerButtonHome(icon: "slider.horizontal.3", label: language.text("accessibility.open_settings")) {
+                showSettings = true
+            }
         }
-        .padding(.bottom, 2)
     }
+
+    private func headerButtonHome(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(AppPalette.textPrimary)
+                .frame(width: 44, height: 44)
+                .background(AppPalette.raised.opacity(0.55), in: Circle())
+                .overlay(Circle().stroke(AppPalette.hairline.opacity(0.65), lineWidth: 1))
+        }
+        .buttonStyle(AppPressButtonStyle())
+        .accessibilityLabel(label)
+    }
+
+    // MARK: - Hero
 
     private var heroHome: some View {
         ZStack(alignment: .topTrailing) {
             Circle()
-                .stroke(AppTheme.accent.opacity(0.13), lineWidth: 1)
-                .frame(width: 176, height: 176)
-                .overlay(Circle().stroke(Color.white.opacity(0.05), lineWidth: 1).padding(18))
+                .stroke(AppTheme.accent.opacity(0.10), lineWidth: 1)
+                .frame(width: 190, height: 190)
+                .overlay(Circle().stroke(Color.white.opacity(0.05), lineWidth: 1).padding(20))
                 .overlay {
                     Image(systemName: "scope")
-                        .font(.system(size: 60, weight: .ultraLight))
-                        .foregroundStyle(AppTheme.accent.opacity(0.20))
+                        .font(.system(size: 66, weight: .ultraLight))
+                        .foregroundStyle(AppTheme.accent.opacity(0.18))
+                        .rotationEffect(.degrees(heroArrived ? 12 : -12))
                 }
-                .offset(x: 64, y: -40)
+                .offset(x: 70, y: -46)
+                .appGyroTilt(intensity: 0.9)
 
-            VStack(alignment: .leading, spacing: 13) {
-                HStack(spacing: 7) {
+            VStack(alignment: .leading, spacing: AppSpacing.m) {
+                HStack(spacing: AppSpacing.s) {
                     Circle()
-                        .fill(appState.isSupported ? Color.green : Color.orange)
+                        .fill(appState.isSupported ? AppPalette.mint : AppPalette.amber)
                         .frame(width: 7, height: 7)
+                        .shadow(color: appState.isSupported ? AppPalette.mint : AppPalette.amber, radius: 6)
                     Text(appState.isSupported ? "SYSTEM READY" : "CHECK DEVICE STATUS")
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .tracking(0.85)
-                        .foregroundStyle(.white.opacity(0.78))
+                        .font(AppType.label())
+                        .tracking(0.9)
+                        .foregroundStyle(AppPalette.textPrimary)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(Color.black.opacity(0.22), in: Capsule())
+                .padding(.horizontal, AppSpacing.m)
+                .padding(.vertical, AppSpacing.s)
+                .background(Color.black.opacity(0.28), in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 1))
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("YOUR PATCH\nCONTROL CENTER")
-                        .font(.system(size: horizontalSizeClass == .compact ? 25 : 31, weight: .black, design: .rounded))
-                        .tracking(0.35)
-                        .lineSpacing(-1)
-                        .foregroundStyle(.white)
+                        .font(AppType.hero(horizontalSizeClass == .compact))
+                        .tracking(-0.2)
+                        .lineSpacing(-2)
+                        .foregroundStyle(AppPalette.textPrimary)
                     Text("Manage modules, connections, and device health from one focused workspace.")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.62))
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: 300, alignment: .leading)
+                .frame(maxWidth: 320, alignment: .leading)
 
-                Button(action: onOpenPatches) {
-                    HStack(spacing: 8) {
-                        Text("EXPLORE PATCH STUDIO")
-                            .tracking(0.65)
-                        Image(systemName: "arrow.up.right")
-                    }
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .foregroundStyle(Color.black.opacity(0.90))
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
-                    .background(AppTheme.accent, in: Capsule())
+                AppActionButton(title: "EXPLORE PATCH STUDIO", icon: "arrow.up.right") {
+                    onOpenPatches()
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: 264)
                 .accessibilityHint("Switches to the Patches tab")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
+            .padding(AppSpacing.l + 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             LinearGradient(
-                colors: [Color(red: 0.035, green: 0.16, blue: 0.28), Color(red: 0.025, green: 0.065, blue: 0.12), AppTheme.consoleBackground],
+                colors: [Color(red: 0.043, green: 0.176, blue: 0.216), AppPalette.surface, AppPalette.canvas],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
         )
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AppTheme.accent.opacity(0.25), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            AppTheme.accent.opacity(0.34),
+                            Color.white.opacity(0.06),
+                            AppPalette.hairline.opacity(0.50)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .onAppear {
+            guard !reduceMotion else {
+                heroArrived = true
+                return
+            }
+            withAnimation(AppMotion.settle) { heroArrived = true }
+        }
     }
 
-    private var quickAccessHome: some View {
-        HStack(spacing: 10) {
-            Button { showLogs = true } label: {
-                quickAccessCardHome(icon: "apple.terminal", title: "LOGS", detail: "Recent activity")
+    // MARK: - Vitals
+
+    private var thermalProgress: Double {
+        switch appState.thermalStateLabel {
+        case "Nominal": return 0.28
+        case "Fair": return 0.55
+        case "Serious": return 0.78
+        case "Critical": return 1.0
+        default: return 0.08
+        }
+    }
+
+    private var thermalTint: Color {
+        switch appState.thermalStateLabel {
+        case "Nominal": return AppPalette.mint
+        case "Fair": return AppPalette.amber
+        case "Serious", "Critical": return AppPalette.coral
+        default: return AppPalette.textTertiary
+        }
+    }
+
+    private var vitalPanelHome: some View {
+        HStack(alignment: .center, spacing: AppSpacing.l) {
+            AppRingGauge(
+                progress: thermalProgress,
+                value: appState.thermalStateLabel,
+                caption: "THERMAL",
+                tint: thermalTint
+            )
+
+            VStack(alignment: .leading, spacing: AppSpacing.m) {
+                AppSectionHeader(
+                    icon: "waveform.path.ecg",
+                    title: "DEVICE VITALS",
+                    subtitle: "LIVE SYSTEM STATE",
+                    tint: thermalTint
+                )
+                VStack(spacing: AppSpacing.s) {
+                    vitalRow(
+                        icon: "clock.arrow.circlepath",
+                        label: language.text("dashboard.launch_count"),
+                        value: "\(appState.totalLaunches)",
+                        tint: AppTheme.accent
+                    )
+                    vitalRow(
+                        icon: "checkmark.shield.fill",
+                        label: language.text("settings.exploit_compatibility"),
+                        value: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
+                        tint: appState.isSupported ? AppPalette.mint : AppPalette.amber
+                    )
+                    vitalRow(
+                        icon: "star.fill",
+                        label: "FAVORITES",
+                        value: "\(appState.favorites.count)",
+                        tint: AppPalette.amber
+                    )
+                }
             }
-            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+        }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
+    }
+
+    private func vitalRow(icon: String, label: String, value: String, tint: Color) -> some View {
+        HStack(spacing: AppSpacing.s) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(tint)
+                .frame(width: 18)
+            Text(label)
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: AppSpacing.s)
+            Text(value)
+                .font(AppType.label())
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+        }
+    }
+
+    // MARK: - Quick access
+
+    private var quickAccessHome: some View {
+        HStack(spacing: AppSpacing.m) {
+            quickAccessCardHome(icon: "apple.terminal", title: "LOGS", detail: "Recent activity") {
+                showLogs = true
+            }
             .accessibilityLabel(language.text("accessibility.open_logs"))
 
-            Button { showSettings = true } label: {
-                quickAccessCardHome(icon: "slider.horizontal.3", title: "CONNECTIONS", detail: "Airlift and VPN")
+            quickAccessCardHome(icon: "slider.horizontal.3", title: "CONNECTIONS", detail: "Airlift and VPN") {
+                showSettings = true
             }
-            .buttonStyle(.plain)
             .accessibilityLabel("Open Airlift and VPN settings")
         }
     }
 
-    private func quickAccessCardHome(icon: String, title: String, detail: String) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(AppTheme.accent)
-                .frame(width: 40, height: 40)
-                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 11, weight: .black, design: .rounded))
-                    .tracking(0.45)
-                    .foregroundStyle(.white)
-                Text(detail)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.50))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+    private func quickAccessCardHome(icon: String, title: String, detail: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: AppSpacing.m) {
+                AppIconBadge(systemName: icon, tint: AppTheme.accent, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(AppType.label())
+                        .tracking(0.6)
+                        .foregroundStyle(AppPalette.textPrimary)
+                    Text(detail)
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(AppPalette.textTertiary)
             }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.38))
+            .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+            .padding(AppSpacing.m)
+            .appPanel(radius: AppRadius.tile)
         }
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-        .padding(.horizontal, 12)
-        .background(AppTheme.consoleBackground.opacity(0.82), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+        .buttonStyle(AppPressButtonStyle())
     }
 
+    // MARK: - Device
+
     private var deviceSectionHome: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            panelHeader(title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH", icon: "waveform.path.ecg")
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            AppSectionHeader(icon: "iphone.gen3", title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH")
+
             LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)],
-                spacing: 9
+                columns: [
+                    GridItem(.flexible(), spacing: AppSpacing.m),
+                    GridItem(.flexible(), spacing: AppSpacing.m)
+                ],
+                spacing: AppSpacing.m
             ) {
-                deviceMetricCardHome(icon: "iphone.gen3", label: language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName, tint: AppTheme.accent)
-                deviceMetricCardHome(icon: "gearshape.2.fill", label: language.text("settings.ios_version"), value: "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))", tint: .cyan)
-                deviceMetricCardHome(icon: "thermometer.medium", label: "THERMAL", value: appState.thermalStateLabel, tint: .orange)
-                deviceMetricCardHome(
+                AppMetricTile(
+                    icon: "iphone.gen3",
+                    label: language.text("dashboard.hardware_model"),
+                    value: AppInfo.displayMachineName,
+                    tint: AppTheme.accent
+                )
+                AppMetricTile(
+                    icon: "gearshape.2.fill",
+                    label: language.text("settings.ios_version"),
+                    value: "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))",
+                    tint: AppTheme.accentSecondary
+                )
+                AppMetricTile(
+                    icon: "thermometer.medium",
+                    label: "THERMAL",
+                    value: appState.thermalStateLabel,
+                    tint: thermalTint
+                )
+                AppMetricTile(
                     icon: "checkmark.shield.fill",
                     label: language.text("settings.exploit_compatibility"),
                     value: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
-                    tint: appState.isSupported ? .green : .orange
+                    tint: appState.isSupported ? AppPalette.mint : AppPalette.amber
                 )
             }
+
             if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
                 statusRow(
                     title: language.text("dashboard.kernel_status"),
@@ -244,127 +383,86 @@ struct HomeView: View {
                         : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
                 )
             }
-            HStack(alignment: .top, spacing: 6) {
+
+            HStack(alignment: .top, spacing: AppSpacing.s) {
                 Image(systemName: "info.circle")
-                    .foregroundStyle(.white.opacity(0.42))
+                    .foregroundStyle(AppPalette.textTertiary)
                 Text("Thermal state is shown; iOS does not expose raw CPU/GPU temperatures.")
-                    .foregroundStyle(.white.opacity(0.46))
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .font(.system(size: 10, weight: .medium, design: .rounded))
-            HStack(spacing: 7) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundStyle(AppTheme.accent)
-                Text(language.text("dashboard.launch_count"))
-                    .foregroundStyle(.white.opacity(0.58))
-                Spacer()
-                Text("\(appState.totalLaunches)")
-                    .fontWeight(.bold)
-                    .foregroundStyle(.white)
-            }
-            .font(.system(size: 11, design: .rounded))
+            .font(AppType.meta())
         }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [AppTheme.consoleBackground, Color.black.opacity(0.78)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(Color.white.opacity(0.11), lineWidth: 1))
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
     }
 
-    private func deviceMetricCardHome(icon: String, label: String, value: String, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .foregroundStyle(tint)
-                Text(label)
-                    .tracking(0.65)
-                    .foregroundStyle(.white.opacity(0.56))
-            }
-            .font(.system(size: 9, weight: .black, design: .rounded))
+    private func statusRow(title: String, value: String) -> some View {
+        HStack(spacing: AppSpacing.s) {
+            Text(title)
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textSecondary)
+            Spacer(minLength: AppSpacing.s)
             Text(value)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.94))
-                .lineLimit(2)
-                .minimumScaleFactor(0.80)
-                .fixedSize(horizontal: false, vertical: true)
+                .font(AppType.label())
+                .foregroundStyle(AppPalette.textPrimary)
+                .multilineTextAlignment(.trailing)
         }
-        .frame(maxWidth: .infinity, minHeight: 67, alignment: .leading)
-        .padding(11)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
+
+    // MARK: - Start here
 
     private var quickStartPanelHome: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            panelHeader(title: "START HERE", subtitle: "THREE STEPS TO A PATCH", icon: "bolt.fill")
-            VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            AppSectionHeader(icon: "bolt.fill", title: "START HERE", subtitle: "THREE STEPS TO A PATCH")
+
+            VStack(spacing: AppSpacing.s) {
                 quickStartStepHome(number: "01", title: "Choose a category", detail: "Select LOADOUT or VISUALS.")
                 quickStartStepHome(number: "02", title: "Activate a patch", detail: "Select a module, then tap ACTIVATE PATCH.")
                 quickStartStepHome(number: "03", title: "Restore safely", detail: "Use RESTORE PATCH when you are finished.")
             }
         }
-        .padding(16)
-        .background(AppTheme.consoleBackground.opacity(0.84), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
     }
 
     private func quickStartStepHome(number: String, title: String, detail: String) -> some View {
-        HStack(spacing: 11) {
+        HStack(spacing: AppSpacing.m) {
             Text(number)
-                .font(.system(size: 11, weight: .black, design: .rounded))
+                .font(AppType.digits(13))
                 .foregroundStyle(AppTheme.accent)
-                .frame(width: 36, height: 36)
-                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
+                .frame(width: 40, height: 40)
+                .background(AppTheme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.22), lineWidth: 1)
+                )
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(AppType.body())
+                    .foregroundStyle(AppPalette.textPrimary)
                 Text(detail)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.56))
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
-        .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .padding(.horizontal, AppSpacing.m)
+        .background(AppPalette.raised.opacity(0.42), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
     }
 
-    private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .black))
-                .foregroundStyle(AppTheme.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .tracking(0.85)
-                    .foregroundStyle(.white)
-                Text(subtitle)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .tracking(0.5)
-                    .foregroundStyle(.white.opacity(0.52))
-            }
-            Spacer()
-        }
-    }
+    // MARK: - Footer
 
-    private func statusRow(title: String, value: String) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .foregroundStyle(.white.opacity(0.57))
-            Spacer(minLength: 10)
-            Text(value)
-                .fontWeight(.semibold)
-                .foregroundStyle(.white.opacity(0.88))
-                .multilineTextAlignment(.trailing)
+    private var footerHome: some View {
+        VStack(spacing: AppSpacing.m) {
+            AppHairline()
+            Text("TRY STORE  •  SUPPORT PATCH")
+                .font(AppType.label())
+                .tracking(1.2)
+                .foregroundStyle(AppPalette.textTertiary)
         }
-        .font(.system(size: 9, design: .rounded))
     }
 }
 
@@ -378,11 +476,13 @@ private enum DashboardPatchTab: String, CaseIterable, Identifiable {
     var icon: String { self == .loadout ? "scope" : "sparkles" }
 }
 
+/// Legacy "platinum" tones, retuned to the shared palette so the older panels
+/// and pills read as part of the same surface family instead of a second theme.
 private enum PlatinumPalette {
-    static let bright = Color(red: 0.91, green: 0.94, blue: 0.99)
-    static let silver = Color(red: 0.70, green: 0.77, blue: 0.88)
-    static let graphite = Color(red: 0.055, green: 0.075, blue: 0.11)
-    static let gunmetal = Color(red: 0.12, green: 0.15, blue: 0.20)
+    static let bright = AppPalette.textPrimary
+    static let silver = AppPalette.textSecondary
+    static let graphite = Color(red: 0.02, green: 0.07, blue: 0.07)
+    static let gunmetal = AppPalette.raised
 }
 
 private struct PlatinumPressStyle: ButtonStyle {
@@ -2039,17 +2139,27 @@ private struct PatchesView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
-                    topBarPatches.appCinematicReveal(delay: 0.02)
-                    patchCategoriesView
-                    activePatchesView
+            ZStack {
+                AppPremiumBackdrop()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: AppSpacing.l) {
+                        topBarPatches.appCinematicReveal(delay: 0.02)
+                        patchCategoriesView.appCinematicReveal(delay: 0.09)
+                        activePatchesView.appCinematicReveal(delay: 0.16)
+                        VStack(spacing: AppSpacing.m) {
+                            AppHairline()
+                            Text("TRY STORE  •  MODULE CONTROL")
+                                .font(AppType.label())
+                                .tracking(1.2)
+                                .foregroundStyle(AppPalette.textTertiary)
+                        }
+                        .appCinematicReveal(delay: 0.23)
+                    }
+                    .padding(.horizontal, AppSpacing.screenInset)
+                    .padding(.top, AppSpacing.m)
+                    .padding(.bottom, AppSpacing.xxl)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 28)
             }
-            .background(AppTheme.pageBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .tint(AppTheme.accent)
@@ -2081,94 +2191,67 @@ private struct PatchesView: View {
     }
 
     private var topBarPatches: some View {
-        HStack(spacing: horizontalSizeClass == .compact ? 6 : 11) {
-            AppLogo(size: horizontalSizeClass == .compact ? 36 : 44)
+        HStack(spacing: AppSpacing.m) {
+            AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
                 .padding(3)
-                .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(AppTheme.accent.opacity(0.36), lineWidth: 1))
+                .background(AppPalette.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.32), lineWidth: 1)
+                )
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("PATCH STUDIO")
-                    .font(.system(size: horizontalSizeClass == .compact ? 16 : 20, weight: .black, design: .rounded))
-                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.6)
-                    .foregroundStyle(.white)
+                    .font(.system(size: horizontalSizeClass == .compact ? 17 : 20, weight: .black, design: .rounded))
+                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
+                    .foregroundStyle(AppPalette.textPrimary)
                 Text("FREE FIRE MAX  •  MODULE CONTROL")
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .tracking(0.55)
-                    .foregroundStyle(AppTheme.accent.opacity(0.82))
+                    .font(AppType.label())
+                    .tracking(0.7)
+                    .foregroundStyle(AppTheme.accent.opacity(0.85))
             }
-            Spacer(minLength: 2)
+
+            Spacer(minLength: AppSpacing.xs)
+
             HStack(spacing: 6) {
                 Image(systemName: appState.isSupported ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(appState.isSupported ? .green : .orange)
+                    .foregroundStyle(appState.isSupported ? AppPalette.mint : AppPalette.amber)
                 Text(appState.isSupported ? "READY" : "REVIEW")
-                    .foregroundStyle(.white.opacity(0.86))
+                    .foregroundStyle(AppPalette.textPrimary)
             }
-            .font(.system(size: 9, weight: .black, design: .rounded))
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .background(Color.white.opacity(0.06), in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.11), lineWidth: 1))
+            .font(AppType.label())
+            .padding(.horizontal, AppSpacing.m)
+            .frame(height: 38)
+            .background(AppPalette.raised.opacity(0.55), in: Capsule())
+            .overlay(Capsule().stroke(AppPalette.hairline.opacity(0.65), lineWidth: 1))
             .accessibilityLabel(appState.isSupported ? "Device status ready" : "Device compatibility review required")
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 12)
-        .background(
-            LinearGradient(
-                colors: [AppTheme.accent.opacity(0.14), AppTheme.consoleBackground.opacity(0.96), Color.black.opacity(0.80)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(AppTheme.accent.opacity(0.18), lineWidth: 1))
+        .padding(AppSpacing.m)
+        .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
     }
 
     private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .black))
-                .foregroundStyle(AppTheme.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .tracking(0.85)
-                    .foregroundStyle(.white)
-                Text(subtitle)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .tracking(0.5)
-                    .foregroundStyle(.white.opacity(0.52))
-            }
-            Spacer()
-        }
+        AppSectionHeader(icon: icon, title: title, subtitle: subtitle)
     }
 
     private var patchCategoriesView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
             panelHeader(title: "PATCH CATEGORIES", subtitle: "CHOOSE A MODULE TYPE", icon: "square.grid.2x2.fill")
-            HStack(spacing: 7) {
+            HStack(spacing: AppSpacing.s) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
                     patchCategoryButton(category)
                 }
             }
         }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(PlatinumPalette.silver.opacity(0.30), lineWidth: 1))
-        .shadow(color: PlatinumPalette.silver.opacity(0.10), radius: 18, y: 8)
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
     }
 
     private func patchCategoryButton(_ category: PatchCategory) -> some View {
         let isSelected = selectedPatchCategory == category
         return Button {
             AppHaptics.select()
-            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.72)) {
+            withAnimation(reduceMotion ? nil : AppMotion.tile) {
                 selectedPatchCategory = category
                 selectedPatchProjectName = nil
             }
@@ -2176,53 +2259,56 @@ private struct PatchesView: View {
             ZStack {
                 patchCategoryButtonBackground(isSelected: isSelected)
                 Label(category.rawValue, systemImage: category.icon)
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .tracking(0.25)
-                    .foregroundStyle(isSelected ? PlatinumPalette.graphite : Color.white.opacity(0.62))
+                    .font(AppType.label())
+                    .tracking(0.4)
+                    .foregroundStyle(isSelected ? Color(red: 0.02, green: 0.07, blue: 0.07) : AppPalette.textSecondary)
             }
-            .frame(maxWidth: .infinity, minHeight: 50)
+            .frame(maxWidth: .infinity, minHeight: 52)
             .overlay(patchCategoryButtonOutline(isSelected: isSelected))
         }
-        .buttonStyle(PlatinumPressStyle())
+        .buttonStyle(AppPressButtonStyle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func patchCategoryButtonBackground(isSelected: Bool) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .fill(Color.white.opacity(0.045))
+            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .fill(AppPalette.raised.opacity(0.55))
             if isSelected {
-                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [PlatinumPalette.bright, PlatinumPalette.silver],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .matchedGeometryEffect(id: "platinum-patch-category-tab", in: patchTabNamespace)
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.mint, AppPalette.mint.opacity(0.78)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .matchedGeometryEffect(id: "patch-category-tab", in: patchTabNamespace)
+                    .shadow(color: AppPalette.mint.opacity(0.32), radius: 16, y: 5)
             }
         }
     }
 
     private func patchCategoryButtonOutline(isSelected: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 15, style: .continuous)
-            .stroke(
-                isSelected ? PlatinumPalette.bright.opacity(0.82) : Color.white.opacity(0.08),
+        RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+            .strokeBorder(
+                isSelected ? Color.white.opacity(0.30) : AppPalette.hairline.opacity(0.60),
                 lineWidth: 1
             )
     }
 
     private var activePatchesView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
             panelHeader(title: "PATCH LIBRARY", subtitle: "SELECT • ACTIVATE • RESTORE", icon: "checkmark.shield")
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("TRYSTORE PATCHES")
-                        .font(.system(size: 15, weight: .black, design: .rounded))
-                        .tracking(0.65)
-                        .foregroundStyle(.white)
+                        .font(AppType.value())
+                        .tracking(0.8)
+                        .foregroundStyle(AppPalette.textPrimary)
                     Text("FREE FIRE MAX  •  ORIGINAL MODULES")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .tracking(0.35)
+                        .font(AppType.label())
+                        .tracking(0.5)
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
@@ -2230,11 +2316,12 @@ private struct PatchesView: View {
                     ProgressView().tint(AppTheme.accent)
                 } else {
                     Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.78))
-                        .padding(.horizontal, 9)
-                        .frame(height: 28)
-                        .background(Color.white.opacity(0.07), in: Capsule())
+                        .font(AppType.label())
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .padding(.horizontal, AppSpacing.m)
+                        .frame(height: 32)
+                        .background(AppPalette.raised.opacity(0.70), in: Capsule())
+                        .overlay(Capsule().stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1))
                 }
             }
 
@@ -2258,24 +2345,15 @@ private struct PatchesView: View {
 
             if selectedPatchCategory == .loadout {
                 Text("Aim modules share a game file, so only one aim option is active at a time.")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             selectedPatchActionView
         }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [PlatinumPalette.gunmetal.opacity(0.88), AppTheme.consoleBackground.opacity(0.98), PlatinumPalette.graphite],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 23, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .shadow(color: AppTheme.accent.opacity(0.10), radius: 17, y: 7)
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
     }
 
     private var visualPatchPreview: some View {
@@ -2304,73 +2382,104 @@ private struct PatchesView: View {
     }
 
     private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
-        let activeTint = Color(red: 0.34, green: 0.94, blue: 0.74)
         let item = patchItem(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
         let isSelected = selectedPatchProjectName == option.projectName
         let isFavorite = appState.favorites.contains(option.projectName)
 
-        return HStack(spacing: 8) {
+        return HStack(spacing: AppSpacing.s) {
             Button {
                 AppHaptics.select()
                 selectedPatchProjectName = option.projectName
             } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: option.icon)
-                        .font(.system(size: 16, weight: .black))
-                        .foregroundStyle(isActive ? PlatinumPalette.graphite : option.color)
-                        .frame(width: 44, height: 44)
-                        .background(isActive ? activeTint : option.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                HStack(spacing: AppSpacing.m) {
+                    AppIconBadge(systemName: option.icon, tint: isActive ? AppPalette.mint : option.color, size: 46)
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(option.title)
-                            .font(.system(size: 13, weight: .black, design: .rounded))
-                            .tracking(0.25)
-                            .foregroundStyle(.white)
-                        Text(item == nil ? "Package not installed" : (isActive ? "Active on device; restore below" : (isSelected ? "Selected for manual activation" : "Select to review this module")))
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(item == nil ? .orange : .white.opacity(0.60))
+                            .font(AppType.body())
+                            .tracking(0.3)
+                            .foregroundStyle(AppPalette.textPrimary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.80)
+                            .minimumScaleFactor(0.82)
+                        Text(patchRowDetail(item: item, isActive: isActive, isSelected: isSelected))
+                            .font(AppType.meta())
+                            .foregroundStyle(item == nil ? AppPalette.amber : AppPalette.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
                     }
-                    Spacer(minLength: 2)
-                    Text(item == nil ? "MISSING" : (isActive ? "ACTIVE" : (isSelected ? "SELECTED" : "READY")))
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .tracking(0.2)
-                        .foregroundStyle(item == nil ? .orange : (isActive ? PlatinumPalette.graphite : .white.opacity(0.72)))
-                        .padding(.horizontal, 9)
-                        .frame(minHeight: 28)
-                        .background(isActive ? activeTint : Color.white.opacity(0.07), in: Capsule())
+
+                    Spacer(minLength: AppSpacing.xs)
+
+                    Text(patchRowLabel(item: item, isActive: isActive, isSelected: isSelected))
+                        .font(AppType.label())
+                        .tracking(0.4)
+                        .foregroundStyle(isActive ? Color(red: 0.02, green: 0.07, blue: 0.07) : AppPalette.textSecondary)
+                        .padding(.horizontal, AppSpacing.m)
+                        .frame(minHeight: 30)
+                        .background(
+                            isActive
+                                ? AnyShapeStyle(LinearGradient(colors: [AppPalette.mint, AppPalette.mint.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                : AnyShapeStyle(AppPalette.raised.opacity(0.75)),
+                            in: Capsule()
+                        )
                 }
-                .padding(.horizontal, 12)
-                .frame(minHeight: 68)
+                .padding(.horizontal, AppSpacing.m)
+                .frame(minHeight: 74)
                 .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(isSelected ? AppTheme.accent.opacity(0.16) : Color.white.opacity(0.045))
+                    RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                        .fill(isSelected ? AppTheme.accent.opacity(0.14) : AppPalette.surface.opacity(0.55))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(isSelected ? AppTheme.accent : Color.white.opacity(0.09), lineWidth: isSelected ? 1.5 : 0.8)
+                    RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                        .strokeBorder(
+                            isSelected ? AppTheme.accent.opacity(0.85) : AppPalette.hairline.opacity(0.55),
+                            lineWidth: isSelected ? 1.5 : 1
+                        )
                 )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AppPressButtonStyle())
             .disabled(patchStore.isBusy)
             .accessibilityLabel("Select \(option.title)")
-            .accessibilityValue(item == nil ? "Package missing" : (isActive ? "Active on device" : (isSelected ? "Selected, ready for activation" : "Available")))
+            .accessibilityValue(patchRowAccessibilityValue(item: item, isActive: isActive, isSelected: isSelected))
 
             Button {
                 AppHaptics.tap()
                 appState.toggleFavorite(option.projectName)
             } label: {
                 Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(isFavorite ? .yellow : .white.opacity(0.56))
-                    .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(isFavorite ? AppPalette.amber : AppPalette.textTertiary)
+                    .frame(width: 46, height: 46)
+                    .background(AppPalette.raised.opacity(0.60), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                            .stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1)
+                    )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AppPressButtonStyle())
             .accessibilityLabel(isFavorite ? "Remove favorite" : "Add favorite")
         }
         .opacity(patchStore.isBusy ? 0.72 : 1)
+        .animation(reduceMotion ? nil : AppMotion.tile, value: isSelected)
+    }
+
+    private func patchRowDetail(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
+        if item == nil { return "Package not installed" }
+        if isActive { return "Active on device; restore below" }
+        return isSelected ? "Selected for manual activation" : "Select to review this module"
+    }
+
+    private func patchRowLabel(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
+        if item == nil { return "MISSING" }
+        if isActive { return "ACTIVE" }
+        return isSelected ? "SELECTED" : "READY"
+    }
+
+    private func patchRowAccessibilityValue(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
+        if item == nil { return "Package missing" }
+        if isActive { return "Active on device" }
+        return isSelected ? "Selected, ready for activation" : "Available"
     }
 
     private var visiblePatchOptions: [DashboardPatchOption] {
@@ -2426,20 +2535,16 @@ private struct PatchesView: View {
     private var selectedPatchActionView: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let option = selectedPatchOption {
-                HStack(spacing: 11) {
-                    Image(systemName: option.icon)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 44, height: 44)
-                        .background(AppTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                HStack(spacing: AppSpacing.m) {
+                    AppIconBadge(systemName: option.icon, tint: AppTheme.accent, size: 46)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("SELECTED PATCH")
-                            .font(.system(size: 9, weight: .black, design: .rounded))
-                            .tracking(0.7)
-                            .foregroundStyle(.white.opacity(0.52))
+                            .font(AppType.label())
+                            .tracking(0.8)
+                            .foregroundStyle(AppPalette.textTertiary)
                         Text(option.title)
-                            .font(.system(size: 15, weight: .black, design: .rounded))
-                            .foregroundStyle(.white)
+                            .font(AppType.value())
+                            .foregroundStyle(AppPalette.textPrimary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.82)
                     }
@@ -2480,27 +2585,33 @@ private struct PatchesView: View {
                         Image(systemName: selectedPatchIsActive ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill")
                     }
                     Text(selectedPatchIsActive ? "RESTORE PATCH" : "ACTIVATE PATCH")
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .tracking(0.4)
+                        .font(AppType.label())
+                        .tracking(0.5)
                 }
-                .foregroundStyle(.black)
+                .foregroundStyle(Color(red: 0.02, green: 0.07, blue: 0.07))
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .background(
                     LinearGradient(
-                        colors: selectedPatchIsActive ? [.orange, Color(red: 1.0, green: 0.68, blue: 0.29)] : [PlatinumPalette.bright, PlatinumPalette.silver],
+                        colors: selectedPatchIsActive
+                            ? [AppPalette.amber, AppPalette.amber.opacity(0.78)]
+                            : [AppPalette.mint, AppPalette.mint.opacity(0.78)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                )
+                .shadow(
+                    color: (selectedPatchIsActive ? AppPalette.amber : AppPalette.mint).opacity(0.30),
+                    radius: 14,
+                    y: 5
                 )
             }
-            .buttonStyle(PlatinumPressStyle())
+            .buttonStyle(AppPressButtonStyle())
             .disabled(selectedPatchItem == nil || patchStore.isBusy)
             .opacity(selectedPatchItem == nil || patchStore.isBusy ? 0.52 : 1)
         }
-        .padding(12)
-        .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
+        .padding(AppSpacing.m)
+        .appPanel(radius: AppRadius.tile)
     }
 
     // MARK: - Patch Category Enum
