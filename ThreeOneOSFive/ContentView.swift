@@ -14,18 +14,22 @@ struct LiveActivityState: ActivityAttributes {
 }
 
 struct ContentView: View {
+    @State private var selectedTab = 0
+
     var body: some View {
-        TabView {
-            HomeView()
+        TabView(selection: $selectedTab) {
+            HomeView(onOpenPatches: { selectedTab = 1 })
                 .tabItem {
                     Image(systemName: "house.fill")
                     Text("Home")
                 }
+                .tag(0)
             PatchesView()
                 .tabItem {
                     Image(systemName: "square.grid.2x2")
                     Text("Patches")
                 }
+                .tag(1)
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
@@ -37,6 +41,7 @@ struct HomeView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    var onOpenPatches: () -> Void = {}
     @State private var showSettings = false
     @State private var showLogs = false
 
@@ -45,9 +50,10 @@ struct HomeView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 14) {
                     topBarHome.appCinematicReveal(delay: 0.02)
-                    deviceSectionHome.appCinematicReveal(delay: 0.15)
-                    telemetryStripHome.appCinematicReveal(delay: 0.22)
-                    quickStartPanelHome.appCinematicReveal(delay: 0.30)
+                    heroHome.appCinematicReveal(delay: 0.12)
+                    quickAccessHome.appCinematicReveal(delay: 0.19)
+                    deviceSectionHome.appCinematicReveal(delay: 0.26)
+                    quickStartPanelHome.appCinematicReveal(delay: 0.33)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -109,6 +115,119 @@ struct HomeView: View {
         .padding(.bottom, 2)
     }
 
+    private var heroHome: some View {
+        ZStack(alignment: .topTrailing) {
+            Circle()
+                .stroke(AppTheme.accent.opacity(0.13), lineWidth: 1)
+                .frame(width: 176, height: 176)
+                .overlay(Circle().stroke(Color.white.opacity(0.05), lineWidth: 1).padding(18))
+                .overlay {
+                    Image(systemName: "scope")
+                        .font(.system(size: 60, weight: .ultraLight))
+                        .foregroundStyle(AppTheme.accent.opacity(0.20))
+                }
+                .offset(x: 64, y: -40)
+
+            VStack(alignment: .leading, spacing: 13) {
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(appState.isSupported ? Color.green : Color.orange)
+                        .frame(width: 7, height: 7)
+                    Text(appState.isSupported ? "SYSTEM READY" : "CHECK DEVICE STATUS")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(0.85)
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Color.black.opacity(0.22), in: Capsule())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MAKE YOUR SETUP\nFEEL YOURS")
+                        .font(.system(size: horizontalSizeClass == .compact ? 23 : 29, weight: .black, design: .rounded))
+                        .tracking(0.35)
+                        .lineSpacing(-1)
+                        .foregroundStyle(.white)
+                    Text("Your patch studio, connections, and device status in one place.")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: 300, alignment: .leading)
+
+                Button(action: onOpenPatches) {
+                    HStack(spacing: 8) {
+                        Text("OPEN PATCH LIBRARY")
+                            .tracking(0.65)
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(Color.black.opacity(0.90))
+                    .padding(.horizontal, 14)
+                    .frame(height: 38)
+                    .background(AppTheme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Switches to the Patches tab")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [Color(red: 0.035, green: 0.16, blue: 0.28), Color(red: 0.025, green: 0.065, blue: 0.12), AppTheme.consoleBackground],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AppTheme.accent.opacity(0.25), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var quickAccessHome: some View {
+        HStack(spacing: 10) {
+            Button { showLogs = true } label: {
+                quickAccessCardHome(icon: "apple.terminal", title: "LOGS", detail: "Recent activity")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(language.text("accessibility.open_logs"))
+
+            Button { showSettings = true } label: {
+                quickAccessCardHome(icon: "slider.horizontal.3", title: "CONNECTIONS", detail: "Airlift and VPN")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open Airlift and VPN settings")
+        }
+    }
+
+    private func quickAccessCardHome(icon: String, title: String, detail: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 34, height: 34)
+                .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.45)
+                    .foregroundStyle(.white)
+                Text(detail)
+                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.50))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .padding(.horizontal, 10)
+        .background(AppTheme.consoleBackground.opacity(0.78), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
+    }
+
     private var deviceSectionHome: some View {
         VStack(alignment: .leading, spacing: 11) {
             panelHeader(title: "DEVICE OVERVIEW", subtitle: "LIVE SYSTEM STATUS", icon: "iphone.gen3")
@@ -133,7 +252,7 @@ struct HomeView: View {
             }
             statusRow(title: "Device thermal state", value: appState.thermalStateLabel)
             Text("iOS does not expose raw CPU/GPU temperatures in °C to apps.")
-                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.44))
             // Launch count
             HStack {
@@ -145,38 +264,11 @@ struct HomeView: View {
                     .foregroundStyle(.white.opacity(0.88))
                     .multilineTextAlignment(.trailing)
             }
-            .font(.system(size: 9, design: .rounded))
+            .font(.system(size: 11, design: .rounded))
         }
         .padding(14)
         .background(AppTheme.consoleBackground.opacity(0.90), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).stroke(AppTheme.accent.opacity(0.17), lineWidth: 1))
-    }
-
-    private var telemetryStripHome: some View {
-        HStack(spacing: 8) {
-            telemetryCellHome(icon: "iphone", label: "DEVICE", value: AppInfo.displayMachineName)
-            telemetryCellHome(icon: "gearshape.2.fill", label: "iOS", value: AppInfo.osVersion)
-            telemetryCellHome(icon: "shield.lefthalf.filled", label: "STATUS", value: appState.isSupported ? "SUPPORTED" : "REVIEW")
-        }
-    }
-
-    private func telemetryCellHome(icon: String, label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Label(label, systemImage: icon)
-                .font(.system(size: 7, weight: .black, design: .rounded))
-                .tracking(0.55)
-                .foregroundStyle(AppTheme.accent)
-                .lineLimit(1)
-            Text(value)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.88))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-        }
-        .frame(maxWidth: .infinity, minHeight: 47, alignment: .leading)
-        .padding(.horizontal, 9)
-        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
     }
 
     private var quickStartPanelHome: some View {
@@ -184,8 +276,8 @@ struct HomeView: View {
             panelHeader(title: "QUICK START", subtitle: "YOUR MAX SESSION", icon: "bolt.fill")
             HStack(alignment: .top, spacing: 8) {
                 quickStartStepHome(number: "01", title: "CHOOSE", detail: "Pick LOADOUT or VISUALS")
-                quickStartStepHome(number: "02", title: "TOGGLE", detail: "Tap a patch to apply")
-                quickStartStepHome(number: "03", title: "RESTORE", detail: "Tap the active patch again")
+                quickStartStepHome(number: "02", title: "ACTIVATE", detail: "Select a patch, then tap ACTIVATE")
+                quickStartStepHome(number: "03", title: "RESTORE", detail: "Use RESTORE to undo a patch")
             }
         }
         .padding(14)
