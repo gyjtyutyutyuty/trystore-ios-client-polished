@@ -622,3 +622,5 @@
 "license.forget_message" = "This removes the saved key from this iPhone. A key will be required to reopen the console.";
 "license.forget_action" = "Forget key";
 "license.cancel" = "Cancel";
+  settings.reduce_motion = "Reduce Motion";
+  settings.reduce_motion_toggle = "Reduce Motion Toggle";

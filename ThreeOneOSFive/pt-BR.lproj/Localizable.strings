@@ -207,3 +207,5 @@
   settings.stats_overlay_cp = "Temp. do CPU";
   settings.stats_overlay_gpu = "Temp. da GPU";
   settings.stats_overlay_launch = "Contador de inicializações";
+  settings.reduce_motion = "Reduzir Movimento";
+  settings.reduce_motion_toggle = "Reduzir movimento";

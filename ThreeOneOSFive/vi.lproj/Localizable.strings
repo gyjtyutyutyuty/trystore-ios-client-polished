@@ -616,3 +616,5 @@
   settings.stats_overlay_cp = "Nhiệt độ CPU";
   settings.stats_overlay_gpu = "Nhiệt độ GPU";
   settings.stats_overlay_launch = "Lần khởi động";
+  settings.reduce_motion = "Giảm Nhiễu";
+  settings.reduce_motion_toggle = "Bật Giảm Nhiễu";

@@ -71,6 +71,11 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(language.text("settings.reduce_motion")) {
+                    Toggle(language.text("settings.reduce_motion_toggle"), isOn: $appState.reduceMotion)
+                        .labelsHidden()
+                }
+
                 Section(language.text("license.settings_section")) {
                     LabeledContent(
                         language.text("license.settings_status"),
