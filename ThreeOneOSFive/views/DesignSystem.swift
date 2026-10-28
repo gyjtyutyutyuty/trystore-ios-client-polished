@@ -633,7 +633,8 @@ struct AppActionButton: View {
 
     private var foreground: Color {
         guard isEnabled else { return AppPalette.textTertiary }
-        return isProminent ? .white : AppPalette.brand
+        // The accent is bright enough that black reads at 8.5:1 on it; white sat near 2.4:1.
+        return isProminent ? AppPalette.canvas : AppPalette.brand
     }
 
     @ViewBuilder
