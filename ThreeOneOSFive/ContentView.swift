@@ -2597,14 +2597,6 @@ private struct PatchesView: View {
                         topBarPatches.appCinematicReveal(delay: 0.02)
                         patchCategoriesView.appCinematicReveal(delay: 0.09)
                         activePatchesView.appCinematicReveal(delay: 0.16)
-                        VStack(spacing: AppSpacing.m) {
-                            AppHairline()
-                            Text("TRY STORE  •  MODULE CONTROL")
-                                .font(AppType.label())
-                                .tracking(1.2)
-                                .foregroundStyle(AppPalette.textTertiary)
-                        }
-                        .appCinematicReveal(delay: 0.23)
                     }
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
