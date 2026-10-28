@@ -74,6 +74,7 @@
 		3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
 		B71300000000000000000006 /* PatchResourceBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71300000000000000000005; };
+		C71300000000000000000001 /* CharacterHeroLoop.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C71300000000000000000002; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -165,6 +166,7 @@
 		3105B124 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		3105B125 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B71300000000000000000005 /* PatchResourceBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchResourceBundle.swift; sourceTree = "<group>"; };
+		C71300000000000000000002 /* CharacterHeroLoop.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = CharacterHeroLoop.mp4; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -200,6 +202,7 @@
 				3105A406 /* kexploit */,
 				3105A120 /* Localizable.strings */,
 				3105A031 /* Assets.xcassets */,
+				C71300000000000000000002 /* CharacterHeroLoop.mp4 */,
 								3105K203 /* AirliftFFI.xcframework */,
 			);
 			path = ThreeOneOSFive;
@@ -374,6 +377,7 @@
 			files = (
 					3105A211,
 					3105A228,
+				C71300000000000000000001,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
