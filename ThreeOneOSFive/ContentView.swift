@@ -215,11 +215,6 @@ struct HomeView: View {
                 Spacer(minLength: AppSpacing.xl)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("YOUR PATCH\nCONTROL CENTER")
-                        .font(AppType.hero(horizontalSizeClass == .compact))
-                        .tracking(-0.2)
-                        .lineSpacing(-2)
-                        .foregroundStyle(AppPalette.textPrimary)
                     Text("Manage modules, connections, and device health from one focused workspace.")
                         .font(AppType.meta())
                         .foregroundStyle(AppPalette.textSecondary)
@@ -244,7 +239,10 @@ struct HomeView: View {
     // MARK: - Module control
 
     private func patchItemHome(for option: DashboardPatchOption) -> PatchLibraryItem? {
-        patchStore.items.first { item in
+        if let packageID = option.packageID {
+            return patchStore.items.first { $0.id == packageID }
+        }
+        return patchStore.items.first { item in
             let projectName = item.project?.name ?? ""
             let packageName = item.packageURL.lastPathComponent
             return projectName == option.projectName
@@ -260,7 +258,7 @@ struct HomeView: View {
     }
 
     private var activeModuleCountHome: Int {
-        DashboardPatchOption.all.reduce(into: 0) { count, option in
+        DashboardPatchOption.unique.reduce(into: 0) { count, option in
             if isModuleActiveHome(option) { count += 1 }
         }
     }
@@ -280,7 +278,7 @@ struct HomeView: View {
                     .font(.system(size: 30, weight: .semibold))
                     .foregroundStyle(AppPalette.textPrimary)
                     .monospacedDigit()
-                Text("/ \(DashboardPatchOption.all.count)")
+                Text("/ \(DashboardPatchOption.unique.count)")
                     .font(AppType.value())
                     .foregroundStyle(AppPalette.textTertiary)
                     .monospacedDigit()
@@ -294,7 +292,7 @@ struct HomeView: View {
             .accessibilityElement(children: .combine)
 
             HStack(spacing: 3) {
-                ForEach(DashboardPatchOption.all) { option in
+                ForEach(DashboardPatchOption.unique) { option in
                     Capsule()
                         .fill(isModuleActiveHome(option) ? AppPalette.brand : AppPalette.hairline.opacity(0.75))
                         .frame(maxWidth: .infinity)
@@ -923,10 +921,53 @@ private final class VideoPlayerSurfaceView: UIView {
 private enum DashboardPatchTab: String, CaseIterable, Identifiable {
     case loadout
     case visuals
+    case antena
 
     var id: String { rawValue }
-    var title: String { self == .loadout ? "LOADOUT" : "VISUALS" }
-    var icon: String { self == .loadout ? "scope" : "sparkles" }
+    var titleKey: String {
+        switch self {
+        case .loadout: return "patch.mode.loadout"
+        case .visuals: return "patch.mode.visuals"
+        case .antena: return "patch.mode.antena"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .loadout: return "scope"
+        case .visuals: return "sparkles"
+        case .antena: return "antenna.radiowaves.left.and.right"
+        }
+    }
+}
+
+private struct PatchCategoryNotice: View {
+    let title: String
+    let detail: String
+    let tint: Color
+    let icon: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AppSpacing.s) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(AppType.label())
+                    .foregroundStyle(tint)
+                Text(detail)
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(AppSpacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous).stroke(tint.opacity(0.28), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
 }
 
 /// Legacy "platinum" tones, retuned to the shared palette so the older panels
@@ -1020,15 +1061,35 @@ private struct DashboardPatchOption: Identifiable {
     let icon: String
     let color: Color
     let group: PatchToggleGroup?
+    let packageID: UUID?
 
-    var id: String { projectName }
+    init(
+        projectName: String,
+        title: String,
+        icon: String,
+        color: Color,
+        group: PatchToggleGroup?,
+        packageID: UUID? = nil
+    ) {
+        self.projectName = projectName
+        self.title = title
+        self.icon = icon
+        self.color = color
+        self.group = group
+        self.packageID = packageID
+    }
+
+    var id: String {
+        if projectName == "TryStore" { return projectName }
+        return packageID?.uuidString ?? projectName
+    }
 
     static let loadout = [
         DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
         DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
-        DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .aim)
+        DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .aim, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!)
     ]
 
     static let visuals = [
@@ -1037,7 +1098,33 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil)
     ]
 
-    static var all: [DashboardPatchOption] { loadout + visuals }
+    static let antena = [
+        DashboardPatchOption(projectName: "Balas Magicas", title: "Balas Magicas", icon: "sparkles", color: .yellow, group: .aim, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!),
+        DashboardPatchOption(projectName: "Drag con Cuello", title: "Cuello y Drag", icon: "scope", color: .cyan, group: .aim, packageID: UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!),
+        DashboardPatchOption(projectName: "Aimbot Pecho", title: "Pecho3105", icon: "scope", color: .orange, group: .aim, packageID: UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!),
+        DashboardPatchOption(projectName: "Aimbot Pecho", title: "CUELLO3105", icon: "scope", color: .pink, group: .aim, packageID: UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!)
+    ]
+
+    static var all: [DashboardPatchOption] { loadout + visuals + antena }
+
+    static var unique: [DashboardPatchOption] {
+        var seenPackages = Set<UUID>()
+        var seenNames = Set<String>()
+        return all.filter { option in
+            if let packageID = option.packageID {
+                return seenPackages.insert(packageID).inserted
+            }
+            return seenNames.insert(option.projectName).inserted
+        }
+    }
+
+    static func options(for tab: DashboardPatchTab) -> [DashboardPatchOption] {
+        switch tab {
+        case .loadout: return loadout
+        case .visuals: return visuals
+        case .antena: return antena
+        }
+    }
 }
 
 private struct DashboardView: View {
@@ -1587,7 +1674,7 @@ private struct DashboardView: View {
                         .scaleEffect(0.78)
                         .accessibilityLabel("Applying patch")
                 } else {
-                    Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.all.count) ACTIVE")
+                    Text("\(activeLegacyPatchCount) / \(DashboardPatchOption.unique.count) ACTIVE")
                         .font(.system(size: 8, weight: .black, design: .rounded))
                         .foregroundStyle(.white.opacity(0.78))
                         .padding(.horizontal, 9)
@@ -1619,7 +1706,7 @@ private struct DashboardView: View {
                                     .fill(AppPalette.raised)
                                     .matchedGeometryEffect(id: "platinum-patch-tab", in: patchTabNamespace)
                             }
-                            Label(tab.title, systemImage: tab.icon)
+                            Label(language.text(tab.titleKey), systemImage: tab.icon)
                                 .font(AppType.label())
                                 .foregroundStyle(selected ? AppPalette.brand : AppPalette.textSecondary)
                         }
@@ -1632,12 +1719,14 @@ private struct DashboardView: View {
                 }
             }
 
+            dashboardPatchNotice
+
             if selectedPatchTab == .visuals {
                 visualPatchPreview
             }
 
             VStack(spacing: 7) {
-                ForEach(selectedPatchTab == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals) { option in
+                ForEach(DashboardPatchOption.options(for: selectedPatchTab)) { option in
                     legacyPatchButton(option)
                 }
             }
@@ -1664,6 +1753,32 @@ private struct DashboardView: View {
         }
     }
 
+    private var dashboardPatchNotice: some View {
+        switch selectedPatchTab {
+        case .loadout:
+            PatchCategoryNotice(
+                title: language.text("patch.safety.aim_label"),
+                detail: language.text("patch.safety.aim_detail"),
+                tint: AppPalette.mint,
+                icon: "checkmark.shield.fill"
+            )
+        case .visuals:
+            PatchCategoryNotice(
+                title: language.text("patch.safety.visuals_label"),
+                detail: language.text("patch.safety.visuals_detail"),
+                tint: AppPalette.amber,
+                icon: "exclamationmark.triangle.fill"
+            )
+        case .antena:
+            PatchCategoryNotice(
+                title: language.text("patch.safety.antena_label"),
+                detail: language.text("patch.safety.antena_detail"),
+                tint: AppTheme.accent,
+                icon: "antenna.radiowaves.left.and.right"
+            )
+        }
+    }
+
     private var visualPatchPreview: some View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
@@ -1684,13 +1799,9 @@ private struct DashboardView: View {
 
     private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
         let activeTint = AppPalette.brand
-        let item = patchStore.items.first {
-            $0.project?.name == option.projectName
-                || (option.projectName == "TryStore" && $0.project?.name == "Balas Magicas")
-                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        let item = patchItemHome(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
-        let isFavorite = appState.favorites.contains(option.projectName)
+        let isFavorite = appState.favorites.contains(option.id)
 
         return Button {
             guard let item else { return }
@@ -1725,7 +1836,7 @@ private struct DashboardView: View {
                 Spacer(minLength: 4)
                 Button {
                     AppHaptics.tap()
-                    appState.toggleFavorite(option.projectName)
+                    appState.toggleFavorite(option.id)
                 } label: {
                     Image(systemName: isFavorite ? "star.fill" : "star")
                         .font(.system(size: 14, weight: .regular))
@@ -1751,8 +1862,8 @@ private struct DashboardView: View {
     }
 
     private var activeLegacyPatchCount: Int {
-        DashboardPatchOption.all.reduce(into: 0) { count, option in
-            guard let item = patchStore.items.first(where: { $0.project?.name == option.projectName }),
+        DashboardPatchOption.unique.reduce(into: 0) { count, option in
+            guard let item = patchItemHome(for: option),
                   DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
             count += 1
         }
@@ -2752,6 +2863,7 @@ private struct PatchesView: View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             panelHeader(title: language.text("patch.library"), subtitle: language.text("patch.library.subtitle"), icon: "checkmark.shield")
             patchConsole
+            patchStudioCategoryNotice
 
             PlatinumExpiryCard(
                 expirationDate: licenseManager.expirationDate,
@@ -2851,6 +2963,32 @@ private struct PatchesView: View {
         return patchStore.items.filter { !dashboardIDs.contains($0.id) }
     }
 
+    private var patchStudioCategoryNotice: some View {
+        switch selectedPatchCategory {
+        case .loadout:
+            PatchCategoryNotice(
+                title: language.text("patch.safety.aim_label"),
+                detail: language.text("patch.safety.aim_detail"),
+                tint: AppPalette.mint,
+                icon: "checkmark.shield.fill"
+            )
+        case .visuals:
+            PatchCategoryNotice(
+                title: language.text("patch.safety.visuals_label"),
+                detail: language.text("patch.safety.visuals_detail"),
+                tint: AppPalette.amber,
+                icon: "exclamationmark.triangle.fill"
+            )
+        case .antena:
+            PatchCategoryNotice(
+                title: language.text("patch.safety.antena_label"),
+                detail: language.text("patch.safety.antena_detail"),
+                tint: AppTheme.accent,
+                icon: "antenna.radiowaves.left.and.right"
+            )
+        }
+    }
+
     private var visualPatchPreview: some View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
@@ -2889,13 +3027,13 @@ private struct PatchesView: View {
                             .font(.system(size: 26, weight: .semibold))
                             .foregroundStyle(AppPalette.textPrimary)
                             .monospacedDigit()
-                        Text("/ \(DashboardPatchOption.all.count)")
+                        Text("/ \(DashboardPatchOption.unique.count)")
                             .font(AppType.value())
                             .foregroundStyle(AppPalette.textTertiary)
                             .monospacedDigit()
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(activeLegacyPatchCount) of \(DashboardPatchOption.all.count) modules online")
+                    .accessibilityLabel("\(activeLegacyPatchCount) of \(DashboardPatchOption.unique.count) modules online")
                 }
             }
 
@@ -2913,7 +3051,7 @@ private struct PatchesView: View {
     private var busStrip: some View {
         VStack(spacing: 7) {
             HStack(spacing: 3) {
-                ForEach(DashboardPatchOption.all) { option in
+                ForEach(DashboardPatchOption.unique) { option in
                     Capsule()
                         .fill(isPatchActive(option) ? AppPalette.brand : AppPalette.hairline.opacity(0.75))
                         .frame(maxWidth: .infinity)
@@ -2936,8 +3074,8 @@ private struct PatchesView: View {
     private func patchModuleCard(_ option: DashboardPatchOption, index: Int, isFeatured: Bool) -> some View {
         let item = patchItem(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
-        let isSelected = selectedPatchProjectName == option.projectName
-        let isFavorite = appState.favorites.contains(option.projectName)
+        let isSelected = selectedPatchProjectName == option.id
+        let isFavorite = appState.favorites.contains(option.id)
         let tint = isActive ? AppPalette.brand : (item == nil ? AppPalette.amber : patchTint)
 
         return PatchModuleCardView(
@@ -2954,12 +3092,12 @@ private struct PatchesView: View {
             onSelect: {
                 AppHaptics.select()
                 withAnimation(reduceMotion ? nil : AppMotion.tile) {
-                    selectedPatchProjectName = option.projectName
+                    selectedPatchProjectName = option.id
                 }
             },
             onToggleFavorite: {
                 AppHaptics.tap()
-                appState.toggleFavorite(option.projectName)
+                appState.toggleFavorite(option.id)
             }
         )
     }
@@ -2987,12 +3125,16 @@ private struct PatchesView: View {
     }
 
     private var visiblePatchOptions: [DashboardPatchOption] {
-        selectedPatchCategory == .loadout ? DashboardPatchOption.loadout : DashboardPatchOption.visuals
+        switch selectedPatchCategory {
+        case .loadout: return DashboardPatchOption.loadout
+        case .visuals: return DashboardPatchOption.visuals
+        case .antena: return DashboardPatchOption.antena
+        }
     }
 
     private var selectedPatchOption: DashboardPatchOption? {
         guard let selectedPatchProjectName else { return nil }
-        return visiblePatchOptions.first { $0.projectName == selectedPatchProjectName }
+        return visiblePatchOptions.first { $0.id == selectedPatchProjectName }
     }
 
     private var selectedPatchItem: PatchLibraryItem? {
@@ -3006,7 +3148,10 @@ private struct PatchesView: View {
     }
 
     private func patchItem(for option: DashboardPatchOption) -> PatchLibraryItem? {
-        patchStore.items.first { item in
+        if let packageID = option.packageID {
+            return patchStore.items.first { $0.id == packageID }
+        }
+        return patchStore.items.first { item in
             let projectName = item.project?.name ?? ""
             let packageName = item.packageURL.lastPathComponent
             return projectName == option.projectName
@@ -3017,7 +3162,7 @@ private struct PatchesView: View {
     }
 
     private var activeLegacyPatchCount: Int {
-        DashboardPatchOption.all.reduce(into: 0) { count, option in
+        DashboardPatchOption.unique.reduce(into: 0) { count, option in
             guard let item = patchItem(for: option),
                   DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
             count += 1
@@ -3285,10 +3430,29 @@ private struct PatchesView: View {
     private enum PatchCategory: CaseIterable, Identifiable {
         case loadout
         case visuals
+        case antena
 
-        var id: String { self == .loadout ? "loadout" : "visuals" }
-        var titleKey: String { self == .loadout ? "patch.mode.loadout" : "patch.mode.visuals" }
-        var icon: String { self == .loadout ? "viewfinder" : "sparkles" }
+        var id: String {
+            switch self {
+            case .loadout: return "loadout"
+            case .visuals: return "visuals"
+            case .antena: return "antena"
+            }
+        }
+        var titleKey: String {
+            switch self {
+            case .loadout: return "patch.mode.loadout"
+            case .visuals: return "patch.mode.visuals"
+            case .antena: return "patch.mode.antena"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .loadout: return "viewfinder"
+            case .visuals: return "sparkles"
+            case .antena: return "antenna.radiowaves.left.and.right"
+            }
+        }
     }
 
     // Navigation namespace for tab matching

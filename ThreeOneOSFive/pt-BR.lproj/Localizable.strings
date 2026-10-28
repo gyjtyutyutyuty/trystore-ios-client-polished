@@ -307,8 +307,15 @@
 "patch.detail.available" = "Disponivel";
 "patch.action.restore" = "RESTAURAR PATCH";
 "patch.action.activate" = "ATIVAR PATCH";
-"patch.mode.loadout" = "CONFIGURACAO";
+"patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "VISUAIS";
+"patch.mode.antena" = "ANTENA";
+"patch.safety.aim_label" = "SEGURO • RESTAURÁVEL";
+"patch.safety.aim_detail" = "Seguro refere-se apenas à restauração dos arquivos locais; não garante a segurança da conta nem contra o anti-cheat.";
+"patch.safety.visuals_label" = "RISCO";
+"patch.safety.visuals_detail" = "Mods visuais podem não ser permitidos e podem colocar sua conta em risco. Restaure para voltar ao arquivo local original.";
+"patch.safety.antena_label" = "ANTENA • GRUPO AIM";
+"patch.safety.antena_detail" = "Quatro pacotes remotos. Apenas um patch do grupo Aim pode ficar ativo por vez.";
 "liveactivity.start" = "Iniciar atividade ao vivo";
 "liveactivity.title" = "Atividade de patch ao vivo";
 "liveactivity.thermal" = "TERMICO DO SISTEMA";

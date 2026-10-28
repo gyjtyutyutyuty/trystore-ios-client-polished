@@ -305,8 +305,15 @@
 "patch.detail.available" = "Disponible";
 "patch.action.restore" = "RESTAURAR PARCHE";
 "patch.action.activate" = "ACTIVAR PARCHE";
-"patch.mode.loadout" = "EQUIPO";
+"patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "VISUALES";
+"patch.mode.antena" = "ANTENA";
+"patch.safety.aim_label" = "SEGURO • RESTAURABLE";
+"patch.safety.aim_detail" = "Seguro se refiere solo a restaurar archivos locales; no garantiza la seguridad de la cuenta ni frente al anti-cheat.";
+"patch.safety.visuals_label" = "RIESGO";
+"patch.safety.visuals_detail" = "Los mods visuales pueden no estar admitidos y poner en riesgo tu cuenta. Restaura para volver al archivo local original.";
+"patch.safety.antena_label" = "ANTENA • GRUPO AIM";
+"patch.safety.antena_detail" = "Cuatro paquetes remotos. Solo un parche del grupo Aim puede estar activo a la vez.";
 "liveactivity.start" = "Iniciar actividad en vivo";
 "liveactivity.title" = "Actividad de parche en vivo";
 "liveactivity.thermal" = "TERMICO DEL SISTEMA";

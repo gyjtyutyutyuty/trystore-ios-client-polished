@@ -721,8 +721,15 @@
 "patch.detail.available" = "Available";
 "patch.action.restore" = "RESTORE PATCH";
 "patch.action.activate" = "ACTIVATE PATCH";
-"patch.mode.loadout" = "LOADOUT";
+"patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "VISUALS";
+"patch.mode.antena" = "ANTENA";
+"patch.safety.aim_label" = "SAFE • RESTORABLE";
+"patch.safety.aim_detail" = "Safe refers only to local file restoration; it does not guarantee game-account or anti-cheat safety.";
+"patch.safety.visuals_label" = "RIESGO";
+"patch.safety.visuals_detail" = "Visual mods may be unsupported and could risk your game account. Restore to return the original local file.";
+"patch.safety.antena_label" = "ANTENA • AIM GROUP";
+"patch.safety.antena_detail" = "Four remote packages. Only one Aim-group patch can be active at a time.";
 "liveactivity.start" = "Start Live Activity";
 "liveactivity.title" = "Live Patch Activity";
 "liveactivity.thermal" = "SYSTEM THERMAL";
