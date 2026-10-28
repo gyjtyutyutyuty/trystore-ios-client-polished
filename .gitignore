@@ -45,3 +45,7 @@ DerivedData/
 # wrangler local state
 .wrangler/
 cloudflare/.wrangler/
+
+# node modules for worker bundling
+node_modules/
+cloudflare/node_modules/

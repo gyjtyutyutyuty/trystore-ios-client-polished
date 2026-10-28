@@ -53,6 +53,7 @@ struct HomeView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     var onOpenPatches: () -> Void = {}
     @State private var showSettings = false
     @State private var showLogs = false
@@ -134,18 +135,21 @@ struct HomeView: View {
             }
         }
         .task {
-            guard let key = licenseManager.patchBundleKey else { return }
-            patchStore.installBundledResources(bundleKey: key)
-            patchStore.reload()
-        }
-        .task {
-            await PatchFeedService.shared.syncIfDue(store: patchStore)
+            if let key = licenseManager.patchBundleKey {
+                patchStore.installBundledResources(bundleKey: key)
+                patchStore.reload()
+            }
+            await PatchFeedService.shared.syncOnLaunch(store: patchStore)
         }
         .task {
             while !Task.isCancelled {
                 isTunnelConnected = LocalDevTunnelProbe.isConnected
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase == .active else { return }
+            Task { await PatchFeedService.shared.syncIfDue(store: patchStore) }
         }
     }
 
@@ -2624,11 +2628,10 @@ private struct PatchesView: View {
             .tint(AppTheme.accent)
         }
         .task {
-            guard let key = licenseManager.patchBundleKey else { return }
-            patchStore.installBundledResources(bundleKey: key)
-            patchStore.reload()
-        }
-        .task {
+            if let key = licenseManager.patchBundleKey {
+                patchStore.installBundledResources(bundleKey: key)
+                patchStore.reload()
+            }
             await PatchFeedService.shared.syncIfDue(store: patchStore)
         }
         .alert(item: $patchStore.alert) { alert in

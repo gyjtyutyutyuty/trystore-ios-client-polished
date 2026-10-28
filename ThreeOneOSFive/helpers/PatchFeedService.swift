@@ -33,9 +33,22 @@ final class PatchFeedService {
     /// Worker origin. Swap per build flavor if the deployment moves.
     private let baseURL = URL(string: "https://trystore-patch-feed.burgoajustin.workers.dev")!
     private let lastCheckKey = "patchFeed.lastCheck"
-    private let minimumInterval: TimeInterval = 60 * 30
+    private let minimumInterval: TimeInterval = 60
 
     private var isSyncing = false
+    private var didLaunchSync = false
+
+    /// One forced manifest check per app process, then the normal throttle.
+    /// This is what makes a Telegram upload land on the next launch without
+    /// waiting for the 30-minute window.
+    func syncOnLaunch(store: PatchProjectStore) async {
+        guard !didLaunchSync else {
+            await syncIfDue(store: store)
+            return
+        }
+        didLaunchSync = true
+        await sync(store: store)
+    }
 
     func syncIfDue(store: PatchProjectStore, force: Bool = false) async {
         let last = UserDefaults.standard.double(forKey: lastCheckKey)

@@ -156,11 +156,12 @@ enum PatchProjectLibrary {
             for existingURL in existingURLs where supportedPackageExtensions.contains(existingURL.pathExtension.lowercased()) {
                 guard let existingData = try? readPackage(at: existingURL),
                       let existingSummary = try? PatchPackageCodec.inspect(existingData),
-                      existingSummary.packageID == normalizedSummary.packageID,
-                      let existingDecoded = try? PatchPackageCodec.decode(existingData, password: password),
-                      existingDecoded.project == normalizedProject else {
+                      existingSummary.packageID == normalizedSummary.packageID else {
                     continue
                 }
+                // A package with this ID is already installed. It may be a
+                // newer remote replacement from the patch feed, so never
+                // overwrite it with the bundled copy on launch.
                 log("patch: bundled raw package already installed: \(projectName)")
                 return
             }
