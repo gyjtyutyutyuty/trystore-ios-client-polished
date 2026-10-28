@@ -68,6 +68,11 @@ final class PatchFeedService {
 
             for entry in manifest.patches {
                 if Task.isCancelled { return }
+                while store.isBusy {
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                    if Task.isCancelled { return }
+                }
+                guard store.passwordRequest == nil else { return }
                 guard let local = store.items.first(where: {
                     $0.packageURL.lastPathComponent.caseInsensitiveCompare(entry.file) == .orderedSame
                 }) else {

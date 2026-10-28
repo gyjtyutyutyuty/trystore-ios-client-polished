@@ -724,3 +724,6 @@
 
 /* Tab bar */
 "tab.clean" = "Dọn dẹp";
+
+/* Remote patch feed */
+"patch.refresh_remote" = "Làm mới bản vá từ xa";

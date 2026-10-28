@@ -717,3 +717,6 @@
 "wallpaper.error.install" = "A instalação falhou e os descritores adicionados nesta tentativa foram revertidos.";
 "wallpaper.error.restore" = "O Support Patch não conseguiu remover com segurança todos os descritores desta instalação.";
 "wallpaper.error.unknown" = "Ocorreu um erro inesperado. Veja os registros da sessão para mais detalhes.";
+
+/* Remote patch feed */
+"patch.refresh_remote" = "Atualizar patches remotos";

@@ -21,6 +21,7 @@ struct LiveActivityState: ActivityAttributes {
 
 struct ContentView: View {
     @Environment(\.appLanguage) private var language
+    @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedTab = 0
 
     var body: some View {
@@ -44,6 +45,7 @@ struct ContentView: View {
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
         .appSelectionFeedback(trigger: selectedTab)
+        .environmentObject(patchStore)
     }
 }
 
@@ -57,7 +59,7 @@ struct HomeView: View {
     var onOpenPatches: () -> Void = {}
     @State private var showSettings = false
     @State private var showLogs = false
-    @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @EnvironmentObject private var patchStore: PatchProjectStore
     @StateObject private var pairingController = PairingController()
     @State private var isPairingReady = false
     @State private var isTunnelConnected: Bool?
@@ -1044,7 +1046,7 @@ private struct DashboardView: View {
     @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
-    @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @EnvironmentObject private var patchStore: PatchProjectStore
     @Namespace private var patchTabNamespace
     @State private var selectedPatchTab: DashboardPatchTab = .loadout
     @State private var showSettings = false
@@ -2575,7 +2577,7 @@ private struct PatchesView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.openURL) private var openURL
     @Environment(\.appReduceMotion) private var reduceMotion
-    @StateObject private var patchStore = PatchProjectStore(game: .max)
+    @EnvironmentObject private var patchStore: PatchProjectStore
     @State private var selectedPatchProjectName: String?
     @State private var patchProgress: Double = 0
     @State private var patchProgressStage = ""
@@ -2691,7 +2693,24 @@ private struct PatchesView: View {
 
     private var patchCategoriesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
+            HStack {
+                panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
+                Spacer(minLength: 0)
+                Button {
+                    AppHaptics.tap()
+                    Task { await PatchFeedService.shared.sync(store: patchStore) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 44, height: 44)
+                        .background(AppPalette.raised, in: Circle())
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .disabled(patchStore.isBusy)
+                .accessibilityLabel(language.text("patch.refresh_remote"))
+                .accessibilityAddTraits(.isButton)
+            }
             HStack(spacing: AppSpacing.s) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
                     patchCategoryButton(category)

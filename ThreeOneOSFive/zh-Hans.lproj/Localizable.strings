@@ -728,3 +728,6 @@
 "dashboard.gpu_temp" = "GPU 温度";
 "activate_all_patches" = "全部启用";
 "deactivate_all_patches" = "全部停用";
+
+/* Remote patch feed */
+"patch.refresh_remote" = "刷新远程补丁";
