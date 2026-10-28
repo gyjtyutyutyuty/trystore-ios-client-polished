@@ -41,3 +41,7 @@ DerivedData/
 *.tmp
 *.swp
 *~
+
+# wrangler local state
+.wrangler/
+cloudflare/.wrangler/
