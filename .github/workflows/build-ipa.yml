@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: Publish the IPA as a release asset so it can be downloaded without signing in
+        description: Publish the IPA as a public release asset only when explicitly enabled
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
