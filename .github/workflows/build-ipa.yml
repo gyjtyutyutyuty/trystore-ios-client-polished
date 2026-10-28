@@ -22,11 +22,7 @@ jobs:
       - name: Select Xcode
         run: |
           set -euo pipefail
-          if [ -d /Applications/Xcode_16.2.app ]; then
-            sudo xcode-select -s /Applications/Xcode_16.2.app
-          else
-            sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
-          fi
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           xcodebuild -version
 
       - name: Set up Rust toolchain
