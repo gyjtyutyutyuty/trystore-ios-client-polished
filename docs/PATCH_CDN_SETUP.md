@@ -42,11 +42,20 @@ Manifest shape:
       "sha256": "…",
       "size": 48138,
       "version": "2026-10-28T02:00:00.000Z",
-      "url": "/patches/trystore/HEAD.TRYSTORE"
+      "url": "/patches/trystore/HEAD.TRYSTORE?v=<sha256>"
     }
   ]
 }
 ```
+
+Blob URLs carry the digest as `?v=`. Replacements reuse the filename, so the
+query is what keeps the old CDN/HTTP cache from serving the previous bytes.
+The manifest route is `no-store`; blobs are immutable per digest.
+
+Legacy schema-9 visual packages (`HOLOGRAMA EXCLUSIVO 4/5`) stay bundled in
+the IPA and are not published to the feed. The current importer only accepts
+schema 1 and 2; putting schema 9 in the manifest makes the whole sync abort
+with `patch.error.unsupported_version`.
 
 ## Deploy
 
@@ -131,6 +140,11 @@ replacement survives the next launch even before the manifest check.
 
 Failed verification deletes the download and keeps the installed copy. Network
 failures are logged and ignored so the app still opens offline.
+
+Replacing an active slot updates the package bytes, but iOS keeps the applied
+transaction receipt until the slot is toggled. Turn the slot off and back on
+once to apply the new content; the package ID stays the same on purpose, so the
+app overwrites instead of creating a duplicate.
 
 ## Base URL
 

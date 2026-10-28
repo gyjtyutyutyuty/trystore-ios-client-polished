@@ -147,7 +147,7 @@ async function publishPatch(env, project, file, bytes) {
     sha256: digest,
     size: bytes.byteLength,
     version: new Date().toISOString(),
-    url: `/patches/${project}/${encodeURIComponent(file)}`,
+    url: `/patches/${project}/${encodeURIComponent(file)}?v=${digest}`,
   };
   const index = manifest.patches.findIndex((item) => item.file.toLowerCase() === file.toLowerCase());
   if (index >= 0) manifest.patches[index] = entry;
@@ -769,7 +769,7 @@ export default {
       const project = projectKey(manifestMatch[1]);
       if (!project) return bad("unknown_project", 404);
       const manifest = await readManifest(env, project);
-      return json(manifest, 200, { "cache-control": "public, max-age=60" });
+      return json(manifest, 200, { "cache-control": "no-store" });
     }
 
     const blobMatch = path.match(/^\/patches\/([a-z0-9-]+)\/(.+)$/);
