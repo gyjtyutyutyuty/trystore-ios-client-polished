@@ -17,7 +17,7 @@ enum AppPalette {
     static let textTertiary = Color(red: 0.525, green: 0.525, blue: 0.545) // #86868b
 
     /// TryStore logo blue: interactive and active-state accent.
-    static let brand = Color(red: 0.165, green: 0.529, blue: 0.851) // median blue sampled from the TryStore logo
+    static let brand = Color(red: 0.0, green: 0.702, blue: 1.0) // neon #00B3FF, the logo blue pushed to full saturation
     /// Legacy aliases retained while existing screens share the same accent.
     static let mint = brand
     static let blue = brand
