@@ -28,6 +28,7 @@ final class PatchFeedService {
         case badResponse
         case badManifest
         case downloadFailed
+        case importFailed(String)
     }
 
     /// Worker origin. Swap per build flavor if the deployment moves.
@@ -73,13 +74,15 @@ final class PatchFeedService {
                     if Task.isCancelled { return }
                 }
                 guard store.passwordRequest == nil else { return }
-                guard let local = store.items.first(where: {
-                    $0.packageURL.lastPathComponent.caseInsensitiveCompare(entry.file) == .orderedSame
-                }) else {
+                let entryStem = URL(fileURLWithPath: entry.file).deletingPathExtension().lastPathComponent
+                let local = store.items.first(where: { item in
+                    let localFile = item.packageURL.deletingPathExtension().lastPathComponent
+                    let localName = item.project?.name ?? localFile
+                    return Self.normalizedName(localFile) == Self.normalizedName(entryStem)
+                        || Self.normalizedName(localName) == Self.normalizedName(entry.name)
+                })
+                guard let local else {
                     try await install(entry: entry, store: store)
-                    continue
-                }
-                if local.summary.packageID.uuidString.isEmpty {
                     continue
                 }
                 if let localDigest = digest(of: local.packageURL), localDigest == entry.sha256 {
@@ -132,8 +135,19 @@ final class PatchFeedService {
         try? FileManager.default.removeItem(at: target)
         try FileManager.default.moveItem(at: temporaryURL, to: target)
 
-        store.importPackage(at: target)
-        log("patchfeed: queued \(entry.file) (\(entry.size) B)")
+        let importError: String? = await withCheckedContinuation { continuation in
+            store.importPackage(at: target, reportsSuccess: false) { error in
+                continuation.resume(returning: error)
+            }
+        }
+        if let importError {
+            throw FeedError.importFailed(importError)
+        }
+        log("patchfeed: imported \(entry.file) (\(entry.size) B)")
+    }
+
+    private static func normalizedName(_ value: String) -> String {
+        value.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
     private func digest(of url: URL) -> String? {

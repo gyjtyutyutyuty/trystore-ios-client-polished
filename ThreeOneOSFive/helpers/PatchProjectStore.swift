@@ -153,8 +153,15 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
-    func importPackage(at sourceURL: URL) {
-        guard !isBusy else { return }
+    func importPackage(
+        at sourceURL: URL,
+        reportsSuccess: Bool = true,
+        completion: (@MainActor @Sendable (String?) -> Void)? = nil
+    ) {
+        guard !isBusy else {
+            completion?("Another patch operation is already running.")
+            return
+        }
         isBusy = true
         let hasAccess = sourceURL.startAccessingSecurityScopedResource()
         Task.detached(priority: .userInitiated) { [weak self] in
@@ -171,13 +178,22 @@ final class PatchProjectStore: ObservableObject {
                     existingURL: existingURL
                 ) {
                     await self?.requestPassword(pending: pending)
+                    await completion?("The remote package requires a password.")
                 } else {
-                    await self?.finishOperation(successMessageKey: "patch.imported_message")
+                    await self?.finishOperation(
+                        successMessageKey: "patch.imported_message",
+                        reportsSuccess: reportsSuccess
+                    )
+                    await completion?(nil)
                 }
             } catch let error as PatchPackageError {
+                log("patch: import failed: \(error.localizedDescription)")
                 await self?.failOperation(error)
+                await completion?(error.localizedDescription)
             } catch {
+                log("patch: import failed: \(error.localizedDescription)")
                 await self?.failOperation(.unsupportedFormat)
+                await completion?(error.localizedDescription)
             }
         }
     }
