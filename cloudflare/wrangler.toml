@@ -3,12 +3,14 @@ main = "patch-feed-worker.js"
 compatibility_date = "2026-10-01"
 workers_dev = true
 
-[[r2_buckets]]
+# KV is used instead of R2 because R2 is not enabled on this account.
+# Values hold the manifest JSON and patch blobs (KV ceiling: 25 MB per value).
+[[kv_namespaces]]
 binding = "PATCHES"
-bucket_name = "trystore-patches"
+id = "a7f21b4f1ae54d0bbbf2773bd3f850fd"
 
 [vars]
-PUBLIC_BASE_URL = "https://trystore-patch-feed.<your-subdomain>.workers.dev"
+PUBLIC_BASE_URL = "https://trystore-patch-feed.burgoajustin.workers.dev"
 
 # Secrets (set with `wrangler secret put ...`):
 #   TELEGRAM_BOT_TOKEN

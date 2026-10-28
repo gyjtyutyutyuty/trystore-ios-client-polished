@@ -65,11 +65,12 @@ const projectKey = (value) => {
 };
 
 async function readManifest(env, project) {
-  const object = await env.PATCHES.get(`patches/${project}/manifest.json`);
-  if (!object) {
+  const text = await env.PATCHES.get(`patches/${project}/manifest.json`);
+  if (!text) {
     return { schemaVersion: MANIFEST_SCHEMA, project, updatedAt: null, patches: [] };
   }
-  const parsed = await object.json().catch(() => null);
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
   if (!parsed || !Array.isArray(parsed.patches)) {
     return { schemaVersion: MANIFEST_SCHEMA, project, updatedAt: null, patches: [] };
   }
@@ -80,21 +81,13 @@ async function writeManifest(env, project, manifest) {
   manifest.schemaVersion = MANIFEST_SCHEMA;
   manifest.project = project;
   manifest.updatedAt = new Date().toISOString();
-  await env.PATCHES.put(`patches/${project}/manifest.json`, JSON.stringify(manifest, null, 2), {
-    httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" },
-  });
+  await env.PATCHES.put(`patches/${project}/manifest.json`, JSON.stringify(manifest, null, 2));
 }
 
 async function publishPatch(env, project, file, bytes) {
   const digest = await sha256(bytes);
   const objectKey = `patches/${project}/${file}`;
-  await env.PATCHES.put(objectKey, bytes, {
-    httpMetadata: {
-      contentType: "application/octet-stream",
-      cacheControl: "public, max-age=31536000, immutable",
-    },
-    customMetadata: { sha256: digest, uploadedAt: new Date().toISOString() },
-  });
+  await env.PATCHES.put(objectKey, bytes);
 
   const manifest = await readManifest(env, project);
   const entry = {
@@ -296,14 +289,13 @@ export default {
       if (!project) return bad("unknown_project", 404);
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);
-      const object = await env.PATCHES.get(`patches/${project}/${file}`);
-      if (!object) return bad("not_found", 404);
-      return new Response(object.body, {
+      const blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");
+      if (!blob) return bad("not_found", 404);
+      return new Response(blob, {
         headers: {
           "content-type": "application/octet-stream",
-          "content-length": String(object.size),
+          "content-length": String(blob.byteLength),
           "cache-control": "public, max-age=31536000, immutable",
-          etag: object.httpEtag,
         },
       });
     }
