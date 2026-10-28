@@ -201,50 +201,16 @@ struct HomeView: View {
 
     // MARK: - Hero
 
+    /// The stage carries no copy: the figure is the whole point of the panel, and
+    /// the captions that used to sit on it pushed the modules further down the
+    /// screen. It is decorative, so VoiceOver skips it and the content below
+    /// starts sooner.
     private var heroHome: some View {
-        ZStack(alignment: .leading) {
-            BrandCharacterBackdrop(reduceMotion: reduceMotion)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.m) {
-                HStack(spacing: AppSpacing.s) {
-                    Image(systemName: appState.isSupported ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(appState.isSupported ? AppPalette.brand : AppPalette.amber)
-                    Text(appState.isSupported ? "SYSTEM READY" : "CHECK DEVICE STATUS")
-                        .font(AppType.label())
-                        .foregroundStyle(AppPalette.textPrimary)
-                }
-                .padding(.horizontal, AppSpacing.m)
-                .padding(.vertical, AppSpacing.s)
-                .background(AppPalette.raised.opacity(0.92), in: Capsule())
-
-                Spacer(minLength: AppSpacing.xl)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("YOUR PATCH\nCONTROL CENTER")
-                        .font(AppType.hero(horizontalSizeClass == .compact))
-                        .tracking(-0.2)
-                        .lineSpacing(-2)
-                        .foregroundStyle(AppPalette.textPrimary)
-                    Text("Manage modules, connections, and device health from one focused workspace.")
-                        .font(AppType.meta())
-                        .foregroundStyle(AppPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: 320, alignment: .leading)
-
-                AppActionButton(title: "EXPLORE PATCH STUDIO", icon: "arrow.up.right") {
-                    onOpenPatches()
-                }
-                .frame(maxWidth: 264, alignment: .leading)
-                .accessibilityHint("Switches to the Patches tab")
-            }
-            .padding(AppSpacing.l + 2)
-        }
-        .frame(maxWidth: .infinity, minHeight: 520, maxHeight: 520, alignment: .leading)
-        .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .accessibilityElement(children: .contain)
+        BrandCharacterBackdrop(reduceMotion: reduceMotion)
+            .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 340)
+            .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+            .accessibilityHidden(true)
     }
 
     // MARK: - Module control
@@ -733,7 +699,7 @@ struct HomeView: View {
 }
 
 /// Home hero stage. The rotating character, the TryStore emblem and the accent
-/// ring are baked into `CharacterHeroLoop.mp4` at the hero's own 3:4 shape, so the
+/// ring are baked into `CharacterHeroLoop.mp4` at the hero's own square shape, so the
 /// backdrop is one element instead of a stack of overlays. The loop is silent and
 /// pauses with the scene; Reduce Motion and a failed load keep the still frame.
 private struct BrandCharacterBackdrop: View {
