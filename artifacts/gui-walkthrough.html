@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Patch - full GUI walkthrough</title>
+<style>
+  :root{
+    --canvas:#000; --surface:#0e0e0e; --raised:#1d1d1f; --hairline:#333336;
+    --tp:#f5f5f7; --ts:#ccc; --tt:#86868b; --brand:#2a87d9; --amber:#ffc66d;
+    --r-chip:10px; --r-control:18px; --r-panel:28px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:26px 22px 60px;background:#06070a;color:var(--tp);
+       font:14px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif}
+  h1{font-size:20px;margin:0 0 4px;font-weight:600}
+  .lede{color:var(--tt);font-size:12.5px;max-width:900px;margin:0 0 8px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--tt);font-size:11px;margin:14px 0 26px}
+  .legend b{color:var(--tp);font-weight:600}
+  .wall{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-start}
+  figure{margin:0;width:390px}
+  figcaption{font-size:12px;color:var(--tt);margin:10px 2px 0}
+  figcaption b{color:var(--tp);font-weight:600}
+  .phone{border:1px solid #1b1c20;border-radius:40px;padding:9px;background:#0a0b0d;box-shadow:0 26px 70px #000a}
+  .screen{position:relative;border-radius:32px;overflow:hidden;background:var(--canvas)}
+  .status{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ts);padding:8px 18px 2px;letter-spacing:.3px}
+  .body{padding:8px 20px 18px;display:flex;flex-direction:column;gap:16px}
+  /* primitives */
+  .top{display:flex;align-items:center;gap:12px}
+  .logo{width:38px;height:38px;border-radius:12px;background:#0b1a2c;border:1px solid #1d4a78;display:grid;place-items:center;color:#6fb2f0;font-weight:800;font-size:13px;letter-spacing:-1px}
+  .brand{font-size:19px;font-weight:600;letter-spacing:.2px}
+  .tag{font-size:11px;color:var(--tt);letter-spacing:.5px;margin-top:2px}
+  .glyph{margin-left:auto;width:44px;height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--hairline);display:grid;place-items:center;color:var(--tp);font-size:15px}
+  .glyph + .glyph{margin-left:0}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:color-mix(in srgb,var(--raised) 92%,transparent);font-size:12px;letter-spacing:.4px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--brand);box-shadow:0 0 8px var(--brand)}
+  .panel{background:var(--surface);border:1px solid #1a1b1e;border-radius:var(--r-panel);padding:16px}
+  .hdr{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+  .hdr .ic{width:34px;height:34px;border-radius:11px;background:#111a26;border:1px solid #1e3c5e;display:grid;place-items:center;font-size:14px;color:#6fb2f0}
+  .hdr .t{font-size:12px;letter-spacing:.8px;font-weight:600}
+  .hdr .s{font-size:10.5px;color:var(--tt);letter-spacing:.6px;margin-top:3px}
+  .hero{position:relative;height:520px;border-radius:var(--r-panel);overflow:hidden;background:#000}
+  .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .hero .copy{position:absolute;inset:0;padding:18px;display:flex;flex-direction:column}
+  .hero h2{font-size:34px;line-height:1.02;letter-spacing:-.2px;margin:auto 0 6px;white-space:pre-line;max-width:320px}
+  .hero p{color:var(--ts);font-size:12px;max-width:320px;margin:0 0 16px}
+  .cta{align-self:flex-start;border:0;border-radius:var(--r-control);background:var(--brand);color:#fff;font:inherit;font-size:12px;
+       font-weight:600;letter-spacing:.5px;padding:13px 18px;display:inline-flex;gap:8px;align-items:center}
+  .ghost{border:1px solid var(--hairline);background:none;color:var(--tp);border-radius:var(--r-control);padding:13px 18px;font:inherit;font-size:12px;letter-spacing:.4px}
+  .row{display:flex;align-items:center;gap:10px;padding:9px 0}
+  .row + .row{border-top:1px solid #141517}
+  .row .lbl{font-size:12px;color:var(--ts)}
+  .row .val{margin-left:auto;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+  .rows{background:var(--surface);border:1px solid #1a1b1e;border-radius:var(--r-panel);padding:6px 16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{background:var(--surface);border:1px solid #1a1b1e;border-radius:var(--r-control);padding:13px}
+  .tile .ic{font-size:14px;color:#6fb2f0}
+  .tile .k{font-size:10.5px;color:var(--tt);letter-spacing:.5px;margin:8px 0 4px}
+  .tile .v{font-size:13px;font-weight:600}
+  .gauge{width:104px;height:104px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+         background:conic-gradient(var(--brand) 0 62%, #1b1c1f 62% 100%)}
+  .gauge .inner{width:84px;height:84px;border-radius:50%;background:var(--surface);display:grid;place-items:center;text-align:center}
+  .gauge .inner .v{font-size:15px;font-weight:700}
+  .gauge .inner .c{font-size:9px;color:var(--tt);letter-spacing:.8px;margin-top:2px}
+  .segs{display:flex;gap:4px;margin:2px 0 10px}
+  .segs i{height:8px;flex:1;border-radius:3px;background:#1b1c1f}
+  .segs i.on{background:var(--brand);box-shadow:0 0 10px #2a87d980}
+  .count{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
+  .count small{font-size:16px;color:var(--tt);font-weight:500}
+  .cap{font-size:11.5px;color:var(--tt);margin:6px 0 12px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:var(--surface);border:1px solid #1a1b1e;border-radius:var(--r-control);padding:13px;display:flex;gap:11px;align-items:center}
+  .card .ic{width:44px;height:44px;border-radius:14px;background:#111a26;border:1px solid #1e3c5e;display:grid;place-items:center;font-size:16px;color:#6fb2f0}
+  .card .k{font-size:11.5px;letter-spacing:.6px;font-weight:600}
+  .card .d{font-size:10.5px;color:var(--tt);margin-top:2px}
+  .seg{display:flex;background:var(--surface);border:1px solid #1a1b1e;border-radius:999px;padding:3px;width:max-content}
+  .seg span{font-size:11px;letter-spacing:.7px;padding:8px 16px;border-radius:999px;color:var(--ts)}
+  .seg span.on{background:var(--brand);color:#fff;font-weight:600}
+  .bar{height:8px;border-radius:4px;background:#1b1c1f;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--brand)}
+  .list{display:flex;flex-direction:column}
+  .item{display:flex;align-items:center;gap:11px;padding:11px 0}
+  .item + .item{border-top:1px solid #141517}
+  .item .ic{width:36px;height:36px;border-radius:12px;background:#12141a;display:grid;place-items:center;font-size:14px;color:#9fb6cf}
+  .item .nm{font-size:13px}
+  .item .mt{font-size:10.5px;color:var(--tt);margin-top:2px}
+  .item .rt{margin-left:auto;font-size:11px;color:var(--tt);font-variant-numeric:tabular-nums}
+  .pill{font-size:9.5px;letter-spacing:.6px;padding:5px 9px;border-radius:999px;border:1px solid var(--hairline);color:var(--ts)}
+  .pill.on{background:#12304d;border-color:#215d92;color:#8cc6ff}
+  .pill.warn{background:#3a2c12;border-color:#8a6a25;color:var(--amber)}
+  .tabs{display:flex;border-top:1px solid #1a1b1e;background:#08090b;margin-top:auto}
+  .tabs div{flex:1;text-align:center;padding:11px 0 15px;font-size:9.5px;letter-spacing:.4px;color:#6d6d73}
+  .tabs div.on{color:var(--brand)}
+  .tabs div i{display:block;font-size:16px;font-style:normal;margin-bottom:3px}
+  .note{font-size:11px;color:var(--tt);line-height:1.5}
+  .field{margin:14px 0;border:1px solid var(--hairline);border-radius:var(--r-control);padding:14px 15px;font-size:13px;color:var(--ts);letter-spacing:1px;background:#0b0c0e}
+  .missing{border:1px dashed #2a2c31;border-radius:var(--r-control);padding:16px;text-align:center;color:var(--tt);font-size:11.5px}
+  .switch{margin-left:auto;width:44px;height:26px;border-radius:13px;background:#1b1c1f;position:relative}
+  .switch.on{background:var(--brand)}
+  .switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#f2f2f4}
+  .switch.on i{left:21px}
+</style>
+</head>
+<body>
+<h1>Support Patch - every screen, as built by the Swift views</h1>
+<p class="lede">A static reconstruction from <code>ContentView.swift</code>, the <code>views/</code> files and the English
+<code>Localizable.strings</code>, drawn with the real tokens (canvas #000, brand #2a87d9, radius 28/18/10). It is a layout review,
+not the built app: spacing is close, not pixel-exact, and device-only states (kernel exploit output, container scan results,
+the cleaner's empty state) are placeholders. The Home hero is the real loop from the app bundle.</p>
+<div class="legend">
+  <span><b>canvas</b> #000000</span><span><b>surface</b> #0e0e0e</span><span><b>raised</b> #1d1d1f</span>
+  <span><b>hairline</b> #333336</span><span><b>brand</b> #2a87d9</span><span><b>warn</b> #ffc66d</span>
+  <span><b>hero</b> 34pt</span><span><b>display</b> 28</span><span><b>section</b> 19</span><span><b>label</b> 12</span><span><b>meta</b> 12</span>
+</div>
+
+<div class="wall">
+
+  <!-- 1 - ONBOARDING -->
+  <figure>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <span class="chip"><span class="dot"></span>Official Support Patch identity</span>
+        <div>
+          <h1 style="font-size:28px;line-height:1.1">Welcome to<br>Support Patch</h1>
+          <p class="note" style="margin:8px 0 0">Developed by Jvztxn</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">globe</div><div><div class="t">CHOOSE YOUR LANGUAGE</div>
+            <div class="s">You can change this later in Settings.</div></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="pill on">EN</span><span class="pill">ES</span><span class="pill">PT-BR</span>
+            <span class="pill">VI</span><span class="pill">ZH-HANS</span>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">ios</div><div><div class="t">SUPPORTED IOS VERSIONS</div>
+            <div class="s">Exact build IDs only</div></div></div>
+          <p class="note" style="margin:0">Support Patch allows only the exact build IDs listed in Settings.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">checkmark.seal</div><div><div class="t">CERTIFICATE REQUIREMENTS</div>
+            <div class="s">Before you continue</div></div></div>
+          <div class="row"><span class="lbl" style="color:var(--ts)">Works with enterprise certificates, including eSign and similar enterprise installs.</span></div>
+          <div class="row"><span class="lbl" style="color:var(--amber)">Does not work with SideStore, AltStore, 3uTools or LiveContainer.</span></div>
+          <p class="note" style="margin:12px 0 0">Use a supported certificate before continuing.</p>
+        </div>
+        <button class="cta">Continue</button>
+        <button class="ghost">Back</button>
+      </div>
+    </div></div>
+    <figcaption><b>Onboarding</b> - three steps plus the language picker</figcaption>
+  </figure>
+
+  <!-- 2 - LICENSE GATE -->
+  <figure>
+    <div class="phone"><div class="screen" style="min-height:660px;display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body" style="justify-content:center;flex:1">
+        <span class="chip">CLOUDFLARE LICENSE CHECK</span>
+        <h1 style="font-size:28px;margin:6px 0 0">Unlock TryStore</h1>
+        <p class="note" style="margin:8px 0 0">Enter a valid TryStore access key to continue.</p>
+        <div class="field">TRY-••••••-••••••-••••••</div>
+        <button class="cta">Unlock</button>
+        <p class="note" style="margin-top:14px">A verified key is saved in this iPhone's device-only Keychain.</p>
+      </div>
+    </div></div>
+    <figcaption><b>License gate</b> - blocks the console until activation</figcaption>
+  </figure>
+
+  <!-- 3 - HOME -->
+  <figure style="width:390px">
+    <div class="phone"><div class="screen" style="display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <div class="top">
+          <div class="logo">TS</div>
+          <div><div class="brand">TRY STORE</div><div class="tag">MAX CONTROL / VISUAL LAB</div></div>
+          <div class="glyph">&#9000;</div><div class="glyph">&#9776;</div>
+        </div>
+        <div class="hero">
+          <video src="character-hero-preview.mp4" autoplay muted loop playsinline></video>
+          <div class="copy">
+            <span class="chip"><span class="dot"></span>SYSTEM READY</span>
+            <h2>YOUR PATCH
+CONTROL CENTER</h2>
+            <p>Manage modules, connections, and device health from one focused workspace.</p>
+            <button class="cta">EXPLORE PATCH STUDIO &#8599;</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div style="display:flex;gap:16px;align-items:center">
+            <div class="gauge"><div class="inner"><div><div class="v">Nominal</div><div class="c">THERMAL</div></div></div></div>
+            <div style="flex:1">
+              <div class="hdr" style="margin-bottom:6px"><div class="ic">ecg</div><div><div class="t">DEVICE VITALS</div><div class="s">LIVE SYSTEM STATE</div></div></div>
+              <div class="row"><span class="lbl">Launch Count</span><span class="val">37</span></div>
+              <div class="row"><span class="lbl">Exploit compatibility</span><span class="val" style="color:var(--brand)">Supported</span></div>
+              <div class="row"><span class="lbl">FAVORITES</span><span class="val">3</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">grid</div><div><div class="t">MODULE CONTROL</div><div class="s">PATCH STATE ON DEVICE</div></div></div>
+          <div class="count">2 <small>/ 6</small></div>
+          <div class="segs"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+          <p class="cap">Each segment is a module. Lit segments are live on the device.</p>
+          <button class="cta" style="font-size:11px;padding:11px 15px">OPEN PATCH STUDIO</button>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">antenna.radiowaves</div><div><div class="t">CONNECTIONS</div><div class="s">Airlift and VPN</div></div></div>
+          <div class="row"><span class="lbl">Pairing file</span><span class="val" style="color:var(--brand)">Imported</span></div>
+          <div class="row"><span class="lbl">LocalDevVPN tunnel</span><span class="val" style="color:var(--tt)">Idle</span></div>
+          <div class="row"><span class="lbl">Kernel status</span><span class="val">Inactive</span></div>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="ic">&#9638;</div><div><div class="k">PATCHES</div><div class="d">Modules and loadout</div></div></div>
+          <div class="card"><div class="ic">&#9000;</div><div><div class="k">LOGS</div><div class="d">Recent activity</div></div></div>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">iphone.gen3</div><div><div class="t">SYSTEM SNAPSHOT</div><div class="s">LIVE DEVICE HEALTH</div></div></div>
+          <div class="grid">
+            <div class="tile"><div class="ic">&#9635;</div><div class="k">Hardware model</div><div class="v">iPhone15,2</div></div>
+            <div class="tile"><div class="ic">&#9881;</div><div class="k">iOS Version</div><div class="v">iOS 18.7.2 (22H124)</div></div>
+            <div class="tile"><div class="ic">&#127777;</div><div class="k">THERMAL</div><div class="v">Nominal</div></div>
+            <div class="tile"><div class="ic">&#10004;</div><div class="k">Exploit compatibility</div><div class="v" style="color:var(--brand)">Supported</div></div>
+          </div>
+        </div>
+        <p class="note" style="text-align:center;letter-spacing:1.2px">TRY STORE &#9679; SUPPORT PATCH</p>
+      </div>
+      <div class="tabs"><div class="on"><i>&#8962;</i>HOME</div><div><i>&#9638;</i>PATCHES</div><div><i>&#10024;</i>CLEANER</div></div>
+    </div></div>
+    <figcaption><b>Home</b> - top bar, hero, vitals, module control, connections, shortcuts, snapshot, footer</figcaption>
+  </figure>
+
+  <!-- 4 - PATCHES -->
+  <figure>
+    <div class="phone"><div class="screen" style="display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <div class="top">
+          <div><div class="brand" style="font-size:17px">TRYSTORE PATCHES</div><div class="tag">FREE FIRE MAX &#183; ORIGINAL MODULES</div></div>
+          <div class="glyph">+</div><div class="glyph">&#8681;</div>
+        </div>
+        <div class="seg"><span class="on">LOADOUT</span><span>VISUALS</span></div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">square.grid.2x2</div><div><div class="t">PATCH CATEGORIES</div><div class="s">CHOOSE A MODULE TYPE</div></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="pill on">AIM</span><span class="pill">VISUAL</span><span class="pill">MOVEMENT</span>
+            <span class="pill">ANTENNA</span><span class="pill">SKIN</span><span class="pill">MISC</span>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">square.stack.3d.up</div><div><div class="t">PATCH LIBRARY</div><div class="s">SELECT &#183; ACTIVATE &#183; RESTORE</div></div></div>
+          <div class="list">
+            <div class="item"><div class="ic">&#9673;</div><div><div class="nm">Balas Magicas</div><div class="mt">4 replacement rules</div></div><span class="pill on" style="margin-left:auto">ACTIVE</span></div>
+            <div class="item"><div class="ic">&#9673;</div><div><div class="nm">Aim Assist Pro</div><div class="mt">2 replacement rules</div></div><span class="pill" style="margin-left:auto">SELECTED</span></div>
+            <div class="item"><div class="ic">&#9673;</div><div><div class="nm">Radar Overlay</div><div class="mt">Package missing</div></div><span class="pill warn" style="margin-left:auto">MISSING</span></div>
+            <div class="item"><div class="ic">&#128274;</div><div><div class="nm">Locked Patch</div><div class="mt">Password protected</div></div><span class="pill" style="margin-left:auto">UNLOCK</span></div>
+          </div>
+          <p class="note" style="margin-top:12px">Aim modules share a game file, so only one aim option can be active at a time.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">slider.horizontal.3</div><div><div class="t">MODULE BUS</div><div class="s">SYNCING &#183; MISSING &#183; ACTIVE</div></div></div>
+          <div class="bar" style="margin-bottom:12px"><i style="width:64%"></i></div>
+          <div class="row"><span class="lbl">Selected patch</span><span class="val">Aim Assist Pro</span></div>
+          <div class="row"><span class="lbl">Status</span><span class="val">Selected, ready for activation</span></div>
+          <p class="note" style="margin:10px 0 12px">Ready to activate when you are ready.</p>
+          <div style="display:flex;gap:10px">
+            <button class="cta" style="font-size:11px;padding:12px 14px">ACTIVATE PATCH</button>
+            <button class="ghost" style="font-size:11px;padding:12px 14px">RESTORE PATCH</button>
+          </div>
+        </div>
+        <p class="note">Before writing, Support Patch resolves each bundle on this device and validates the paths again.</p>
+      </div>
+      <div class="tabs"><div><i>&#8962;</i>HOME</div><div class="on"><i>&#9638;</i>PATCHES</div><div><i>&#10024;</i>CLEANER</div></div>
+    </div></div>
+    <figcaption><b>Patches</b> - loadout/visuals split, category chips, library with statuses, module bus, apply/restore</figcaption>
+  </figure>
+
+  <!-- 5 - CLEANER -->
+  <figure>
+    <div class="phone"><div class="screen" style="display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <div class="top">
+          <div><div class="brand" style="font-size:17px">SYSTEM CLEANER</div><div class="tag">STORAGE RECLAIM &#183; SANDBOX SAFE</div></div>
+          <div class="glyph">&#8635;</div>
+        </div>
+        <div class="panel">
+          <div style="display:flex;gap:16px;align-items:center">
+            <div class="gauge"><div class="inner"><div><div class="v">1.4 GB</div><div class="c">RECLAIMABLE</div></div></div></div>
+            <div style="flex:1">
+              <div class="row"><span class="lbl">APPS</span><span class="val">12</span></div>
+              <div class="row"><span class="lbl">ITEMS</span><span class="val">318</span></div>
+              <div class="row"><span class="lbl">SELECTED</span><span class="val">6</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px"><span class="pill on">CACHES ONLY</span><span class="pill">SAVES KEPT</span></div>
+        </div>
+        <button class="cta">CLEAN SELECTED</button>
+        <div class="panel">
+          <div class="hdr"><div class="ic">chart.pie</div><div><div class="t">STORAGE BREAKDOWN</div><div class="s">WHAT IS RECLAIMABLE</div></div></div>
+          <div class="row"><span class="lbl">CACHE</span><span class="val">980 MB</span></div>
+          <div class="row"><span class="lbl">TEMPORARY</span><span class="val">420 MB</span></div>
+          <div class="bar" style="margin-top:12px"><i style="width:70%"></i></div>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">shippingbox</div><div><div class="t">APP STORAGE</div><div class="s">SELECT WHAT TO RECLAIM</div></div></div>
+          <div class="item"><div class="ic">&#9635;</div><div><div class="nm">Free Fire MAX</div><div class="mt">Library/Caches &#183; tmp</div></div>
+            <span class="pill on" style="margin-left:auto">SELECTED</span></div>
+          <div class="item"><div class="ic">&#9635;</div><div><div class="nm">Photos</div><div class="mt">1.1 GB cache</div></div>
+            <span class="pill" style="margin-left:auto">ALL</span></div>
+          <div class="item"><div class="ic">&#9635;</div><div><div class="nm">Maps</div><div class="mt">220 MB cache</div></div>
+            <span class="pill" style="margin-left:auto">ALL</span></div>
+        </div>
+        <p class="note">Only Library/Caches and tmp are removed. Documents, preferences and Keychain stay unchanged.</p>
+      </div>
+      <div class="tabs"><div><i>&#8962;</i>HOME</div><div><i>&#9638;</i>PATCHES</div><div class="on"><i>&#10024;</i>CLEANER</div></div>
+    </div></div>
+    <figcaption><b>Cleaner</b> - console, reclaimable gauge, breakdown, per-app selection, scope footer</figcaption>
+  </figure>
+
+  <!-- 7 - SETTINGS -->
+  <figure>
+    <div class="phone"><div class="screen" style="display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <div class="top"><div><div class="brand" style="font-size:17px">SETTINGS</div><div class="tag">SUPPORT PATCH</div></div>
+          <div class="glyph">Done</div></div>
+        <div class="rows">
+          <div class="row"><span class="lbl">Language</span><span class="val">English</span></div>
+          <div class="row"><span class="lbl">Hardware model</span><span class="val">iPhone15,2</span></div>
+          <div class="row"><span class="lbl">iOS Version</span><span class="val">18.7.2 (22H124)</span></div>
+          <div class="row"><span class="lbl">Launch Count</span><span class="val">37</span></div>
+        </div>
+        <div class="rows">
+          <div class="row"><span class="lbl">Enable Stats Overlay</span><span class="switch on"><i></i></span></div>
+          <div class="row"><span class="lbl">Reduce Motion</span><span class="switch"><i></i></span></div>
+        </div>
+        <div class="rows">
+          <div class="row"><span class="lbl">License status</span><span class="val">Active</span></div>
+          <div class="row"><span class="lbl">Expires</span><span class="val">2027-04-02</span></div>
+          <div class="row"><span class="lbl">Key</span><span class="val">TRY-••••-••••</span></div>
+          <div class="row"><span class="lbl">Recheck license</span><span class="rt">&#8250;</span></div>
+          <div class="row"><span class="lbl">Forget this key</span><span class="rt" style="color:#ff938a">&#8250;</span></div>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">checkmark.shield</div><div><div class="t">EXPLOIT COMPATIBILITY</div><div class="s">VERIFIED VERSIONS</div></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="pill on">17.0 - 17.7.x</span><span class="pill on">18.7.2</span><span class="pill">Other builds</span>
+          </div>
+          <p class="note" style="margin:12px 0 0">Only the exact builds listed above are verified for the exploit. iOS is still recognized;
+          pairing and tunnel status are separate.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">person.crop.circle</div><div><div class="t">DEVELOPER</div><div class="s">SUPPORT</div></div></div>
+          <div class="row"><span class="lbl">Developed by Jvztxn</span></div>
+          <div class="row"><span class="lbl">Telegram: @Jvztxn</span><span class="rt">&#8250;</span></div>
+        </div>
+      </div>
+    </div></div>
+    <figcaption><b>Settings</b> - language, device facts, launch count, overlays, license, verified builds, developer</figcaption>
+  </figure>
+
+  <!-- 8 - LOGS -->
+  <figure>
+    <div class="phone"><div class="screen" style="display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <div class="top"><div><div class="brand" style="font-size:17px">SESSION LOGS</div><div class="tag">THIS SESSION ONLY</div></div>
+          <div class="glyph">Done</div></div>
+        <div style="display:flex;gap:8px"><button class="ghost" style="padding:10px 14px;font-size:11px">Clear</button>
+          <button class="ghost" style="padding:10px 14px;font-size:11px">Copy log</button>
+          <button class="ghost" style="padding:10px 14px;font-size:11px">Share log</button></div>
+        <div class="panel" style="min-height:230px;display:grid;place-items:center;text-align:center">
+          <div>
+            <div style="font-size:15px;font-weight:600">No Log Entries</div>
+            <p class="note" style="margin:8px 0 0">Exploit and editor activity will appear here during this session.</p>
+          </div>
+        </div>
+        <div class="missing">Once a patch runs, lines land here: pairing check, bundle resolution, each write, rollback on mismatch.</div>
+      </div>
+    </div></div>
+    <figcaption><b>Session Logs</b> - empty state, clear/copy/share, live entries during an operation</figcaption>
+  </figure>
+
+  <!-- 9 - STATES -->
+  <figure>
+    <div class="phone"><div class="screen" style="display:flex;flex-direction:column">
+      <div class="status"><span>9:41</span><span>Support Patch</span></div>
+      <div class="body">
+        <div class="top"><div><div class="brand" style="font-size:17px">STATES YOU WILL SEE</div><div class="tag">NOT SCREENS, MOMENTS</div></div></div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">bolt</div><div><div class="t">PATCH OPERATION</div><div class="s">ACTIVATING</div></div></div>
+          <div class="bar" style="margin:4px 0 12px"><i style="width:46%"></i></div>
+          <p class="note" style="margin:0">Applying the module to the game files. Do not close the app while the transaction runs.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">checkmark.circle</div><div><div class="t">OPERATION COMPLETE</div><div class="s">PATCH IS ACTIVE ON DEVICE</div></div></div>
+          <p class="note" style="margin:0">All patch rules were applied and the originals were backed up.</p>
+        </div>
+        <div class="panel" style="border-color:#5a4a20">
+          <div class="hdr"><div class="ic" style="color:var(--amber);border-color:#5a4a20;background:#2a2110">exclamationmark.triangle</div>
+            <div><div class="t" style="color:var(--amber)">UNSUPPORTED DEVICE</div><div class="s">OUTSIDE THE VERIFIED RANGE</div></div></div>
+          <p class="note" style="margin:0">iOS 16.4 is not yet supported. Currently supported: iOS 17.0-17.7.x and the listed 18.x builds.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">antenna.radiowaves.left.and.right</div><div><div class="t">TUNNEL REQUIRED</div><div class="s">PAIRING AND VPN</div></div></div>
+          <p class="note" style="margin:0">On iOS 18.7.2-18.7.10 and iOS 27+, connect LocalDevVPN before applying a patch.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">trash</div><div><div class="t">NOTHING TO RECLAIM</div><div class="s">CLEANER EMPTY STATE</div></div></div>
+          <p class="note" style="margin:0">No app on this device is holding disposable cache. The cleaner never invents numbers to fill this screen.</p>
+        </div>
+        <div class="panel">
+          <div class="hdr"><div class="ic">lock</div><div><div class="t">LOCKED PATCH</div><div class="s">TAP TO ENTER ITS PASSWORD</div></div></div>
+          <p class="note" style="margin:0">After a successful unlock, this device remembers the content key, not the password.</p>
+        </div>
+      </div>
+    </div></div>
+    <figcaption><b>Operation and edge states</b> - progress, success, unsupported device, tunnel required, empty cleaner, locked patch</figcaption>
+  </figure>
+
+</div>
+</body>
+</html>
