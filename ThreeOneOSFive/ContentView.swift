@@ -1797,9 +1797,23 @@ private struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
     }
 
+    private func dashboardPatchItem(for option: DashboardPatchOption) -> PatchLibraryItem? {
+        if let packageID = option.packageID {
+            return patchStore.items.first { $0.id == packageID }
+        }
+        return patchStore.items.first { item in
+            let projectName = item.project?.name ?? ""
+            let packageName = item.packageURL.lastPathComponent
+            return projectName == option.projectName
+                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
+                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
+                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
+        }
+    }
+
     private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
         let activeTint = AppPalette.brand
-        let item = patchItemHome(for: option)
+        let item = dashboardPatchItem(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
         let isFavorite = appState.favorites.contains(option.id)
 
@@ -1863,7 +1877,7 @@ private struct DashboardView: View {
 
     private var activeLegacyPatchCount: Int {
         DashboardPatchOption.unique.reduce(into: 0) { count, option in
-            guard let item = patchItemHome(for: option),
+            guard let item = dashboardPatchItem(for: option),
                   DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
             count += 1
         }
