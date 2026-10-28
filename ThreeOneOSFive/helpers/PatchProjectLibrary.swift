@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 struct PatchLibraryItem: Identifiable {
     let summary: PatchPackageSummary
@@ -147,6 +148,10 @@ enum PatchProjectLibrary {
                 password: password
             )
             let normalizedSummary = try PatchPackageCodec.inspect(normalizedData.data)
+            let sourceRevision = SHA256.hash(data: sourceData)
+                .map { String(format: "%02x", $0) }
+                .joined()
+            let revisionKey = "patch.bundledRawRevision.\(normalizedSummary.packageID.uuidString)"
             let root = try packageRootURL(fileManager: fileManager)
             let existingURLs = try fileManager.contentsOfDirectory(
                 at: root,
@@ -158,6 +163,21 @@ enum PatchProjectLibrary {
                       let existingSummary = try? PatchPackageCodec.inspect(existingData),
                       existingSummary.packageID == normalizedSummary.packageID else {
                     continue
+                }
+                if projectName == "TryStore",
+                   UserDefaults.standard.string(forKey: revisionKey) != sourceRevision {
+                    try PatchKeyStore.store(normalizedData.contentKey, for: normalizedSummary)
+                    try installImportedPackage(
+                        data: normalizedData.data,
+                        decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
+                        summary: normalizedSummary,
+                        existingURL: existingURL,
+                        createWorkspace: false,
+                        fileManager: fileManager
+                    )
+                    UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
+                    log("patch: bundled raw package revision installed: \(projectName)")
+                    return
                 }
                 // A package with this ID is already installed. It may be a
                 // newer remote replacement from the patch feed, so never
@@ -174,6 +194,9 @@ enum PatchProjectLibrary {
                 createWorkspace: false,
                 fileManager: fileManager
             )
+            if projectName == "TryStore" {
+                UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
+            }
             log("patch: bundled raw package installed: \(projectName)")
         } catch {
             log("patch: bundled raw package install failed: \(projectName) — \(error)")
