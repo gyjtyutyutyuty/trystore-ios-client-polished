@@ -17,9 +17,9 @@ enum DevicePatchService {
                     }
                     return root
                 },
+                progress: progress,
                 remoteWriter: pairingRemoteWriter(context: context),
-                remoteReader: pairingRemoteReader(context: context),
-                progress: progress
+                remoteReader: pairingRemoteReader(context: context)
             )
         }
         return try withResolvedContainers(bundleIDs: bundleIDs) { roots in

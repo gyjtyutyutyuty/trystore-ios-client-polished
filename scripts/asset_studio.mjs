@@ -15,7 +15,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const API = process.env.HIGGSFIELD_API_BASE || 'https://api.higgsfield.ai';
+const HIGGSFIELD_ORIGIN = 'https://api.higgsfield.ai';
+const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
+const API = directApiBase();
 const IMAGE_MODEL = 'higgsfield-ai/soul/v2/standard';
 const VIDEO_MODEL = 'bytedance/seedance-2.0/text-to-video';
 const TERMINAL = new Set(['completed', 'failed', 'nsfw', 'canceled']);
@@ -51,7 +53,53 @@ function parseArgs(argv) {
 }
 
 function workerMode() {
-  return Boolean(process.env.ASSET_WORKER_URL && process.env.ASSET_API_TOKEN);
+  const workerURL = Boolean(process.env.ASSET_WORKER_URL);
+  const workerToken = Boolean(process.env.ASSET_API_TOKEN);
+  if (workerURL !== workerToken) {
+    die('Worker mode requires both ASSET_WORKER_URL and ASSET_API_TOKEN; refusing to fall back to direct mode.');
+  }
+  return workerURL;
+}
+
+function directApiBase() {
+  const configured = process.env.HIGGSFIELD_API_BASE || HIGGSFIELD_ORIGIN;
+  let url;
+  try {
+    url = new URL(configured);
+  } catch {
+    die('HIGGSFIELD_API_BASE must be a valid HTTPS URL for api.higgsfield.ai.');
+  }
+  if (
+    url.origin !== HIGGSFIELD_ORIGIN ||
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash
+  ) {
+    die('HIGGSFIELD_API_BASE must be exactly https://api.higgsfield.ai so direct-mode credentials cannot be redirected.');
+  }
+  return HIGGSFIELD_ORIGIN;
+}
+
+function workerBase() {
+  let url;
+  try {
+    url = new URL(process.env.ASSET_WORKER_URL);
+  } catch {
+    die('ASSET_WORKER_URL must be a valid HTTPS URL.');
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+    die('ASSET_WORKER_URL must be an HTTPS URL without embedded credentials, a query, or a fragment.');
+  }
+  return url.toString().replace(/\/$/, '');
+}
+
+function requestID(value, source) {
+  const id = String(value || '');
+  if (!REQUEST_ID.test(id)) die(`${source} returned an invalid request id.`);
+  return id;
 }
 
 function directCredentials() {
@@ -70,6 +118,7 @@ function directCredentials() {
 async function call(method, url, { auth, body } = {}) {
   const response = await fetch(url, {
     method,
+    redirect: auth?.startsWith('Key ') ? 'error' : 'follow',
     headers: {
       ...(auth ? { authorization: auth } : {}),
       ...(body ? { 'content-type': 'application/json' } : {})
@@ -110,7 +159,7 @@ function collectMedia(body) {
 
 async function submit(mode, prompt, flags) {
   if (workerMode()) {
-    const base = process.env.ASSET_WORKER_URL.replace(/\/$/, '');
+    const base = workerBase();
     const body = { prompt };
     if (mode === 'video') {
       if (flags.duration) body.duration = Number(flags.duration);
@@ -122,7 +171,8 @@ async function submit(mode, prompt, flags) {
       auth: `Bearer ${process.env.ASSET_API_TOKEN}`,
       body
     });
-    return { submitted, pollUrl: `${base}/api/assets/status?id=${submitted.request_id}`, auth: `Bearer ${process.env.ASSET_API_TOKEN}` };
+    const id = requestID(submitted?.request_id, 'Worker');
+    return { submitted, pollUrl: `${base}/api/assets/status?id=${encodeURIComponent(id)}`, auth: `Bearer ${process.env.ASSET_API_TOKEN}` };
   }
 
   const auth = directCredentials();
@@ -135,9 +185,10 @@ async function submit(mode, prompt, flags) {
     if (flags['no-audio']) body.generate_audio = false;
   }
   const submitted = await call('POST', `${API}/${model}`, { auth, body });
+  const id = requestID(submitted?.request_id, 'Higgsfield');
   return {
     submitted,
-    pollUrl: submitted.status_url || `${API}/requests/${submitted.request_id}/status`,
+    pollUrl: `${API}/requests/${encodeURIComponent(id)}/status`,
     auth
   };
 }
@@ -187,11 +238,18 @@ async function download(media, prompt) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const written = [];
   for (const [index, item] of media.entries()) {
-    const response = await fetch(item.url);
-    if (!response.ok) die(`download failed (${response.status}) for ${item.url}`);
+    let source;
+    try {
+      source = new URL(item.url);
+    } catch {
+      die('generation returned an invalid media URL');
+    }
+    if (source.protocol !== 'https:') die('generation returned a non-HTTPS media URL');
+    const response = await fetch(source);
+    if (!response.ok) die(`download failed (${response.status}) for ${source}`);
     const buffer = Buffer.from(await response.arrayBuffer());
     const suffix = media.length > 1 ? `-${index + 1}` : '';
-    const file = path.join(OUT_DIR, `${stamp}-${slug(prompt)}${suffix}${extensionFor(item.url, item.contentType)}`);
+    const file = path.join(OUT_DIR, `${stamp}-${slug(prompt)}${suffix}${extensionFor(source.toString(), item.contentType)}`);
     await writeFile(file, buffer);
     written.push(file);
   }

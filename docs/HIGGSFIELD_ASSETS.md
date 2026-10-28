@@ -43,9 +43,9 @@ Adding a model is one line in `MODELS` plus its documented path — no client ch
 
    ```bash
    npx wrangler deploy cloudflare/asset-worker.js --name trystore-assets
-   npx wrangler secret put HIGGSFIELD_API_KEY_ID
-   npx wrangler secret put HIGGSFIELD_API_KEY_SECRET
-   npx wrangler secret put ASSET_API_TOKEN      # any long random string you generate
+   npx wrangler secret put HIGGSFIELD_API_KEY_ID --name trystore-assets
+   npx wrangler secret put HIGGSFIELD_API_KEY_SECRET --name trystore-assets
+   npx wrangler secret put ASSET_API_TOKEN --name trystore-assets  # any long random string you generate
    ```
 
 3. `GET /health` reports `credentials` and `gated` without echoing anything secret.
