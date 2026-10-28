@@ -147,7 +147,7 @@ async function publishPatch(env, project, file, bytes) {
     sha256: digest,
     size: bytes.byteLength,
     version: new Date().toISOString(),
-    url: `/patches/${project}/${encodeURIComponent(file)}?v=${digest}`,
+    url: `${String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "")}/patches/${project}/${encodeURIComponent(file)}?v=${digest}`,
   };
   const index = manifest.patches.findIndex((item) => item.file.toLowerCase() === file.toLowerCase());
   if (index >= 0) manifest.patches[index] = entry;
