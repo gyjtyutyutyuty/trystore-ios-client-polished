@@ -139,6 +139,9 @@ struct HomeView: View {
             patchStore.reload()
         }
         .task {
+            await PatchFeedService.shared.syncIfDue(store: patchStore)
+        }
+        .task {
             while !Task.isCancelled {
                 isTunnelConnected = LocalDevTunnelProbe.isConnected
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
@@ -2624,6 +2627,9 @@ private struct PatchesView: View {
             guard let key = licenseManager.patchBundleKey else { return }
             patchStore.installBundledResources(bundleKey: key)
             patchStore.reload()
+        }
+        .task {
+            await PatchFeedService.shared.syncIfDue(store: patchStore)
         }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))

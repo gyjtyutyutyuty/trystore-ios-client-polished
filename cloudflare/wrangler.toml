@@ -1,0 +1,16 @@
+name = "trystore-patch-feed"
+main = "patch-feed-worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "PATCHES"
+bucket_name = "trystore-patches"
+
+[vars]
+PUBLIC_BASE_URL = "https://trystore-patch-feed.<your-subdomain>.workers.dev"
+
+# Secrets (set with `wrangler secret put ...`):
+#   TELEGRAM_BOT_TOKEN
+#   TELEGRAM_WEBHOOK_SECRET
+#   TELEGRAM_OWNER_ID
