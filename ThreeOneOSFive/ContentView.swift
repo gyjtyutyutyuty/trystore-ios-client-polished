@@ -726,18 +726,22 @@ private struct BrandCharacterBackdrop: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let reduceMotion: Bool
 
-    @State private var player: AVQueuePlayer?
-    @State private var playerLooper: AVPlayerLooper?
+    @StateObject private var heroPlayer = CharacterHeroPlayer()
     @State private var isVisible = false
-    @State private var playbackFailed = false
 
     /// Phones take the stage to the panel edges. Wide layouts keep the whole
     /// stage visible instead of cropping the hat and the heels.
     private var fillsStage: Bool { horizontalSizeClass == .compact }
 
+    /// Reduce Motion keeps the still frame, and the loop only runs while the hero
+    /// is on screen in the foreground.
     private var shouldPlay: Bool {
-        !reduceMotion && scenePhase == .active && isVisible && !playbackFailed
+        !reduceMotion && scenePhase == .active && isVisible
     }
+
+    /// The video only covers the poster once it is genuinely running, so a player
+    /// that never starts shows frame zero rather than a frozen layer.
+    private var showsLoop: Bool { shouldPlay && heroPlayer.isRunning }
 
     var body: some View {
         ZStack {
@@ -747,54 +751,114 @@ private struct BrandCharacterBackdrop: View {
                 .resizable()
                 .aspectRatio(contentMode: fillsStage ? .fill : .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(showsLoop ? 0 : 1)
                 .accessibilityHidden(true)
 
-            if let player {
-                VideoPlayerSurface(player: player, fillsStage: fillsStage)
-                    .opacity(shouldPlay ? 1 : 0)
+            if heroPlayer.hasLoop {
+                VideoPlayerSurface(player: heroPlayer.player, fillsStage: fillsStage)
+                    .opacity(showsLoop ? 1 : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .accessibilityHidden(true)
             }
         }
         .clipped()
-        .task {
-            preparePlayerIfNeeded()
-        }
-        .onAppear {
-            isVisible = true
-        }
-        .onChange(of: shouldPlay) { isPlaying in
-            guard let player else { return }
-            if isPlaying {
-                player.play()
+        .task(id: shouldPlay) {
+            if shouldPlay {
+                heroPlayer.start()
             } else {
-                player.pause()
-                player.seek(to: .zero)
+                heroPlayer.stop()
             }
         }
+        .onAppear { isVisible = true }
         .onDisappear {
             isVisible = false
-            player?.pause()
-            player?.seek(to: .zero)
+            heroPlayer.stop()
         }
     }
+}
 
-    private func preparePlayerIfNeeded() {
-        guard player == nil,
-              let videoURL = Bundle.main.url(forResource: "CharacterHeroLoop", withExtension: "mp4") else {
-            playbackFailed = true
+/// Owns the hero loop. `AVPlayer.play()` is ignored while an item is still
+/// loading, and an item always loads asynchronously, so playback waits for the
+/// ready status instead of trusting the call made while the player was built.
+@MainActor
+private final class CharacterHeroPlayer: ObservableObject {
+    @Published private(set) var isRunning = false
+    let player: AVQueuePlayer
+    let hasLoop: Bool
+
+    private var looper: AVPlayerLooper?
+    private var startTask: Task<Void, Never>?
+
+    /// An item reports ready a few hundred milliseconds after the player is
+    /// built. Both waits are bounded, so a clip that never loads settles on the
+    /// still frame instead of retrying for the life of the screen.
+    private static let readinessChecks = 40
+    private static let readinessInterval: UInt64 = 100_000_000
+    private static let playbackProbe: UInt64 = 250_000_000
+    private static let playbackProbes = 3
+
+    init() {
+        let queuePlayer = AVQueuePlayer()
+        player = queuePlayer
+
+        guard let url = Bundle.main.url(forResource: "CharacterHeroLoop", withExtension: "mp4") else {
+            hasLoop = false
+            log("hero: CharacterHeroLoop.mp4 missing from the bundle, keeping the still frame")
             return
         }
 
-        let item = AVPlayerItem(url: videoURL)
-        let queuePlayer = AVQueuePlayer()
+        hasLoop = true
         queuePlayer.isMuted = true
         queuePlayer.actionAtItemEnd = .advance
-        playerLooper = AVPlayerLooper(player: queuePlayer, templateItem: item)
-        player = queuePlayer
-        if shouldPlay {
-            queuePlayer.play()
+        // A local file has nothing to buffer, and an ambient loop must not hold
+        // the display awake the way a watched video does.
+        queuePlayer.automaticallyWaitsToMinimizeStalling = false
+        queuePlayer.preventsDisplaySleepDuringVideoPlayback = false
+        looper = AVPlayerLooper(player: queuePlayer, templateItem: AVPlayerItem(url: url))
+    }
+
+    func start() {
+        guard hasLoop, startTask == nil else { return }
+        startTask = Task { [weak self] in
+            await self?.runUntilPlaying()
+            self?.startTask = nil
         }
+    }
+
+    func stop() {
+        startTask?.cancel()
+        startTask = nil
+        isRunning = false
+        player.pause()
+        player.seek(to: .zero)
+    }
+
+    /// Waits for the item to load, then starts it and confirms the state actually
+    /// changed. `isRunning` is only set once the player reports it is playing, so
+    /// a start that is silently dropped leaves the still frame on screen rather
+    /// than a frozen video the user reads as a broken hero.
+    private func runUntilPlaying() async {
+        for _ in 0..<Self.readinessChecks {
+            if Task.isCancelled { return }
+            guard player.currentItem?.status == .readyToPlay else {
+                try? await Task.sleep(nanoseconds: Self.readinessInterval)
+                continue
+            }
+            for probe in 0..<Self.playbackProbes {
+                if Task.isCancelled { return }
+                player.playImmediately(atRate: 1)
+                try? await Task.sleep(nanoseconds: Self.playbackProbe)
+                if player.timeControlStatus == .playing {
+                    isRunning = true
+                    log("hero: loop playing")
+                    return
+                }
+                log("hero: loop start attempt \(probe + 1) did not take")
+            }
+            log("hero: loop reported ready but stayed paused, keeping the still frame")
+            return
+        }
+        log("hero: loop never reported ready, keeping the still frame")
     }
 }
 
