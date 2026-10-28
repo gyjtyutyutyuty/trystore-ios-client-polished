@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TryStore hero - rotating character stage</title>
+<style>
+  :root{--canvas:#000;--brand:#2a87d9;--raised:#1d1d1f;--tp:#f5f5f7;--ts:#ccc;--tt:#86868b}
+  *{box-sizing:border-box}
+  body{margin:0;background:#06070a;color:var(--tp);font:14px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:16px;font-weight:600;margin:0 0 4px}
+  p.note{color:var(--tt);font-size:12px;margin:0 0 22px}
+  .row{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+  figure{margin:0}
+  figcaption{color:var(--tt);font-size:12px;margin-top:10px}
+  .hero{position:relative;width:390px;height:520px;border-radius:28px;overflow:hidden;background:var(--canvas);isolation:isolate}
+  .hero video,.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .hero.fit img{object-fit:contain}
+  .copy{position:absolute;inset:0;display:flex;flex-direction:column;padding:18px}
+  .chip{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(29,29,31,.92);font-size:12px}
+  .spacer{flex:1 1 auto;min-height:24px}
+  h2{font-size:34px;line-height:1.02;letter-spacing:-.2px;margin:0 0 6px;max-width:320px;white-space:pre-line}
+  .sub{color:var(--ts);font-size:12px;max-width:320px;margin:0 0 18px}
+  .cta{align-self:flex-start;border:0;border-radius:18px;background:var(--brand);color:#fff;font:inherit;font-size:12px;font-weight:600;letter-spacing:.4px;padding:14px 18px;display:inline-flex;align-items:center;gap:8px}
+  .swatch{display:flex;gap:14px;margin-top:24px}
+  .swatch span{font-size:11px;color:var(--tt)}
+</style>
+</head>
+<body>
+<h1>Home hero - rotating character on the TryStore stage</h1>
+<p class="note">Left: the shipped loop, CharacterHeroLoop.mp4 (silent, 10.2 s, 1080x1440, loops in the app). Right: the still that covers Reduce Motion, from the same composite.</p>
+<div class="row">
+  <figure>
+    <div class="hero">
+      <video src="character-hero-preview.mp4" autoplay muted loop playsinline></video>
+      <div class="copy">
+        <span class="chip"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#2a87d9"></circle><path d="M4 7.4l2 2 4-4.4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>SYSTEM READY</span>
+        <div class="spacer"></div>
+        <h2>YOUR PATCH
+CONTROL CENTER</h2>
+        <p class="sub">Manage modules, connections, and device health from one focused workspace.</p>
+        <button class="cta">EXPLORE PATCH STUDIO</button>
+      </div>
+    </div>
+    <figcaption>Motion on - the shipped loop</figcaption>
+  </figure>
+  <figure>
+    <div class="hero fit">
+      <img src="character-hero-poster.png" alt="Hero still of the character on the TryStore stage">
+      <div class="copy">
+        <span class="chip"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#2a87d9"></circle><path d="M4 7.4l2 2 4-4.4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>SYSTEM READY</span>
+        <div class="spacer"></div>
+        <h2>YOUR PATCH
+CONTROL CENTER</h2>
+        <p class="sub">Manage modules, connections, and device health from one focused workspace.</p>
+        <button class="cta">EXPLORE PATCH STUDIO</button>
+      </div>
+    </div>
+    <figcaption>Reduce Motion / still frame</figcaption>
+  </figure>
+</div>
+<div class="swatch"><span>canvas #000000</span><span>brand #2a87d9</span><span>raised #1d1d1f</span></div>
+</body>
+</html>
