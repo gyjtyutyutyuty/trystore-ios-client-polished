@@ -2708,7 +2708,6 @@ private struct PatchesView: View {
                         topBarPatches.appCinematicReveal(delay: 0.02)
                         patchCategoriesView.appCinematicReveal(delay: 0.09)
                         activePatchesView.appCinematicReveal(delay: 0.16)
-                        otherPatchesView.appCinematicReveal(delay: 0.22)
                     }
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
@@ -2912,55 +2911,6 @@ private struct PatchesView: View {
         .padding(AppSpacing.l)
         .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-    }
-
-    private var otherPatchesView: some View {
-        let items = otherPatchItems
-        return Group {
-            if !items.isEmpty {
-                VStack(alignment: .leading, spacing: AppSpacing.m) {
-                    panelHeader(title: language.text("patch.other_modules"), subtitle: language.text("patch.library.subtitle"), icon: "shippingbox.fill")
-                    VStack(spacing: AppSpacing.s) {
-                        ForEach(items) { item in
-                            NavigationLink {
-                                PatchProjectDetailView(store: patchStore, projectID: item.id)
-                            } label: {
-                                HStack(spacing: AppSpacing.m) {
-                                    Image(systemName: "shippingbox.fill")
-                                        .foregroundStyle(AppTheme.accent)
-                                        .frame(width: 36, height: 36)
-                                        .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: 10))
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent)
-                                            .font(AppType.value())
-                                            .foregroundStyle(AppPalette.textPrimary)
-                                            .lineLimit(2)
-                                        Text(item.packageURL.deletingPathExtension().lastPathComponent)
-                                            .font(AppType.meta())
-                                            .foregroundStyle(AppPalette.textTertiary)
-                                    }
-                                    Spacer(minLength: AppSpacing.s)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(AppPalette.textTertiary)
-                                }
-                                .padding(AppSpacing.m)
-                                .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .padding(AppSpacing.l)
-                .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-            }
-        }
-    }
-
-    private var otherPatchItems: [PatchLibraryItem] {
-        let dashboardIDs = Set(DashboardPatchOption.all.compactMap { patchItem(for: $0)?.id })
-        return patchStore.items.filter { !dashboardIDs.contains($0.id) }
     }
 
     private var patchStudioCategoryNotice: some View {
