@@ -120,7 +120,13 @@ enum FileReplacementService {
             try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: sourceDirectory) }
             var lastDetail = "Remote file write failed."
-            for remoteTarget in remoteTargetCandidates(remoteContainerPath: remoteContainerPath, relativePath: relativePath) {
+            let candidates = remoteTargetCandidates(remoteContainerPath: remoteContainerPath, relativePath: relativePath)
+            for (index, remoteTarget) in candidates.enumerated() {
+                if index > 0 {
+                    log("patch: remote path fallback selected \(remoteTarget.path) for \(bundleID)/\(relativePath)")
+                } else {
+                    log("patch: remote write candidate \(remoteTarget.path)")
+                }
                 try data.write(to: sourceDirectory.appendingPathComponent(remoteTarget.lastPathComponent), options: .atomic)
                 var errorPointer: UnsafeMutablePointer<CChar>?
                 let returnCode = pairingFileURL.path.withCString { pairingPath in
@@ -168,7 +174,9 @@ enum FileReplacementService {
             .appendingPathComponent("3105-remote-read-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: outputURL) }
         var lastRemoteError: String?
-        for remoteTarget in remoteTargetCandidates(remoteContainerPath: remoteContainerPath, relativePath: relativePath) {
+        let candidates = remoteTargetCandidates(remoteContainerPath: remoteContainerPath, relativePath: relativePath)
+        for (index, remoteTarget) in candidates.enumerated() {
+            log("patch: remote read candidate \(index + 1)/\(candidates.count) \(remoteTarget.path)")
             _ = try validatedRemoteTargetURL(remoteTarget.path)
             var errorPointer: UnsafeMutablePointer<CChar>?
             let returnCode = pairingFileURL.path.withCString { pairingPath in

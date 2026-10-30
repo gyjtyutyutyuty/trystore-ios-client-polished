@@ -74,39 +74,8 @@ final class PatchProjectStore: ObservableObject {
 
     func installBundledResources(bundleKey: Data) {
         guard bundleKey.count == 32, !didInstallBundledResources else { return }
-        let resources: [String: Data]
-        do {
-            resources = try PatchResourceBundle.load(using: bundleKey)
-        } catch {
-            log("patch: encrypted asset catalog could not be read: \(error)")
-            return
-        }
         didInstallBundledResources = true
-        for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"] {
-            PatchProjectLibrary.removeBundledPackage(named: obsolete)
-        }
-        for patch in game.bundledPatches {
-            if let data = resources[patch.resourceName] {
-                PatchProjectLibrary.installBundledPackageDataIfNeeded(
-                    data,
-                    projectName: patch.projectName,
-                    password: patch.password
-                )
-                continue
-            }
-            // New patch packages are bundled as raw .TRYSTORE files. This keeps
-            // them available in the IPA while preserving the normal install,
-            // activation, and restore flow used by the patch library.
-            guard let data = NSDataAsset(name: patch.resourceName, bundle: .main)?.data else {
-                log("patch: bundled patch asset unavailable: \(patch.resourceName)")
-                continue
-            }
-            PatchProjectLibrary.installBundledRawPackageDataIfNeeded(
-                data,
-                projectName: patch.projectName,
-                password: patch.password
-            )
-        }
+        log("patch: bundled patch payloads disabled; all patch packages load from the remote feed")
         reload()
     }
 
