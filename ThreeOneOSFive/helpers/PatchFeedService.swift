@@ -67,31 +67,44 @@ final class PatchFeedService {
             let manifest = try await fetchManifest(project: "trystore")
             guard !manifest.patches.isEmpty else { return }
 
+            var failedEntries = 0
             for entry in manifest.patches {
                 if Task.isCancelled { return }
-                while store.isBusy {
-                    try await Task.sleep(nanoseconds: 100_000_000)
-                    if Task.isCancelled { return }
-                }
-                guard store.passwordRequest == nil else { return }
-                let entryStem = URL(fileURLWithPath: entry.file).deletingPathExtension().lastPathComponent
-                let local = store.items.first(where: { item in
-                    let localFile = item.packageURL.deletingPathExtension().lastPathComponent
-                    let localName = item.project?.name ?? localFile
-                    return Self.normalizedName(localFile) == Self.normalizedName(entryStem)
-                        || Self.normalizedName(localName) == Self.normalizedName(entry.name)
-                })
-                guard let local else {
+                do {
+                    while store.isBusy {
+                        try await Task.sleep(nanoseconds: 100_000_000)
+                        if Task.isCancelled { return }
+                    }
+                    guard store.passwordRequest == nil else { return }
+                    if let sourceDigest = UserDefaults.standard.string(forKey: importedDigestKey(for: entry)),
+                       sourceDigest == entry.sha256,
+                       let packageIDString = UserDefaults.standard.string(forKey: importedPackageIDKey(for: entry)),
+                       let packageID = UUID(uuidString: packageIDString),
+                       store.items.contains(where: { $0.id == packageID }) {
+                        continue
+                    }
+                    let entryStem = URL(fileURLWithPath: entry.file).deletingPathExtension().lastPathComponent
+                    let local = store.items.first(where: { item in
+                        let localFile = item.packageURL.deletingPathExtension().lastPathComponent
+                        let localName = item.project?.name ?? localFile
+                        return Self.normalizedName(localFile) == Self.normalizedName(entryStem)
+                            || Self.normalizedName(localName) == Self.normalizedName(entry.name)
+                    })
+                    if let local, digest(of: local.packageURL) == entry.sha256 {
+                        continue
+                    }
                     try await install(entry: entry, store: store)
-                    continue
+                } catch {
+                    failedEntries += 1
+                    log("patchfeed: \(entry.file) skipped — \(error)")
                 }
-                if let localDigest = digest(of: local.packageURL), localDigest == entry.sha256 {
-                    continue
-                }
-                try await install(entry: entry, store: store)
             }
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckKey)
-            log("patchfeed: manifest \(manifest.updatedAt ?? "unknown") applied")
+            if failedEntries == 0 {
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckKey)
+                log("patchfeed: manifest \(manifest.updatedAt ?? "unknown") applied")
+            } else {
+                log("patchfeed: \(failedEntries) package(s) failed; will retry")
+            }
         } catch {
             log("patchfeed: sync skipped — \(error)")
         }
@@ -112,18 +125,44 @@ final class PatchFeedService {
     }
 
     private func install(entry: Entry, store: PatchProjectStore) async throws {
-        let remote = entry.url.hasPrefix("http")
-            ? URL(string: entry.url)!
-            : baseURL.appendingPathComponent(entry.url.hasPrefix("/") ? String(entry.url.dropFirst()) : entry.url)
+        guard !entry.file.isEmpty,
+              entry.file != ".",
+              entry.file != "..",
+              URL(fileURLWithPath: entry.file).lastPathComponent == entry.file,
+              !entry.file.contains("\\"),
+              entry.file.lowercased().hasSuffix(".trystore"),
+              entry.sha256.count == 64,
+              entry.sha256.allSatisfy({ "0123456789abcdefABCDEF".contains($0) }),
+              entry.size > 0,
+              entry.size <= 25 * 1024 * 1024 else {
+            throw FeedError.badManifest
+        }
+
+        let remote: URL
+        if entry.url.hasPrefix("http") {
+            guard let absoluteURL = URL(string: entry.url) else { throw FeedError.badManifest }
+            remote = absoluteURL
+        } else {
+            let path = entry.url.hasPrefix("/") ? String(entry.url.dropFirst()) : entry.url
+            remote = baseURL.appendingPathComponent(path)
+        }
+        guard remote.scheme == "https", remote.host == baseURL.host else {
+            throw FeedError.badManifest
+        }
 
         var request = URLRequest(url: remote)
         request.timeoutInterval = 60
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         let (temporaryURL, response) = try await URLSession.shared.download(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw FeedError.downloadFailed
         }
 
-        guard let digest = digest(of: temporaryURL), digest == entry.sha256 else {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: temporaryURL.path)
+        let downloadedSize = (attributes?[.size] as? NSNumber)?.intValue
+        guard downloadedSize == entry.size,
+              let digest = digest(of: temporaryURL), digest == entry.sha256 else {
             try? FileManager.default.removeItem(at: temporaryURL)
             throw FeedError.downloadFailed
         }
@@ -135,6 +174,14 @@ final class PatchFeedService {
         try? FileManager.default.removeItem(at: target)
         try FileManager.default.moveItem(at: temporaryURL, to: target)
 
+        let downloadedData = try Data(contentsOf: target, options: .mappedIfSafe)
+        let normalizedData = try PatchProjectLibrary.normalizeRemoteFeedPackage(downloadedData, fileName: entry.file)
+        let didNormalize = normalizedData != downloadedData
+        let importedSummary = try PatchPackageCodec.inspect(normalizedData)
+        if didNormalize {
+            try normalizedData.write(to: target, options: .atomic)
+        }
+
         let importError: String? = await withCheckedContinuation { continuation in
             store.importPackage(at: target, reportsSuccess: false) { error in
                 continuation.resume(returning: error)
@@ -143,7 +190,20 @@ final class PatchFeedService {
         if let importError {
             throw FeedError.importFailed(importError)
         }
+        UserDefaults.standard.set(entry.sha256, forKey: importedDigestKey(for: entry))
+        UserDefaults.standard.set(importedSummary.packageID.uuidString, forKey: importedPackageIDKey(for: entry))
+        if didNormalize {
+            log("patchfeed: normalized legacy package \(entry.file) to current schema")
+        }
         log("patchfeed: imported \(entry.file) (\(entry.size) B)")
+    }
+
+    private func importedDigestKey(for entry: Entry) -> String {
+        "patchFeed.imported.sha256.\(entry.file)"
+    }
+
+    private func importedPackageIDKey(for entry: Entry) -> String {
+        "patchFeed.imported.packageID.\(entry.file)"
     }
 
     private static func normalizedName(_ value: String) -> String {

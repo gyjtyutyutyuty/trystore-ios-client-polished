@@ -30,6 +30,36 @@ enum PatchProjectLibrary {
         "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
+    private static let legacyRemoteProjectNames: [String: String] = [
+        "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA EXCLUSIVO VERDE",
+        "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA EXCLUSIVO ROSADO"
+    ]
+
+    /// Only the two known historical visual packages may use the schema-9
+    /// bundled migration path. Re-encode them as current schema-2 packages
+    /// before passing them through the normal remote import pipeline.
+    static func normalizeRemoteFeedPackage(_ data: Data, fileName: String) throws -> Data {
+        do {
+            _ = try PatchPackageCodec.inspect(data)
+            return data
+        } catch PatchPackageError.unsupportedVersion {
+            guard let projectName = legacyRemoteProjectNames[fileName],
+                  let projectID = bundledProjectIDs[projectName] else {
+                throw PatchPackageError.unsupportedVersion
+            }
+
+            let source = try PatchPackageCodec.decodeBundledResource(data)
+            guard source.summary.schemaVersion == 9 else {
+                throw PatchPackageError.unsupportedVersion
+            }
+
+            var project = source.decoded.project
+            project.name = projectName
+            project.id = projectID
+            return try PatchPackageCodec.encodeNew(project: project, password: nil).data
+        }
+    }
+
     static func isBundledProject(_ project: PatchProject) -> Bool {
         bundledProjectNames.contains(project.name)
     }

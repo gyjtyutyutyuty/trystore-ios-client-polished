@@ -1095,7 +1095,7 @@ private struct DashboardPatchOption: Identifiable {
     static let visuals = [
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil),
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil),
-        DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil)
+        DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil, packageID: UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!)
     ]
 
     static let antena = [
