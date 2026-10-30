@@ -186,36 +186,25 @@ enum PatchTransaction {
                 let existed: Bool
                 let backupFilename: String?
                 var originalDigest: Data?
-				if let remoteReader {
-					log("patch: backing up remote target \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
-					do {
-						let originalData = try remoteReader(
-							resolved.rule.bundleID,
-							resolved.rule.relativePath
-						)
-						guard originalData.count <= 32 * 1_024 * 1_024 else {
-							throw PatchPackageError.sizeLimitExceeded
-						}
-						let filename = "\(resolved.rule.id.uuidString).original"
-						let backupURL = transactionDirectory.appendingPathComponent(filename)
-						try originalData.write(to: backupURL, options: [.atomic, .completeFileProtection])
-						guard fileManager.fileExists(atPath: backupURL.path) else {
-							throw PatchPackageError.applyFailed
-						}
-						existed = true
-						backupFilename = filename
-						originalDigest = digest(originalData)
-						log("patch: remote backup saved bytes=\(originalData.count) path=\(backupURL.lastPathComponent)")
-					} catch PatchPackageError.remoteTargetMissing {
-						// A newly installed or never-launched target app may not have
-						// created this cache asset yet. The remote writer can create the
-						// replacement in its existing parent directory, so treat this as
-						// a first-time install rather than failing before the write.
-						existed = false
-						backupFilename = nil
-						originalDigest = nil
-						log("patch: remote target absent; proceeding as first-time install \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
-					}
+                if let remoteReader {
+                    log("patch: backing up remote target \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
+                    let originalData = try remoteReader(
+                        resolved.rule.bundleID,
+                        resolved.rule.relativePath
+                    )
+                    guard originalData.count <= 32 * 1_024 * 1_024 else {
+                        throw PatchPackageError.sizeLimitExceeded
+                    }
+                    let filename = "\(resolved.rule.id.uuidString).original"
+                    let backupURL = transactionDirectory.appendingPathComponent(filename)
+                    try originalData.write(to: backupURL, options: [.atomic, .completeFileProtection])
+                    guard fileManager.fileExists(atPath: backupURL.path) else {
+                        throw PatchPackageError.applyFailed
+                    }
+                    existed = true
+                    backupFilename = filename
+                    originalDigest = digest(originalData)
+                    log("patch: remote backup saved bytes=\(originalData.count) path=\(backupURL.lastPathComponent)")
                 } else {
                     existed = fileManager.fileExists(atPath: resolved.target.path)
                     backupFilename = existed ? "\(resolved.rule.id.uuidString).original" : nil

@@ -108,38 +108,37 @@ enum FileReplacementService {
         } catch {
             throw PatchPackageError.unsafeTargetPath
         }
-          let leafName = (relativePath as NSString).lastPathComponent
-          guard remoteContainerPath.hasPrefix("/var/mobile/Containers/Data/Application/"),
+        let leafName = (relativePath as NSString).lastPathComponent
+        guard remoteContainerPath.hasPrefix("/var/mobile/Containers/Data/Application/"),
               !leafName.hasPrefix(".") else {
             throw PatchPackageError.unsafeTargetPath
         }
 
-        let remoteTarget = URL(fileURLWithPath: remoteContainerPath, isDirectory: true)
-            .appendingPathComponent(relativePath)
         let sourceDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("3105-patch-remote-\(UUID().uuidString)", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: sourceDirectory) }
-            try data.write(to: sourceDirectory.appendingPathComponent(remoteTarget.lastPathComponent), options: .atomic)
-
-            var errorPointer: UnsafeMutablePointer<CChar>?
-            let returnCode = pairingFileURL.path.withCString { pairingPath in
-                sourceDirectory.path.withCString { sourcePath in
-                    remoteTarget.deletingLastPathComponent().path.withCString { targetDirectory in
-                        al_exploit_write_dir(pairingPath, sourcePath, targetDirectory, nil, nil, &errorPointer)
+            var lastDetail = "Remote file write failed."
+            for remoteTarget in remoteTargetCandidates(remoteContainerPath: remoteContainerPath, relativePath: relativePath) {
+                try data.write(to: sourceDirectory.appendingPathComponent(remoteTarget.lastPathComponent), options: .atomic)
+                var errorPointer: UnsafeMutablePointer<CChar>?
+                let returnCode = pairingFileURL.path.withCString { pairingPath in
+                    sourceDirectory.path.withCString { sourcePath in
+                        remoteTarget.deletingLastPathComponent().path.withCString { targetDirectory in
+                            al_exploit_write_dir(pairingPath, sourcePath, targetDirectory, nil, nil, &errorPointer)
+                        }
                     }
                 }
-            }
-            defer {
-                if let errorPointer { al_string_free(errorPointer) }
-            }
-            guard returnCode == 0 else {
                 let detail = errorPointer.map { String(cString: $0) }
-                    ?? "Remote file write failed (\(returnCode))."
-                throw PatchPackageError.remoteReplacementFailed(detail)
+                if let errorPointer { al_string_free(errorPointer) }
+                if returnCode == 0 {
+                    log("patch: Airlift wrote \(bundleID)/\(relativePath) bytes=\(data.count) target=\(remoteTarget.path)")
+                    return
+                }
+                lastDetail = detail ?? "Remote file write failed (\(returnCode))."
             }
-            log("patch: Airlift wrote \(bundleID)/\(relativePath) bytes=\(data.count)")
+            throw PatchPackageError.remoteReplacementFailed(lastDetail)
         } catch let error as PatchPackageError {
             throw error
         } catch {
@@ -164,50 +163,54 @@ enum FileReplacementService {
             throw PatchPackageError.unsafeTargetPath
         }
 
-        let remoteTarget = URL(fileURLWithPath: remoteContainerPath, isDirectory: true)
-            .appendingPathComponent(relativePath)
-        _ = try validatedRemoteTargetURL(remoteTarget.path)
         log("patch: Airlift remote read started \(bundleID)/\(relativePath)")
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("3105-remote-read-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: outputURL) }
-
-        var errorPointer: UnsafeMutablePointer<CChar>?
-        let returnCode = pairingFileURL.path.withCString { pairingPath in
-            remoteTarget.path.withCString { targetPath in
-                outputURL.path.withCString { outputPath in
-                    al_exploit_read_file(
-                        pairingPath,
-                        targetPath,
-                        outputPath,
-                        patchAirliftLogCallback,
-                        nil,
-                        &errorPointer
-                    )
+        var lastRemoteError: String?
+        for remoteTarget in remoteTargetCandidates(remoteContainerPath: remoteContainerPath, relativePath: relativePath) {
+            _ = try validatedRemoteTargetURL(remoteTarget.path)
+            var errorPointer: UnsafeMutablePointer<CChar>?
+            let returnCode = pairingFileURL.path.withCString { pairingPath in
+                remoteTarget.path.withCString { targetPath in
+                    outputURL.path.withCString { outputPath in
+                        al_exploit_read_file(pairingPath, targetPath, outputPath, patchAirliftLogCallback, nil, &errorPointer)
+                    }
                 }
             }
-        }
-        let remoteError = errorPointer.map { String(cString: $0) }
-        if let errorPointer { al_string_free(errorPointer) }
-        guard returnCode == 0 else {
-            let detail = remoteError ?? "Remote file read failed (\(returnCode))."
-            log("patch: Airlift remote read failed \(bundleID)/\(relativePath) rc=\(returnCode) detail=\(detail)")
-            if detail.contains("stat recovered target: Afc(ObjectNotFound)") {
-                throw PatchPackageError.remoteTargetMissing
+            let remoteError = errorPointer.map { String(cString: $0) }
+            if let errorPointer { al_string_free(errorPointer) }
+            if returnCode == 0 {
+                let data: Data
+                do {
+                    data = try Data(contentsOf: outputURL, options: .mappedIfSafe)
+                } catch {
+                    throw PatchPackageError.remoteReplacementFailed("Remote file backup could not be loaded.")
+                }
+                guard data.count <= 32 * 1_024 * 1_024 else { throw PatchPackageError.sizeLimitExceeded }
+                log("patch: Airlift read \(bundleID)/\(relativePath) bytes=\(data.count) target=\(remoteTarget.path)")
+                return data
             }
-            throw PatchPackageError.remoteReplacementFailed(detail)
+            lastRemoteError = remoteError ?? "Remote file read failed (\(returnCode))."
         }
-        let data: Data
-        do {
-            data = try Data(contentsOf: outputURL, options: .mappedIfSafe)
-        } catch {
-            throw PatchPackageError.remoteReplacementFailed("Remote file backup could not be loaded.")
+        let detail = lastRemoteError ?? "Remote file read failed."
+        log("patch: Airlift remote read failed \(bundleID)/\(relativePath) detail=\(detail)")
+        if detail.contains("stat recovered target: Afc(ObjectNotFound)") {
+            throw PatchPackageError.remoteTargetMissing
         }
-        guard data.count <= 32 * 1_024 * 1_024 else {
-            throw PatchPackageError.sizeLimitExceeded
+        throw PatchPackageError.remoteReplacementFailed(detail)
+    }
+
+    private static func remoteTargetCandidates(remoteContainerPath: String, relativePath: String) -> [URL] {
+        let root = URL(fileURLWithPath: remoteContainerPath, isDirectory: true)
+        let primary = root.appendingPathComponent(relativePath)
+        let marker = "Documents/contentcache/Compulsory/ios/gameassetbundles/"
+        guard relativePath.hasPrefix(marker), !relativePath.hasPrefix(marker + "avatar/") else {
+            return [primary]
         }
-        log("patch: Airlift read \(bundleID)/\(relativePath) bytes=\(data.count)")
-        return data
+        let suffix = String(relativePath.dropFirst(marker.count))
+        let avatarTarget = root.appendingPathComponent(marker + "avatar/" + suffix)
+        return [primary, avatarTarget]
     }
 
     static func replaceOverPairing(
