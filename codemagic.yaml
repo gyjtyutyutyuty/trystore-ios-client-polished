@@ -13,7 +13,7 @@ workflows:
     environment:
       xcode: latest
     scripts:
-      - name: Validate merged project and current patch assets
+      - name: Validate merged project and remote-only patch setup
         script: |
           set -euo pipefail
           echo "Building commit: $(git rev-parse HEAD)"
@@ -21,15 +21,6 @@ workflows:
           test -f ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme
           test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64/libairlift_ffi.a
           test -f ThreeOneOSFive/AirliftFFI.xcframework/ios-arm64-simulator/libairlift_ffi.a
-          PATCH_BUNDLE_KEY_BASE64="${PATCH_BUNDLE_KEY_BASE64:?PATCH_BUNDLE_KEY_BASE64 Codemagic secret is required}"
-          export PATCH_BUNDLE_KEY_BASE64
-          node scripts/encrypt_bundled_patches.mjs
-          patch_count="$(find ThreeOneOSFive/Patches -maxdepth 1 -type f -name '*.TRYSTORE' | wc -l | tr -d ' ')"
-          test "$patch_count" -eq 6
-          test -s "ThreeOneOSFive/Assets.xcassets/EXCLUSIVO_AZUL_TRYSTORE.dataset/EXCLUSIVO AZUL.TRYSTORE"
-          test -s "ThreeOneOSFive/Assets.xcassets/TryStore_TRYSTORE.dataset/TryStore.TRYSTORE"
-          asset_bin_count="$(find ThreeOneOSFive/Assets.xcassets -type f -name '*.bin' | wc -l | tr -d ' ')"
-          test "$asset_bin_count" -eq 6
           python3 scripts/verify_legacy_patch_bundle.py
           python3 scripts/verify_license_activation.py
       - name: Validate Airlift FFI and build unsigned archive/IPA

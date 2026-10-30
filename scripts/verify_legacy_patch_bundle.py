@@ -1,63 +1,70 @@
 #!/usr/bin/env python3
-"""Validate the current TryStore bundled patch layout and optional IPA output."""
+"""Validate that patch payloads are remote-only and optionally inspect an IPA app."""
 from __future__ import annotations
 import argparse
-import json
-import re
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[1]
-PATCH_DIR = ROOT / "ThreeOneOSFive/Patches"
-ASSETS = ROOT / "ThreeOneOSFive/Assets.xcassets"
-STORE = ROOT / "ThreeOneOSFive/helpers/PatchProjectStore.swift"
-RESOURCE = ROOT / "ThreeOneOSFive/helpers/PatchResourceBundle.swift"
+APP_ROOT = ROOT / "ThreeOneOSFive"
+PATCH_DIR = APP_ROOT / "Patches"
+ASSETS = APP_ROOT / "Assets.xcassets"
+STORE = APP_ROOT / "helpers/PatchProjectStore.swift"
+FEED = APP_ROOT / "helpers/PatchFeedService.swift"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
-ENCRYPTED = {
-    "HEAD.TRYSTORE": "HEAD",
-    "NECK.TRYSTORE": "NECK",
-    "HSPESSCOSO.TRYSTORE": "HS_PESSCOSO",
-    "HS SLA PECHO.TRYSTORE": "HS_SLA_PECHO",
-    "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA_EXCLUSIVO_VERDE",
-    "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA_EXCLUSIVO_ROSADO",
+PATCH_ASSET_STEMS = {
+    "HEAD", "NECK", "HSPESSCOSO", "HS_SLA_PECHO", "EXCLUSIVO_AZUL_TRYSTORE",
+    "TryStore_TRYSTORE", "HOLOGRAMA_EXCLUSIVO_VERDE", "HOLOGRAMA_EXCLUSIVO_ROSADO",
 }
-RAW = {
-    "EXCLUSIVO AZUL.TRYSTORE": "EXCLUSIVO_AZUL_TRYSTORE",
-    "TryStore.TRYSTORE": "TryStore_TRYSTORE",
-}
-EXPECTED = {**ENCRYPTED, **RAW}
-def fail(msg: str) -> None:
-    raise SystemExit(f"FAIL: {msg}")
-def require(ok: bool, msg: str) -> None:
-    if not ok: fail(msg)
+
+
+def fail(message: str) -> None:
+    raise SystemExit(f"FAIL: {message}")
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        fail(message)
+
+
 def check_source() -> None:
-    store = STORE.read_text(); resource = RESOURCE.read_text(); pbx = PROJECT.read_text()
-    entries = dict(re.findall(r'BundledPatch\(resourceName:\s*"([^"]+)",\s*projectName:\s*"([^"]+)"', store))
-    expected_entries = {
-        "HEAD.TRYSTORE":"HEAD", "NECK.TRYSTORE":"NECK", "HSPESSCOSO.TRYSTORE":"HS PESSCOSO",
-        "HS SLA PECHO.TRYSTORE":"HS SLA PECHO", "EXCLUSIVO_AZUL_TRYSTORE":"EXCLUSIVO AZUL",
-        "TryStore_TRYSTORE":"TryStore", "HOLOGRAMAEXCLUSIVO(4).TRYSTORE":"HOLOGRAMA EXCLUSIVO VERDE",
-        "HOLOGRAMAEXCLUSIVO(5).TRYSTORE":"HOLOGRAMA EXCLUSIVO ROSADO",
-    }
-    require(entries == expected_entries, f"bundled catalog mismatch: {entries!r}")
-    require('NSDataAsset(name: patch.resourceName, bundle: .main)?.data' in store, "raw hidden dataset loader missing")
-    require('installBundledRawPackageDataIfNeeded' in store, "raw package installer missing")
-    resource_entries = dict(re.findall(r'\("([^\"]+)",\s*"([A-Z_]+)"\)', resource))
-    require(resource_entries == ENCRYPTED, f"encrypted asset map mismatch: {resource_entries!r}")
-    require('3105A211' in pbx and '.TRYSTORE' not in pbx, "raw patch file is incorrectly listed as an Xcode resource")
-    for filename in ENCRYPTED:
-        p=PATCH_DIR/filename; require(p.is_file() and p.stat().st_size > 0, f"missing source patch: {filename}")
-    for filename, asset in ENCRYPTED.items():
-        ds=ASSETS/f"{asset}.dataset"; require((ds/f"{asset}.bin").is_file(), f"missing encrypted asset: {asset}")
-        json.load(open(ds/'Contents.json'))
-    for filename, asset in RAW.items():
-        ds=ASSETS/f"{asset}.dataset"; require((ds/filename).is_file() and (ds/filename).stat().st_size > 0, f"missing hidden raw asset: {filename}")
-        c=json.load(open(ds/'Contents.json')); require(c.get('data',[{}])[0].get('filename') == filename, f"wrong raw asset metadata: {asset}")
-    print("PASS: six encrypted and two hidden raw .TRYSTORE bundles are configured for IPA loading")
+    store = STORE.read_text()
+    feed = FEED.read_text()
+    project = PROJECT.read_text()
+
+    package_files = list(APP_ROOT.rglob("*.TRYSTORE"))
+    require(not package_files, f"patch package payloads must not be in the app source tree: {package_files}")
+    if PATCH_DIR.exists():
+        require(not any(PATCH_DIR.iterdir()), f"patch source folder is not empty: {PATCH_DIR}")
+
+    asset_payloads = []
+    if ASSETS.exists():
+        for path in ASSETS.rglob("*"):
+            if path.is_file() and any(stem.lower() in path.name.lower() for stem in PATCH_ASSET_STEMS):
+                asset_payloads.append(path)
+    require(not asset_payloads, f"patch payload asset files remain in the asset catalog: {asset_payloads}")
+    require(".TRYSTORE" not in project, "patch package file references remain in the Xcode project")
+    require("patch: bundled patch payloads disabled" in store,
+            "bundled patch installation is not explicitly disabled")
+    require("https://trystore-patch-feed.burgoajustin.workers.dev" in feed,
+            "Cloudflare remote patch feed is not configured")
+    require('appendingPathComponent("api/patches/\\(project)/manifest.json")' in feed,
+            "remote patch manifest endpoint is not configured")
+    print("PASS: no patch payloads are bundled; the Cloudflare remote feed is configured")
+
+
 def check_app(app: Path) -> None:
     require(app.is_dir(), f"app bundle missing: {app}")
-    require((app/'Info.plist').is_file(), "Info.plist missing from app")
-    require(any(app.rglob('Assets.car')), "compiled asset catalog missing from app")
-    print("PASS: IPA app bundle contains Info.plist and compiled Assets.car")
-if __name__ == '__main__':
-    ap=argparse.ArgumentParser(); ap.add_argument('--app', type=Path); args=ap.parse_args()
+    require((app / "Info.plist").is_file(), "Info.plist missing from app")
+    require(any(app.rglob("Assets.car")), "compiled asset catalog missing from app")
+    package_files = list(app.rglob("*.TRYSTORE"))
+    require(not package_files, f"patch package files were copied into the app bundle: {package_files}")
+    print("PASS: app bundle is valid and contains no standalone patch package files")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--app", type=Path)
+    args = parser.parse_args()
     check_source()
-    if args.app: check_app(args.app)
+    if args.app:
+        check_app(args.app)
