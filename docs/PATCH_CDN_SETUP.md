@@ -90,6 +90,7 @@ Public endpoints:
 
 - `GET /api/patches/<project>/manifest.json`
 - `GET /patches/<project>/<file>`
+- `POST /api/patches/<project>/report` (small sync report, 32 KB cap)
 - `GET /health`
 
 ## Bot UI
@@ -132,11 +133,40 @@ most once per minute and whenever the app returns to the foreground:
 1. fetch `manifest.json` for `trystore`
 2. skip entries whose local file digest matches
 3. download to `tmp/PatchFeed/<file>`, verify SHA-256
-4. hand the file to `PatchProjectStore.importPackage(at:)`
+4. reject schema versions outside 1-2 and password-protected packages before
+   import, so one legacy visual cannot abort the whole pass
+5. import entries one at a time, waiting for each write to land before starting
+   the next one
+
+The patch screen prints the last result under the module bus, for example
+`FEED 6 | 4 updated | 2 current | 0 skipped | 0 failed | 20:40`. The same
+counts are posted to `/api/patches/trystore/report` and kept in KV under
+`reports/trystore/latest.json` for seven days.
+
+The worker removes known-incompatible entries from the manifest at read time.
+`publishPatch` records `schemaVersion` and `isPasswordProtected` on every new
+entry, and the Telegram upload reply warns when a file is stored but not
+published.
 
 Bundled patches are installed before the feed runs. A bundled package is never
 written over an existing package with the same package ID, so a remote
-replacement survives the next launch even before the manifest check.
+replacement survives the next launch even before the manifest check. Raw
+`TryStore` packages use a source-revision key so a rebuilt IPA can still
+refresh the bundled Balas Magicas payload once.
+
+Current TryStore slot mapping (the dashboard renders these six files):
+
+| Slot file | Source project |
+| --- | --- |
+| `HEAD.TRYSTORE` | HEAD |
+| `NECK.TRYSTORE` | CUELLO3105 |
+| `HS SLA PECHO.TRYSTORE` | Pecho3105 |
+| `HSPESSCOSO.TRYSTORE` | Cuello y Drag |
+| `TryStore.TRYSTORE` | Balas Magicas |
+| `EXCLUSIVO AZUL.TRYSTORE` | Holograma Armas |
+
+The source packages stay in KV. Only the repacked slot bytes go into the
+manifest; the extra project names are not listed as separate dashboard tiles.
 
 Failed verification deletes the download and keeps the installed copy. Network
 failures are logged and ignored so the app still opens offline.
