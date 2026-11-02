@@ -149,6 +149,12 @@ struct HomeView: View {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                await PatchFeedService.shared.syncIfDue(store: patchStore)
+            }
+        }
         .onChange(of: scenePhase) { phase in
             guard phase == .active else { return }
             Task { await PatchFeedService.shared.syncIfDue(store: patchStore) }
@@ -2628,6 +2634,12 @@ private struct PatchesView: View {
             }
             await PatchFeedService.shared.syncIfDue(store: patchStore)
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                await PatchFeedService.shared.syncIfDue(store: patchStore)
+            }
+        }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))
             let message = Text(alert.message(language: language))
@@ -2878,6 +2890,12 @@ private struct PatchesView: View {
                 Text(patchStore.isBusy ? language.text("patch.status.syncing") : "\(activeLegacyPatchCount) ONLINE")
                     .font(AppType.label())
                     .foregroundStyle(activeLegacyPatchCount > 0 ? AppPalette.brand : AppPalette.textTertiary)
+            }
+            if let feedStatus = patchStore.feedStatus {
+                Text(feedStatus)
+                    .font(AppType.label())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .accessibilityElement(children: .combine)

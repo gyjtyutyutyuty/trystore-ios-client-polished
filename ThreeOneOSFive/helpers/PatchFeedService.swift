@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import UIKit
 
 /// Pulls the published patch manifest from the Cloudflare worker and installs
 /// any package whose digest differs from the local copy. This is what lets the
@@ -67,33 +68,52 @@ final class PatchFeedService {
             let manifest = try await fetchManifest(project: "trystore")
             guard !manifest.patches.isEmpty else { return }
 
+            var installed = 0
+            var current = 0
+            var skipped = 0
+            var failed = 0
+
             for entry in manifest.patches {
                 if Task.isCancelled { return }
                 while store.isBusy {
                     try await Task.sleep(nanoseconds: 100_000_000)
                     if Task.isCancelled { return }
                 }
-                guard store.passwordRequest == nil else { return }
-                let entryStem = URL(fileURLWithPath: entry.file).deletingPathExtension().lastPathComponent
+                guard store.passwordRequest == nil else { break }
+                let entryStem = URL(fileURLWithPath: entry.file)
+                    .deletingPathExtension()
+                    .lastPathComponent
                 let local = store.items.first(where: { item in
                     let localFile = item.packageURL.deletingPathExtension().lastPathComponent
                     let localName = item.project?.name ?? localFile
                     return Self.normalizedName(localFile) == Self.normalizedName(entryStem)
                         || Self.normalizedName(localName) == Self.normalizedName(entry.name)
                 })
-                guard let local else {
-                    try await install(entry: entry, store: store)
+                if let local,
+                   let localDigest = digest(of: local.packageURL),
+                   localDigest == entry.sha256 {
+                    current += 1
                     continue
                 }
-                if let localDigest = digest(of: local.packageURL), localDigest == entry.sha256 {
-                    continue
+                switch await install(entry: entry, store: store) {
+                case .installed: installed += 1
+                case .skipped: skipped += 1
+                case .failed: failed += 1
                 }
-                try await install(entry: entry, store: store)
             }
+
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckKey)
+            let clock = DateFormatter()
+            clock.dateFormat = "HH:mm"
+            store.noteFeedStatus(
+                "FEED \(manifest.patches.count) | \(installed) updated | \(current) current | "
+                + "\(skipped) skipped | \(failed) failed | \(clock.string(from: Date()))"
+            )
             log("patchfeed: manifest \(manifest.updatedAt ?? "unknown") applied")
+            report(manifest: manifest, installed: installed, current: current, skipped: skipped, failed: failed)
         } catch {
-            log("patchfeed: sync skipped — \(error)")
+            store.noteFeedStatus("FEED offline | \(Self.shortError(error))")
+            log("patchfeed: sync skipped - \(error)")
         }
     }
 
@@ -111,43 +131,109 @@ final class PatchFeedService {
         return manifest
     }
 
-    private func install(entry: Entry, store: PatchProjectStore) async throws {
+    private func install(entry: Entry, store: PatchProjectStore) async -> FeedPackageResult {
         let remote = entry.url.hasPrefix("http")
             ? URL(string: entry.url)!
             : baseURL.appendingPathComponent(entry.url.hasPrefix("/") ? String(entry.url.dropFirst()) : entry.url)
 
-        var request = URLRequest(url: remote)
-        request.timeoutInterval = 60
-        let (temporaryURL, response) = try await URLSession.shared.download(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw FeedError.downloadFailed
-        }
-
-        guard let digest = digest(of: temporaryURL), digest == entry.sha256 else {
-            try? FileManager.default.removeItem(at: temporaryURL)
-            throw FeedError.downloadFailed
-        }
-
-        let destination = FileManager.default.temporaryDirectory
-            .appendingPathComponent("PatchFeed", isDirectory: true)
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        let target = destination.appendingPathComponent(entry.file)
-        try? FileManager.default.removeItem(at: target)
-        try FileManager.default.moveItem(at: temporaryURL, to: target)
-
-        let importError: String? = await withCheckedContinuation { continuation in
-            store.importPackage(at: target, reportsSuccess: false) { error in
-                continuation.resume(returning: error)
+        do {
+            var request = URLRequest(url: remote)
+            request.timeoutInterval = 60
+            let (temporaryURL, response) = try await URLSession.shared.download(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                try? FileManager.default.removeItem(at: temporaryURL)
+                throw FeedError.downloadFailed
             }
+
+            guard let digest = digest(of: temporaryURL), digest == entry.sha256 else {
+                try? FileManager.default.removeItem(at: temporaryURL)
+                throw FeedError.downloadFailed
+            }
+
+            // One legacy or protected package must not abort the whole sync.
+            // Schema-9 visual bundles are already inside the IPA; sending them
+            // through the remote importer throws unsupportedVersion.
+            guard let packageData = try? Data(contentsOf: temporaryURL, options: .mappedIfSafe),
+                  let summary = try? PatchPackageCodec.inspect(packageData),
+                  (1...PatchPackageCodec.latestSchemaVersion).contains(summary.schemaVersion),
+                  !summary.isPasswordProtected else {
+                try? FileManager.default.removeItem(at: temporaryURL)
+                log("patchfeed: skipped incompatible package \(entry.file)")
+                return .skipped
+            }
+
+            let destination = FileManager.default.temporaryDirectory
+                .appendingPathComponent("PatchFeed", isDirectory: true)
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            let target = destination.appendingPathComponent(entry.file)
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.moveItem(at: temporaryURL, to: target)
+
+            let importError: String? = await withCheckedContinuation { continuation in
+                store.importPackage(at: target, reportsSuccess: false) { error in
+                    continuation.resume(returning: error)
+                }
+            }
+            try? FileManager.default.removeItem(at: target)
+            if let importError {
+                log("patchfeed: import failed \(entry.file) - \(importError)")
+                return .failed
+            }
+            log("patchfeed: imported \(entry.file) (\(entry.size) B)")
+            return .installed
+        } catch {
+            log("patchfeed: failed \(entry.file) - \(error)")
+            return .failed
         }
-        if let importError {
-            throw FeedError.importFailed(importError)
-        }
-        log("patchfeed: imported \(entry.file) (\(entry.size) B)")
     }
 
     private static func normalizedName(_ value: String) -> String {
         value.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    private static func shortError(_ error: Error) -> String {
+        if let feedError = error as? FeedError {
+            switch feedError {
+            case .badResponse: return "HTTP error"
+            case .badManifest: return "bad manifest"
+            case .downloadFailed: return "download failed"
+            case .importFailed: return "import failed"
+            }
+        }
+        return "no connection"
+    }
+
+    private func report(
+        manifest: Manifest,
+        installed: Int,
+        current: Int,
+        skipped: Int,
+        failed: Int
+    ) {
+        var request = URLRequest(url: baseURL.appendingPathComponent("api/patches/trystore/report"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let payload: [String: Any] = [
+            "at": ISO8601DateFormatter().string(from: Date()),
+            "device": UIDevice.current.identifierForVendor?.uuidString ?? "unknown",
+            "app": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+            "manifest": manifest.updatedAt ?? "",
+            "total": manifest.patches.count,
+            "installed": installed,
+            "current": current,
+            "skipped": skipped,
+            "failed": failed,
+        ]
+        guard let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        request.httpBody = body
+        Task {
+            do {
+                _ = try await URLSession.shared.data(for: request)
+            } catch {
+                log("patchfeed: report failed - \(error)")
+            }
+        }
     }
 
     private func digest(of url: URL) -> String? {

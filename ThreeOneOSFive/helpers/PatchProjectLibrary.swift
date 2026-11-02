@@ -226,16 +226,18 @@ enum PatchProjectLibrary {
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
                 let expectedID = bundledProjectIDs[projectName] ?? source.decoded.project.id
-                if existingDecoded.project.id != expectedID {
-                    try? PatchKeyStore.delete(for: existingSummary)
-                    try? PatchWorkspaceService.deleteWorkspace(
-                        projectID: existingDecoded.project.id,
-                        fileManager: fileManager
-                    )
-                    try? fileManager.removeItem(at: destination)
-                } else {
+                if existingDecoded.project.id == expectedID,
+                   existingDecoded.project.updatedAt >= source.decoded.project.updatedAt {
+                    // A feed replacement with a newer timestamp wins over the
+                    // copy baked into this IPA. Only an older installed copy
+                    // gets replaced by the new bundle.
                     return
                 }
+                try? PatchKeyStore.delete(for: existingSummary)
+                try? PatchWorkspaceService.deleteWorkspace(
+                    projectID: existingDecoded.project.id,
+                    fileManager: fileManager
+                )
             }
             if fileManager.fileExists(atPath: destination.path) {
                 try? fileManager.removeItem(at: destination)
