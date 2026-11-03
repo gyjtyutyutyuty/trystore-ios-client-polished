@@ -147,10 +147,12 @@ enum ExploitSupportPolicy {
             return true
         }
 
+        // kexploit_opa334 contains offsets only through iOS 26.0.x. The app's
+        // broader iOS 26 allowlist does not imply that this exploit supports 26.1+.
         if major == 26 {
-            return true
+            return minor == 0
         }
 
-        return major == 27 && minor == 0 && patch == 0 && iOS27BetaNumber(for: build) != nil
+        return false
     }
 }

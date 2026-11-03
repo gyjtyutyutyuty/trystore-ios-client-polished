@@ -282,6 +282,21 @@ class AppState: ObservableObject {
         )
     }
 
+    private func markKernelExploitUnsupported() {
+        let version = AppInfo.versionTuple
+        guard let reason = KernelExploit.unsupportedReason(
+            major: version.major,
+            minor: version.minor,
+            patch: version.patch,
+            build: AppInfo.osBuild
+        ) else { return }
+
+        let status = ExploitStatus.unsupported(reason)
+        guard exploitStatus != status else { return }
+        exploitStatus = status
+        log("kexploit: skipped — \(reason)")
+    }
+
     var isSupported: Bool { unsupportedMessage == nil }
 
     func evaluateRuntimeSecurity() {
@@ -326,7 +341,10 @@ class AppState: ObservableObject {
             patch: v.patch,
             build: AppInfo.osBuild
         )
-        guard applicable else { return }
+        guard applicable else {
+            markKernelExploitUnsupported()
+            return
+        }
 
         refreshKernelExploitStatus()
         maybeAutoRunKernelExploit()
@@ -361,6 +379,10 @@ class AppState: ObservableObject {
     }
 
     func runKernelExploitIfNeeded() {
+        guard kernelExploitApplicable else {
+            markKernelExploitUnsupported()
+            return
+        }
         refreshKernelExploitStatus()
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,
