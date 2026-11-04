@@ -34,6 +34,18 @@ enum PatchProjectLibrary {
         bundledProjectNames.contains(project.name)
     }
 
+    static func projectNameMatches(expected: String, actual: String) -> Bool {
+        let expectedKey = normalizedProjectName(expected)
+        let actualKey = normalizedProjectName(actual)
+        if expectedKey == actualKey { return true }
+        return (expectedKey == "trystore" && actualKey == "balasmagicas")
+            || (expectedKey == "exclusivoazul" && actualKey == "hologramaarmas")
+    }
+
+    private static func normalizedProjectName(_ value: String) -> String {
+        value.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
     static func removeBundledPackage(named projectName: String, fileManager: FileManager = .default) {
         guard let root = try? packageRootURL(fileManager: fileManager) else { return }
         for extensionName in ["TRYSTORE", "3105"] {
@@ -140,6 +152,10 @@ enum PatchProjectLibrary {
             log("patch: bundled raw package decode failed: \(projectName)")
             return
         }
+        guard projectNameMatches(expected: projectName, actual: decoded.project.name) else {
+            log("patch: bundled raw package identity mismatch: expected \(projectName), payload \(decoded.project.name)")
+            return
+        }
         do {
             var normalizedProject = decoded.project
             normalizedProject.name = projectName
@@ -211,6 +227,10 @@ enum PatchProjectLibrary {
     ) {
         guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData) else {
             log("patch: bundled package decode failed: \(projectName)")
+            return
+        }
+        guard projectNameMatches(expected: projectName, actual: source.decoded.project.name) else {
+            log("patch: bundled package identity mismatch: expected \(projectName), payload \(source.decoded.project.name)")
             return
         }
         guard let root = try? packageRootURL(fileManager: fileManager) else {
@@ -297,6 +317,7 @@ enum PatchProjectLibrary {
               ) else { return [] }
 
         var byID: [UUID: PatchLibraryItem] = [:]
+        var duplicateIDs = Set<UUID>()
         for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
             do {
                 let data = try readPackage(at: url)
@@ -315,18 +336,37 @@ enum PatchProjectLibrary {
                     contentKey: decoded?.contentKey,
                     packageURL: url
                 )
-                     if summary.schemaVersion >= 2,
-                         let project = decoded?.project,
-                         !isBundledProject(project) {
-                    do {
-                        _ = try PatchWorkspaceService.ensureWorkspace(for: project)
-                    } catch {
-                        log("patch: workspace unavailable for \(project.id.uuidString)")
-                    }
+                if duplicateIDs.contains(summary.packageID) {
+                    log("patch: skipped duplicate package ID \(summary.packageID.uuidString) in \(url.lastPathComponent)")
+                    continue
+                }
+                if let previous = byID.removeValue(forKey: summary.packageID) {
+                    duplicateIDs.insert(summary.packageID)
+                    let restoreCandidate = [previous, item].first { candidate in
+                        let name = candidate.project?.name
+                            ?? candidate.packageURL.deletingPathExtension().lastPathComponent
+                        return bundledProjectNames.contains {
+                            projectNameMatches(expected: $0, actual: name)
+                        }
+                    } ?? previous
+                    var restoreOnlyItem = restoreCandidate
+                    restoreOnlyItem.project = nil
+                    restoreOnlyItem.contentKey = nil
+                    byID[summary.packageID] = restoreOnlyItem
+                    log("patch: refusing activation for duplicate package ID \(summary.packageID.uuidString) in \(previous.packageURL.lastPathComponent) and \(url.lastPathComponent); keeping restore-only entry")
+                    continue
                 }
                 byID[summary.packageID] = item
             } catch {
                 log("patch: skipped invalid local package \(url.lastPathComponent)")
+            }
+        }
+        for item in byID.values where item.summary.schemaVersion >= 2 {
+            guard let project = item.project, !isBundledProject(project) else { continue }
+            do {
+                _ = try PatchWorkspaceService.ensureWorkspace(for: project)
+            } catch {
+                log("patch: workspace unavailable for \(project.id.uuidString)")
             }
         }
         return byID.values.sorted {

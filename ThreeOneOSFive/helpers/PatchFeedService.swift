@@ -162,6 +162,20 @@ final class PatchFeedService {
                 return .skipped
             }
 
+            guard let decoded = try? PatchPackageCodec.decode(packageData, password: nil) else {
+                try? FileManager.default.removeItem(at: temporaryURL)
+                log("patchfeed: skipped unreadable payload \(entry.file)")
+                return .skipped
+            }
+            guard PatchProjectLibrary.projectNameMatches(
+                expected: entry.name,
+                actual: decoded.project.name
+            ) else {
+                try? FileManager.default.removeItem(at: temporaryURL)
+                log("patchfeed: skipped identity mismatch \(entry.file): manifest \(entry.name), payload \(decoded.project.name)")
+                return .skipped
+            }
+
             let destination = FileManager.default.temporaryDirectory
                 .appendingPathComponent("PatchFeed", isDirectory: true)
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)

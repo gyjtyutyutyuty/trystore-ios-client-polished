@@ -995,6 +995,23 @@ private struct DashboardPatchOption: Identifiable {
 
     var id: String { projectName }
 
+    func resolve(in items: [PatchLibraryItem]) -> PatchLibraryItem? {
+        let matches = items.filter { item in
+            if let internalName = item.project?.name {
+                return PatchProjectLibrary.projectNameMatches(
+                    expected: projectName,
+                    actual: internalName
+                )
+            }
+            let filename = item.packageURL.deletingPathExtension().lastPathComponent
+            return PatchProjectLibrary.projectNameMatches(
+                expected: projectName,
+                actual: filename
+            )
+        }
+        return matches.count == 1 ? matches.first : nil
+    }
+
     static let loadout = [
         DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
@@ -1656,11 +1673,7 @@ private struct DashboardView: View {
 
     private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
         let activeTint = AppPalette.brand
-        let item = patchStore.items.first {
-            $0.project?.name == option.projectName
-                || (option.projectName == "TryStore" && $0.project?.name == "Balas Magicas")
-                || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame || $0.packageURL.lastPathComponent.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        let item = option.resolve(in: patchStore.items)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
         let isFavorite = appState.favorites.contains(option.projectName)
 
@@ -1724,7 +1737,7 @@ private struct DashboardView: View {
 
     private var activeLegacyPatchCount: Int {
         DashboardPatchOption.all.reduce(into: 0) { count, option in
-            guard let item = patchStore.items.first(where: { $0.project?.name == option.projectName }),
+            guard let item = option.resolve(in: patchStore.items),
                   DevicePatchService.latestReceipt(projectID: item.id) != nil else { return }
             count += 1
         }
@@ -2940,14 +2953,7 @@ private struct PatchesView: View {
     }
 
     private func patchItem(for option: DashboardPatchOption) -> PatchLibraryItem? {
-        patchStore.items.first { item in
-            let projectName = item.project?.name ?? ""
-            let packageName = item.packageURL.lastPathComponent
-            return projectName == option.projectName
-                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
-                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
-                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        option.resolve(in: patchStore.items)
     }
 
     private var activeLegacyPatchCount: Int {
@@ -2959,7 +2965,13 @@ private struct PatchesView: View {
     }
 
     private func activateSelectedPatch() {
-        guard let option = selectedPatchOption, let item = selectedPatchItem else { return }
+        guard let option = selectedPatchOption else { return }
+        guard let item = selectedPatchItem else {
+            log("patch: activation refused — no unique package identity matched UI key \(option.projectName)")
+            return
+        }
+        let resolvedName = item.project?.name ?? "locked package"
+        log("patch: UI key \(option.projectName) resolved to \(resolvedName), file \(item.packageURL.lastPathComponent), id \(item.id.uuidString)")
         let shouldEnable = !selectedPatchIsActive
         beginPatchProgress(enabling: shouldEnable, title: option.title)
 
