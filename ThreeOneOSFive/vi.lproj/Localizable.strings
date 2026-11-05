@@ -715,8 +715,15 @@
 "patch.detail.available" = "Kha dung";
 "patch.action.restore" = "KHOI PHUC BAN VA";
 "patch.action.activate" = "KICH HOAT BAN VA";
-"patch.mode.loadout" = "TRANG BI";
+"patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "HINH ANH";
+"patch.mode.antena" = "ANTENA";
+"patch.safety.aim_label" = "AN TOÀN • CÓ THỂ KHÔI PHỤC";
+"patch.safety.aim_detail" = "“An toàn” ở đây chỉ nói về việc khôi phục tệp cục bộ; không đảm bảo an toàn tài khoản trò chơi hoặc tránh hệ thống chống gian lận.";
+"patch.safety.visuals_label" = "RỦI RO";
+"patch.safety.visuals_detail" = "Mod hình ảnh có thể không được hỗ trợ và có thể khiến tài khoản trò chơi gặp rủi ro. Khôi phục để trở về tệp cục bộ ban đầu.";
+"patch.safety.antena_label" = "ANTENA • NHÓM AIM";
+"patch.safety.antena_detail" = "Bốn gói từ xa. Mỗi lần chỉ có thể bật một bản vá thuộc nhóm Aim.";
 "liveactivity.start" = "Bat hoat dong truc tiep";
 "liveactivity.title" = "Hoat dong va truc tiep";
 "liveactivity.thermal" = "NHIET HE THONG";

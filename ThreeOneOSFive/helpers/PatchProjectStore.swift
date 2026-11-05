@@ -22,6 +22,7 @@ struct PatchStoreAlert: Identifiable {
 
 enum PatchToggleGroup {
     case aim
+    case antena
     case location
 }
 
@@ -81,39 +82,8 @@ final class PatchProjectStore: ObservableObject {
 
     func installBundledResources(bundleKey: Data) {
         guard bundleKey.count == 32, !didInstallBundledResources else { return }
-        let resources: [String: Data]
-        do {
-            resources = try PatchResourceBundle.load(using: bundleKey)
-        } catch {
-            log("patch: encrypted asset catalog could not be read: \(error)")
-            return
-        }
         didInstallBundledResources = true
-        for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"] {
-            PatchProjectLibrary.removeBundledPackage(named: obsolete)
-        }
-        for patch in game.bundledPatches {
-            if let data = resources[patch.resourceName] {
-                PatchProjectLibrary.installBundledPackageDataIfNeeded(
-                    data,
-                    projectName: patch.projectName,
-                    password: patch.password
-                )
-                continue
-            }
-            // New patch packages are bundled as raw .TRYSTORE files. This keeps
-            // them available in the IPA while preserving the normal install,
-            // activation, and restore flow used by the patch library.
-            guard let data = NSDataAsset(name: patch.resourceName, bundle: .main)?.data else {
-                log("patch: bundled patch asset unavailable: \(patch.resourceName)")
-                continue
-            }
-            PatchProjectLibrary.installBundledRawPackageDataIfNeeded(
-                data,
-                projectName: patch.projectName,
-                password: patch.password
-            )
-        }
+        log("patch: bundled patch payloads disabled; all patch packages load from the remote feed")
         reload()
     }
 
@@ -369,9 +339,11 @@ final class PatchProjectStore: ObservableObject {
                 reportsSuccess: reportsSuccess,
                 onSuccess: { onSuccess?(true) }
             ) {
+                log("patch: enabling project=\(baseProject.name) packageID=\(item.id.uuidString) group=\(Self.groupName(resolvedGroup))")
                 if let resolvedGroup {
                     for candidate in self.items where Self.group(for: candidate) == resolvedGroup && candidate.id != item.id {
                         if let receipt = DevicePatchService.latestReceipt(projectID: candidate.id) {
+                            log("patch: restoring conflicting project=\(candidate.project?.name ?? candidate.packageURL.lastPathComponent) packageID=\(candidate.id.uuidString) group=\(Self.groupName(resolvedGroup))")
                             try DevicePatchService.restore(receipt: receipt, progress: reporter)
                         }
                     }
@@ -388,6 +360,7 @@ final class PatchProjectStore: ObservableObject {
                 reportsSuccess: reportsSuccess,
                 onSuccess: { onSuccess?(false) }
             ) {
+                log("patch: disabling project=\(item.project?.name ?? item.packageURL.lastPathComponent) packageID=\(item.id.uuidString)")
                 try DevicePatchService.restore(receipt: receipt, progress: reporter)
             }
         }
@@ -396,12 +369,23 @@ final class PatchProjectStore: ObservableObject {
     private static func group(for item: PatchLibraryItem) -> PatchToggleGroup? {
         let name = item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
         switch name {
-        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS", "TryStore", "Balas Magicas":
+        case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS":
             return .aim
+        case "TryStore", "Balas Magicas", "Drag con Cuello", "Aimbot Pecho":
+            return .antena
         case "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL":
             return .location
         default:
             return nil
+        }
+    }
+
+    private static func groupName(_ group: PatchToggleGroup?) -> String {
+        guard let group else { return "none" }
+        switch group {
+        case .aim: return "aim"
+        case .antena: return "antena"
+        case .location: return "location"
         }
     }
 

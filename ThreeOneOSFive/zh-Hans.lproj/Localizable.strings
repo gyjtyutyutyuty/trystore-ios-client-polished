@@ -713,8 +713,15 @@
 "patch.detail.available" = "可用";
 "patch.action.restore" = "还原补丁";
 "patch.action.activate" = "启用补丁";
-"patch.mode.loadout" = "配置";
+"patch.mode.loadout" = "瞄准";
 "patch.mode.visuals" = "视觉";
+"patch.mode.antena" = "天线";
+"patch.safety.aim_label" = "安全 • 可还原";
+"patch.safety.aim_detail" = "此处的“安全”仅指可还原本地文件；不保证游戏账号安全，也不保证不会被反作弊系统检测。";
+"patch.safety.visuals_label" = "风险";
+"patch.safety.visuals_detail" = "视觉模组可能不受支持，并可能导致游戏账号面临风险。还原可恢复本地原始文件。";
+"patch.safety.antena_label" = "天线 • AIM 组";
+"patch.safety.antena_detail" = "4 个远程补丁。一次只能启用一个 Aim 组补丁。";
 "liveactivity.start" = "开始实时活动";
 "liveactivity.title" = "实时补丁活动";
 "liveactivity.thermal" = "系统温度";
