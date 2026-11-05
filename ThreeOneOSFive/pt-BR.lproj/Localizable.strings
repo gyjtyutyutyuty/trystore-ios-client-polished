@@ -726,4 +726,3 @@
 "wallpaper.error.unknown" = "Ocorreu um erro inesperado. Veja os registros da sessão para mais detalhes.";
 
 /* Remote patch feed */
-"patch.refresh_remote" = "Atualizar patches remotos";

@@ -26,33 +26,8 @@ enum PatchToggleGroup {
     case location
 }
 
-enum FeedPackageResult: Sendable {
-    case installed
-    case skipped
-    case failed
-}
-
-struct BundledPatch {
-    let resourceName: String
-    let projectName: String
-    let password: String?
-}
-
 enum FreeFireGame: Hashable {
     case max
-
-    var bundledPatches: [BundledPatch] {
-        [
-            BundledPatch(resourceName: "HEAD.TRYSTORE", projectName: "HEAD", password: nil),
-            BundledPatch(resourceName: "NECK.TRYSTORE", projectName: "NECK", password: nil),
-            BundledPatch(resourceName: "HSPESSCOSO.TRYSTORE", projectName: "HS PESSCOSO", password: nil),
-            BundledPatch(resourceName: "HS SLA PECHO.TRYSTORE", projectName: "HS SLA PECHO", password: nil),
-            BundledPatch(resourceName: "EXCLUSIVO_AZUL_TRYSTORE", projectName: "EXCLUSIVO AZUL", password: nil),
-            BundledPatch(resourceName: "TryStore_TRYSTORE", projectName: "TryStore", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil)
-        ]
-    }
 }
 
 @MainActor
@@ -63,7 +38,6 @@ final class PatchProjectStore: ObservableObject {
     @Published var passwordRequest: PatchPasswordRequest?
     @Published var alert: PatchStoreAlert?
     @Published var unlockErrorKey: String?
-    @Published private(set) var feedStatus: String?
 
     private struct PendingUnlock {
         let data: Data
@@ -72,19 +46,44 @@ final class PatchProjectStore: ObservableObject {
     }
 
     private var pendingUnlock: PendingUnlock?
-    private let game: FreeFireGame
     private var didInstallBundledResources = false
+    private let game: FreeFireGame
 
     init(game: FreeFireGame = .max) {
         self.game = game
         reload()
     }
 
-    func installBundledResources(bundleKey: Data) {
-        guard bundleKey.count == 32, !didInstallBundledResources else { return }
+    func installBundledResources() {
+        guard !didInstallBundledResources else { return }
         didInstallBundledResources = true
-        log("patch: bundled patch payloads disabled; all patch packages load from the remote feed")
-        reload()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let staging = FileManager.default.temporaryDirectory
+                .appendingPathComponent("BundledPatches", isDirectory: true)
+            try? FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+            for package in PatchResourceBundle.load() {
+                guard !Task.isCancelled else { return }
+                do {
+                    let normalized = try PatchProjectLibrary.normalizeBundledPatchPackage(
+                        package.data,
+                        fileName: package.fileName
+                    )
+                    let stagedURL = staging.appendingPathComponent(package.fileName)
+                    try normalized.write(to: stagedURL, options: .atomic)
+                    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                        self.importPackage(at: stagedURL, reportsSuccess: false) { _ in
+                            continuation.resume()
+                        }
+                    }
+                    try? FileManager.default.removeItem(at: stagedURL)
+                } catch {
+                    log("patch: bundled package failed to load: \(package.fileName) — \(error)")
+                }
+            }
+            self.reload()
+            log("patch: loaded \(self.items.count) local bundled package(s); remote feed sync is disabled")
+        }
     }
 
     func reload() {
@@ -186,9 +185,6 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
-    func noteFeedStatus(_ text: String?) {
-        feedStatus = text
-    }
 
     private func importPackage(fromRemoteURL remoteURL: URL) {
         guard !isBusy,

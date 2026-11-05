@@ -737,4 +737,3 @@
 "deactivate_all_patches" = "全部停用";
 
 /* Remote patch feed */
-"patch.refresh_remote" = "刷新远程补丁";

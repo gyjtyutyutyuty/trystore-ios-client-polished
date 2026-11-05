@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D71300000000000000000002 /* Patches in Resources */ = {isa = PBXBuildFile; fileRef = D71300000000000000000001; };
 		3105A200 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A020; };
 		3105A201 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A021; };
 		B71300000000000000000001 /* LicenseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71300000000000000000003; };
@@ -47,7 +48,6 @@
 		3105B218 /* DevicePatchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B118; };
 		3105B219 /* PatchProjectLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B119; };
 		3105B220 /* PatchProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B120; };
-		3105R200 /* PatchFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105R100; };
 		3105B221 /* PatchProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B121; };
 		3105B222 /* PatchProjectEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B122; };
 		3105C200 /* PatchDraftService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105C100; };
@@ -138,7 +138,6 @@
 		3105B118 /* DevicePatchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePatchService.swift; sourceTree = "<group>"; };
 		3105B119 /* PatchProjectLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectLibrary.swift; sourceTree = "<group>"; };
 		3105B120 /* PatchProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectStore.swift; sourceTree = "<group>"; };
-		3105R100 /* PatchFeedService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchFeedService.swift; sourceTree = "<group>"; };
 		3105B121 /* PatchProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectsView.swift; sourceTree = "<group>"; };
 		3105B122 /* PatchProjectEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchProjectEditorView.swift; sourceTree = "<group>"; };
 		3105C100 /* PatchDraftService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchDraftService.swift; sourceTree = "<group>"; };
@@ -169,6 +168,7 @@
 		3105B125 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B71300000000000000000005 /* PatchResourceBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchResourceBundle.swift; sourceTree = "<group>"; };
 		C71300000000000000000002 /* CharacterHeroLoop.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = CharacterHeroLoop.mp4; sourceTree = "<group>"; };
+		D71300000000000000000001 /* Patches */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Patches; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -205,6 +205,7 @@
 				3105A120 /* Localizable.strings */,
 				3105A031 /* Assets.xcassets */,
 				C71300000000000000000002 /* CharacterHeroLoop.mp4 */,
+				D71300000000000000000001 /* Patches */,
 								3105K203 /* AirliftFFI.xcframework */,
 			);
 			path = ThreeOneOSFive;
@@ -278,7 +279,6 @@
 				B71300000000000000000005 /* PatchResourceBundle.swift */,
 				3105B119 /* PatchProjectLibrary.swift */,
 				3105B120 /* PatchProjectStore.swift */,
-				3105R100 /* PatchFeedService.swift */,
 				3105G103 /* PatchWorkspaceService.swift */,
 				3105H100 /* AppTabNavigationState.swift */,
 				3105C100 /* PatchDraftService.swift */,
@@ -381,6 +381,7 @@
 					3105A211,
 					3105A228,
 				C71300000000000000000001,
+				D71300000000000000000002 /* Patches in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

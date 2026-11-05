@@ -28,7 +28,7 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Verify remote-only patch configuration
+      - name: Verify offline patch bundle
         run: |
           set -euo pipefail
           python3 scripts/verify_legacy_patch_bundle.py

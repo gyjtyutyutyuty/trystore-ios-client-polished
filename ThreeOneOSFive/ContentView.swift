@@ -136,28 +136,12 @@ struct HomeView: View {
                 isPairingReady = PairingFileStore.isReady
             }
         }
-        .task {
-            if let key = licenseManager.patchBundleKey {
-                patchStore.installBundledResources(bundleKey: key)
-                patchStore.reload()
-            }
-            await PatchFeedService.shared.syncOnLaunch(store: patchStore)
-        }
+        .task { patchStore.installBundledResources() }
         .task {
             while !Task.isCancelled {
                 isTunnelConnected = LocalDevTunnelProbe.isConnected
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
-                await PatchFeedService.shared.syncIfDue(store: patchStore)
-            }
-        }
-        .onChange(of: scenePhase) { phase in
-            guard phase == .active else { return }
-            Task { await PatchFeedService.shared.syncIfDue(store: patchStore) }
         }
     }
 
@@ -1073,16 +1057,16 @@ private struct DashboardPatchOption: Identifiable {
     }
 
     static let loadout = [
-        DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
-        DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
-        DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
-        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
+        DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim, packageID: UUID(uuidString: "668D6990-D407-439F-8846-2AC6E03498BA")!),
+        DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim, packageID: UUID(uuidString: "74028F92-DE35-43F0-8E40-423D10EE3D42")!),
+        DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim, packageID: UUID(uuidString: "6E3DE2CA-1F8D-435F-A366-7692994D0094")!),
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim, packageID: UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!),
         DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .antena, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!)
     ]
 
     static let visuals = [
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil),
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil, packageID: UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil, packageID: UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!),
         DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil, packageID: UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!)
     ]
 
@@ -1185,7 +1169,7 @@ private struct DashboardView: View {
         .preferredColorScheme(.dark)
         .task {
             if let key = licenseManager.patchBundleKey {
-                patchStore.installBundledResources(bundleKey: key)
+                patchStore.installBundledResources()
             }
         }
         .task(id: ambientPulseID) {
@@ -2506,7 +2490,7 @@ private struct FreeFirePatchView: View {
         }
         isLoading = true
         loadError = nil
-        store.installBundledResources(bundleKey: key)
+        store.installBundledResources()
         store.reload()
         isLoading = false
     }
@@ -2725,19 +2709,7 @@ private struct PatchesView: View {
             .toolbar(.hidden, for: .navigationBar)
             .tint(AppTheme.accent)
         }
-        .task {
-            if let key = licenseManager.patchBundleKey {
-                patchStore.installBundledResources(bundleKey: key)
-                patchStore.reload()
-            }
-            await PatchFeedService.shared.syncIfDue(store: patchStore)
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
-                await PatchFeedService.shared.syncIfDue(store: patchStore)
-            }
-        }
+        .task { patchStore.installBundledResources() }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))
             let message = Text(alert.message(language: language))
@@ -2795,24 +2767,7 @@ private struct PatchesView: View {
 
     private var patchCategoriesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            HStack {
-                panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
-                Spacer(minLength: 0)
-                Button {
-                    AppHaptics.tap()
-                    Task { await PatchFeedService.shared.sync(store: patchStore) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 44, height: 44)
-                        .background(AppPalette.raised, in: Circle())
-                }
-                .buttonStyle(AppPressButtonStyle())
-                .disabled(patchStore.isBusy)
-                .accessibilityLabel(language.text("patch.refresh_remote"))
-                .accessibilityAddTraits(.isButton)
-            }
+            panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
             HStack(spacing: AppSpacing.s) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
                     patchCategoryButton(category)
@@ -3012,15 +2967,9 @@ private struct PatchesView: View {
                     .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
                 Spacer(minLength: AppSpacing.s)
-                Text(patchStore.isBusy ? language.text("patch.status.syncing") : "\(activeLegacyPatchCount) ONLINE")
+                Text(patchStore.isBusy ? language.text("patch.status.syncing") : "\(activeLegacyPatchCount) LOCAL")
                     .font(AppType.label())
                     .foregroundStyle(activeLegacyPatchCount > 0 ? AppPalette.brand : AppPalette.textTertiary)
-            }
-            if let feedStatus = patchStore.feedStatus {
-                Text(feedStatus)
-                    .font(AppType.label())
-                    .foregroundStyle(AppPalette.textTertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .accessibilityElement(children: .combine)

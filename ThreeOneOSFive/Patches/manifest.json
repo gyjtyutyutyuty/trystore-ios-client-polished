@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "project": "trystore",
+  "updatedAt": "2026-11-04T01:29:57.677Z",
+  "patches": [
+    {
+      "file": "EXCLUSIVO AZUL.TRYSTORE",
+      "name": "EXCLUSIVO AZUL",
+      "sha256": "48b4789b5b86c5c7eda3e38fbe384fe3784f06d78c00274de9371b674169c75d",
+      "size": 1460344,
+      "version": "2026-10-30T01:04:54.542Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "HEAD.TRYSTORE",
+      "name": "HEAD",
+      "sha256": "88a8c7648c104b52f6dd8b6cbbc9f3ca44f9ed1b19a71220e729ee5460973528",
+      "size": 48138,
+      "version": "2026-10-30T01:04:54.592Z",
+      "schemaVersion": 2
+    },
+    {
+      "file": "HS SLA PECHO.TRYSTORE",
+      "name": "HS SLA PECHO",
+      "sha256": "7bf0695fe2ec3baf35b6c802d90ef85a34139cb1cb978bff87329f185a9c4969",
+      "size": 47626,
+      "version": "2026-11-02T20:40:34.196Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "HSPESSCOSO.TRYSTORE",
+      "name": "HSPESSCOSO",
+      "sha256": "43a25ed13a46ddd16bd6b967649b8e8ceeb9a100a1fbedf083705740589049d9",
+      "size": 47641,
+      "version": "2026-11-02T20:40:34.196Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "NECK.TRYSTORE",
+      "name": "NECK",
+      "sha256": "754efbdca862fef551dc9f73b17778b5bf7172888caa243c82ca5f7b6dc92e14",
+      "size": 47619,
+      "version": "2026-11-02T20:40:34.196Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "TryStore.TRYSTORE",
+      "name": "TryStore",
+      "sha256": "544f001746f5f2b71986fbf101d95b1e9dc77a40013354a4fee0c6eb8cdf29a4",
+      "size": 47636,
+      "version": "2026-11-02T20:40:34.196Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "HOLOGRAMAEXCLUSIVO(4).TRYSTORE",
+      "name": "HOLOGRAMAEXCLUSIVO(4)",
+      "sha256": "6cfe93f3dfbcc64008999ade9dd99892ebd7d6a41bb4ef87d800c743c322bb6c",
+      "size": 1460956,
+      "version": "2026-11-04T01:29:57.677Z",
+      "schemaVersion": null,
+      "sourceSchemaVersion": 9
+    },
+    {
+      "file": "HOLOGRAMAEXCLUSIVO(5).TRYSTORE",
+      "name": "HOLOGRAMAEXCLUSIVO(5)",
+      "sha256": "9b7fb7650497a052416b2f19219ba7b2601470ab1f3c3492131d1be3c76866ad",
+      "size": 1460956,
+      "version": "2026-11-04T01:29:57.677Z",
+      "schemaVersion": null,
+      "sourceSchemaVersion": 9
+    },
+    {
+      "file": "Cuello y Drag.TRYSTORE",
+      "name": "Cuello y Drag",
+      "sha256": "465022234809a7b687340bdafbfe1525f4591eff14524773a71f4dd518f738a4",
+      "size": 47738,
+      "version": "2026-11-04T01:29:57.677Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "Pecho3105.TRYSTORE",
+      "name": "Pecho3105",
+      "sha256": "0f888da6a637736440cf815fe54b5b521ecc24554451ae4dfc840899c391af8b",
+      "size": 47717,
+      "version": "2026-11-04T01:29:57.677Z",
+      "schemaVersion": 1
+    },
+    {
+      "file": "CUELLO3105.TRYSTORE",
+      "name": "CUELLO3105",
+      "sha256": "73ae5aa8d72c3da8cf0bf9a4d07f88b013cd55b35d2e56ea035c0251f9c38631",
+      "size": 47718,
+      "version": "2026-11-04T01:29:57.677Z",
+      "schemaVersion": 1
+    }
+  ]
+}

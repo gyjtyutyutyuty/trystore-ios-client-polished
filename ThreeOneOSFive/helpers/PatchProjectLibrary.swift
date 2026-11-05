@@ -30,55 +30,20 @@ enum PatchProjectLibrary {
         "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
-    private static let legacyRemoteProjectNames: [String: String] = [
+    private static let legacyBundledProjectNames: [String: String] = [
         "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA EXCLUSIVO VERDE",
         "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
-    private static let remoteFeedProjectNames: [String: String] = [
-        "HSPESSCOSO.TRYSTORE": "HS PESSCOSO",
-        "Cuello y Drag.TRYSTORE": "Drag con Cuello",
-        "Pecho3105.TRYSTORE": "Aimbot Pecho",
-        "CUELLO3105.TRYSTORE": "Aimbot Pecho"
-    ]
-
-    static func legacyRemoteProjectName(for fileName: String) -> String? {
-        legacyRemoteProjectNames[fileName]
-    }
-
-    static func remoteFeedIdentityMatches(
-        expectedManifestName: String,
-        fileName: String,
-        actualProjectName: String
-    ) -> Bool {
-        if projectNameMatches(expected: expectedManifestName, actual: actualProjectName) {
-            return true
-        }
-
-        let fileStem = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
-        guard projectNameMatches(expected: expectedManifestName, actual: fileStem) else {
-            return false
-        }
-
-        if let legacyProjectName = legacyRemoteProjectNames[fileName] {
-            return projectNameMatches(expected: legacyProjectName, actual: actualProjectName)
-                || projectNameMatches(expected: "HOLOGRAMA EXCLUSIVO", actual: actualProjectName)
-        }
-        guard let expectedProjectName = remoteFeedProjectNames[fileName] else {
-            return false
-        }
-        return projectNameMatches(expected: expectedProjectName, actual: actualProjectName)
-    }
-
     /// Only the two known historical visual packages may use the schema-9
     /// bundled migration path. Re-encode them as current schema-2 packages
-    /// before passing them through the normal remote import pipeline.
-    static func normalizeRemoteFeedPackage(_ data: Data, fileName: String) throws -> Data {
+    /// before local import into the patch library.
+    static func normalizeBundledPatchPackage(_ data: Data, fileName: String) throws -> Data {
         do {
             _ = try PatchPackageCodec.inspect(data)
             return data
         } catch PatchPackageError.unsupportedVersion {
-            guard let projectName = legacyRemoteProjectNames[fileName],
+            guard let projectName = legacyBundledProjectNames[fileName],
                   let projectID = bundledProjectIDs[projectName] else {
                 throw PatchPackageError.unsupportedVersion
             }

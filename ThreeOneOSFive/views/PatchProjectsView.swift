@@ -122,9 +122,7 @@ struct PatchProjectsView: View {
             }
             .onAppear(perform: consumeExternalImport)
             .task {
-                if let key = licenseManager.patchBundleKey {
-                    store.installBundledResources(bundleKey: key)
-                }
+                store.installBundledResources()
             }
             .onChange(of: draftCoordinator.importRequest?.id) { _ in
                 consumeExternalImport()
