@@ -1089,7 +1089,7 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
         DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
-        DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .aim, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!)
+        DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .antena, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!)
     ]
 
     static let visuals = [
@@ -1099,11 +1099,11 @@ private struct DashboardPatchOption: Identifiable {
     ]
 
     static let antena = [
-        // This is the same patch content as TryStore, so reuse its remote package ID.
-        DashboardPatchOption(projectName: "Balas Magicas", title: "Balas Magicas", icon: "sparkles", color: .yellow, group: .aim, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!),
-        DashboardPatchOption(projectName: "Drag con Cuello", title: "Cuello y Drag", icon: "scope", color: .cyan, group: .aim, packageID: UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!),
-        DashboardPatchOption(projectName: "Aimbot Pecho", title: "Pecho3105", icon: "scope", color: .orange, group: .aim, packageID: UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!),
-        DashboardPatchOption(projectName: "Aimbot Pecho", title: "CUELLO3105", icon: "scope", color: .pink, group: .aim, packageID: UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!)
+        // The canonical Balas package is shared by both tabs; it edits the Antena asset path.
+        DashboardPatchOption(projectName: "Balas Magicas", title: "Balas Magicas", icon: "sparkles", color: .yellow, group: .antena, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!),
+        DashboardPatchOption(projectName: "Drag con Cuello", title: "Cuello y Drag", icon: "scope", color: .cyan, group: .antena, packageID: UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!),
+        DashboardPatchOption(projectName: "Aimbot Pecho", title: "Pecho3105", icon: "scope", color: .orange, group: .antena, packageID: UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!),
+        DashboardPatchOption(projectName: "Aimbot Pecho", title: "CUELLO3105", icon: "scope", color: .pink, group: .antena, packageID: UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!)
     ]
 
     static var all: [DashboardPatchOption] { loadout + visuals + antena }
