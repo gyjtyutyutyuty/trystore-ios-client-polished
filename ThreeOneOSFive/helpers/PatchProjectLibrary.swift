@@ -35,6 +35,41 @@ enum PatchProjectLibrary {
         "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA EXCLUSIVO ROSADO"
     ]
 
+    private static let remoteFeedProjectNames: [String: String] = [
+        "HSPESSCOSO.TRYSTORE": "HS PESSCOSO",
+        "Cuello y Drag.TRYSTORE": "Drag con Cuello",
+        "Pecho3105.TRYSTORE": "Aimbot Pecho",
+        "CUELLO3105.TRYSTORE": "Aimbot Pecho"
+    ]
+
+    static func legacyRemoteProjectName(for fileName: String) -> String? {
+        legacyRemoteProjectNames[fileName]
+    }
+
+    static func remoteFeedIdentityMatches(
+        expectedManifestName: String,
+        fileName: String,
+        actualProjectName: String
+    ) -> Bool {
+        if projectNameMatches(expected: expectedManifestName, actual: actualProjectName) {
+            return true
+        }
+
+        let fileStem = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+        guard projectNameMatches(expected: expectedManifestName, actual: fileStem) else {
+            return false
+        }
+
+        if let legacyProjectName = legacyRemoteProjectNames[fileName] {
+            return projectNameMatches(expected: legacyProjectName, actual: actualProjectName)
+                || projectNameMatches(expected: "HOLOGRAMA EXCLUSIVO", actual: actualProjectName)
+        }
+        guard let expectedProjectName = remoteFeedProjectNames[fileName] else {
+            return false
+        }
+        return projectNameMatches(expected: expectedProjectName, actual: actualProjectName)
+    }
+
     /// Only the two known historical visual packages may use the schema-9
     /// bundled migration path. Re-encode them as current schema-2 packages
     /// before passing them through the normal remote import pipeline.
@@ -62,6 +97,18 @@ enum PatchProjectLibrary {
 
     static func isBundledProject(_ project: PatchProject) -> Bool {
         bundledProjectNames.contains(project.name)
+    }
+
+    static func projectNameMatches(expected: String, actual: String) -> Bool {
+        let expectedKey = normalizedProjectName(expected)
+        let actualKey = normalizedProjectName(actual)
+        if expectedKey == actualKey { return true }
+        return (expectedKey == "trystore" && actualKey == "balasmagicas")
+            || (expectedKey == "exclusivoazul" && actualKey == "hologramaarmas")
+    }
+
+    private static func normalizedProjectName(_ value: String) -> String {
+        value.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
     static func removeBundledPackage(named projectName: String, fileManager: FileManager = .default) {
@@ -170,6 +217,10 @@ enum PatchProjectLibrary {
             log("patch: bundled raw package decode failed: \(projectName)")
             return
         }
+        guard projectNameMatches(expected: projectName, actual: decoded.project.name) else {
+            log("patch: bundled raw package identity mismatch: expected \(projectName), payload \(decoded.project.name)")
+            return
+        }
         do {
             var normalizedProject = decoded.project
             normalizedProject.name = projectName
@@ -243,6 +294,10 @@ enum PatchProjectLibrary {
             log("patch: bundled package decode failed: \(projectName)")
             return
         }
+        guard projectNameMatches(expected: projectName, actual: source.decoded.project.name) else {
+            log("patch: bundled package identity mismatch: expected \(projectName), payload \(source.decoded.project.name)")
+            return
+        }
         guard let root = try? packageRootURL(fileManager: fileManager) else {
             log("patch: bundled package storage unavailable: \(projectName)")
             return
@@ -256,16 +311,18 @@ enum PatchProjectLibrary {
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
                 let expectedID = bundledProjectIDs[projectName] ?? source.decoded.project.id
-                if existingDecoded.project.id != expectedID {
-                    try? PatchKeyStore.delete(for: existingSummary)
-                    try? PatchWorkspaceService.deleteWorkspace(
-                        projectID: existingDecoded.project.id,
-                        fileManager: fileManager
-                    )
-                    try? fileManager.removeItem(at: destination)
-                } else {
+                if existingDecoded.project.id == expectedID,
+                   existingDecoded.project.updatedAt >= source.decoded.project.updatedAt {
+                    // A feed replacement with a newer timestamp wins over the
+                    // copy baked into this IPA. Only an older installed copy
+                    // gets replaced by the new bundle.
                     return
                 }
+                try? PatchKeyStore.delete(for: existingSummary)
+                try? PatchWorkspaceService.deleteWorkspace(
+                    projectID: existingDecoded.project.id,
+                    fileManager: fileManager
+                )
             }
             if fileManager.fileExists(atPath: destination.path) {
                 try? fileManager.removeItem(at: destination)
@@ -325,6 +382,7 @@ enum PatchProjectLibrary {
               ) else { return [] }
 
         var byID: [UUID: PatchLibraryItem] = [:]
+        var duplicateIDs = Set<UUID>()
         for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
             do {
                 let data = try readPackage(at: url)
@@ -343,18 +401,37 @@ enum PatchProjectLibrary {
                     contentKey: decoded?.contentKey,
                     packageURL: url
                 )
-                     if summary.schemaVersion >= 2,
-                         let project = decoded?.project,
-                         !isBundledProject(project) {
-                    do {
-                        _ = try PatchWorkspaceService.ensureWorkspace(for: project)
-                    } catch {
-                        log("patch: workspace unavailable for \(project.id.uuidString)")
-                    }
+                if duplicateIDs.contains(summary.packageID) {
+                    log("patch: skipped duplicate package ID \(summary.packageID.uuidString) in \(url.lastPathComponent)")
+                    continue
+                }
+                if let previous = byID.removeValue(forKey: summary.packageID) {
+                    duplicateIDs.insert(summary.packageID)
+                    let restoreCandidate = [previous, item].first { candidate in
+                        let name = candidate.project?.name
+                            ?? candidate.packageURL.deletingPathExtension().lastPathComponent
+                        return bundledProjectNames.contains {
+                            projectNameMatches(expected: $0, actual: name)
+                        }
+                    } ?? previous
+                    var restoreOnlyItem = restoreCandidate
+                    restoreOnlyItem.project = nil
+                    restoreOnlyItem.contentKey = nil
+                    byID[summary.packageID] = restoreOnlyItem
+                    log("patch: refusing activation for duplicate package ID \(summary.packageID.uuidString) in \(previous.packageURL.lastPathComponent) and \(url.lastPathComponent); keeping restore-only entry")
+                    continue
                 }
                 byID[summary.packageID] = item
             } catch {
                 log("patch: skipped invalid local package \(url.lastPathComponent)")
+            }
+        }
+        for item in byID.values where item.summary.schemaVersion >= 2 {
+            guard let project = item.project, !isBundledProject(project) else { continue }
+            do {
+                _ = try PatchWorkspaceService.ensureWorkspace(for: project)
+            } catch {
+                log("patch: workspace unavailable for \(project.id.uuidString)")
             }
         }
         return byID.values.sorted {

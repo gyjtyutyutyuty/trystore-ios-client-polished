@@ -149,6 +149,12 @@ struct HomeView: View {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                await PatchFeedService.shared.syncIfDue(store: patchStore)
+            }
+        }
         .onChange(of: scenePhase) { phase in
             guard phase == .active else { return }
             Task { await PatchFeedService.shared.syncIfDue(store: patchStore) }
@@ -195,61 +201,22 @@ struct HomeView: View {
 
     // MARK: - Hero
 
+    /// The stage carries no copy: the figure is the whole point of the panel, and
+    /// the captions that used to sit on it pushed the modules further down the
+    /// screen. It is decorative, so VoiceOver skips it and the content below
+    /// starts sooner.
     private var heroHome: some View {
-        ZStack(alignment: .leading) {
-            BrandCharacterBackdrop(reduceMotion: reduceMotion)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.m) {
-                HStack(spacing: AppSpacing.s) {
-                    Image(systemName: appState.isSupported ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(appState.isSupported ? AppPalette.brand : AppPalette.amber)
-                    Text(appState.isSupported ? "SYSTEM READY" : "CHECK DEVICE STATUS")
-                        .font(AppType.label())
-                        .foregroundStyle(AppPalette.textPrimary)
-                }
-                .padding(.horizontal, AppSpacing.m)
-                .padding(.vertical, AppSpacing.s)
-                .background(AppPalette.raised.opacity(0.92), in: Capsule())
-
-                Spacer(minLength: AppSpacing.xl)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Manage modules, connections, and device health from one focused workspace.")
-                        .font(AppType.meta())
-                        .foregroundStyle(AppPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: 320, alignment: .leading)
-
-                AppActionButton(title: "EXPLORE PATCH STUDIO", icon: "arrow.up.right") {
-                    onOpenPatches()
-                }
-                .frame(maxWidth: 264, alignment: .leading)
-                .accessibilityHint("Switches to the Patches tab")
-            }
-            .padding(AppSpacing.l + 2)
-        }
-        .frame(maxWidth: .infinity, minHeight: 520, maxHeight: 520, alignment: .leading)
-        .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .accessibilityElement(children: .contain)
+        BrandCharacterBackdrop(reduceMotion: reduceMotion)
+            .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 340)
+            .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+            .accessibilityHidden(true)
     }
 
     // MARK: - Module control
 
     private func patchItemHome(for option: DashboardPatchOption) -> PatchLibraryItem? {
-        if let packageID = option.packageID {
-            return patchStore.items.first { $0.id == packageID }
-        }
-        return patchStore.items.first { item in
-            let projectName = item.project?.name ?? ""
-            let packageName = item.packageURL.lastPathComponent
-            return projectName == option.projectName
-                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
-                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
-                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        option.resolve(in: patchStore.items)
     }
 
     private func isModuleActiveHome(_ option: DashboardPatchOption) -> Bool {
@@ -725,7 +692,7 @@ struct HomeView: View {
 }
 
 /// Home hero stage. The rotating character, the TryStore emblem and the accent
-/// ring are baked into `CharacterHeroLoop.mp4` at the hero's own 3:4 shape, so the
+/// ring are baked into `CharacterHeroLoop.mp4` at the hero's own square shape, so the
 /// backdrop is one element instead of a stack of overlays. The loop is silent and
 /// pauses with the scene; Reduce Motion and a failed load keep the still frame.
 private struct BrandCharacterBackdrop: View {
@@ -1082,6 +1049,27 @@ private struct DashboardPatchOption: Identifiable {
     var id: String {
         if projectName == "TryStore" { return projectName }
         return packageID?.uuidString ?? projectName
+    }
+
+    func resolve(in items: [PatchLibraryItem]) -> PatchLibraryItem? {
+        if let packageID {
+            let matches = items.filter { $0.id == packageID }
+            return matches.count == 1 ? matches.first : nil
+        }
+        let matches = items.filter { item in
+            if let internalName = item.project?.name {
+                return PatchProjectLibrary.projectNameMatches(
+                    expected: projectName,
+                    actual: internalName
+                )
+            }
+            let filename = item.packageURL.deletingPathExtension().lastPathComponent
+            return PatchProjectLibrary.projectNameMatches(
+                expected: projectName,
+                actual: filename
+            )
+        }
+        return matches.count == 1 ? matches.first : nil
     }
 
     static let loadout = [
@@ -1799,17 +1787,7 @@ private struct DashboardView: View {
     }
 
     private func dashboardPatchItem(for option: DashboardPatchOption) -> PatchLibraryItem? {
-        if let packageID = option.packageID {
-            return patchStore.items.first { $0.id == packageID }
-        }
-        return patchStore.items.first { item in
-            let projectName = item.project?.name ?? ""
-            let packageName = item.packageURL.lastPathComponent
-            return projectName == option.projectName
-                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
-                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
-                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        option.resolve(in: patchStore.items)
     }
 
     private func legacyPatchButton(_ option: DashboardPatchOption) -> some View {
@@ -2754,6 +2732,12 @@ private struct PatchesView: View {
             }
             await PatchFeedService.shared.syncIfDue(store: patchStore)
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                await PatchFeedService.shared.syncIfDue(store: patchStore)
+            }
+        }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))
             let message = Text(alert.message(language: language))
@@ -3032,6 +3016,12 @@ private struct PatchesView: View {
                     .font(AppType.label())
                     .foregroundStyle(activeLegacyPatchCount > 0 ? AppPalette.brand : AppPalette.textTertiary)
             }
+            if let feedStatus = patchStore.feedStatus {
+                Text(feedStatus)
+                    .font(AppType.label())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .accessibilityElement(children: .combine)
     }
@@ -3113,17 +3103,7 @@ private struct PatchesView: View {
     }
 
     private func patchItem(for option: DashboardPatchOption) -> PatchLibraryItem? {
-        if let packageID = option.packageID {
-            return patchStore.items.first { $0.id == packageID }
-        }
-        return patchStore.items.first { item in
-            let projectName = item.project?.name ?? ""
-            let packageName = item.packageURL.lastPathComponent
-            return projectName == option.projectName
-                || (option.projectName == "TryStore" && projectName == "Balas Magicas")
-                || packageName.caseInsensitiveCompare("\(option.projectName).TRYSTORE") == .orderedSame
-                || packageName.caseInsensitiveCompare("\(option.projectName).3105") == .orderedSame
-        }
+        option.resolve(in: patchStore.items)
     }
 
     private var activeLegacyPatchCount: Int {
@@ -3135,7 +3115,13 @@ private struct PatchesView: View {
     }
 
     private func activateSelectedPatch() {
-        guard let option = selectedPatchOption, let item = selectedPatchItem else { return }
+        guard let option = selectedPatchOption else { return }
+        guard let item = selectedPatchItem else {
+            log("patch: activation refused — no unique package identity matched UI key \(option.projectName)")
+            return
+        }
+        let resolvedName = item.project?.name ?? "locked package"
+        log("patch: UI key \(option.projectName) resolved to \(resolvedName), file \(item.packageURL.lastPathComponent), id \(item.id.uuidString)")
         let shouldEnable = !selectedPatchIsActive
         beginPatchProgress(enabling: shouldEnable, title: option.title)
 

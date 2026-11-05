@@ -26,6 +26,12 @@ enum PatchToggleGroup {
     case location
 }
 
+enum FeedPackageResult: Sendable {
+    case installed
+    case skipped
+    case failed
+}
+
 struct BundledPatch {
     let resourceName: String
     let projectName: String
@@ -57,6 +63,7 @@ final class PatchProjectStore: ObservableObject {
     @Published var passwordRequest: PatchPasswordRequest?
     @Published var alert: PatchStoreAlert?
     @Published var unlockErrorKey: String?
+    @Published private(set) var feedStatus: String?
 
     private struct PendingUnlock {
         let data: Data
@@ -177,6 +184,10 @@ final class PatchProjectStore: ObservableObject {
         case .invalid:
             present(.invalidImportLink)
         }
+    }
+
+    func noteFeedStatus(_ text: String?) {
+        feedStatus = text
     }
 
     private func importPackage(fromRemoteURL remoteURL: URL) {

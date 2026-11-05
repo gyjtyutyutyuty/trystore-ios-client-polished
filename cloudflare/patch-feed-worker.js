@@ -114,6 +114,21 @@ function adminIds(env) {
 
 const isPatchAdmin = (env, fromId) => adminIds(env).has(String(fromId));
 
+const SUPPORTED_PATCH_SCHEMAS = new Set([1, 2]);
+
+// Entries without schema metadata predate the field. They stay visible so an
+// older manifest keeps working, but anything explicitly known to be outside
+// the client importer range is never handed to the app. A schema-9 visual
+// package already lives inside the IPA; publishing it here aborts the sync.
+function isFeedEntry(entry) {
+  if (!entry || entry.hidden === true) return false;
+  if (entry.isPasswordProtected === true) return false;
+  if (Number.isInteger(entry.schemaVersion)) {
+    return SUPPORTED_PATCH_SCHEMAS.has(entry.schemaVersion);
+  }
+  return true;
+}
+
 async function readManifest(env, project) {
   const text = await env.PATCHES.get(`patches/${project}/manifest.json`);
   if (!text) return { schemaVersion: MANIFEST_SCHEMA, project, updatedAt: null, patches: [] };
@@ -126,6 +141,7 @@ async function readManifest(env, project) {
   if (!parsed || !Array.isArray(parsed.patches)) {
     return { schemaVersion: MANIFEST_SCHEMA, project, updatedAt: null, patches: [] };
   }
+  parsed.patches = parsed.patches.filter(isFeedEntry);
   return parsed;
 }
 
@@ -140,6 +156,16 @@ async function publishPatch(env, project, file, bytes) {
   const digest = await sha256(bytes);
   await env.PATCHES.put(`patches/${project}/${file}`, bytes);
 
+  let schemaVersion = null;
+  let isPasswordProtected = false;
+  try {
+    const envelope = parsePackage(bytes);
+    schemaVersion = Number(envelope.schemaVersion);
+    isPasswordProtected = envelope.isPasswordProtected === true;
+  } catch {
+    schemaVersion = null;
+  }
+
   const manifest = await readManifest(env, project);
   const entry = {
     file,
@@ -148,6 +174,8 @@ async function publishPatch(env, project, file, bytes) {
     size: bytes.byteLength,
     version: new Date().toISOString(),
     url: `${String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "")}/patches/${project}/${encodeURIComponent(file)}?v=${digest}`,
+    schemaVersion,
+    isPasswordProtected,
   };
   const index = manifest.patches.findIndex((item) => item.file.toLowerCase() === file.toLowerCase());
   if (index >= 0) manifest.patches[index] = entry;
@@ -571,6 +599,12 @@ async function handleDocument(env, message, chatId) {
     "",
     "The app picks it up on its next sync.",
   ];
+  if (Number.isInteger(entry.schemaVersion) && !SUPPORTED_PATCH_SCHEMAS.has(entry.schemaVersion)) {
+    lines.push(
+      "",
+      `Not published: schema ${entry.schemaVersion} is outside the client's 1-2 range. Stored in KV only.`,
+    );
+  }
   await sendMessage(env, chatId, lines.join("\n"), [
     [{ text: "📦 Open project", callback_data: `pm:back:${project}` }],
     [{ text: "🏠 Patch Manager", callback_data: "pm:home" }],
@@ -770,6 +804,24 @@ export default {
       if (!project) return bad("unknown_project", 404);
       const manifest = await readManifest(env, project);
       return json(manifest, 200, { "cache-control": "no-store" });
+    }
+
+    // Client sync report. The app posts one small JSON document per sync so the
+    // operator can see what the device actually received without a debug build.
+    const reportMatch = path.match(/^\/api\/patches\/([a-z0-9-]+)\/report$/);
+    if (reportMatch && request.method === "POST") {
+      const project = projectKey(reportMatch[1]);
+      if (!project) return bad("unknown_project", 404);
+      const body = await request.text();
+      if (!body || body.length > 32768) return bad("invalid_report", 400);
+      const stamp = new Date().toISOString();
+      await env.PATCHES.put(`reports/${project}/latest.json`, body, {
+        expirationTtl: 60 * 60 * 24 * 7,
+      });
+      await env.PATCHES.put(`reports/${project}/${stamp}.json`, body, {
+        expirationTtl: 60 * 60 * 24 * 7,
+      });
+      return json({ ok: true, at: stamp });
     }
 
     const blobMatch = path.match(/^\/patches\/([a-z0-9-]+)\/(.+)$/);

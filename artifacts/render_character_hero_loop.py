@@ -6,7 +6,8 @@ Output : ThreeOneOSFive/CharacterHeroLoop.mp4     (silent, loops in AVPlayerLoop
          artifacts/character-hero-preview.mp4     (same bytes, for the browser preview)
 
 Stage colours come from the app palette so the hero backdrop sits on the project's
-own tokens: canvas #000000, logo blue #2A87D9 (AppPalette.brand).
+own tokens: canvas #000000, neon accent #00B3FF (AppPalette.brand). The stage is
+square because the hero panel is shorter than it is wide and carries no copy.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ VIDEO_OUT = APP / "CharacterHeroLoop.mp4"
 POSTER_SET = APP / "Assets.xcassets" / "CharacterHeroStage.imageset"
 PREVIEW_OUT = ROOT / "artifacts" / "character-hero-preview.mp4"
 
-W, H = 1080, 1440
+W, H = 1080, 1080
 FPS = 23.976  # 298 cutouts cover the 12.43 s source clip
 
 # The source turntable never returns to its opening pose, so the loop is trimmed to
@@ -37,16 +38,16 @@ CROSSFADE = 16
 POSTER_INDEX = 74
 
 CANVAS = (0, 0, 0)          # AppPalette.canvas
-BRAND = (42, 135, 217)      # AppPalette.brand
-NAVY = (11, 30, 61)
+BRAND = (0, 179, 255)       # AppPalette.brand, neon
+NAVY = (6, 28, 74)
 
-CHAR_CENTER_X = 0.615
-CHAR_BOTTOM_Y = 0.94
-CHAR_HEIGHT = 0.76
+CHAR_CENTER_X = 0.52
+CHAR_BOTTOM_Y = 0.93
+CHAR_HEIGHT = 0.84
 
-EMBLEM_CENTER = (0.615, 0.345)
-EMBLEM_DIAMETER = 0.52
-RING_DIAMETER = 0.62
+EMBLEM_CENTER = (CHAR_CENTER_X, 0.42)
+EMBLEM_DIAMETER = 0.56
+RING_DIAMETER = 0.70
 
 SCALE = 4  # supersample factor for the mask edges
 
@@ -103,7 +104,7 @@ def build_stage(feet_y: int) -> np.ndarray:
 
     px = W * CHAR_CENTER_X
     base = over(base, NAVY, radial((W, H), (px, H * 0.52), W * 0.62, 0.62))
-    base = over(base, BRAND, radial((W, H), (px, H * 0.50), W * 0.58, 0.15))
+    base = over(base, BRAND, radial((W, H), (px, H * 0.50), W * 0.60, 0.30))
 
     # Vertical falloff so the bottom edge returns to black.
     bottom = np.clip((np.arange(H, dtype=np.float32) / H - 0.55) / 0.45, 0.0, 1.0) ** 1.5 * 0.55
@@ -114,7 +115,7 @@ def build_stage(feet_y: int) -> np.ndarray:
     icon = Image.open(APP / "Assets.xcassets" / "AppIcon.appiconset" / "AppIcon-1024.png")
     icon = icon.convert("RGB").resize((emblem_px, emblem_px), Image.LANCZOS)
     emblem = np.dstack([np.array(icon, dtype=np.float32)])
-    mask = np.array(circle_mask(emblem_px, soft=emblem_px * 0.012), dtype=np.float32) / 255.0 * 0.17
+    mask = np.array(circle_mask(emblem_px, soft=emblem_px * 0.012), dtype=np.float32) / 255.0 * 0.12
     ex = int(round(W * EMBLEM_CENTER[0] - emblem_px / 2))
     ey = int(round(H * EMBLEM_CENTER[1] - emblem_px / 2))
     todo = base[ey : ey + emblem_px, ex : ex + emblem_px]
@@ -125,13 +126,13 @@ def build_stage(feet_y: int) -> np.ndarray:
     ring_px = int(W * RING_DIAMETER)
     rx = int(round(W * EMBLEM_CENTER[0] - ring_px / 2))
     ry = int(round(H * EMBLEM_CENTER[1] - ring_px / 2))
-    outer = np.array(ring_mask(ring_px, 2.6), dtype=np.float32) / 255.0 * 0.30
+    outer = np.array(ring_mask(ring_px, 2.6), dtype=np.float32) / 255.0 * 0.44
     layer = np.zeros((H, W, 1), dtype=np.float32)
     layer[ry : ry + ring_px, rx : rx + ring_px, 0] = outer
     inner_px = int(ring_px - W * 0.032)
     ix = int(round(W * EMBLEM_CENTER[0] - inner_px / 2))
     iy = int(round(H * EMBLEM_CENTER[1] - inner_px / 2))
-    inner = np.array(ring_mask(inner_px, 1.4), dtype=np.float32) / 255.0 * 0.07
+    inner = np.array(ring_mask(inner_px, 1.4), dtype=np.float32) / 255.0 * 0.12
     layer[iy : iy + inner_px, ix : ix + inner_px, 0] = np.maximum(
         layer[iy : iy + inner_px, ix : ix + inner_px, 0],
         inner * 1.0,
@@ -139,18 +140,22 @@ def build_stage(feet_y: int) -> np.ndarray:
     ring_alpha = layer[:, :, 0]
     base = over(base, BRAND, ring_alpha)
 
-    # Left scrim: the hero headline and CTA sit on this side.
+    # Left grade: only enough falloff to stop the panel edge washing out. The
+    # headline and CTA that used to need a scrim here are gone.
     xs = np.arange(W, dtype=np.float32) / W
-    scrim = np.clip(1.0 - xs / 0.60, 0.0, 1.0) ** 1.35 * 0.82
+    scrim = np.clip(1.0 - xs / 0.50, 0.0, 1.0) ** 1.35 * 0.22
     base = base * (1.0 - scrim[None, :, None])
 
     # Ground: a hairline and pooled light under the feet.
     ground = np.zeros((H, W), dtype=np.float32)
-    ground = np.maximum(ground, radial((W, H), (px, feet_y), W * 0.30, 0.20))
+    ground = np.maximum(ground, radial((W, H), (px, feet_y), W * 0.32, 0.30))
     base = over(base, BRAND, ground)
     line = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(line)
-    d.rectangle((int(W * 0.34), feet_y, int(W * 0.89), feet_y + 1), fill=110)
+    d.rectangle(
+        (int(W * (CHAR_CENTER_X - 0.275)), feet_y, int(W * (CHAR_CENTER_X + 0.275)), feet_y + 1),
+        fill=150,
+    )
     base = over(base, BRAND, np.array(line, dtype=np.float32) / 255.0)
 
     return base
@@ -240,7 +245,7 @@ def main() -> None:
         if index == POSTER_INDEX - LOOP_START:
             poster = Image.fromarray(out)
             poster.save(POSTER_SET / "character-hero-stage.jpg", quality=94)
-            poster.resize((540, 720), Image.LANCZOS).save(
+            poster.resize((540, 540), Image.LANCZOS).save(
                 ROOT / "artifacts" / "character-hero-poster.png"
             )
             poster_written = True
