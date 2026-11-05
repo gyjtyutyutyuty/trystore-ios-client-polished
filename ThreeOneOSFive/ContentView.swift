@@ -55,7 +55,6 @@ struct HomeView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.appReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
     var onOpenPatches: () -> Void = {}
     @State private var showSettings = false
     @State private var showLogs = false
@@ -141,23 +140,12 @@ struct HomeView: View {
                 patchStore.installBundledResources(bundleKey: key)
                 patchStore.reload()
             }
-            await PatchFeedService.shared.syncOnLaunch(store: patchStore)
         }
         .task {
             while !Task.isCancelled {
                 isTunnelConnected = LocalDevTunnelProbe.isConnected
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
-                await PatchFeedService.shared.syncIfDue(store: patchStore)
-            }
-        }
-        .onChange(of: scenePhase) { phase in
-            guard phase == .active else { return }
-            Task { await PatchFeedService.shared.syncIfDue(store: patchStore) }
         }
     }
 
@@ -2730,13 +2718,6 @@ private struct PatchesView: View {
                 patchStore.installBundledResources(bundleKey: key)
                 patchStore.reload()
             }
-            await PatchFeedService.shared.syncIfDue(store: patchStore)
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
-                await PatchFeedService.shared.syncIfDue(store: patchStore)
-            }
         }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))
@@ -2798,20 +2779,6 @@ private struct PatchesView: View {
             HStack {
                 panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
                 Spacer(minLength: 0)
-                Button {
-                    AppHaptics.tap()
-                    Task { await PatchFeedService.shared.sync(store: patchStore) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 44, height: 44)
-                        .background(AppPalette.raised, in: Circle())
-                }
-                .buttonStyle(AppPressButtonStyle())
-                .disabled(patchStore.isBusy)
-                .accessibilityLabel(language.text("patch.refresh_remote"))
-                .accessibilityAddTraits(.isButton)
             }
             HStack(spacing: AppSpacing.s) {
                 ForEach(PatchCategory.allCases, id: \.self) { category in
@@ -3012,15 +2979,9 @@ private struct PatchesView: View {
                     .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
                 Spacer(minLength: AppSpacing.s)
-                Text(patchStore.isBusy ? language.text("patch.status.syncing") : "\(activeLegacyPatchCount) ONLINE")
+                Text("\(activeLegacyPatchCount) ONLINE")
                     .font(AppType.label())
                     .foregroundStyle(activeLegacyPatchCount > 0 ? AppPalette.brand : AppPalette.textTertiary)
-            }
-            if let feedStatus = patchStore.feedStatus {
-                Text(feedStatus)
-                    .font(AppType.label())
-                    .foregroundStyle(AppPalette.textTertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .accessibilityElement(children: .combine)

@@ -26,11 +26,6 @@ enum PatchToggleGroup {
     case location
 }
 
-enum FeedPackageResult: Sendable {
-    case installed
-    case skipped
-    case failed
-}
 
 struct BundledPatch {
     let resourceName: String
@@ -47,10 +42,13 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "NECK.TRYSTORE", projectName: "NECK", password: nil),
             BundledPatch(resourceName: "HSPESSCOSO.TRYSTORE", projectName: "HS PESSCOSO", password: nil),
             BundledPatch(resourceName: "HS SLA PECHO.TRYSTORE", projectName: "HS SLA PECHO", password: nil),
-            BundledPatch(resourceName: "EXCLUSIVO_AZUL_TRYSTORE", projectName: "EXCLUSIVO AZUL", password: nil),
-            BundledPatch(resourceName: "TryStore_TRYSTORE", projectName: "TryStore", password: nil),
+            BundledPatch(resourceName: "EXCLUSIVO AZUL.TRYSTORE", projectName: "EXCLUSIVO AZUL", password: nil),
+            BundledPatch(resourceName: "TryStore.TRYSTORE", projectName: "TryStore", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil)
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil),
+            BundledPatch(resourceName: "Cuello y Drag.TRYSTORE", projectName: "Drag con Cuello", password: nil),
+            BundledPatch(resourceName: "Pecho3105.TRYSTORE", projectName: "Pecho3105", password: nil),
+            BundledPatch(resourceName: "CUELLO3105.TRYSTORE", projectName: "CUELLO3105", password: nil)
         ]
     }
 }
@@ -63,7 +61,6 @@ final class PatchProjectStore: ObservableObject {
     @Published var passwordRequest: PatchPasswordRequest?
     @Published var alert: PatchStoreAlert?
     @Published var unlockErrorKey: String?
-    @Published private(set) var feedStatus: String?
 
     private struct PendingUnlock {
         let data: Data
@@ -82,8 +79,28 @@ final class PatchProjectStore: ObservableObject {
 
     func installBundledResources(bundleKey: Data) {
         guard bundleKey.count == 32, !didInstallBundledResources else { return }
+        let resources: [String: Data]
+        do {
+            resources = try PatchResourceBundle.load(using: bundleKey)
+        } catch {
+            log("patch: encrypted asset catalog could not be read: \(error)")
+            return
+        }
         didInstallBundledResources = true
-        log("patch: bundled patch payloads disabled; all patch packages load from the remote feed")
+        for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"] {
+            PatchProjectLibrary.removeBundledPackage(named: obsolete)
+        }
+        for patch in game.bundledPatches {
+            guard let data = resources[patch.resourceName] else {
+                log("patch: bundled patch asset unavailable: \(patch.resourceName)")
+                continue
+            }
+            PatchProjectLibrary.installBundledPackageDataIfNeeded(
+                data,
+                projectName: patch.projectName,
+                password: patch.password
+            )
+        }
         reload()
     }
 
@@ -186,9 +203,6 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
-    func noteFeedStatus(_ text: String?) {
-        feedStatus = text
-    }
 
     private func importPackage(fromRemoteURL remoteURL: URL) {
         guard !isBusy,

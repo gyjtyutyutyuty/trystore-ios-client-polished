@@ -705,7 +705,6 @@
 "patch.other_modules" = "OTHER MODULES";
 "patch.note.aim_group" = "Aim modules share a game file, so only one aim option can be active at a time.";
 "patch.module_bus" = "MODULE BUS";
-"patch.status.syncing" = "SYNCING";
 "patch.status.missing" = "MISSING";
 "patch.status.active" = "ACTIVE";
 "patch.status.selected" = "SELECTED";
@@ -737,6 +736,3 @@
 
 /* Tab bar */
 "tab.clean" = "Clean";
-
-/* Remote patch feed */
-"patch.refresh_remote" = "Refresh remote patches";

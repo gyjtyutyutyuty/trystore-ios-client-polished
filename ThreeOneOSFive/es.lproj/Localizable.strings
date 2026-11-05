@@ -289,7 +289,6 @@
 "patch.other_modules" = "OTROS MODULOS";
 "patch.note.aim_group" = "Los modulos de punteria comparten un archivo del juego, asi que solo uno puede estar activo a la vez.";
 "patch.module_bus" = "BUS DE MODULOS";
-"patch.status.syncing" = "SINCRONIZANDO";
 "patch.status.missing" = "FALTANTE";
 "patch.status.active" = "ACTIVO";
 "patch.status.selected" = "SELECCIONADO";
@@ -426,7 +425,6 @@
 "deactivate_all_patches" = "Desactivar todo";
 "patch.error.restore" = "No se pudieron restaurar los originales de forma segura. No se sobrescribió ningún destino sin verificar.";
 "patch.error.invalid_import_link" = "Este enlace de importación no es válido. Usa un enlace HTTPS seguro a un paquete .Support Patch.";
-"patch.error.remote_import" = "No se pudo descargar el parche de forma segura. Revisa el enlace e inténtalo de nuevo.";
 "accessibility.open_logs" = "Abrir registros";
 "accessibility.open_settings" = "Abrir ajustes";
 "accessibility.requesting_access" = "Solicitando acceso al exploit";
@@ -726,6 +724,3 @@
 "wallpaper.error.install" = "La instalación falló y se revirtieron los descriptores añadidos en este intento.";
 "wallpaper.error.restore" = "Support Patch no pudo eliminar de forma segura todos los descriptores de esta instalación.";
 "wallpaper.error.unknown" = "Ocurrió un error inesperado. Revisa los registros de la sesión para más detalles.";
-
-/* Remote patch feed */
-"patch.refresh_remote" = "Actualizar parches remotos";

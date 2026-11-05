@@ -230,7 +230,6 @@
 "patch.error.remote_replacement_failed" = "Không thể thay file qua pairing: %@";
 "patch.error.restore" = "Không thể khôi phục file gốc an toàn. App không ghi đè đích chưa được xác minh.";
 "patch.error.invalid_import_link" = "Liên kết nhập patch không hợp lệ. Hãy dùng liên kết HTTPS an toàn tới gói .Support Patch.";
-"patch.error.remote_import" = "Không thể tải patch một cách an toàn. Hãy kiểm tra liên kết và thử lại.";
 
 "accessibility.open_logs" = "Mở nhật ký";
 "accessibility.open_settings" = "Mở cài đặt";
@@ -699,7 +698,6 @@
 "patch.other_modules" = "MO-DUN KHAC";
 "patch.note.aim_group" = "Cac mo-dun ngam dung chung mot tep game, nen chi mot tuy chon ngam hoat dong cung luc.";
 "patch.module_bus" = "THANH MO-DUN";
-"patch.status.syncing" = "DANG DONG BO";
 "patch.status.missing" = "THIEU";
 "patch.status.active" = "DANG BAT";
 "patch.status.selected" = "DA CHON";
@@ -731,6 +729,3 @@
 
 /* Tab bar */
 "tab.clean" = "Dọn dẹp";
-
-/* Remote patch feed */
-"patch.refresh_remote" = "Làm mới bản vá từ xa";

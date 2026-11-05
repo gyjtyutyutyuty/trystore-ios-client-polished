@@ -291,7 +291,6 @@
 "patch.other_modules" = "OUTROS MODULOS";
 "patch.note.aim_group" = "Modulos de mira compartilham um arquivo do jogo, entao apenas um pode ficar ativo por vez.";
 "patch.module_bus" = "BARRA DE MODULOS";
-"patch.status.syncing" = "SINCRONIZANDO";
 "patch.status.missing" = "AUSENTE";
 "patch.status.active" = "ATIVO";
 "patch.status.selected" = "SELECIONADO";
@@ -424,7 +423,6 @@
 "patch.error.apply" = "O patch não pôde ser aplicado. As gravações anteriores foram revertidas.";
 "patch.error.restore" = "Os originais não puderam ser restaurados com segurança. Nenhum destino não verificado foi sobrescrito.";
 "patch.error.invalid_import_link" = "Este link de importação é inválido. Use um link HTTPS seguro para um pacote .Support Patch.";
-"patch.error.remote_import" = "O patch não pôde ser baixado com segurança. Verifique o link e tente de novo.";
 "accessibility.open_logs" = "Abrir registros";
 "accessibility.open_settings" = "Abrir ajustes";
 "accessibility.requesting_access" = "Solicitando acesso ao exploit";
@@ -724,6 +722,3 @@
 "wallpaper.error.install" = "A instalação falhou e os descritores adicionados nesta tentativa foram revertidos.";
 "wallpaper.error.restore" = "O Support Patch não conseguiu remover com segurança todos os descritores desta instalação.";
 "wallpaper.error.unknown" = "Ocorreu um erro inesperado. Veja os registros da sessão para mais detalhes.";
-
-/* Remote patch feed */
-"patch.refresh_remote" = "Atualizar patches remotos";

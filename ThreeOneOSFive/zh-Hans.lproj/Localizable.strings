@@ -230,7 +230,6 @@
 "patch.error.remote_replacement_failed" = "无法通过配对替换文件：%@";
 "patch.error.restore" = "无法安全恢复原始文件。未覆盖任何未经验证的目标。";
 "patch.error.invalid_import_link" = "补丁导入链接无效。请使用指向 .Support Patch 软件包的安全 HTTPS 链接。";
-"patch.error.remote_import" = "无法安全下载补丁。请检查链接后重试。";
 
 "accessibility.open_logs" = "打开日志";
 "accessibility.open_settings" = "打开设置";
@@ -697,7 +696,6 @@
 "patch.other_modules" = "其他模块";
 "patch.note.aim_group" = "瞄准模块共用同一个游戏文件，因此同一时间只能启用一个。";
 "patch.module_bus" = "模块总线";
-"patch.status.syncing" = "同步中";
 "patch.status.missing" = "缺失";
 "patch.status.active" = "已启用";
 "patch.status.selected" = "已选择";
@@ -735,6 +733,3 @@
 "dashboard.gpu_temp" = "GPU 温度";
 "activate_all_patches" = "全部启用";
 "deactivate_all_patches" = "全部停用";
-
-/* Remote patch feed */
-"patch.refresh_remote" = "刷新远程补丁";

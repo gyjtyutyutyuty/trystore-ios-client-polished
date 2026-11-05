@@ -12,8 +12,13 @@ enum PatchResourceBundle {
         ("NECK.TRYSTORE", "NECK"),
         ("HSPESSCOSO.TRYSTORE", "HS_PESSCOSO"),
         ("HS SLA PECHO.TRYSTORE", "HS_SLA_PECHO"),
+        ("EXCLUSIVO AZUL.TRYSTORE", "EXCLUSIVO_AZUL"),
+        ("TryStore.TRYSTORE", "TRYSTORE_BALAS_MAGICAS"),
         ("HOLOGRAMAEXCLUSIVO(4).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_VERDE"),
-        ("HOLOGRAMAEXCLUSIVO(5).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_ROSADO")
+        ("HOLOGRAMAEXCLUSIVO(5).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_ROSADO"),
+        ("Cuello y Drag.TRYSTORE", "CUELLO_Y_DRAG"),
+        ("Pecho3105.TRYSTORE", "PECHO3105"),
+        ("CUELLO3105.TRYSTORE", "CUELLO3105")
     ]
 
     static func load(using keyData: Data) throws -> [String: Data] {

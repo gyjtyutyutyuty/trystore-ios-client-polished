@@ -1,63 +1,29 @@
-# Patch feed — Cloudflare + Telegram
+# TryStore patches — offline IPA bundle and optional Telegram staging
 
-Update patch packages without building a new IPA. The app pulls a manifest at
-launch, compares SHA-256 against what is installed, and imports only what
-changed. Uploads happen from Telegram, either with the button UI or commands.
+The iOS app no longer checks a remote patch feed, downloads patch packages, or reports feed status. Patch updates are delivered in a newly built IPA. This keeps patch activation available offline after installation; it also means changes made to the optional Cloudflare/Telegram staging service do not change an already-installed app.
 
-## Components
+## Offline IPA package flow
 
-| Piece | Path |
+The 11 patch packages shipped in the current snapshot are source files under `ThreeOneOSFive/Patches/`. The CI workflow encrypts each package into its own named data asset using the `PATCH_BUNDLE_KEY_BASE64` Actions secret, verifies the complete source-to-asset map, and compiles those assets into the IPA. At launch, the app installs the embedded package data into its local patch library; the normal select, activate, and restore controls operate on those local packages. The Azul, Balas Magicas, and additional Aim modules are in the same bundle as the other patch modules.
+
+To update the shipped snapshot, replace or add the approved `.TRYSTORE` source files under `ThreeOneOSFive/Patches/`, update the explicit maps in `scripts/encrypt_bundled_patches.mjs`, `ThreeOneOSFive/helpers/PatchResourceBundle.swift`, and `ThreeOneOSFive/helpers/PatchProjectStore.swift`, then update `scripts/verify_legacy_patch_bundle.py` and build a new IPA. The build fails if the source file set and mappings do not match. Schema-9 legacy visual packages are supported only through the bundled-resource decoder and are normalized into the current local package format during installation.
+
+The client performs no runtime HTTP request to the patch-feed worker. License validation remains separate and is not affected by this change.
+
+## Optional Cloudflare/Telegram staging service
+
+The Worker can still be used as an administrative staging service for receiving, reviewing, and retaining patch files, but it is not connected to the iOS app's runtime. Uploading or replacing a package in the Worker alone will not update devices; approved packages must be copied into the IPA source bundle and shipped in a new IPA.
+
+| Component | Path |
 | --- | --- |
-| Worker (manifest + blobs + bot webhook) | `cloudflare/patch-feed-worker.js` |
-| Wrangler config | `cloudflare/wrangler.toml` |
-| Client sync | `ThreeOneOSFive/helpers/PatchFeedService.swift` |
-| Launch hook | `ThreeOneOSFive/ContentView.swift` |
+| Worker (manifest, blobs, and Telegram bot webhook) | `cloudflare/patch-feed-worker.js` |
+| Wrangler configuration | `cloudflare/wrangler.toml` |
+| IPA source packages | `ThreeOneOSFive/Patches/` |
+| Build-time encrypted asset generator | `scripts/encrypt_bundled_patches.mjs` |
 
-Projects served from one worker: `trystore`, `apple-music`, `hyper-regedit`.
+Projects handled by the optional Worker include `trystore`, `apple-music`, and `hyper-regedit`. Its KV layout and bot endpoints remain an administrative facility; the iOS client no longer consumes the manifest or sends sync reports.
 
-## Storage layout
-
-KV namespace `PATCHES` (`a7f21b4f1ae54d0bbbf2773bd3f850fd`), keyed by project:
-
-```
-patches/<project>/manifest.json
-patches/<project>/<FILE>.TRYSTORE
-patches/<project>/<FILE>.APPLE
-```
-
-KV is used because R2 is not enabled on the account. Values are capped at
-25 MB; the bot rejects uploads above 24 MB.
-
-Manifest shape:
-
-```json
-{
-  "schemaVersion": 1,
-  "project": "trystore",
-  "updatedAt": "2026-10-28T02:00:00.000Z",
-  "patches": [
-    {
-      "file": "HEAD.TRYSTORE",
-      "name": "HEAD",
-      "sha256": "…",
-      "size": 48138,
-      "version": "2026-10-28T02:00:00.000Z",
-      "url": "/patches/trystore/HEAD.TRYSTORE?v=<sha256>"
-    }
-  ]
-}
-```
-
-Blob URLs carry the digest as `?v=`. Replacements reuse the filename, so the
-query is what keeps the old CDN/HTTP cache from serving the previous bytes.
-The manifest route is `no-store`; blobs are immutable per digest.
-
-Legacy schema-9 visual packages (`HOLOGRAMA EXCLUSIVO 4/5`) stay bundled in
-the IPA and are not published to the feed. The current importer only accepts
-schema 1 and 2; putting schema 9 in the manifest makes the whole sync abort
-with `patch.error.unsupported_version`.
-
-## Deploy
+### Deploy the optional Worker
 
 ```bash
 cd cloudflare
@@ -69,115 +35,14 @@ npx wrangler secret put TELEGRAM_OWNER_ID
 npx wrangler deploy
 ```
 
-`wrangler.toml` binds the `jvztxnx-global-control` worker as `RESELLER`. The
-patch worker owns the Telegram webhook, handles `pm:` callbacks, and forwards
-every other update through that service binding so the original licence and
-reseller panel keeps working unchanged.
+The Worker can continue to own the Telegram webhook, handle patch-management callbacks, and forward other Telegram updates through the reseller service binding. Bot uploads are staging inputs only; they do not live-update the iOS app.
 
-Point the bot at the patch worker:
+### Bundle and release an update
 
-```bash
-curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
-  -d "url=https://trystore-patch-feed.burgoajustin.workers.dev/api/telegram/webhook" \
-  -d "secret_token=$TELEGRAM_WEBHOOK_SECRET" \
-  -d 'allowed_updates=["message","callback_query"]'
-```
+1. Retrieve the intended package from the staging service or another trusted source and verify its project identity and contents.
+2. Replace or add the corresponding `.TRYSTORE` source in `ThreeOneOSFive/Patches/`.
+3. Update all explicit asset, project-name, Aim/Visual catalog, and validator mappings. Keep package identities unique; the two Holograma legacy source packages are remapped to separate bundled IDs by the app.
+4. Run the repository validators and dispatch a new IPA build. The encrypted data assets are generated in CI from the configured build secret and included in the compiled `Assets.car`.
+5. Install the new IPA. Existing installs are reconciled with the new embedded snapshot based on the package source revision; no patch-feed call is made by the app.
 
-The secret must match the one on `jvztxnx-global-control`; the forwarded update
-carries the same header.
-
-Public endpoints:
-
-- `GET /api/patches/<project>/manifest.json`
-- `GET /patches/<project>/<file>`
-- `POST /api/patches/<project>/report` (small sync report, 32 KB cap)
-- `GET /health`
-
-## Bot UI
-
-`/patches` (or `/projects`) opens the button panel:
-
-- project buttons with live patch counts
-- patch buttons with size
-- patch detail: Replace, Delete, Download
-- Add file as a first-class button, not a hidden command
-
-Replace flow:
-
-1. tap a patch, tap `🔁 Replace`
-2. send the new package as a document
-3. the worker rewrites its internal project id/name to the target package and
-   stores it under the same filename
-4. the manifest is updated; the app replaces the existing package on its next
-   sync
-
-This is what makes an upload a true in-place replacement instead of a second
-patch alongside the old one. The old target bytes are backed up to KV under
-`backup/<project>/<timestamp>-<file>` for 30 days.
-
-Legacy commands still work:
-
-| Command | Effect |
-| --- | --- |
-| `/patches`, `/projects` | button panel |
-| `/upload <project>` | opens a 15-minute upload session |
-| `/list <project>` | project panel |
-| `/remove <project> <file>` | project panel |
-| `/cancel` | clears the session |
-
-## Client behaviour
-
-`PatchFeedService.syncOnLaunch` runs once per process, then `syncIfDue` runs at
-most once per minute and whenever the app returns to the foreground:
-
-1. fetch `manifest.json` for `trystore`
-2. skip entries whose local file digest matches
-3. download to `tmp/PatchFeed/<file>`, verify SHA-256
-4. reject schema versions outside 1-2 and password-protected packages before
-   import, so one legacy visual cannot abort the whole pass
-5. import entries one at a time, waiting for each write to land before starting
-   the next one
-
-The patch screen prints the last result under the module bus, for example
-`FEED 6 | 4 updated | 2 current | 0 skipped | 0 failed | 20:40`. The same
-counts are posted to `/api/patches/trystore/report` and kept in KV under
-`reports/trystore/latest.json` for seven days.
-
-The worker removes known-incompatible entries from the manifest at read time.
-`publishPatch` records `schemaVersion` and `isPasswordProtected` on every new
-entry, and the Telegram upload reply warns when a file is stored but not
-published.
-
-Bundled patches are installed before the feed runs. A bundled package is never
-written over an existing package with the same package ID, so a remote
-replacement survives the next launch even before the manifest check. Raw
-`TryStore` packages use a source-revision key so a rebuilt IPA can still
-refresh the bundled Balas Magicas payload once.
-
-Current TryStore slot mapping (the dashboard renders these six files):
-
-| Slot file | Source project |
-| --- | --- |
-| `HEAD.TRYSTORE` | HEAD |
-| `NECK.TRYSTORE` | CUELLO3105 |
-| `HS SLA PECHO.TRYSTORE` | Pecho3105 |
-| `HSPESSCOSO.TRYSTORE` | Cuello y Drag |
-| `TryStore.TRYSTORE` | Balas Magicas |
-| `EXCLUSIVO AZUL.TRYSTORE` | Holograma Armas |
-
-The source packages stay in KV. Only the repacked slot bytes go into the
-manifest; the extra project names are not listed as separate dashboard tiles.
-
-Failed verification deletes the download and keeps the installed copy. Network
-failures are logged and ignored so the app still opens offline.
-
-Replacing an active slot updates the package bytes, but iOS keeps the applied
-transaction receipt until the slot is toggled. Turn the slot off and back on
-once to apply the new content; the package ID stays the same on purpose, so the
-app overwrites instead of creating a duplicate.
-
-## Base URL
-
-`PatchFeedService.baseURL` defaults to
-`https://trystore-patch-feed.burgoajustin.workers.dev`. Change the constant if
-the worker moves, and keep `PUBLIC_BASE_URL` in `wrangler.toml` in sync.
+A bundled snapshot is fixed for each IPA version. An already installed IPA cannot receive later patch changes from Telegram or Cloudflare without installing a new IPA.

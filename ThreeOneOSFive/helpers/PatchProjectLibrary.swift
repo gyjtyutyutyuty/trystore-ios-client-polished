@@ -27,7 +27,8 @@ enum PatchProjectLibrary {
     private static let supportedPackageExtensions: Set<String> = ["trystore", "3105"]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "EXCLUSIVO AZUL", "TryStore", "Balas Magicas",
-        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"
+        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "Drag con Cuello",
+        "Pecho3105", "CUELLO3105"
     ]
 
     private static let legacyRemoteProjectNames: [String: String] = [
@@ -105,6 +106,10 @@ enum PatchProjectLibrary {
         if expectedKey == actualKey { return true }
         return (expectedKey == "trystore" && actualKey == "balasmagicas")
             || (expectedKey == "exclusivoazul" && actualKey == "hologramaarmas")
+            || (expectedKey == "hologramaexclusivoverde" && actualKey == "hologramaexclusivo")
+            || (expectedKey == "hologramaexclusivorosado" && actualKey == "hologramaexclusivo")
+            || (expectedKey == "pecho3105" && actualKey == "aimbotpecho")
+            || (expectedKey == "cuello3105" && actualKey == "aimbotpecho")
     }
 
     private static func normalizedProjectName(_ value: String) -> String {
@@ -207,83 +212,6 @@ enum PatchProjectLibrary {
         }
     }
 
-    static func installBundledRawPackageDataIfNeeded(
-        _ sourceData: Data,
-        projectName: String,
-        password: String? = nil,
-        fileManager: FileManager = .default
-    ) {
-        guard let decoded = try? PatchPackageCodec.decode(sourceData, password: password) else {
-            log("patch: bundled raw package decode failed: \(projectName)")
-            return
-        }
-        guard projectNameMatches(expected: projectName, actual: decoded.project.name) else {
-            log("patch: bundled raw package identity mismatch: expected \(projectName), payload \(decoded.project.name)")
-            return
-        }
-        do {
-            var normalizedProject = decoded.project
-            normalizedProject.name = projectName
-            let normalizedData = try PatchPackageCodec.encodeNew(
-                project: normalizedProject,
-                password: password
-            )
-            let normalizedSummary = try PatchPackageCodec.inspect(normalizedData.data)
-            let sourceRevision = SHA256.hash(data: sourceData)
-                .map { String(format: "%02x", $0) }
-                .joined()
-            let revisionKey = "patch.bundledRawRevision.\(normalizedSummary.packageID.uuidString)"
-            let root = try packageRootURL(fileManager: fileManager)
-            let existingURLs = try fileManager.contentsOfDirectory(
-                at: root,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
-            )
-            for existingURL in existingURLs where supportedPackageExtensions.contains(existingURL.pathExtension.lowercased()) {
-                guard let existingData = try? readPackage(at: existingURL),
-                      let existingSummary = try? PatchPackageCodec.inspect(existingData),
-                      existingSummary.packageID == normalizedSummary.packageID else {
-                    continue
-                }
-                if projectName == "TryStore",
-                   UserDefaults.standard.string(forKey: revisionKey) != sourceRevision {
-                    try PatchKeyStore.store(normalizedData.contentKey, for: normalizedSummary)
-                    try installImportedPackage(
-                        data: normalizedData.data,
-                        decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
-                        summary: normalizedSummary,
-                        existingURL: existingURL,
-                        createWorkspace: false,
-                        fileManager: fileManager
-                    )
-                    UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
-                    log("patch: bundled raw package revision installed: \(projectName)")
-                    return
-                }
-                // A package with this ID is already installed. It may be a
-                // newer remote replacement from the patch feed, so never
-                // overwrite it with the bundled copy on launch.
-                log("patch: bundled raw package already installed: \(projectName)")
-                return
-            }
-            try PatchKeyStore.store(normalizedData.contentKey, for: normalizedSummary)
-            try installImportedPackage(
-                data: normalizedData.data,
-                decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
-                summary: normalizedSummary,
-                existingURL: nil,
-                createWorkspace: false,
-                fileManager: fileManager
-            )
-            if projectName == "TryStore" {
-                UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
-            }
-            log("patch: bundled raw package installed: \(projectName)")
-        } catch {
-            log("patch: bundled raw package install failed: \(projectName) — \(error)")
-        }
-    }
-
     static func installBundledPackageDataIfNeeded(
         _ sourceData: Data,
         projectName: String,
@@ -304,6 +232,10 @@ enum PatchProjectLibrary {
         }
 
         let destination = root.appendingPathComponent("\(projectName).TRYSTORE")
+        let sourceRevision = SHA256.hash(data: sourceData)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let revisionKey = "patch.bundledPackageRevision.\(normalizedProjectName(projectName))"
         if fileManager.fileExists(atPath: destination.path) {
             if let existingData = try? readPackage(at: destination),
                let existingSummary = try? PatchPackageCodec.inspect(existingData),
@@ -312,10 +244,7 @@ enum PatchProjectLibrary {
                existingDecoded.project.name == projectName {
                 let expectedID = bundledProjectIDs[projectName] ?? source.decoded.project.id
                 if existingDecoded.project.id == expectedID,
-                   existingDecoded.project.updatedAt >= source.decoded.project.updatedAt {
-                    // A feed replacement with a newer timestamp wins over the
-                    // copy baked into this IPA. Only an older installed copy
-                    // gets replaced by the new bundle.
+                   UserDefaults.standard.string(forKey: revisionKey) == sourceRevision {
                     return
                 }
                 try? PatchKeyStore.delete(for: existingSummary)
@@ -349,6 +278,8 @@ enum PatchProjectLibrary {
                 createWorkspace: false,
                 fileManager: fileManager
             )
+            UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
+            log("patch: installed IPA-bundled snapshot: \(projectName)")
         } catch {
             log("patch: bundled file install failed: \(projectName) — \(error)")
         }
