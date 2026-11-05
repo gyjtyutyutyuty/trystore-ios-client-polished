@@ -1099,8 +1099,8 @@ private struct DashboardPatchOption: Identifiable {
     ]
 
     static let antena = [
-        // This Antena package is distinct from the TryStore package used in Aim.
-        DashboardPatchOption(projectName: "Balas Magicas", title: "Balas Magicas", icon: "sparkles", color: .yellow, group: .aim, packageID: UUID(uuidString: "3B1ADF4E-9820-4E94-8F41-7AEA6480879A")!),
+        // This is the same patch content as TryStore, so reuse its remote package ID.
+        DashboardPatchOption(projectName: "Balas Magicas", title: "Balas Magicas", icon: "sparkles", color: .yellow, group: .aim, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!),
         DashboardPatchOption(projectName: "Drag con Cuello", title: "Cuello y Drag", icon: "scope", color: .cyan, group: .aim, packageID: UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!),
         DashboardPatchOption(projectName: "Aimbot Pecho", title: "Pecho3105", icon: "scope", color: .orange, group: .aim, packageID: UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!),
         DashboardPatchOption(projectName: "Aimbot Pecho", title: "CUELLO3105", icon: "scope", color: .pink, group: .aim, packageID: UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!)
