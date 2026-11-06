@@ -13,6 +13,7 @@ STORE = ROOT / "ThreeOneOSFive/helpers/PatchProjectStore.swift"
 LIBRARY = ROOT / "ThreeOneOSFive/helpers/PatchProjectLibrary.swift"
 RESOURCE = ROOT / "ThreeOneOSFive/helpers/PatchResourceBundle.swift"
 DEVICE_SERVICE = ROOT / "ThreeOneOSFive/helpers/DevicePatchService.swift"
+TRANSACTION = ROOT / "ThreeOneOSFive/helpers/PatchTransaction.swift"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 
 BUNDLED = {
@@ -55,6 +56,7 @@ def check_source() -> None:
     library = LIBRARY.read_text()
     resource = RESOURCE.read_text()
     device_service = DEVICE_SERVICE.read_text()
+    transaction = TRANSACTION.read_text()
     pbx = PROJECT.read_text()
 
     canonical_ids: dict[str, str] = {}
@@ -137,6 +139,13 @@ def check_source() -> None:
     require("canonicalBundledPackageFilenames" in library
             and "canonicalSelectedIDs.insert(summary.packageID)" in library,
             "legacy duplicate IDs can still disable the canonical bundled patch")
+    require("groupsConflict(Self.group(for: candidate), with: resolvedGroup)" in store
+            and "(.aim, .antena), (.antena, .aim)" in store,
+            "Aim and Antena patches are not restored across their shared assetindexer target")
+    require("PatchTransaction.activationDate(for: receipt)" in store
+            and ".sorted { $0.2 > $1.2 }" in store
+            and "static func activationDate(for receipt:" in transaction,
+            "stacked conflicting patch receipts are not restored newest-first")
     print(f"PASS: all {len(BUNDLED)} local packages have unique button mappings and Activate/Restore routes")
 
 

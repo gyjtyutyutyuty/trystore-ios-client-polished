@@ -412,6 +412,16 @@ enum PatchTransaction {
         }
     }
 
+    static func activationDate(for receipt: PatchTransactionReceipt) -> Date? {
+        guard let journal = try? readJournal(receipt.journalURL),
+              journal.schemaVersion == schemaVersion,
+              journal.transactionID == receipt.id,
+              journal.projectID == receipt.projectID else {
+            return nil
+        }
+        return journal.createdAt
+    }
+
     static func requiredBundleIdentifiers(for receipt: PatchTransactionReceipt) throws -> [String] {
         let journal = try readJournal(receipt.journalURL)
         guard journal.schemaVersion == schemaVersion,

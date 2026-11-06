@@ -352,11 +352,21 @@ final class PatchProjectStore: ObservableObject {
             ) {
                 log("patch: enabling project=\(baseProject.name) packageID=\(item.id.uuidString) group=\(Self.groupName(resolvedGroup))")
                 if let resolvedGroup {
-                    for candidate in self.items where Self.group(for: candidate) == resolvedGroup && candidate.id != item.id {
-                        if let receipt = DevicePatchService.latestReceipt(projectID: candidate.id) {
-                            log("patch: restoring conflicting project=\(candidate.project?.name ?? candidate.packageURL.lastPathComponent) packageID=\(candidate.id.uuidString) group=\(Self.groupName(resolvedGroup))")
-                            try DevicePatchService.restore(receipt: receipt, progress: reporter)
+                    let conflictingReceipts = self.items.compactMap { candidate -> (PatchLibraryItem, PatchTransactionReceipt, Date)? in
+                        guard candidate.id != item.id,
+                              Self.groupsConflict(Self.group(for: candidate), with: resolvedGroup),
+                              let receipt = DevicePatchService.latestReceipt(projectID: candidate.id) else {
+                            return nil
                         }
+                        return (
+                            candidate,
+                            receipt,
+                            PatchTransaction.activationDate(for: receipt) ?? .distantPast
+                        )
+                    }.sorted { $0.2 > $1.2 }
+                    for (candidate, receipt, _) in conflictingReceipts {
+                        log("patch: restoring conflicting project=\(candidate.project?.name ?? candidate.packageURL.lastPathComponent) packageID=\(candidate.id.uuidString) group=\(Self.groupName(resolvedGroup))")
+                        try DevicePatchService.restore(receipt: receipt, progress: reporter)
                     }
                 }
 
@@ -388,6 +398,17 @@ final class PatchProjectStore: ObservableObject {
             return .location
         default:
             return nil
+        }
+    }
+
+    private static func groupsConflict(_ candidateGroup: PatchToggleGroup?, with requestedGroup: PatchToggleGroup) -> Bool {
+        guard let candidateGroup else { return false }
+        switch (candidateGroup, requestedGroup) {
+        case (.aim, .aim), (.aim, .antena), (.antena, .aim), (.antena, .antena), (.location, .location):
+            // Aim and Antena bundles both replace the same Free Fire assetindexer file.
+            return true
+        default:
+            return false
         }
     }
 
