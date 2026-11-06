@@ -129,12 +129,24 @@ def check_source() -> None:
     antena_packages = (
         "TryStore.TRYSTORE", "Cuello y Drag.TRYSTORE", "Pecho3105.TRYSTORE", "CUELLO3105.TRYSTORE"
     )
+    decoded_projects = {}
     for filename in normal_packages + antena_packages:
         project = package_project(filename)
+        decoded_projects[filename] = project
         rules = project.get("rules", [])
         require(bool(rules), f"patch has no file rules: {filename}")
         require(all(rule.get("relativePath") == normal_path for rule in rules),
                 f"normal/Antena package target differs from expected avatar path: {filename}")
+    for normal_file, antena_file in (
+        ("NECK.TRYSTORE", "CUELLO3105.TRYSTORE"),
+        ("HSPESSCOSO.TRYSTORE", "Cuello y Drag.TRYSTORE"),
+        ("HS SLA PECHO.TRYSTORE", "Pecho3105.TRYSTORE"),
+    ):
+        normal_rules = decoded_projects[normal_file]["rules"]
+        antena_rules = decoded_projects[antena_file]["rules"]
+        require(len(normal_rules) == 1 and len(antena_rules) == 1
+                and normal_rules[0].get("replacementData") != antena_rules[0].get("replacementData"),
+                f"normal patch {normal_file} reuses Antena replacement data from {antena_file}")
 
     # Every button is an actual DashboardPatchOption. Explicit package IDs must
     # refer to one of the shipped canonical packages; name-based options must
@@ -195,7 +207,7 @@ def check_source() -> None:
             and ".sorted { $0.2 > $1.2 }" in store
             and "static func activationDate(for receipt:" in transaction,
             "stacked conflicting patch receipts are not restored newest-first")
-    print(f"PASS: all {len(BUNDLED)} local packages have unique button mappings, Activate/Restore routes, and aligned Antena targets")
+    print(f"PASS: all {len(BUNDLED)} local packages have unique mappings, aligned paths, and distinct normal/Antena payloads")
 
 
 def check_app(app: Path) -> None:
