@@ -1062,8 +1062,7 @@ private struct DashboardPatchOption: Identifiable {
         DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim, packageID: UUID(uuidString: "668D6990-D407-439F-8846-2AC6E03498BA")!),
         DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim, packageID: UUID(uuidString: "74028F92-DE35-43F0-8E40-423D10EE3D42")!),
         DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim, packageID: UUID(uuidString: "6E3DE2CA-1F8D-435F-A366-7692994D0094")!),
-        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim, packageID: UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!),
-        DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .antena, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!)
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim, packageID: UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!)
     ]
 
     static let visuals = [
@@ -1073,7 +1072,6 @@ private struct DashboardPatchOption: Identifiable {
     ]
 
     static let antena = [
-        // The canonical Balas package is shared by both tabs; it edits the Antena asset path.
         DashboardPatchOption(projectName: "Balas Magicas", title: "Balas Magicas", icon: "sparkles", color: .yellow, group: .antena, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!),
         DashboardPatchOption(projectName: "Drag con Cuello", title: "Cuello y Drag", icon: "scope", color: .cyan, group: .antena, packageID: UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!),
         DashboardPatchOption(projectName: "Aimbot Pecho", title: "Pecho3105", icon: "scope", color: .orange, group: .antena, packageID: UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!),

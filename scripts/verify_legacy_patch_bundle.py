@@ -115,6 +115,8 @@ def check_source() -> None:
                 f"package {canonical_name} has a name-only button instead of an exact UUID")
         require(bool(id_targets),
                 f"no activation/restore button is linked to {filename} ({canonical_name})")
+        require(len(id_targets) == 1,
+                f"package {canonical_name} is linked to more than one visible button")
 
     require("Button(action: activateSelectedPatch)" in app,
             "selected patch action button is not connected to activation/restore")
@@ -132,6 +134,9 @@ def check_source() -> None:
             "local patch installer is not wired")
     require("didInstallBundledResources = allInstalled" in store,
             "failed package installations cannot be retried")
+    require("canonicalBundledPackageFilenames" in library
+            and "canonicalSelectedIDs.insert(summary.packageID)" in library,
+            "legacy duplicate IDs can still disable the canonical bundled patch")
     print(f"PASS: all {len(BUNDLED)} local packages have unique button mappings and Activate/Restore routes")
 
 

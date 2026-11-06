@@ -30,6 +30,19 @@ enum PatchProjectLibrary {
         "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "Drag con Cuello",
         "Pecho3105", "CUELLO3105"
     ]
+    private static let canonicalBundledPackageFilenames: [UUID: String] = [
+        UUID(uuidString: "668D6990-D407-439F-8846-2AC6E03498BA")!: "HEAD.TRYSTORE",
+        UUID(uuidString: "74028F92-DE35-43F0-8E40-423D10EE3D42")!: "NECK.TRYSTORE",
+        UUID(uuidString: "6E3DE2CA-1F8D-435F-A366-7692994D0094")!: "HS PESSCOSO.TRYSTORE",
+        UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!: "HS SLA PECHO.TRYSTORE",
+        UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!: "EXCLUSIVO AZUL.TRYSTORE",
+        UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!: "TryStore.TRYSTORE",
+        UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!: "HOLOGRAMA EXCLUSIVO VERDE.TRYSTORE",
+        UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!: "HOLOGRAMA EXCLUSIVO ROSADO.TRYSTORE",
+        UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!: "Drag con Cuello.TRYSTORE",
+        UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!: "Pecho3105.TRYSTORE",
+        UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!: "CUELLO3105.TRYSTORE"
+    ]
 
     private static let legacyRemoteProjectNames: [String: String] = [
         "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA EXCLUSIVO VERDE",
@@ -317,6 +330,7 @@ enum PatchProjectLibrary {
 
         var byID: [UUID: PatchLibraryItem] = [:]
         var duplicateIDs = Set<UUID>()
+        var canonicalSelectedIDs = Set<UUID>()
         for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
             do {
                 let data = try readPackage(at: url)
@@ -335,6 +349,22 @@ enum PatchProjectLibrary {
                     contentKey: decoded?.contentKey,
                     packageURL: url
                 )
+                if let canonicalFilename = canonicalBundledPackageFilenames[summary.packageID],
+                   canonicalFilename.caseInsensitiveCompare(url.lastPathComponent) == .orderedSame,
+                   item.project != nil {
+                    if let previous = byID[summary.packageID],
+                       previous.packageURL != item.packageURL {
+                        log("patch: selected bundled package \(canonicalFilename) over legacy duplicate \(previous.packageURL.lastPathComponent)")
+                    }
+                    byID[summary.packageID] = item
+                    duplicateIDs.remove(summary.packageID)
+                    canonicalSelectedIDs.insert(summary.packageID)
+                    continue
+                }
+                if canonicalSelectedIDs.contains(summary.packageID) {
+                    log("patch: ignored legacy duplicate package ID \(summary.packageID.uuidString) in \(url.lastPathComponent)")
+                    continue
+                }
                 if duplicateIDs.contains(summary.packageID) {
                     log("patch: skipped duplicate package ID \(summary.packageID.uuidString) in \(url.lastPathComponent)")
                     continue
