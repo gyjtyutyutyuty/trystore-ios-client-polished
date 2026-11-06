@@ -77,30 +77,27 @@ final class PatchProjectStore: ObservableObject {
         reload()
     }
 
-    func installBundledResources(bundleKey: Data) {
-        guard bundleKey.count == 32, !didInstallBundledResources else { return }
-        let resources: [String: Data]
-        do {
-            resources = try PatchResourceBundle.load(using: bundleKey)
-        } catch {
-            log("patch: encrypted asset catalog could not be read: \(error)")
-            return
-        }
-        didInstallBundledResources = true
+    func installBundledResources() {
+        guard !didInstallBundledResources else { return }
+        let resources = PatchResourceBundle.load()
+        var allInstalled = resources.count == game.bundledPatches.count
         for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"] {
             PatchProjectLibrary.removeBundledPackage(named: obsolete)
         }
         for patch in game.bundledPatches {
             guard let data = resources[patch.resourceName] else {
                 log("patch: bundled patch asset unavailable: \(patch.resourceName)")
+                allInstalled = false
                 continue
             }
-            PatchProjectLibrary.installBundledPackageDataIfNeeded(
+            let installed = PatchProjectLibrary.installBundledPackageDataIfNeeded(
                 data,
                 projectName: patch.projectName,
                 password: patch.password
             )
+            allInstalled = allInstalled && installed
         }
+        didInstallBundledResources = allInstalled
         reload()
     }
 
@@ -385,7 +382,7 @@ final class PatchProjectStore: ObservableObject {
         switch name {
         case "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "BALAS":
             return .aim
-        case "TryStore", "Balas Magicas", "Drag con Cuello", "Aimbot Pecho":
+        case "TryStore", "Balas Magicas", "Drag con Cuello", "Aimbot Pecho", "Pecho3105", "CUELLO3105":
             return .antena
         case "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL":
             return .location

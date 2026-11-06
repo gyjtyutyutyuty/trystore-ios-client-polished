@@ -1,45 +1,34 @@
-import CryptoKit
 import Foundation
-import UIKit
 
 enum PatchResourceBundle {
-    enum BundleError: Error {
-        case invalidKey
-    }
-
-    private static let assets: [(resourceName: String, assetName: String)] = [
-        ("HEAD.TRYSTORE", "HEAD"),
-        ("NECK.TRYSTORE", "NECK"),
-        ("HSPESSCOSO.TRYSTORE", "HS_PESSCOSO"),
-        ("HS SLA PECHO.TRYSTORE", "HS_SLA_PECHO"),
-        ("EXCLUSIVO AZUL.TRYSTORE", "EXCLUSIVO_AZUL"),
-        ("TryStore.TRYSTORE", "TRYSTORE_BALAS_MAGICAS"),
-        ("HOLOGRAMAEXCLUSIVO(4).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_VERDE"),
-        ("HOLOGRAMAEXCLUSIVO(5).TRYSTORE", "HOLOGRAMA_EXCLUSIVO_ROSADO"),
-        ("Cuello y Drag.TRYSTORE", "CUELLO_Y_DRAG"),
-        ("Pecho3105.TRYSTORE", "PECHO3105"),
-        ("CUELLO3105.TRYSTORE", "CUELLO3105")
+    private static let resourceNames = [
+        "HEAD.TRYSTORE",
+        "NECK.TRYSTORE",
+        "HSPESSCOSO.TRYSTORE",
+        "HS SLA PECHO.TRYSTORE",
+        "EXCLUSIVO AZUL.TRYSTORE",
+        "TryStore.TRYSTORE",
+        "HOLOGRAMAEXCLUSIVO(4).TRYSTORE",
+        "HOLOGRAMAEXCLUSIVO(5).TRYSTORE",
+        "Cuello y Drag.TRYSTORE",
+        "Pecho3105.TRYSTORE",
+        "CUELLO3105.TRYSTORE"
     ]
 
-    static func load(using keyData: Data) throws -> [String: Data] {
-        guard keyData.count == 32 else { throw BundleError.invalidKey }
-        let key = SymmetricKey(data: keyData)
-        var resources: [String: Data] = [:]
-        resources.reserveCapacity(assets.count)
+    static func load() -> [String: Data] {
+        guard let patchDirectory = Bundle.main.resourceURL?.appendingPathComponent("Patches", isDirectory: true) else {
+            log("patch: bundled Patches directory is unavailable")
+            return [:]
+        }
 
-        for entry in assets {
-            guard let encrypted = NSDataAsset(name: entry.assetName, bundle: .main)?.data else {
-                log("patch: encrypted asset missing from catalog: \(entry.assetName)")
-                continue
-            }
-            guard let sealedBox = try? AES.GCM.SealedBox(combined: encrypted) else {
-                log("patch: encrypted asset has invalid format: \(entry.assetName)")
-                continue
-            }
+        var resources: [String: Data] = [:]
+        resources.reserveCapacity(resourceNames.count)
+        for name in resourceNames {
+            let url = patchDirectory.appendingPathComponent(name, isDirectory: false)
             do {
-                resources[entry.resourceName] = try AES.GCM.open(sealedBox, using: key)
+                resources[name] = try Data(contentsOf: url, options: .mappedIfSafe)
             } catch {
-                log("patch: encrypted asset authentication failed: \(entry.assetName)")
+                log("patch: local bundled package could not be read: \(name) (\(error.localizedDescription))")
             }
         }
         return resources

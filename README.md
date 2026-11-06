@@ -121,6 +121,6 @@ This checkout now uses the uploaded `test1-main` project as the source of truth:
 - the Support Patch GUI and patch-workspace flow live under `ThreeOneOSFive/`;
 - Airlift is linked through `ThreeOneOSFive/AirliftFFI.xcframework` and can be rebuilt with `ThreeOneOSFive/build-airlift-ffi.sh`;
 - legacy root-level TryStore sources and old `.3105` payloads were removed;
-- the current bundled patch resources are the `.bin` datasets in `ThreeOneOSFive/Assets.xcassets`.
+- the current bundled patch resources are the local `.TRYSTORE` files in `ThreeOneOSFive/Patches/`, copied into the IPA as a folder resource.
 
 The application continues to use its existing path-validation, backup/restore, and package-integrity checks. It does not silently fall back to the removed legacy `.3105` files.

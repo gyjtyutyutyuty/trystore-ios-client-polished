@@ -18,10 +18,6 @@
 "common.back" = "返回";
 "common.finish" = "完成";
 
-"update.title" = "发现新版本";
-"update.message" = "Telegram 上已发布 Support Patch %@。";
-"update.agree" = "同意";
-"update.dismiss" = "不再显示";
 "patch.error.wrong_password" = "密码错误。";
 "freefire.title" = "Free Fire Max";
 "freefire.notice_title" = "注意";

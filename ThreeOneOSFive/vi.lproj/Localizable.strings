@@ -13,10 +13,6 @@
 "common.back" = "Quay lại";
 "common.finish" = "Hoàn thành";
 
-"update.title" = "Có bản cập nhật";
-"update.message" = "Support Patch %@ đã có trên Telegram.";
-"update.agree" = "Đồng ý";
-"update.dismiss" = "Không hiển thị lại";
 "patch.error.wrong_password" = "Sai mật khẩu.";
 "freefire.title" = "Free Fire Max";
 "freefire.notice_title" = "Chú Ý";

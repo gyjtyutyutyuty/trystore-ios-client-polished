@@ -212,23 +212,24 @@ enum PatchProjectLibrary {
         }
     }
 
+    @discardableResult
     static func installBundledPackageDataIfNeeded(
         _ sourceData: Data,
         projectName: String,
         password: String? = nil,
         fileManager: FileManager = .default
-    ) {
+    ) -> Bool {
         guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData) else {
             log("patch: bundled package decode failed: \(projectName)")
-            return
+            return false
         }
         guard projectNameMatches(expected: projectName, actual: source.decoded.project.name) else {
             log("patch: bundled package identity mismatch: expected \(projectName), payload \(source.decoded.project.name)")
-            return
+            return false
         }
         guard let root = try? packageRootURL(fileManager: fileManager) else {
             log("patch: bundled package storage unavailable: \(projectName)")
-            return
+            return false
         }
 
         let destination = root.appendingPathComponent("\(projectName).TRYSTORE")
@@ -245,7 +246,7 @@ enum PatchProjectLibrary {
                 let expectedID = bundledProjectIDs[projectName] ?? source.decoded.project.id
                 if existingDecoded.project.id == expectedID,
                    UserDefaults.standard.string(forKey: revisionKey) == sourceRevision {
-                    return
+                    return true
                 }
                 try? PatchKeyStore.delete(for: existingSummary)
                 try? PatchWorkspaceService.deleteWorkspace(
@@ -280,8 +281,10 @@ enum PatchProjectLibrary {
             )
             UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
             log("patch: installed IPA-bundled snapshot: \(projectName)")
+            return true
         } catch {
             log("patch: bundled file install failed: \(projectName) — \(error)")
+            return false
         }
     }
 

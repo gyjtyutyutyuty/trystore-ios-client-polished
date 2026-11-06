@@ -34,7 +34,6 @@ struct ThreeOneOSFiveApp: App {
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @State private var showOnboarding = OnboardingStore.shouldShow()
     @State private var showAttribution = false
-    @State private var updateOffer: AppUpdateChecker.Offer?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("settings_reduce_motion_enabled") private var appReduceMotionEnabled = false
@@ -57,13 +56,6 @@ struct ThreeOneOSFiveApp: App {
         reduceMotion || appReduceMotionEnabled
     }
 
-    private func checkForUpdate() {
-        Task {
-            guard let offer = await AppUpdateChecker.check() else { return }
-            await MainActor.run { updateOffer = offer }
-        }
-    }
-
     var body: some Scene {
         WindowGroup {
             Group {
@@ -77,7 +69,6 @@ struct ThreeOneOSFiveApp: App {
                         }
                         licenseManager.beginLaunchSession()
                         appState.detectSupport()
-                        checkForUpdate()
                     }
                 } else if licenseManager.isActive {
                     ContentView()
@@ -100,18 +91,6 @@ struct ThreeOneOSFiveApp: App {
             .sheet(isPresented: $showAttribution) {
                 DisplayAttributionSheet()
             }
-            .alert(item: $updateOffer) { offer in
-                Alert(
-                    title: Text(language.text("update.title")),
-                    message: Text(language.text("update.message", offer.version)),
-                    primaryButton: .default(Text(language.text("update.agree"))) {
-                        UIApplication.shared.open(offer.url)
-                    },
-                    secondaryButton: .cancel(Text(language.text("update.dismiss"))) {
-                        AppUpdateChecker.dismiss(version: offer.version)
-                    }
-                )
-            }
             .onOpenURL { url in
                 patchDraftCoordinator.presentImport(url)
             }
@@ -125,7 +104,6 @@ struct ThreeOneOSFiveApp: App {
                 if !showOnboarding {
                     licenseManager.beginLaunchSession()
                     appState.detectSupport()
-                    checkForUpdate()
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification)) { _ in

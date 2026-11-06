@@ -1,31 +1,20 @@
 #!/usr/bin/env python3
-"""Validate all statically bundled TryStore patch sources and IPA assets."""
+"""Validate local TryStore packages, their UI buttons, and IPA resources."""
 from __future__ import annotations
 import argparse
-import json
+import plistlib
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+APP_SOURCE = ROOT / "ThreeOneOSFive/ContentView.swift"
 PATCH_DIR = ROOT / "ThreeOneOSFive/Patches"
-ASSETS = ROOT / "ThreeOneOSFive/Assets.xcassets"
 STORE = ROOT / "ThreeOneOSFive/helpers/PatchProjectStore.swift"
+LIBRARY = ROOT / "ThreeOneOSFive/helpers/PatchProjectLibrary.swift"
 RESOURCE = ROOT / "ThreeOneOSFive/helpers/PatchResourceBundle.swift"
+DEVICE_SERVICE = ROOT / "ThreeOneOSFive/helpers/DevicePatchService.swift"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 
-ASSET_MAP = {
-    "HEAD.TRYSTORE": "HEAD",
-    "NECK.TRYSTORE": "NECK",
-    "HSPESSCOSO.TRYSTORE": "HS_PESSCOSO",
-    "HS SLA PECHO.TRYSTORE": "HS_SLA_PECHO",
-    "EXCLUSIVO AZUL.TRYSTORE": "EXCLUSIVO_AZUL",
-    "TryStore.TRYSTORE": "TRYSTORE_BALAS_MAGICAS",
-    "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA_EXCLUSIVO_VERDE",
-    "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA_EXCLUSIVO_ROSADO",
-    "Cuello y Drag.TRYSTORE": "CUELLO_Y_DRAG",
-    "Pecho3105.TRYSTORE": "PECHO3105",
-    "CUELLO3105.TRYSTORE": "CUELLO3105",
-}
 BUNDLED = {
     "HEAD.TRYSTORE": "HEAD",
     "NECK.TRYSTORE": "NECK",
@@ -50,54 +39,120 @@ def require(condition: bool, message: str) -> None:
         fail(message)
 
 
-def check_source(require_assets: bool) -> None:
+def package_metadata(filename: str) -> dict:
+    data = (PATCH_DIR / filename).read_bytes()
+    magic = b"3105PATCH\0"
+    require(data.startswith(magic), f"invalid package header: {filename}")
+    try:
+        return plistlib.loads(data[len(magic):])
+    except Exception as error:
+        fail(f"invalid package envelope {filename}: {error}")
+
+
+def check_source() -> None:
+    app = APP_SOURCE.read_text()
     store = STORE.read_text()
+    library = LIBRARY.read_text()
     resource = RESOURCE.read_text()
+    device_service = DEVICE_SERVICE.read_text()
     pbx = PROJECT.read_text()
-    entries = dict(re.findall(
-        r'BundledPatch\(resourceName:\s*"([^\"]+)",\s*projectName:\s*"([^\"]+)', store
+
+    canonical_ids: dict[str, str] = {}
+    for filename, project_name in BUNDLED.items():
+        require(
+            f'BundledPatch(resourceName: "{filename}", projectName: "{project_name}"' in store,
+            f"bundled catalog is missing {filename}",
+        )
+        require(f'"{filename}"' in resource, f"local resource list is missing {filename}")
+        source = PATCH_DIR / filename
+        require(source.is_file() and source.stat().st_size > 0, f"missing source patch: {filename}")
+        metadata = package_metadata(filename)
+        require(metadata.get("isPasswordProtected") is False,
+                f"bundled package requires a password: {filename}")
+        require(isinstance(metadata.get("packageID"), str),
+                f"package ID missing from envelope: {filename}")
+        canonical_ids[project_name] = metadata["packageID"].upper()
+
+    # The two historical schema-9 visual packages are normalized to fresh,
+    # distinct IDs during local installation; read those IDs from the app's map.
+    special_ids = dict(re.findall(
+        r'"(HOLOGRAMA EXCLUSIVO (?:VERDE|ROSADO))": UUID\(uuidString: "([^"]+)"\)!',
+        library,
     ))
-    expected_entries = {name: project for name, project in BUNDLED.items()}
-    require(entries == expected_entries, f"bundled catalog mismatch: {entries!r}")
-    resource_entries = dict(re.findall(r'\("([^\"]+)",\s*"([A-Z0-9_]+)"\)', resource))
-    require(resource_entries == ASSET_MAP, f"encrypted asset map mismatch: {resource_entries!r}")
-    require("PatchFeedService" not in pbx and "PatchFeedService" not in store,
-            "remote patch feed service remains in the app project")
-    require("installBundledPackageDataIfNeeded" in store,
-            "encrypted package installer is not wired")
-    require("installBundledRawPackageDataIfNeeded" not in store,
-            "raw patch package fallback remains enabled")
-    require("3105A211" in pbx and ".TRYSTORE" not in pbx,
-            "raw patch file is incorrectly listed as an Xcode resource")
-    files = {p.name for p in PATCH_DIR.glob("*.TRYSTORE")}
-    require(files == set(ASSET_MAP), f"patch source file set mismatch: {sorted(files)!r}")
-    for filename in ASSET_MAP:
-        require((PATCH_DIR / filename).is_file() and (PATCH_DIR / filename).stat().st_size > 0,
-                f"missing source patch: {filename}")
-    if require_assets:
-        for asset in ASSET_MAP.values():
-            dataset = ASSETS / f"{asset}.dataset"
-            binary = dataset / f"{asset}.bin"
-            require(binary.is_file() and binary.stat().st_size > 0,
-                    f"missing generated encrypted asset: {asset}")
-            contents = json.loads((dataset / "Contents.json").read_text())
-            require(contents.get("data", [{}])[0].get("filename") == f"{asset}.bin",
-                    f"wrong encrypted asset metadata: {asset}")
-    print(f"PASS: {len(ASSET_MAP)} patch sources are mapped to encrypted IPA assets")
+    for name in ("HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"):
+        require(name in special_ids, f"stable migrated package ID missing: {name}")
+        canonical_ids[name] = special_ids[name].upper()
+    require(len(set(canonical_ids.values())) == len(BUNDLED),
+            "bundled packages do not have unique installed package IDs")
+
+    # Every button is an actual DashboardPatchOption. Explicit package IDs must
+    # refer to one of the shipped canonical packages; name-based options must
+    # have one unique package-name target.
+    options: list[tuple[str, str | None]] = []
+    for line in app.splitlines():
+        if "DashboardPatchOption(projectName:" not in line:
+            continue
+        name_match = re.search(r'DashboardPatchOption\(projectName: "([^"]+)"', line)
+        if not name_match:
+            continue
+        id_match = re.search(r'packageID: UUID\(uuidString: "([^"]+)"\)', line)
+        options.append((name_match.group(1), id_match.group(1).upper() if id_match else None))
+
+    require(options, "no patch buttons were found")
+    all_expected_ids = set(canonical_ids.values())
+    for option_name, package_id in options:
+        if package_id:
+            require(package_id in all_expected_ids,
+                    f"button {option_name} points to an unknown package ID {package_id}")
+
+    for filename, canonical_name in BUNDLED.items():
+        expected_id = canonical_ids[canonical_name]
+        name_targets = [name for name, package_id in options
+                        if package_id is None and name == canonical_name]
+        id_targets = [(name, package_id) for name, package_id in options
+                      if package_id == expected_id]
+        require(not name_targets,
+                f"package {canonical_name} has a name-only button instead of an exact UUID")
+        require(bool(id_targets),
+                f"no activation/restore button is linked to {filename} ({canonical_name})")
+
+    require("Button(action: activateSelectedPatch)" in app,
+            "selected patch action button is not connected to activation/restore")
+    require('selectedPatchIsActive ? language.text("patch.action.restore") : language.text("patch.action.activate")' in app,
+            "action button does not switch between Activate and Restore")
+    require("patchStore.setEnabled(" in app and "DevicePatchService.apply(project:" in store,
+            "patch action does not reach the apply transaction")
+    require("DevicePatchService.restore(receipt: receipt" in store,
+            "patch action does not reach the restore transaction")
+    require("static func apply(" in device_service and "static func restore(" in device_service,
+            "device patch service is missing apply or restore routes")
+    require("Patches in Resources" in pbx and "D71300000000000000000001" in pbx,
+            "Patches folder is not registered as an Xcode resource")
+    require("func installBundledResources()" in store,
+            "local patch installer is not wired")
+    require("didInstallBundledResources = allInstalled" in store,
+            "failed package installations cannot be retried")
+    print(f"PASS: all {len(BUNDLED)} local packages have unique button mappings and Activate/Restore routes")
 
 
 def check_app(app: Path) -> None:
     require(app.is_dir(), f"app bundle missing: {app}")
     require((app / "Info.plist").is_file(), "Info.plist missing from app")
-    require(any(app.rglob("Assets.car")), "compiled asset catalog missing from app")
-    print("PASS: IPA app bundle contains Info.plist and compiled Assets.car")
+    bundled = app / "Patches"
+    require(bundled.is_dir(), "local Patches folder missing from app bundle")
+    for filename in BUNDLED:
+        source = PATCH_DIR / filename
+        packaged = bundled / filename
+        require(packaged.is_file(), f"patch missing from IPA: {filename}")
+        require(packaged.stat().st_size == source.stat().st_size,
+                f"patch size mismatch in IPA: {filename}")
+    print(f"PASS: app bundle contains all {len(BUNDLED)} local patch packages")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--assets-generated", action="store_true")
     parser.add_argument("--app", type=Path)
     args = parser.parse_args()
-    check_source(require_assets=args.assets_generated or args.app is not None)
+    check_source()
     if args.app:
         check_app(args.app)

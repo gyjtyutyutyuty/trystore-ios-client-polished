@@ -19,10 +19,6 @@
 "common.back" = "Back";
 "common.finish" = "Finish";
 
-"update.title" = "Update available";
-"update.message" = "Support Patch %@ is available on Telegram.";
-"update.agree" = "OK";
-"update.dismiss" = "Don't show again";
 "patch.error.wrong_password" = "Incorrect password.";
 "freefire.title" = "Free Fire Max";
 "freefire.notice_title" = "Notice";

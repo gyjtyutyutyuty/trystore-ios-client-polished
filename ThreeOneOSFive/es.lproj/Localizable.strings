@@ -49,10 +49,6 @@
 "settings.exploit_compatibility" = "Compatibilidad del exploit";
 "settings.exploit_unverified" = "Sin verificar";
 
-"update.title" = "Actualización disponible";
-"update.message" = "Support Patch %@ está disponible en Telegram.";
-"update.agree" = "OK";
-"update.dismiss" = "No volver a mostrar";
 "patch.error.wrong_password" = "Contraseña incorrecta.";
 "patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.10 y iOS 27+, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
 "patch.operation_in_progress" = "Procesando parche…";

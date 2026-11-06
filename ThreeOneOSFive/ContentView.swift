@@ -136,10 +136,8 @@ struct HomeView: View {
             }
         }
         .task {
-            if let key = licenseManager.patchBundleKey {
-                patchStore.installBundledResources(bundleKey: key)
-                patchStore.reload()
-            }
+            patchStore.installBundledResources()
+            patchStore.reload()
         }
         .task {
             while !Task.isCancelled {
@@ -1061,16 +1059,16 @@ private struct DashboardPatchOption: Identifiable {
     }
 
     static let loadout = [
-        DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim),
-        DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim),
-        DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim),
-        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim),
+        DashboardPatchOption(projectName: "HEAD", title: "HEAD", icon: "viewfinder", color: .indigo, group: .aim, packageID: UUID(uuidString: "668D6990-D407-439F-8846-2AC6E03498BA")!),
+        DashboardPatchOption(projectName: "NECK", title: "NECK", icon: "scope", color: .cyan, group: .aim, packageID: UUID(uuidString: "74028F92-DE35-43F0-8E40-423D10EE3D42")!),
+        DashboardPatchOption(projectName: "HS PESSCOSO", title: "DRAG", icon: "arrow.up.right.and.arrow.down.left", color: .orange, group: .aim, packageID: UUID(uuidString: "6E3DE2CA-1F8D-435F-A366-7692994D0094")!),
+        DashboardPatchOption(projectName: "HS SLA PECHO", title: "PECHO", icon: "scope", color: AppTheme.accent, group: .aim, packageID: UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!),
         DashboardPatchOption(projectName: "TryStore", title: "Balas Magicas", icon: "circle.grid.cross", color: .yellow, group: .antena, packageID: UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!)
     ]
 
     static let visuals = [
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil),
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil, packageID: UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil, packageID: UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!),
         DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil, packageID: UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!)
     ]
 
@@ -1172,9 +1170,7 @@ private struct DashboardView: View {
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
         .task {
-            if let key = licenseManager.patchBundleKey {
-                patchStore.installBundledResources(bundleKey: key)
-            }
+            patchStore.installBundledResources()
         }
         .task(id: ambientPulseID) {
             guard ambientPulseID > 0 else { return }
@@ -2487,14 +2483,9 @@ private struct FreeFirePatchView: View {
 
     // MARK: - Hàm tải patch (chạy background)
     private func loadPatchLibrary() async {
-        guard let key = licenseManager.patchBundleKey else {
-            loadError = "Resource authorization is unavailable. Please refresh your license."
-            isLoading = false
-            return
-        }
         isLoading = true
         loadError = nil
-        store.installBundledResources(bundleKey: key)
+        store.installBundledResources()
         store.reload()
         isLoading = false
     }
@@ -2714,10 +2705,8 @@ private struct PatchesView: View {
             .tint(AppTheme.accent)
         }
         .task {
-            if let key = licenseManager.patchBundleKey {
-                patchStore.installBundledResources(bundleKey: key)
-                patchStore.reload()
-            }
+            patchStore.installBundledResources()
+            patchStore.reload()
         }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))

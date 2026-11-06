@@ -61,10 +61,8 @@ def main() -> None:
 
     endpoint = info.get("TRYSTORE_LICENSE_API_URL")
     project_id = info.get("TRYSTORE_PROJECT_ID")
-    bundle_key_version = info.get("TRYSTORE_PATCH_BUNDLE_KEY_VERSION")
     require(endpoint == EXPECTED_ENDPOINT, f"unexpected Cloudflare endpoint: {endpoint!r}")
     require(project_id == EXPECTED_PROJECT, f"unexpected license project slug: {project_id!r}")
-    require(bundle_key_version == "2", f"new release must request bundle-key version 2: {bundle_key_version!r}")
     parsed_endpoint = urlparse(endpoint)
     require(parsed_endpoint.scheme == "https" and parsed_endpoint.path == "/api/v1/keys/validate",
             "license validation endpoint must use HTTPS and the expected validation route")
@@ -100,8 +98,8 @@ def main() -> None:
     require('"key": key' in manager and '"projectId": projectID' in manager
             and '"deviceId": try deviceID()' in manager,
             "license request is missing key, project, or device identifier fields")
-    require('"keyVersion": Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_BUNDLE_KEY_VERSION")' in manager,
-            "patch-bundle request does not send its configured key version")
+    require("patchBundleKey" not in manager and "patch-bundle-key" not in manager,
+            "TryStore license manager still requests a remote patch decryption key")
     require("blockedByInstrumentation" not in activation_gate
             and "hasInstrumentationLoaded" not in activation_gate
             and "blockedByInstrumentation" not in app_source,

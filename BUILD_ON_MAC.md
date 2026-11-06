@@ -2,7 +2,7 @@
 
 ## Current status
 
-This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and eight AES-GCM-encrypted patch Data Sets. Xcode compiles the `.bin` assets into `Assets.car`. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
+This repository contains the merged SupportPatch SwiftUI app, its Airlift FFI framework, image assets, and local `.TRYSTORE` patch packages. Xcode copies the `ThreeOneOSFive/Patches/` folder into the app bundle. A real iOS IPA cannot be compiled in this Linux environment because Apple’s Xcode toolchain, iOS SDK, and signing utilities are macOS-only. No fake or non-installable IPA has been generated here.
 
 ## Build requirements
 
@@ -36,13 +36,13 @@ The IPA is intentionally unsigned. It must be signed with an Apple Developer cer
 
 Open `ThreeOneOSFive.xcodeproj`, choose the shared **SupportPatch** scheme, and build or archive for a physical iOS device. The target uses the bundle identifier declared in `ThreeOneOSFive/Info.plist`.
 
-## Encrypted patch assets
-The eight remaining source `.3105` packages are encrypted individually with AES-256-GCM into `.bin` Data Sets named after their patches under `ThreeOneOSFive/Assets.xcassets/`. Xcode compiles those Data Sets into the single `Assets.car` archive, so ordinary IPA extraction does not show eight loose patch files. The encrypted payloads are still part of the IPA and could be recovered from `Assets.car` with asset-catalog tooling. Silent Aim has been removed from the source packages, asset catalog, and patch UI.
+## Local patch packages
+The approved `.TRYSTORE` files under `ThreeOneOSFive/Patches/` are copied as a folder resource into the IPA. At runtime, the app reads these local files and installs them into its local patch library. No patch decryption key, Cloudflare patch-key request, or patch-encryption CI secret is required. The packages are part of the IPA and are not hidden from someone who extracts it.
 
 ```text
-ThreeOneOSFive/Assets.xcassets/<PATCH_NAME>.dataset/<PATCH_NAME>.bin
+ThreeOneOSFive/Patches/<PATCH_NAME>.TRYSTORE
 ```
 
-At runtime the app validates the license, retrieves the 32-byte key from `POST /api/v1/keys/patch-bundle-key`, reads the Data Sets through `NSDataAsset`, decrypts the packages in memory, and imports them. The key remains a Cloudflare Worker secret (`PATCH_BUNDLE_ENCRYPTION_KEY`); the Worker does not serve the patch ciphertext. To regenerate the encrypted assets after changing source packages, set `PATCH_BUNDLE_KEY_BASE64` in a private environment and run `node scripts/encrypt_bundled_patches.mjs`. See [license activation](docs/LICENSE_ACTIVATION.md) for the security boundary.
+The separate license check still calls the configured Cloudflare validation endpoint; removing the patch-key request does not remove the license gate. See [license activation](docs/LICENSE_ACTIVATION.md) for details.
 
 **Important:** the checked-in XCFramework archives do not contain the `al_exploit_read_file` export required by the Swift remote-backup wrapper. The default framework check rejects these stale archives. Always build with `REBUILD_AIRLIFT=1` as shown above; Codemagic must do the same before archiving.

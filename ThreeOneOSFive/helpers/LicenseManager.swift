@@ -12,7 +12,6 @@ final class LicenseManager: ObservableObject {
     @Published private(set) var lastCheckedAt: Date?
     @Published private(set) var messageKey: String?
     @Published private(set) var maskedKey: String?
-    @Published private(set) var patchBundleKey: Data?
 
     private let keychainService = "com.trystore.license"
     private let keyAccount = "license-key"
@@ -38,7 +37,6 @@ final class LicenseManager: ObservableObject {
     func beginLaunchSession() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
-            patchBundleKey = nil
             isActive = false
             expirationDate = nil
             maskedKey = nil
@@ -61,7 +59,6 @@ final class LicenseManager: ObservableObject {
     func refresh() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
-            patchBundleKey = nil
             isActive = false
             messageKey = "license.error_required"
             return
@@ -72,7 +69,6 @@ final class LicenseManager: ObservableObject {
 
     func clear() {
         deleteKeychainValue(for: keyAccount)
-        patchBundleKey = nil
         isActive = false
         expirationDate = nil
         lastCheckedAt = nil
@@ -82,7 +78,6 @@ final class LicenseManager: ObservableObject {
     }
 
     private func validate(key: String, persistOnSuccess: Bool) {
-        patchBundleKey = nil
         isActive = false
         guard let endpoint else {
             isActive = false
@@ -106,25 +101,8 @@ final class LicenseManager: ObservableObject {
                 lastCheckedAt = Date()
                 isOffline = false
                 guard active else {
-                    patchBundleKey = nil
                     isActive = false
                     messageKey = Self.messageKey(for: response.outcome)
-                    return
-                }
-
-                let bundleKey: Data
-                do {
-                    bundleKey = try await sendPatchBundleKey(key: key, endpoint: endpoint)
-                } catch {
-                    patchBundleKey = nil
-                    isActive = false
-                    if let requestError = error as? LicenseRequestError,
-                       case .network = requestError {
-                        isOffline = true
-                    } else {
-                        isOffline = false
-                    }
-                    messageKey = isOffline ? "license.error_offline" : "license.error_server"
                     return
                 }
 
@@ -132,27 +110,22 @@ final class LicenseManager: ObservableObject {
                     do {
                         try saveKeychainString(key, for: keyAccount)
                     } catch {
-                        patchBundleKey = nil
                         isActive = false
                         messageKey = "license.error_secure_storage"
                         return
                     }
                 }
-                patchBundleKey = bundleKey
                 isActive = true
                 messageKey = nil
                 maskedKey = Self.mask(key)
             } catch LicenseRequestError.network {
-                patchBundleKey = nil
                 isActive = false
                 isOffline = true
                 messageKey = "license.error_offline"
             } catch LicenseRequestError.secureStorage {
-                patchBundleKey = nil
                 isActive = false
                 messageKey = "license.error_secure_storage"
             } catch {
-                patchBundleKey = nil
                 isActive = false
                 isOffline = false
                 messageKey = "license.error_server"
@@ -201,41 +174,6 @@ final class LicenseManager: ObservableObject {
         let value = UUID().uuidString
         try saveKeychainString(value, for: deviceAccount)
         return value
-    }
-
-    private func sendPatchBundleKey(key: String, endpoint: URL) async throws -> Data {
-        let keyEndpoint = endpoint.deletingLastPathComponent()
-            .appendingPathComponent("patch-bundle-key")
-        var request = URLRequest(url: keyEndpoint)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 20
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "key": key,
-            "deviceId": try deviceID(),
-            "projectId": projectID,
-            "keyVersion": Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_BUNDLE_KEY_VERSION") as? String ?? "1"
-        ])
-
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw LicenseRequestError.network
-        }
-        guard let response = response as? HTTPURLResponse else {
-            throw LicenseRequestError.network
-        }
-        guard (200..<300).contains(response.statusCode),
-              let payload = try? JSONDecoder().decode(PatchBundleKeyResponse.self, from: data),
-              payload.valid,
-              let bundleKey = Data(base64Encoded: payload.key),
-              bundleKey.count == 32 else {
-            throw LicenseRequestError.server
-        }
-        return bundleKey
     }
 
     private func keychainString(for account: String) -> String? {
@@ -334,8 +272,4 @@ final class LicenseManager: ObservableObject {
         case secureStorage
     }
 
-    private struct PatchBundleKeyResponse: Decodable {
-        let valid: Bool
-        let key: String
-    }
 }
