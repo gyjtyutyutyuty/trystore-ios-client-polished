@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import plistlib
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,37 @@ def package_metadata(filename: str) -> dict:
         fail(f"invalid package envelope {filename}: {error}")
 
 
+def package_project(filename: str) -> dict:
+    envelope = package_metadata(filename)
+    key = envelope.get("publicContentKey")
+    require(isinstance(key, bytes) and len(key) == 32,
+            f"public content key missing or invalid: {filename}")
+    aad = f"3105PATCH/v{envelope['schemaVersion']}/payload/{envelope['packageID']}"
+    decrypt = (
+        "const c=require('crypto'),k=Buffer.from(process.argv[1],'hex'),"
+        "a=Buffer.from(process.argv[2]);let x=[];"
+        "process.stdin.on('data',v=>x.push(v));process.stdin.on('end',()=>{"
+        "const p=Buffer.concat(x),n=p.subarray(0,12),t=p.subarray(p.length-16),"
+        "d=c.createDecipheriv('aes-256-gcm',k,n);d.setAAD(a);d.setAuthTag(t);"
+        "process.stdout.write(Buffer.concat([d.update(p.subarray(12,p.length-16)),d.final()]));});"
+    )
+    try:
+        decoded = subprocess.run(
+            ["node", "-e", decrypt, key.hex(), aad],
+            input=envelope["encryptedPayload"],
+            check=True,
+            capture_output=True,
+            timeout=20,
+        )
+        payload = plistlib.loads(decoded.stdout)
+        project = payload["project"]
+        require(project.get("id", "").upper() == envelope["packageID"].upper(),
+                f"payload/envelope UUID mismatch: {filename}")
+        return project
+    except Exception as error:
+        fail(f"cannot authenticate/decode bundled package {filename}: {error}")
+
+
 def check_source() -> None:
     app = APP_SOURCE.read_text()
     store = STORE.read_text()
@@ -86,6 +118,23 @@ def check_source() -> None:
         canonical_ids[name] = special_ids[name].upper()
     require(len(set(canonical_ids.values())) == len(BUNDLED),
             "bundled packages do not have unique installed package IDs")
+
+    normal_path = (
+        "Documents/contentcache/Compulsory/ios/gameassetbundles/avatar/"
+        "assetindexer.YJ~2FW7EkU5pRkVg51NrKyx4LXid8~3D"
+    )
+    normal_packages = (
+        "HEAD.TRYSTORE", "NECK.TRYSTORE", "HSPESSCOSO.TRYSTORE", "HS SLA PECHO.TRYSTORE"
+    )
+    antena_packages = (
+        "TryStore.TRYSTORE", "Cuello y Drag.TRYSTORE", "Pecho3105.TRYSTORE", "CUELLO3105.TRYSTORE"
+    )
+    for filename in normal_packages + antena_packages:
+        project = package_project(filename)
+        rules = project.get("rules", [])
+        require(bool(rules), f"patch has no file rules: {filename}")
+        require(all(rule.get("relativePath") == normal_path for rule in rules),
+                f"normal/Antena package target differs from expected avatar path: {filename}")
 
     # Every button is an actual DashboardPatchOption. Explicit package IDs must
     # refer to one of the shipped canonical packages; name-based options must
@@ -146,7 +195,7 @@ def check_source() -> None:
             and ".sorted { $0.2 > $1.2 }" in store
             and "static func activationDate(for receipt:" in transaction,
             "stacked conflicting patch receipts are not restored newest-first")
-    print(f"PASS: all {len(BUNDLED)} local packages have unique button mappings and Activate/Restore routes")
+    print(f"PASS: all {len(BUNDLED)} local packages have unique button mappings, Activate/Restore routes, and aligned Antena targets")
 
 
 def check_app(app: Path) -> None:
