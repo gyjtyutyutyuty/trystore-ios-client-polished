@@ -38,9 +38,9 @@ enum HeroCharacterModel: String, CaseIterable, Identifiable, Hashable {
 }
 
 /// Live SceneKit stage for the home hero. The mesh is loaded with SceneKit,
-/// normalised to a one-unit height, and kept at a fixed camera distance so the
-/// character reads the same on every screen. Auto-rotation pauses while the
-/// user drags and stays off under Reduce Motion.
+/// normalised to a one-unit height and shown with a close, softly lit turntable
+/// view. Auto-rotation pauses while the user drags and stays off under Reduce
+/// Motion.
 struct CharacterStageView: UIViewRepresentable {
     let model: HeroCharacterModel
     let reduceMotion: Bool
@@ -91,7 +91,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         backgroundColor = .clear
         isOpaque = false
         antialiasingMode = .multisampling4X
-        preferredFramesPerSecond = 30
+        preferredFramesPerSecond = 60
         rendersContinuously = false
         isPlaying = false
         allowsCameraControl = false
@@ -99,6 +99,13 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         scene = stageScene
 
         stageScene.background.contents = UIColor.clear
+        stageScene.lightingEnvironment.contents = UIColor(
+            red: 0.25,
+            green: 0.31,
+            blue: 0.43,
+            alpha: 1
+        )
+        stageScene.lightingEnvironment.intensity = 0.72
         stageScene.rootNode.addChildNode(cameraNode)
         stageScene.rootNode.addChildNode(modelContainer)
 
@@ -106,7 +113,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         camera.fieldOfView = 30
         camera.zNear = 0.01
         camera.zFar = 100
-        camera.wantsHDR = false
+        camera.wantsHDR = true
         camera.wantsExposureAdaptation = false
         cameraNode.camera = camera
         cameraNode.position = SCNVector3(0, 0, 2.2)
@@ -114,33 +121,27 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
         addLight(
             type: .ambient,
-            color: UIColor(red: 0.42, green: 0.50, blue: 0.62, alpha: 1),
-            intensity: 360,
+            color: UIColor(red: 0.48, green: 0.57, blue: 0.72, alpha: 1),
+            intensity: 180,
             position: nil
         )
         addLight(
             type: .directional,
-            color: UIColor(red: 1.0, green: 0.94, blue: 0.86, alpha: 1),
-            intensity: 880,
-            position: SCNVector3(2.6, 3.6, 4.2)
+            color: UIColor(red: 1.0, green: 0.91, blue: 0.79, alpha: 1),
+            intensity: 1_050,
+            position: SCNVector3(2.4, 3.8, 4.6)
         )
         addLight(
             type: .directional,
-            color: UIColor(red: 0.22, green: 0.62, blue: 1.0, alpha: 1),
-            intensity: 330,
-            position: SCNVector3(-3.2, 1.2, 2.6)
+            color: UIColor(red: 0.42, green: 0.66, blue: 1.0, alpha: 1),
+            intensity: 520,
+            position: SCNVector3(-3.2, 1.8, 2.8)
         )
         addLight(
             type: .directional,
-            color: UIColor(red: 0.36, green: 0.82, blue: 1.0, alpha: 1),
-            intensity: 620,
-            position: SCNVector3(-2.2, 2.8, -4.0)
-        )
-        addLight(
-            type: .directional,
-            color: UIColor(red: 0.16, green: 0.42, blue: 0.76, alpha: 1),
-            intensity: 220,
-            position: SCNVector3(0.6, -2.8, 2.0)
+            color: UIColor(red: 0.30, green: 0.78, blue: 1.0, alpha: 1),
+            intensity: 820,
+            position: SCNVector3(-2.4, 3.0, -4.2)
         )
 
         // The updated hero has no copy over the stage, so the character stays
@@ -198,9 +199,9 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         guard bounds.width > 0, bounds.height > 0 else { return }
         let fovY = 30.0 * Double.pi / 180.0
         let aspect = Double(bounds.width / bounds.height)
-        let distanceV = 0.54 / tan(fovY / 2)
+        let distanceV = 0.51 / tan(fovY / 2)
         let fovX = 2 * atan(tan(fovY / 2) * aspect)
-        let distanceH = 0.38 / tan(fovX / 2)
+        let distanceH = 0.35 / tan(fovX / 2)
         cameraNode.position = SCNVector3(0, 0, Float(max(distanceV, distanceH)))
         cameraNode.look(at: SCNVector3Zero)
     }
@@ -248,12 +249,10 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             guard let geometry = node.geometry else { return }
             for material in geometry.materials {
                 material.isDoubleSided = true
-                material.lightingModel = .blinn
+                material.lightingModel = .physicallyBased
                 material.diffuse.intensity = 1.0
-                material.ambient.intensity = 0.42
-                material.specular.intensity = 0.08
-                material.shininess = 0.12
-                material.locksAmbientWithDiffuse = true
+                material.metalness.contents = NSNumber(value: 0.03)
+                material.roughness.contents = NSNumber(value: 0.68)
             }
         }
 
@@ -281,7 +280,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
     private func install(_ root: SCNNode) {
         modelContainer.childNodes.forEach { $0.removeFromParentNode() }
-        baseYaw = 0
+        baseYaw = -0.20
         dragYaw = 0
         idleYaw = 0
         idleSpeed = 0
@@ -300,7 +299,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         let shouldRun = isActive && window != nil
         if shouldRun, displayLink == nil {
             let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
-            link.preferredFramesPerSecond = 30
+            link.preferredFramesPerSecond = 60
             link.add(to: .main, forMode: .common)
             displayLink = link
             lastTimestamp = 0
@@ -323,16 +322,21 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
         if !reduceMotion, !isDragging {
             idleTime += Double(delta)
-            let target: Float = idleTime > 1.6 ? 0.26 : 0
-            idleSpeed += (target - idleSpeed) * min(1, delta * 2.4)
+            let target: Float = idleTime > 0.7 ? 0.34 : 0
+            idleSpeed += (target - idleSpeed) * min(1, delta * 1.8)
         } else {
             idleSpeed = 0
             if reduceMotion { idleYaw = 0 }
         }
         idleYaw += idleSpeed * delta
 
-        modelContainer.eulerAngles.y = baseYaw + dragYaw + idleYaw
-        let bob = reduceMotion ? 0 : Float(sin(link.timestamp * 1.1) * 0.006)
+        let gentleSway = reduceMotion ? 0 : Float(sin(link.timestamp * 0.48) * 0.016)
+        modelContainer.eulerAngles = SCNVector3(
+            gentleSway,
+            baseYaw + dragYaw + idleYaw,
+            0
+        )
+        let bob = reduceMotion ? 0 : Float(sin(link.timestamp * 0.9) * 0.0035)
         modelContainer.position.y = bob
     }
 

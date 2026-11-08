@@ -709,26 +709,26 @@ private struct BrandCharacterBackdrop: View {
 
             ZStack {
                 RadialGradient(
-                    colors: [AppPalette.brand.opacity(0.16), .clear],
+                    colors: [AppPalette.brand.opacity(0.24), .clear],
                     center: .center,
                     startRadius: 8,
-                    endRadius: 190
+                    endRadius: 210
                 )
-                .frame(width: 380, height: 380)
+                .frame(width: 420, height: 420)
 
                 Circle()
-                    .strokeBorder(AppPalette.brand.opacity(0.18), lineWidth: 1)
-                    .frame(width: 250, height: 250)
+                    .strokeBorder(AppPalette.brand.opacity(0.23), lineWidth: 1)
+                    .frame(width: 270, height: 270)
 
                 Circle()
-                    .strokeBorder(AppPalette.brand.opacity(0.07), lineWidth: 1)
-                    .frame(width: 300, height: 300)
+                    .strokeBorder(AppPalette.brand.opacity(0.11), lineWidth: 1)
+                    .frame(width: 320, height: 320)
 
                 Image("TryStoreTheme")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 170)
-                    .opacity(0.10)
+                    .opacity(0.07)
             }
             .accessibilityHidden(true)
 
