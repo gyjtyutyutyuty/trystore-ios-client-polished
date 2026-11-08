@@ -263,6 +263,7 @@
 "home.modules.patched" = "CON PATCH";
 "home.modules.clean" = "LIMPIO";
 "home.modules.caption" = "Cada segmento es un módulo. Los encendidos están activos en el dispositivo.";
+"home.character_picker" = "Personaje";
 "home.modules.open" = "ABRIR PATCH STUDIO";
 "home.shortcut.patches" = "PATCHES";
 "home.shortcut.patches_detail" = "Módulos y loadout";
@@ -420,6 +421,7 @@
 "activate_all_patches" = "Activar todo";
 "deactivate_all_patches" = "Desactivar todo";
 "patch.error.restore" = "No se pudieron restaurar los originales de forma segura. No se sobrescribió ningún destino sin verificar.";
+"patch.error.remote_import" = "El parche no se pudo descargar de forma segura. Comprueba el enlace e inténtalo de nuevo.";
 "patch.error.invalid_import_link" = "Este enlace de importación no es válido. Usa un enlace HTTPS seguro a un paquete .Support Patch.";
 "accessibility.open_logs" = "Abrir registros";
 "accessibility.open_settings" = "Abrir ajustes";

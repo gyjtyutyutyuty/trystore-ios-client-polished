@@ -225,6 +225,7 @@
 "patch.error.remote_target_missing" = "未找到目标文件或父目录。远程补丁只替换已存在的文件。";
 "patch.error.remote_replacement_failed" = "无法通过配对替换文件：%@";
 "patch.error.restore" = "无法安全恢复原始文件。未覆盖任何未经验证的目标。";
+"patch.error.remote_import" = "无法安全下载补丁。请检查链接并重试。";
 "patch.error.invalid_import_link" = "补丁导入链接无效。请使用指向 .Support Patch 软件包的安全 HTTPS 链接。";
 
 "accessibility.open_logs" = "打开日志";
@@ -670,6 +671,7 @@
 "home.modules.patched" = "已打补丁";
 "home.modules.clean" = "干净";
 "home.modules.caption" = "每段代表一个模块，亮起表示已在设备上生效。";
+"home.character_picker" = "角色";
 "home.modules.open" = "打开补丁工作室";
 "home.shortcut.patches" = "补丁";
 "home.shortcut.patches_detail" = "模块与配置";

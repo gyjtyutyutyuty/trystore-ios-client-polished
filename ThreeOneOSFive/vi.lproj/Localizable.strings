@@ -225,6 +225,7 @@
 "patch.error.remote_target_missing" = "Không tìm thấy file đích hoặc thư mục cha. Remote patch chỉ thay file đã tồn tại.";
 "patch.error.remote_replacement_failed" = "Không thể thay file qua pairing: %@";
 "patch.error.restore" = "Không thể khôi phục file gốc an toàn. App không ghi đè đích chưa được xác minh.";
+"patch.error.remote_import" = "Không thể tải bản vá một cách an toàn. Kiểm tra liên kết và thử lại.";
 "patch.error.invalid_import_link" = "Liên kết nhập patch không hợp lệ. Hãy dùng liên kết HTTPS an toàn tới gói .Support Patch.";
 
 "accessibility.open_logs" = "Mở nhật ký";
@@ -672,6 +673,7 @@
 "home.modules.patched" = "ĐÃ PATCH";
 "home.modules.clean" = "SẠCH";
 "home.modules.caption" = "Mỗi đoạn là một mô-đun. Đoạn sáng đang hoạt động trên thiết bị.";
+"home.character_picker" = "Nhân vật";
 "home.modules.open" = "MỞ PATCH STUDIO";
 "home.shortcut.patches" = "PATCH";
 "home.shortcut.patches_detail" = "Mô-đun và loadout";

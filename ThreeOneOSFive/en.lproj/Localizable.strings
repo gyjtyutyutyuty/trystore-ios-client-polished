@@ -679,6 +679,7 @@
 "home.modules.patched" = "PATCHED";
 "home.modules.clean" = "CLEAN";
 "home.modules.caption" = "Each segment is a module. Lit segments are live on the device.";
+"home.character_picker" = "Character";
 "home.modules.open" = "OPEN PATCH STUDIO";
 "home.shortcut.patches" = "PATCHES";
 "home.shortcut.patches_detail" = "Modules and loadout";

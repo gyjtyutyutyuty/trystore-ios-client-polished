@@ -265,6 +265,7 @@
 "home.modules.patched" = "COM PATCH";
 "home.modules.clean" = "LIMPO";
 "home.modules.caption" = "Cada segmento é um módulo. Segmentos acesos estão ativos no dispositivo.";
+"home.character_picker" = "Personagem";
 "home.modules.open" = "ABRIR PATCH STUDIO";
 "home.shortcut.patches" = "PATCHES";
 "home.shortcut.patches_detail" = "Módulos e loadout";
@@ -418,6 +419,7 @@
 "patch.error.symlink" = "Os destinos do patch não podem passar por links simbólicos.";
 "patch.error.apply" = "O patch não pôde ser aplicado. As gravações anteriores foram revertidas.";
 "patch.error.restore" = "Os originais não puderam ser restaurados com segurança. Nenhum destino não verificado foi sobrescrito.";
+"patch.error.remote_import" = "Não foi possível baixar o patch com segurança. Verifique o link e tente novamente.";
 "patch.error.invalid_import_link" = "Este link de importação é inválido. Use um link HTTPS seguro para um pacote .Support Patch.";
 "accessibility.open_logs" = "Abrir registros";
 "accessibility.open_settings" = "Abrir ajustes";
