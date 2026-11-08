@@ -354,7 +354,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         }
     }
 
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         let translation = pan.translation(in: self)
         return abs(translation.x) > abs(translation.y) * 1.15
