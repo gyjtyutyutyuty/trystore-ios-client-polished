@@ -130,6 +130,8 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
             .background(AppPremiumBackdrop())
             .appCinematicReveal(delay: 0.05)
             .appDepthLayer(.card)

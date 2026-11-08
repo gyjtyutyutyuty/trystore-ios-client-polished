@@ -74,6 +74,8 @@ struct LogView: View {
                     }
                 }
                 }
+                .frame(maxWidth: 1080)
+                .frame(maxWidth: .infinity)
             }
             .appCinematicReveal(delay: 0.04)
             .appDepthLayer(.card)

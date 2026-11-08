@@ -10,6 +10,7 @@ private enum PatchPackagePickerPolicy {
 
 struct PatchProjectsView: View {
     @Environment(\.appLanguage) private var language
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var draftCoordinator: PatchDraftCoordinator
     @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var store = PatchProjectStore()
@@ -27,26 +28,30 @@ struct PatchProjectsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if store.items.isEmpty && !store.isBusy {
-                    emptyState
-                        .frame(maxWidth: .infinity)
-                } else {
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(), spacing: 14),
-                            GridItem(.flexible(), spacing: 14)
-                        ],
-                        spacing: 14
-                    ) {
-                        ForEach(store.items) { item in
-                            itemTile(item).appCinematicReveal(
-                                delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
-                            ).appDepthLayer(.hero)
+                VStack {
+                    if store.items.isEmpty && !store.isBusy {
+                        emptyState
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        LazyVGrid(
+                            columns: Array(
+                                repeating: GridItem(.flexible(), spacing: 14),
+                                count: horizontalSizeClass == .regular ? 3 : 2
+                            ),
+                            spacing: 14
+                        ) {
+                            ForEach(store.items) { item in
+                                itemTile(item).appCinematicReveal(
+                                    delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
+                                ).appDepthLayer(.hero)
+                            }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
                 }
+                .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 1040)
+                .frame(maxWidth: .infinity)
             }
             .background(AppPremiumBackdrop())
             .appCinematicReveal(delay: 0.06)

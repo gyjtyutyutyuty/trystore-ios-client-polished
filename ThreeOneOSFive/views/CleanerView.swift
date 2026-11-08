@@ -101,6 +101,8 @@ struct CleanerView: View {
                         appsPanel.appCinematicReveal(delay: 0.20)
                         footerNote.appCinematicReveal(delay: 0.26)
                     }
+                    .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 980)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
                     .padding(.bottom, AppSpacing.xxl)
@@ -329,7 +331,13 @@ struct CleanerView: View {
             if visibleRecords.isEmpty {
                 emptyState
             } else {
-                LazyVStack(spacing: AppSpacing.s) {
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: AppSpacing.s),
+                        count: horizontalSizeClass == .regular ? 2 : 1
+                    ),
+                    spacing: AppSpacing.s
+                ) {
                     ForEach(visibleRecords) { record in
                         appRow(record)
                     }

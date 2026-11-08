@@ -199,9 +199,11 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         guard bounds.width > 0, bounds.height > 0 else { return }
         let fovY = 30.0 * Double.pi / 180.0
         let aspect = Double(bounds.width / bounds.height)
-        let distanceV = 0.51 / tan(fovY / 2)
+        // The imported meshes are normalised to 1 unit tall. Leave comfortable
+        // head/foot margin inside the square card instead of filling the frame.
+        let distanceV = 0.76 / tan(fovY / 2)
         let fovX = 2 * atan(tan(fovY / 2) * aspect)
-        let distanceH = 0.35 / tan(fovX / 2)
+        let distanceH = 0.48 / tan(fovX / 2)
         cameraNode.position = SCNVector3(0, 0, Float(max(distanceV, distanceH)))
         cameraNode.look(at: SCNVector3Zero)
     }

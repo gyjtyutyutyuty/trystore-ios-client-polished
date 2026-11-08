@@ -82,6 +82,8 @@ struct HomeView: View {
                         deviceSectionHome.appCinematicReveal(delay: 0.27)
                         footerHome.appCinematicReveal(delay: 0.39)
                     }
+                    .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 860)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
                     .padding(.bottom, AppSpacing.xxl)
@@ -210,9 +212,11 @@ struct HomeView: View {
             HeroCharacterSwitcher(selection: heroCharacterSelection)
                 .padding(AppSpacing.m)
         }
-        .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 340)
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: horizontalSizeClass == .compact ? 430 : 460)
         .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Module control
@@ -613,10 +617,10 @@ struct HomeView: View {
             AppSectionHeader(icon: "iphone.gen3", title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH")
 
             LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: AppSpacing.m),
-                    GridItem(.flexible(), spacing: AppSpacing.m)
-                ],
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: AppSpacing.m),
+                    count: horizontalSizeClass == .regular ? 4 : 2
+                ),
                 spacing: AppSpacing.m
             ) {
                 AppMetricTile(
@@ -2594,6 +2598,8 @@ private struct PatchesView: View {
                         patchCategoriesView.appCinematicReveal(delay: 0.09)
                         activePatchesView.appCinematicReveal(delay: 0.16)
                     }
+                    .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 1040)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
                     .padding(.bottom, AppSpacing.xxl)
@@ -2750,10 +2756,10 @@ private struct PatchesView: View {
                     AppHairline()
                 }
                 LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: AppSpacing.s),
-                        GridItem(.flexible(), spacing: AppSpacing.s)
-                    ],
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: AppSpacing.s),
+                        count: horizontalSizeClass == .regular ? 3 : 2
+                    ),
                     spacing: AppSpacing.s
                 ) {
                     ForEach(Array(visiblePatchOptions.dropFirst().enumerated()), id: \.element.id) { offset, option in
