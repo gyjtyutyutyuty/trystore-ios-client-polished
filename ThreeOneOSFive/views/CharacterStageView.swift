@@ -4,7 +4,7 @@ import ModelIO
 import UIKit
 
 /// The two real character meshes shipped in `CharacterModels/`.
-enum HeroCharacterModel: String, CaseIterable, Identifiable {
+enum HeroCharacterModel: String, CaseIterable, Identifiable, Hashable {
     case rouk
     case sakura
 
@@ -111,6 +111,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         camera.wantsExposureAdaptation = false
         cameraNode.camera = camera
         cameraNode.position = SCNVector3(0, 0, 2.2)
+        pointOfView = cameraNode
 
         addLight(
             type: .ambient,

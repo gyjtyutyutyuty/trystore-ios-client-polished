@@ -773,7 +773,7 @@ private struct HeroCharacterSwitcher: View {
                 }
                 .buttonStyle(AppPressButtonStyle())
                 .accessibilityLabel(model.displayName)
-                .accessibilityAddTraits(selection == model ? .isSelected : [])
+                .accessibilityAddTraits(selection == model ? AccessibilityTraits.isSelected : AccessibilityTraits())
             }
         }
         .padding(3)
