@@ -9,4 +9,6 @@ TryStore is a branded derivative of the supplied 3105 SwiftUI project. This repo
 
 Original portions of TryStore are distributed under GPL-3.0. Pocket-Poster also publishes a GPL-3.0 license in its upstream repository. Airlift source in `ThreeOneOSFive/airlift-rust-core` is distributed under the MIT License; its copyright and license are retained in that directory. Review each upstream project and its current terms before redistributing derived code.
 
+The character meshes and textures in `ThreeOneOSFive/CharacterModels/` are supplied menu assets for the owner's private build. They are not covered by the GPL-3.0 grant; Free Fire and related marks remain the property of their respective owners.
+
 The TryStore license applies only to material for which the project owner has the right to grant that license. This file provides attribution; it does not replace upstream copyright or license notices and does not relicense third-party material.

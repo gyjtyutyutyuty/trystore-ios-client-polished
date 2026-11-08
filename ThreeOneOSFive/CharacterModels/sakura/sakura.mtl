@@ -1,0 +1,47 @@
+newmtl mat0
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+illum 2
+map_Kd tex_0050_0out.png
+
+newmtl mat0.001
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+illum 2
+map_Kd tex_0055_0out.png
+
+newmtl mat0.002
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+illum 2
+map_Kd tex_0060_0out.png
+
+newmtl mat0.003
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+illum 2
+map_Kd tex_0065_0out.png
+
+newmtl mat0.004
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+illum 2
+map_Kd tex_0070_0out.png
+
+newmtl mat0.005
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+illum 2
+map_Kd tex_0230_0out.png

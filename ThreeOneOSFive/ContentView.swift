@@ -1,7 +1,6 @@
 import SwiftUI
 import ActivityKit
 import UIKit
-import AVFoundation
 
 @available(iOS 16.1, *)
 struct LiveActivityState: ActivityAttributes {
@@ -66,6 +65,7 @@ struct HomeView: View {
     @State private var isPairingImporting = false
     @State private var isPairingDeleteConfirmationPresented = false
     @State private var pairingImportErrorKey: String?
+    @AppStorage("hero_character_model") private var heroCharacterRaw = HeroCharacterModel.rouk.rawValue
 
     var body: some View {
         NavigationStack {
@@ -187,16 +187,32 @@ struct HomeView: View {
 
     // MARK: - Hero
 
+    private var heroCharacter: HeroCharacterModel {
+        HeroCharacterModel(rawValue: heroCharacterRaw) ?? .rouk
+    }
+
+    private var heroCharacterSelection: Binding<HeroCharacterModel> {
+        Binding(
+            get: { HeroCharacterModel(rawValue: heroCharacterRaw) ?? .rouk },
+            set: { heroCharacterRaw = $0.rawValue }
+        )
+    }
+
     /// The stage carries no copy: the figure is the whole point of the panel, and
     /// the captions that used to sit on it pushed the modules further down the
-    /// screen. It is decorative, so VoiceOver skips it and the content below
-    /// starts sooner.
+    /// screen. The stage itself is decorative, but the character switcher stays
+    /// interactive and accessible above it.
     private var heroHome: some View {
-        BrandCharacterBackdrop(reduceMotion: reduceMotion)
-            .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 340)
-            .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-            .accessibilityHidden(true)
+        ZStack(alignment: .topTrailing) {
+            BrandCharacterBackdrop(model: heroCharacter, reduceMotion: reduceMotion)
+                .accessibilityHidden(true)
+
+            HeroCharacterSwitcher(selection: heroCharacterSelection)
+                .padding(AppSpacing.m)
+        }
+        .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 340)
+        .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
     }
 
     // MARK: - Module control
@@ -677,198 +693,97 @@ struct HomeView: View {
     }
 }
 
-/// Home hero stage. The rotating character, the TryStore emblem and the accent
-/// ring are baked into `CharacterHeroLoop.mp4` at the hero's own square shape, so the
-/// backdrop is one element instead of a stack of overlays. The loop is silent and
-/// pauses with the scene; Reduce Motion and a failed load keep the still frame.
+/// Home hero atmosphere. The ring and emblem used to be baked into the video;
+/// they are drawn here so the live SceneKit character stays the only moving
+/// element and the backdrop follows the app accent.
 private struct BrandCharacterBackdrop: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    let model: HeroCharacterModel
     let reduceMotion: Bool
 
-    @StateObject private var heroPlayer = CharacterHeroPlayer()
     @State private var isVisible = false
-
-    /// Phones take the stage to the panel edges. Wide layouts keep the whole
-    /// stage visible instead of cropping the hat and the heels.
-    private var fillsStage: Bool { horizontalSizeClass == .compact }
-
-    /// Reduce Motion keeps the still frame, and the loop only runs while the hero
-    /// is on screen in the foreground.
-    private var shouldPlay: Bool {
-        !reduceMotion && scenePhase == .active && isVisible
-    }
-
-    /// The video only covers the poster once it is genuinely running, so a player
-    /// that never starts shows frame zero rather than a frozen layer.
-    private var showsLoop: Bool { shouldPlay && heroPlayer.isRunning }
 
     var body: some View {
         ZStack {
             AppPalette.canvas
 
-            Image("CharacterHeroStage")
-                .resizable()
-                .aspectRatio(contentMode: fillsStage ? .fill : .fit)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .opacity(showsLoop ? 0 : 1)
-                .accessibilityHidden(true)
+            ZStack {
+                RadialGradient(
+                    colors: [AppPalette.brand.opacity(0.16), .clear],
+                    center: .center,
+                    startRadius: 8,
+                    endRadius: 190
+                )
+                .frame(width: 380, height: 380)
 
-            if heroPlayer.hasLoop {
-                VideoPlayerSurface(player: heroPlayer.player, fillsStage: fillsStage)
-                    .opacity(showsLoop ? 1 : 0)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityHidden(true)
+                Circle()
+                    .strokeBorder(AppPalette.brand.opacity(0.18), lineWidth: 1)
+                    .frame(width: 250, height: 250)
+
+                Circle()
+                    .strokeBorder(AppPalette.brand.opacity(0.07), lineWidth: 1)
+                    .frame(width: 300, height: 300)
+
+                Image("TryStoreTheme")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 170)
+                    .opacity(0.10)
             }
+            .accessibilityHidden(true)
+
+            CharacterStageView(
+                model: model,
+                reduceMotion: reduceMotion,
+                isActive: scenePhase == .active && isVisible
+            )
         }
         .clipped()
-        .task(id: shouldPlay) {
-            if shouldPlay {
-                heroPlayer.start()
-            } else {
-                heroPlayer.stop()
-            }
-        }
         .onAppear { isVisible = true }
-        .onDisappear {
-            isVisible = false
-            heroPlayer.stop()
-        }
+        .onDisappear { isVisible = false }
     }
 }
 
-/// Owns the hero loop. `AVPlayer.play()` is ignored while an item is still
-/// loading, and an item always loads asynchronously, so playback waits for the
-/// ready status instead of trusting the call made while the player was built.
-@MainActor
-private final class CharacterHeroPlayer: ObservableObject {
-    @Published private(set) var isRunning = false
-    let player: AVQueuePlayer
-    let hasLoop: Bool
+/// Two-way character choice for the hero stage. The names are proper nouns;
+/// the group label and selected value are localised for VoiceOver.
+private struct HeroCharacterSwitcher: View {
+    @Binding var selection: HeroCharacterModel
+    @Environment(\.appLanguage) private var language
 
-    private var looper: AVPlayerLooper?
-    private var startTask: Task<Void, Never>?
-
-    /// An item reports ready a few hundred milliseconds after the player is
-    /// built. Both waits are bounded, so a clip that never loads settles on the
-    /// still frame instead of retrying for the life of the screen.
-    private static let readinessChecks = 40
-    private static let readinessInterval: UInt64 = 100_000_000
-    private static let playbackProbe: UInt64 = 250_000_000
-    private static let playbackProbes = 3
-
-    init() {
-        let queuePlayer = AVQueuePlayer()
-        player = queuePlayer
-
-        guard let url = Bundle.main.url(forResource: "CharacterHeroLoop", withExtension: "mp4") else {
-            hasLoop = false
-            log("hero: CharacterHeroLoop.mp4 missing from the bundle, keeping the still frame")
-            return
-        }
-
-        hasLoop = true
-        queuePlayer.isMuted = true
-        queuePlayer.actionAtItemEnd = .advance
-        // A local file has nothing to buffer, and an ambient loop must not hold
-        // the display awake the way a watched video does.
-        queuePlayer.automaticallyWaitsToMinimizeStalling = false
-        queuePlayer.preventsDisplaySleepDuringVideoPlayback = false
-        looper = AVPlayerLooper(player: queuePlayer, templateItem: AVPlayerItem(url: url))
-    }
-
-    func start() {
-        guard hasLoop, startTask == nil else { return }
-        startTask = Task { [weak self] in
-            await self?.runUntilPlaying()
-            self?.startTask = nil
-        }
-    }
-
-    func stop() {
-        startTask?.cancel()
-        startTask = nil
-        isRunning = false
-        player.pause()
-        player.seek(to: .zero)
-    }
-
-    /// Waits for the item to load, then starts it and confirms the state actually
-    /// changed. `isRunning` is only set once the player reports it is playing, so
-    /// a start that is silently dropped leaves the still frame on screen rather
-    /// than a frozen video the user reads as a broken hero.
-    private func runUntilPlaying() async {
-        for _ in 0..<Self.readinessChecks {
-            if Task.isCancelled { return }
-            guard player.currentItem?.status == .readyToPlay else {
-                try? await Task.sleep(nanoseconds: Self.readinessInterval)
-                continue
-            }
-            for probe in 0..<Self.playbackProbes {
-                if Task.isCancelled { return }
-                player.playImmediately(atRate: 1)
-                try? await Task.sleep(nanoseconds: Self.playbackProbe)
-                if player.timeControlStatus == .playing {
-                    isRunning = true
-                    log("hero: loop playing")
-                    return
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(HeroCharacterModel.allCases) { model in
+                Button {
+                    guard selection != model else { return }
+                    AppHaptics.select()
+                    withAnimation(AppMotion.surface) { selection = model }
+                } label: {
+                    Text(model.shortName)
+                        .font(AppType.label().weight(.semibold))
+                        .tracking(0.7)
+                        .foregroundStyle(selection == model ? AppPalette.canvas : AppPalette.textSecondary)
+                        .padding(.horizontal, 10)
+                        .frame(height: 38)
+                        .background {
+                            if selection == model {
+                                Capsule().fill(AppPalette.brand)
+                            }
+                        }
+                        .contentShape(Capsule())
                 }
-                log("hero: loop start attempt \(probe + 1) did not take")
+                .buttonStyle(AppPressButtonStyle())
+                .accessibilityLabel(model.displayName)
+                .accessibilityAddTraits(selection == model ? .isSelected : [])
             }
-            log("hero: loop reported ready but stayed paused, keeping the still frame")
-            return
         }
-        log("hero: loop never reported ready, keeping the still frame")
+        .padding(3)
+        .background(AppPalette.raised.opacity(0.92), in: Capsule())
+        .overlay(Capsule().strokeBorder(AppPalette.hairline.opacity(0.55), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(language.text("home.character_picker"))
+        .accessibilityValue(selection.displayName)
     }
 }
-
-private struct VideoPlayerSurface: UIViewRepresentable {
-    let player: AVPlayer
-    let fillsStage: Bool
-
-    func makeUIView(context: Context) -> VideoPlayerSurfaceView {
-        let view = VideoPlayerSurfaceView()
-        view.playerLayer.player = player
-        view.playerLayer.videoGravity = gravity
-        return view
-    }
-
-    func updateUIView(_ view: VideoPlayerSurfaceView, context: Context) {
-        if view.playerLayer.player !== player {
-            view.playerLayer.player = player
-        }
-        if view.playerLayer.videoGravity != gravity {
-            view.playerLayer.videoGravity = gravity
-        }
-    }
-
-    private var gravity: AVLayerVideoGravity {
-        fillsStage ? .resizeAspectFill : .resizeAspect
-    }
-}
-
-private final class VideoPlayerSurfaceView: UIView {
-    override class var layerClass: AnyClass {
-        AVPlayerLayer.self
-    }
-
-    var playerLayer: AVPlayerLayer {
-        layer as! AVPlayerLayer
-    }
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        playerLayer.videoGravity = .resizeAspectFill
-        backgroundColor = .clear
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        playerLayer.videoGravity = .resizeAspectFill
-        backgroundColor = .clear
-    }
-}
-
 
 // MARK: - PatchesView
 private enum DashboardPatchTab: String, CaseIterable, Identifiable {

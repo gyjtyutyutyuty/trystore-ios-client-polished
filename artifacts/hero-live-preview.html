@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TryStore — live hero UI</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --canvas: #000000;
+    --surface: #0e0e0e;
+    --raised: #1d1d1f;
+    --hairline: #333336;
+    --text: #f5f5f7;
+    --text-2: #cccccc;
+    --text-3: #86868b;
+    --brand: #00b3ff;
+    --brand-dim: rgba(0, 179, 255, .18);
+    --amber: #ffc66d;
+    --coral: #ff938a;
+    --mint: #00b3ff;
+    --radius-hero: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(70% 60% at 50% 0%, rgba(0, 179, 255, .08), transparent 60%),
+      linear-gradient(180deg, #090a0c, #050506 55%, #08090b);
+    color: var(--text);
+    font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.5), transparent 75%);
+    pointer-events: none;
+  }
+
+  .page {
+    position: relative;
+    width: min(1180px, calc(100vw - 40px));
+    margin: 0 auto;
+    padding: 28px 0 56px;
+    display: grid;
+    grid-template-columns: 390px minmax(300px, 1fr);
+    gap: 42px;
+    align-items: start;
+  }
+  @media (max-width: 920px) {
+    .page { grid-template-columns: minmax(0, 390px); justify-content: center; gap: 30px; }
+  }
+
+  .phone-wrap { position: sticky; top: 24px; }
+  @media (max-width: 920px) { .phone-wrap { position: relative; top: 0; } }
+  .phone-label {
+    margin: 0 0 10px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+  .phone {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    border-radius: 52px;
+    padding: 10px;
+    background: #050506;
+    border: 1px solid #2a2a2d;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.03),
+      0 40px 90px rgba(0,0,0,.65),
+      0 0 80px rgba(0, 179, 255, .07);
+  }
+  .phone-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 43px;
+    overflow: hidden;
+    background: var(--canvas);
+  }
+  .phone-screen::after {
+    content: "";
+    position: absolute;
+    top: 9px; left: 50%;
+    width: 112px; height: 31px;
+    transform: translateX(-50%);
+    border-radius: 20px;
+    background: #000;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .status-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 54px;
+    padding: 16px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    z-index: 9;
+    pointer-events: none;
+  }
+  .status-icons { display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+  .status-icons i { display: block; background: var(--text); border-radius: 2px; }
+  .signal { width: 17px; height: 11px; clip-path: polygon(0 100%, 100% 100%, 100% 0, 0 100%); }
+  .wifi { width: 15px; height: 11px; clip-path: polygon(50% 100%, 0 30%, 100% 30%); }
+  .battery { width: 23px; height: 11px; border: 1px solid var(--text); background: transparent; position: relative; border-radius: 3px; }
+  .battery::after { content: ""; position: absolute; inset: 2px; right: 5px; background: var(--text); border-radius: 1px; }
+
+  .app-scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 54px 20px 30px;
+    scrollbar-width: none;
+  }
+  .app-scroll::-webkit-scrollbar { display: none; }
+
+  .app-topbar {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 16px;
+  }
+  .app-logo {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    object-fit: cover;
+    flex: none;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .brand-name { font-size: 19px; font-weight: 650; letter-spacing: .01em; line-height: 1.1; }
+  .brand-sub { margin-top: 2px; font-size: 10px; color: var(--text-3); letter-spacing: .04em; }
+  .topbar-actions { margin-left: auto; display: flex; gap: 10px; }
+  .icon-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    color: var(--text);
+  }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  /* hero */
+  .hero {
+    position: relative;
+    height: 340px;
+    border-radius: var(--radius-hero);
+    overflow: hidden;
+    background: var(--canvas);
+    border: 1px solid rgba(255,255,255,.055);
+    isolation: isolate;
+  }
+  .hero-glow {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 380px; height: 380px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,179,255,.16), transparent 68%);
+    z-index: 0;
+  }
+  .hero-ring, .hero-ring::before {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(0,179,255,.18);
+    z-index: 0;
+  }
+  .hero-ring { width: 250px; height: 250px; }
+  .hero-ring::before { content: ""; width: 300px; height: 300px; border-color: rgba(0,179,255,.07); }
+  .hero-emblem {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 170px;
+    transform: translate(-50%, -50%);
+    opacity: .10;
+    filter: saturate(.85);
+    z-index: 0;
+    pointer-events: none;
+  }
+  #scene {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    display: block;
+    touch-action: none;
+    cursor: grab;
+  }
+  #scene:active { cursor: grabbing; }
+
+  .hero-switch {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 3;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(29,29,31,.92);
+    border: 1px solid rgba(51,51,54,.55);
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .hero-switch button {
+    appearance: none;
+    border: 0;
+    min-height: 38px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: .07em;
+    cursor: pointer;
+    transition: color .18s ease, background .18s ease;
+  }
+  .hero-switch button:hover { color: var(--text); }
+  .hero-switch button.on {
+    background: var(--brand);
+    color: var(--canvas);
+  }
+
+  .hero-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    background: rgba(0,0,0,.28);
+    transition: opacity .35s ease, visibility .35s ease;
+  }
+  .hero-loading.hidden { opacity: 0; visibility: hidden; }
+  .hero-loading .spin {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,179,255,.18);
+    border-top-color: var(--brand);
+    animation: spin 1s linear infinite;
+  }
+  .hero-loading p { margin: 0; font-size: 9px; font-weight: 800; letter-spacing: .16em; color: var(--text-3); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* panels */
+  .panel {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: 28px;
+    background: var(--raised);
+  }
+  .panel-head { display: flex; align-items: center; gap: 10px; }
+  .panel-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    background: rgba(0,179,255,.14);
+    color: var(--brand);
+    flex: none;
+  }
+  .panel-icon svg { width: 15px; height: 15px; }
+  .panel-title { font-size: 13px; font-weight: 750; letter-spacing: .06em; line-height: 1.15; }
+  .panel-sub { margin-top: 2px; font-size: 10px; color: var(--text-3); letter-spacing: .05em; line-height: 1.15; }
+  .module-count {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 18px;
+  }
+  .module-count b { font-size: 30px; font-weight: 650; letter-spacing: -.02em; }
+  .module-count span { color: var(--text-3); font-size: 14px; }
+  .module-count .chip {
+    margin-left: auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    color: var(--text-3);
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: .08em;
+  }
+  .segments { display: flex; gap: 4px; margin-top: 13px; }
+  .segments i { flex: 1; height: 5px; border-radius: 99px; background: rgba(51,51,54,.75); }
+  .caption { margin-top: 12px; font-size: 10px; line-height: 1.45; color: var(--text-3); }
+
+  .vitals { display: flex; gap: 16px; align-items: center; }
+  .gauge {
+    --p: 8;
+    width: 104px; height: 104px;
+    flex: none;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 50% 50%, var(--raised) 56%, transparent 57%),
+      conic-gradient(from 225deg, var(--brand) calc(var(--p) * .75%), rgba(51,51,54,.8) 0 75%, transparent 0);
+    position: relative;
+  }
+  .gauge::after {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border-radius: 50%;
+    border: 8px solid rgba(51,51,54,.55);
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+    transform: rotate(-45deg);
+    opacity: 0;
+  }
+  .gauge-center { text-align: center; }
+  .gauge-value { font-size: 13px; font-weight: 650; }
+  .gauge-caption { margin-top: 2px; font-size: 8px; font-weight: 750; letter-spacing: .12em; color: var(--text-3); }
+  .vitals-body { min-width: 0; flex: 1; }
+  .vital-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 10px;
+    color: var(--text-2);
+  }
+  .vital-row .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--brand); flex: none; }
+  .vital-row b { margin-left: auto; font-size: 11px; font-weight: 650; color: var(--text); }
+
+  .app-footer {
+    margin: 18px 0 4px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(51,51,54,.65);
+    display: flex;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    color: var(--text-3);
+  }
+
+  /* inspector */
+  .inspector { padding-top: 34px; }
+  @media (max-width: 920px) { .inspector { padding-top: 0; } }
+  .eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 800; letter-spacing: .18em;
+    color: var(--brand);
+    text-transform: uppercase;
+  }
+  .eyebrow::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--brand); box-shadow: 0 0 12px var(--brand);
+  }
+  h1 {
+    margin: 12px 0 0;
+    font-size: clamp(30px, 4vw, 44px);
+    line-height: .98;
+    letter-spacing: -.025em;
+    font-weight: 800;
+  }
+  .lede {
+    margin: 14px 0 0;
+    max-width: 460px;
+    color: var(--text-2);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .lede b { color: var(--text); font-weight: 650; }
+
+  .choice-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    max-width: 520px;
+  }
+  @media (max-width: 480px) { .choice-grid { grid-template-columns: 1fr; } }
+  .choice {
+    appearance: none;
+    text-align: left;
+    border: 1px solid var(--hairline);
+    border-radius: 18px;
+    padding: 14px;
+    background: linear-gradient(160deg, rgba(29,29,31,.92), rgba(14,14,14,.92));
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    transition: border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .choice:hover { border-color: rgba(0,179,255,.32); }
+  .choice:active { transform: scale(.985); }
+  .choice.on {
+    border-color: rgba(0,179,255,.62);
+    background: linear-gradient(160deg, rgba(0,179,255,.15), rgba(29,29,31,.92) 62%);
+    box-shadow: inset 0 0 0 1px rgba(0,179,255,.12);
+  }
+  .choice-name { display: block; font-size: 15px; font-weight: 750; letter-spacing: .03em; }
+  .choice-sub { display: block; margin-top: 4px; font-size: 10px; color: var(--text-3); letter-spacing: .05em; }
+  .choice-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 13px;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    color: var(--text-3);
+  }
+  .choice.on .choice-state { color: var(--brand); }
+  .choice-state::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+
+  .toggles {
+    margin-top: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    max-width: 520px;
+  }
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 11px;
+    font-weight: 650;
+    color: var(--text-2);
+    cursor: pointer;
+    user-select: none;
+  }
+  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch span {
+    width: 34px; height: 20px;
+    border-radius: 999px;
+    background: var(--hairline);
+    position: relative;
+    transition: background .18s ease;
+    flex: none;
+  }
+  .switch span::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--text-2);
+    transition: transform .18s ease, background .18s ease;
+  }
+  .switch input:checked + span { background: rgba(0,179,255,.36); }
+  .switch input:checked + span::after { transform: translateX(14px); background: var(--brand); }
+
+  .stats {
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--text-3);
+    font-weight: 750;
+  }
+  .stats b { color: var(--text); font-weight: 750; }
+
+  .changes {
+    margin-top: 26px;
+    max-width: 520px;
+    border-top: 1px solid rgba(51,51,54,.65);
+    padding-top: 18px;
+  }
+  .changes-title { font-size: 9px; font-weight: 800; letter-spacing: .18em; color: var(--text-3); }
+  .changes ul {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+  }
+  .changes li {
+    position: relative;
+    padding-left: 18px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-2);
+  }
+  .changes li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 5px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    border: 1px solid var(--brand);
+    background: rgba(0,179,255,.18);
+  }
+  .note {
+    margin-top: 22px;
+    max-width: 520px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(51,51,54,.65);
+    background: rgba(14,14,14,.72);
+    color: var(--text-3);
+    font-size: 10px;
+    line-height: 1.55;
+  }
+  .note b { color: var(--text-2); font-weight: 650; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="phone-wrap">
+    <div class="phone-label">TRYSTORE / HOME</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span class="status-icons"><i class="signal"></i><i class="wifi"></i><i class="battery"></i></span>
+        </div>
+
+        <div class="app-scroll">
+          <div class="app-topbar">
+            <img class="app-logo" src="../ThreeOneOSFive/Assets.xcassets/TryStoreTheme.imageset/try-store-theme.jpeg" alt="">
+            <div>
+              <div class="brand-name">TRY STORE</div>
+              <div class="brand-sub">MAX CONTROL&nbsp; / &nbsp;VISUAL LAB</div>
+            </div>
+            <div class="topbar-actions">
+              <div class="icon-btn" aria-label="Open logs">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              </div>
+              <div class="icon-btn" aria-label="Open settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <section class="hero" aria-label="Character stage">
+            <div class="hero-glow"></div>
+            <div class="hero-ring"></div>
+            <img class="hero-emblem" src="../ThreeOneOSFive/Assets.xcassets/TryStoreTheme.imageset/try-store-theme.jpeg" alt="">
+            <canvas id="scene" aria-label="Live 3D character"></canvas>
+            <div class="hero-switch" role="group" aria-label="Character">
+              <button type="button" data-model="rouk" class="on" aria-pressed="true">ROUK</button>
+              <button type="button" data-model="sakura" aria-pressed="false">SAKURA</button>
+            </div>
+            <div class="hero-loading" id="loading">
+              <div class="spin"></div>
+              <p>LOADING CHARACTER</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></svg>
+              </div>
+              <div>
+                <div class="panel-title">MODULE CONTROL</div>
+                <div class="panel-sub">PATCH STATE ON DEVICE</div>
+              </div>
+            </div>
+            <div class="module-count"><b>0</b><span>/ 7</span><span class="chip">CLEAN</span></div>
+            <div class="segments"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="caption">Each segment is a module. Lit segments are live on the device.</div>
+          </section>
+
+          <section class="panel vitals">
+            <div class="gauge" style="--p:8">
+              <div class="gauge-center"><div class="gauge-value">Nominal</div><div class="gauge-caption">THERMAL</div></div>
+            </div>
+            <div class="vitals-body">
+              <div class="panel-head">
+                <div class="panel-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">DEVICE VITALS</div>
+                  <div class="panel-sub">LIVE SYSTEM STATE</div>
+                </div>
+              </div>
+              <div class="vital-row"><i class="dot"></i>Times opened<b>12</b></div>
+              <div class="vital-row"><i class="dot"></i>Exploit compatibility<b>Supported</b></div>
+              <div class="vital-row"><i class="dot"></i>Favorites<b>0</b></div>
+            </div>
+          </section>
+
+          <div class="app-footer">TRY STORE&nbsp; • &nbsp;SUPPORT PATCH</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="inspector">
+    <div class="eyebrow">LIVE UI / HERO</div>
+    <h1>Character picker, in place.</h1>
+    <p class="lede">
+      The Home hero now runs the <b>real OBJ mesh</b> through SceneKit. Two characters ship,
+      the choice persists, and the old baked video is gone. The control below is the same one
+      in the app stage.
+    </p>
+
+    <div class="choice-grid" role="group" aria-label="Character">
+      <button class="choice on" data-model="rouk">
+        <span class="choice-name">ROUK</span>
+        <span class="choice-sub">NO ATN / flame tee</span>
+        <span class="choice-state">SELECTED</span>
+      </button>
+      <button class="choice" data-model="sakura">
+        <span class="choice-name">GOLDEN SAKURA</span>
+        <span class="choice-sub">ATN / horned mask</span>
+        <span class="choice-state">SELECT</span>
+      </button>
+    </div>
+
+    <div class="toggles">
+      <label class="switch"><input type="checkbox" id="auto" checked><span></span>Auto rotate</label>
+      <label class="switch"><input type="checkbox" id="reduce"><span></span>Reduce Motion</label>
+    </div>
+
+    <div class="stats">
+      <span><b id="fps">--</b> FPS</span>
+      <span><b id="status">LOADING</b> model</span>
+    </div>
+
+    <div class="changes">
+      <div class="changes-title">THIS CHANGE</div>
+      <ul>
+        <li>Live OBJ + MTL + PNG mesh, lit in the app stage</li>
+        <li>ROUK / SAKURA switcher in the hero, 44 pt targets</li>
+        <li>Selection stored in AppStorage under hero_character_model</li>
+        <li>Old CharacterHeroLoop.mp4 and poster removed</li>
+        <li>Drag to orbit, 30 fps cap, Reduce Motion stops rotation</li>
+        <li>Localized VoiceOver label across all five languages</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <b>Preview note.</b> This page runs the exact model files from the app bundle.
+      The iOS target is built on the Mac; the static checks here cover Swift delimiters,
+      type duplicates, localization keys, and the Xcode project.
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("scene");
+  const hero = canvas.parentElement;
+  const loading = document.getElementById("loading");
+  const fpsEl = document.getElementById("fps");
+  const statusEl = document.getElementById("status");
+  const autoInput = document.getElementById("auto");
+  const reduceInput = document.getElementById("reduce");
+
+  const MODELS = {
+    rouk: {
+      dir: "../ThreeOneOSFive/CharacterModels/rouk/",
+      obj: "rouk.obj",
+      mtl: "rouk.mtl",
+    },
+    sakura: {
+      dir: "../ThreeOneOSFive/CharacterModels/sakura/",
+      obj: "sakura.obj",
+      mtl: "sakura.mtl",
+    },
+  };
+
+  const params = new URLSearchParams(location.search);
+  const stored = params.get("model") || localStorage.getItem("hero_character_model");
+  let current = MODELS[stored] ? stored : "rouk";
+  let reduceMotion = params.get("motion") === "reduce" || localStorage.getItem("hero_reduce_motion") === "1";
+  let autoRotate = params.get("rotate") !== "0" && localStorage.getItem("hero_auto_rotate") !== "0";
+  autoInput.checked = autoRotate;
+  reduceInput.checked = reduceMotion;
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: true,
+    powerPreference: "high-performance",
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.92;
+  renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  let cameraDistance = 2.2;
+  camera.position.set(0, 0, cameraDistance);
+
+  const hemi = new THREE.HemisphereLight(0xb9dcff, 0x07101d, 0.46);
+  scene.add(hemi);
+  scene.add(new THREE.AmbientLight(0x8aa8cc, 0.24));
+
+  const key = new THREE.DirectionalLight(0xfff1dc, 1.55);
+  key.position.set(2.8, 4.4, 4.6);
+  scene.add(key);
+
+  const fill = new THREE.DirectionalLight(0x2f9dff, 0.48);
+  fill.position.set(-3.4, 1.4, 2.8);
+  scene.add(fill);
+
+  const rim = new THREE.DirectionalLight(0x00b3ff, 1.2);
+  rim.position.set(-2.6, 3.2, -4.2);
+  scene.add(rim);
+
+  const low = new THREE.DirectionalLight(0x0f4f8a, 0.35);
+  low.position.set(0.8, -3.2, 2.0);
+  scene.add(low);
+
+  const pivot = new THREE.Group();
+  scene.add(pivot);
+
+  const loaded = {};
+  const size = { width: 1, height: 1, depth: 0.4 };
+  let requested = null;
+  let dragYaw = 0;
+  let idleYaw = 0;
+  let idleSpeed = 0;
+  let idleFor = 0;
+  let dragging = false;
+  let pointerX = 0;
+  let last = performance.now();
+  let frames = 0;
+  let fpsStart = performance.now();
+
+  function frameCamera() {
+    const w = hero.clientWidth;
+    const h = hero.clientHeight;
+    if (!w || !h) return;
+    const aspect = w / h;
+    const fovY = 30 * Math.PI / 180;
+    const halfHeight = 0.54;
+    const halfWidth = 0.38;
+    const distanceV = halfHeight / Math.tan(fovY / 2);
+    const fovX = 2 * Math.atan(Math.tan(fovY / 2) * aspect);
+    const distanceH = halfWidth / Math.tan(fovX / 2);
+    cameraDistance = Math.max(distanceV, distanceH);
+    camera.aspect = aspect;
+    camera.position.set(0, 0, cameraDistance);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+  }
+
+  function resize() {
+    const w = hero.clientWidth;
+    const h = hero.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    frameCamera();
+  }
+
+  function prepare(root) {
+    root.traverse((child) => {
+      if (!child.isMesh) return;
+      child.frustumCulled = false;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        material.side = THREE.DoubleSide;
+        if (material.map) {
+          material.map.encoding = THREE.sRGBEncoding;
+          material.map.anisotropy = 4;
+        }
+        material.needsUpdate = true;
+      });
+    });
+  }
+
+  function normalize(root) {
+    const box = new THREE.Box3().setFromObject(root);
+    const dimensions = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const height = Math.max(dimensions.y, 0.001);
+    const scale = 1 / height;
+    root.scale.setScalar(scale);
+    root.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+    size.width = dimensions.x * scale;
+    size.height = dimensions.y * scale;
+    size.depth = dimensions.z * scale;
+  }
+
+  function showModel(key, immediate) {
+    if (!loaded[key]) return;
+    current = key;
+    requested = key;
+    Object.entries(loaded).forEach(([name, root]) => {
+      root.visible = name === key;
+    });
+    localStorage.setItem("hero_character_model", key);
+    document.querySelectorAll("[data-model]").forEach((button) => {
+      const on = button.dataset.model === key;
+      button.classList.toggle("on", on);
+      button.setAttribute("aria-pressed", String(on));
+      if (button.classList.contains("choice")) {
+        button.querySelector(".choice-state").textContent = on ? "SELECTED" : "SELECT";
+      }
+    });
+    statusEl.textContent = key === "rouk" ? "ROUK" : "SAKURA";
+    if (!immediate) {
+      idleYaw = 0;
+      dragYaw = 0;
+      idleFor = 0;
+    }
+  }
+
+  function loadModel(key) {
+    const model = MODELS[key];
+    const mtlLoader = new THREE.MTLLoader();
+    mtlLoader.setPath(model.dir);
+    mtlLoader.load(model.mtl, (materials) => {
+      materials.preload();
+      const objLoader = new THREE.OBJLoader();
+      objLoader.setPath(model.dir);
+      objLoader.setMaterials(materials);
+      objLoader.load(model.obj, (root) => {
+        prepare(root);
+        normalize(root);
+        root.visible = false;
+        root.userData.size = { ...size };
+        loaded[key] = root;
+        pivot.add(root);
+        if (key === current) {
+          showModel(key, true);
+          loading.classList.add("hidden");
+          renderer.render(scene, camera);
+        }
+      }, undefined, (error) => {
+        console.error("OBJ load failed", key, error);
+        loading.querySelector("p").textContent = "MODEL FAILED TO LOAD";
+      });
+    }, undefined, (error) => {
+      console.error("MTL load failed", key, error);
+      loading.querySelector("p").textContent = "MATERIAL FAILED TO LOAD";
+    });
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    dragging = true;
+    pointerX = event.clientX;
+    idleFor = 0;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const dx = event.clientX - pointerX;
+    pointerX = event.clientX;
+    dragYaw += dx * 0.012;
+    idleFor = 0;
+  });
+  const endDrag = () => { dragging = false; idleFor = 0; };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  document.querySelectorAll("[data-model]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.model === current) return;
+      showModel(button.dataset.model, false);
+      idleFor = 0;
+    });
+  });
+
+  autoInput.addEventListener("change", () => {
+    autoRotate = autoInput.checked;
+    localStorage.setItem("hero_auto_rotate", autoRotate ? "1" : "0");
+    idleFor = 0;
+  });
+  reduceInput.addEventListener("change", () => {
+    reduceMotion = reduceInput.checked;
+    localStorage.setItem("hero_reduce_motion", reduceMotion ? "1" : "0");
+    if (reduceMotion) {
+      idleSpeed = 0;
+      idleYaw = 0;
+    }
+  });
+
+  new ResizeObserver(resize).observe(hero);
+
+  function tick() {
+    const now = performance.now();
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    if (!reduceMotion && !dragging) {
+      idleFor += dt;
+      const target = autoRotate && idleFor > 1.6 ? 0.26 : 0;
+      idleSpeed += (target - idleSpeed) * Math.min(1, dt * 2.4);
+    } else {
+      idleSpeed = 0;
+    }
+    idleYaw += idleSpeed * dt;
+    pivot.rotation.y = dragYaw + idleYaw;
+    pivot.position.y = reduceMotion ? 0 : Math.sin(now * 0.0011) * 0.006;
+
+    renderer.render(scene, camera);
+
+    frames += 1;
+    if (now - fpsStart >= 500) {
+      fpsEl.textContent = String(Math.round((frames * 1000) / (now - fpsStart)));
+      frames = 0;
+      fpsStart = now;
+    }
+  }
+
+  resize();
+  showModel(current, true);
+  loadModel("rouk");
+  loadModel("sakura");
+  last = performance.now();
+  fpsStart = last;
+  setInterval(tick, 33);
+})();
+</script>
+</body>
+</html>

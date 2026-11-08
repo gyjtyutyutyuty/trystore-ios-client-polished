@@ -1,0 +1,42 @@
+# AQUAX7 runtime material map for the NO ATN OBJ
+newmtl mat0
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+map_Kd tex_0145_0out.png
+
+newmtl mat0.001
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+map_Kd tex_0150_0out.png
+
+newmtl mat0.002
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+map_Kd tex_0155_0out.png
+
+newmtl mat0.003
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+map_Kd tex_0160_0out.png
+
+newmtl mat0.004
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+map_Kd tex_0165_0out.png
+
+newmtl mat0.005
+Kd 1 1 1
+Ka 0.2 0.2 0.2
+Ks 0.1 0.1 0.1
+Ns 32
+map_Kd tex_0170_0out.png
