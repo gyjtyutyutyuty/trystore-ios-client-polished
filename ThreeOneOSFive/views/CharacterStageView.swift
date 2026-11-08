@@ -1,6 +1,5 @@
 import SwiftUI
 import SceneKit
-import ModelIO
 import UIKit
 
 /// The two real character meshes shipped in `CharacterModels/`.
@@ -38,7 +37,7 @@ enum HeroCharacterModel: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// Live SceneKit stage for the home hero. The mesh is loaded with Model I/O,
+/// Live SceneKit stage for the home hero. The mesh is loaded with SceneKit,
 /// normalised to a one-unit height, and kept at a fixed camera distance so the
 /// character reads the same on every screen. Auto-rotation pauses while the
 /// user drags and stays off under Reduce Motion.
@@ -48,7 +47,7 @@ struct CharacterStageView: UIViewRepresentable {
     let isActive: Bool
 
     func makeUIView(context: Context) -> CharacterSceneView {
-        let view = CharacterSceneView()
+        let view = CharacterSceneView(frame: .zero)
         view.apply(model: model, reduceMotion: reduceMotion, isActive: isActive)
         return view
     }
@@ -220,13 +219,13 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         let token = UUID()
         loadToken = token
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let asset = MDLAsset(url: url)
-            asset.loadTextures()
-            guard asset.count > 0 else {
-                log("hero: \(model.objectFile) could not be imported")
+            let imported: SCNScene
+            do {
+                imported = try SCNScene(url: url, options: nil)
+            } catch {
+                log("hero: \(model.objectFile) could not be imported — \(error.localizedDescription)")
                 return
             }
-            let imported = SCNScene(mdlAsset: asset)
             DispatchQueue.main.async {
                 guard let self = self, self.loadToken == token else { return }
                 let root = SCNNode()
@@ -258,9 +257,11 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             }
         }
 
-        var minimum = SCNVector3Zero
-        var maximum = SCNVector3Zero
-        guard root.getBoundingBoxMin(&minimum, &maximum) else {
+        let bounds = root.boundingBox
+        let minimum = bounds.min
+        let maximum = bounds.max
+        guard minimum.x.isFinite, minimum.y.isFinite, minimum.z.isFinite,
+              maximum.x.isFinite, maximum.y.isFinite, maximum.z.isFinite else {
             log("hero: character geometry has no bounds")
             return
         }
