@@ -71,22 +71,24 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 AppPremiumBackdrop()
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: AppSpacing.l) {
-                        topBarHome.appCinematicReveal(delay: 0.02)
-                        heroHome.appCinematicReveal(delay: 0.08)
-                        vitalPanelHome.appCinematicReveal(delay: 0.15)
-                        moduleStatusPanelHome.appCinematicReveal(delay: 0.19)
-                        connectionPanelHome.appCinematicReveal(delay: 0.21)
-                        quickAccessHome.appCinematicReveal(delay: 0.24)
-                        deviceSectionHome.appCinematicReveal(delay: 0.27)
-                        footerHome.appCinematicReveal(delay: 0.39)
+                GeometryReader { viewport in
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: AppSpacing.l) {
+                            topBarHome.appCinematicReveal(delay: 0.02)
+                            heroHome(side: heroSide(for: viewport.size.width)).appCinematicReveal(delay: 0.08)
+                            vitalPanelHome.appCinematicReveal(delay: 0.15)
+                            moduleStatusPanelHome.appCinematicReveal(delay: 0.19)
+                            connectionPanelHome.appCinematicReveal(delay: 0.21)
+                            quickAccessHome.appCinematicReveal(delay: 0.24)
+                            deviceSectionHome.appCinematicReveal(delay: 0.27)
+                            footerHome.appCinematicReveal(delay: 0.39)
+                        }
+                        .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 860)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, AppSpacing.screenInset)
+                        .padding(.top, AppSpacing.m)
+                        .padding(.bottom, AppSpacing.xxl)
                     }
-                    .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 860)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, AppSpacing.screenInset)
-                    .padding(.top, AppSpacing.m)
-                    .padding(.bottom, AppSpacing.xxl)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -204,7 +206,14 @@ struct HomeView: View {
     /// the captions that used to sit on it pushed the modules further down the
     /// screen. The stage itself is decorative, but the character switcher stays
     /// interactive and accessible above it.
-    private var heroHome: some View {
+    private func heroSide(for viewportWidth: CGFloat) -> CGFloat {
+        let horizontalInsets = AppSpacing.screenInset * 2
+        let availableWidth = max(0, viewportWidth - horizontalInsets)
+        let maximumSide: CGFloat = horizontalSizeClass == .compact ? 380 : 460
+        return min(availableWidth, maximumSide)
+    }
+
+    private func heroHome(side: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             BrandCharacterBackdrop(model: heroCharacter, reduceMotion: reduceMotion)
                 .accessibilityHidden(true)
@@ -212,8 +221,7 @@ struct HomeView: View {
             HeroCharacterSwitcher(selection: heroCharacterSelection)
                 .padding(AppSpacing.m)
         }
-        .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: horizontalSizeClass == .compact ? 430 : 460)
+        .frame(width: side, height: side)
         .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .frame(maxWidth: .infinity)
