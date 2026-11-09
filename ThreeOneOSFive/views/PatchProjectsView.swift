@@ -127,7 +127,7 @@ struct PatchProjectsView: View {
             }
             .onAppear(perform: consumeExternalImport)
             .task {
-                store.installBundledResources()
+                store.installBundledResources(credentials: licenseManager.patchFeedCredentials())
             }
             .onChange(of: draftCoordinator.importRequest?.id) { _ in
                 consumeExternalImport()
@@ -138,7 +138,7 @@ struct PatchProjectsView: View {
     private func consumeExternalImport() {
         guard let request = draftCoordinator.importRequest else { return }
         draftCoordinator.clearImport()
-        store.importPackage(from: request.source)
+        store.importPackage(from: request.source, credentials: licenseManager.patchFeedCredentials())
     }
 
     @ViewBuilder

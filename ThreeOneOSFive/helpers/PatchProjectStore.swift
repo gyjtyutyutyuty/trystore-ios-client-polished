@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct PatchStoreAlert: Identifiable {
@@ -70,35 +71,46 @@ final class PatchProjectStore: ObservableObject {
 
     private var pendingUnlock: PendingUnlock?
     private let game: FreeFireGame
-    private var didInstallBundledResources = false
+    private var didInstallRemoteResources = false
 
     init(game: FreeFireGame = .max) {
         self.game = game
         reload()
     }
 
-    func installBundledResources() {
-        guard !didInstallBundledResources else { return }
-        let resources = PatchResourceBundle.load()
-        var allInstalled = resources.count == game.bundledPatches.count
-        for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE"] {
-            PatchProjectLibrary.removeBundledPackage(named: obsolete)
-        }
-        for patch in game.bundledPatches {
-            guard let data = resources[patch.resourceName] else {
-                log("patch: bundled patch asset unavailable: \(patch.resourceName)")
-                allInstalled = false
-                continue
+    func installBundledResources(credentials: PatchFeedCredentials?) {
+        guard !didInstallRemoteResources, !isBusy, let credentials else { return }
+        isBusy = true
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let resources = try await PatchResourceBundle.load(
+                    credentials: credentials,
+                    expected: self.game.bundledPatches
+                )
+                for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "Balas Magicas"] {
+                    PatchProjectLibrary.removeBundledPackage(named: obsolete)
+                }
+                for patch in self.game.bundledPatches {
+                    guard let data = resources[patch.resourceName],
+                          PatchProjectLibrary.installRemoteFeedPackageIfNeeded(
+                            data,
+                            resourceName: patch.resourceName,
+                            projectName: patch.projectName,
+                            manifestName: patch.resourceName.replacingOccurrences(of: ".TRYSTORE", with: "")
+                          ) else {
+                        throw PatchPackageError.remoteImportFailed
+                    }
+                }
+                self.didInstallRemoteResources = true
+                self.reload()
+                self.isBusy = false
+            } catch {
+                self.isBusy = false
+                self.present(.remoteImportFailed)
+                log("patch: authenticated remote patch sync failed: \(error)")
             }
-            let installed = PatchProjectLibrary.installBundledPackageDataIfNeeded(
-                data,
-                projectName: patch.projectName,
-                password: patch.password
-            )
-            allInstalled = allInstalled && installed
         }
-        didInstallBundledResources = allInstalled
-        reload()
     }
 
     func reload() {
@@ -189,19 +201,19 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
-    func importPackage(from source: PatchImportSource) {
+    func importPackage(from source: PatchImportSource, credentials: PatchFeedCredentials? = nil) {
         switch source {
         case .file(let url):
             importPackage(at: url)
         case .remote(let url):
-            importPackage(fromRemoteURL: url)
+            importPackage(fromRemoteURL: url, credentials: credentials)
         case .invalid:
             present(.invalidImportLink)
         }
     }
 
 
-    private func importPackage(fromRemoteURL remoteURL: URL) {
+    private func importPackage(fromRemoteURL remoteURL: URL, credentials: PatchFeedCredentials?) {
         guard !isBusy,
               PatchImportRoute.validatedRemoteURL(remoteURL) != nil else {
             if !isBusy { present(.invalidImportLink) }
@@ -210,22 +222,41 @@ final class PatchProjectStore: ObservableObject {
         isBusy = true
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
+                let requiresFeedAuth = remoteURL.host?.lowercased() == "trystore-patch-feed.burgoajustin.workers.dev"
+                    && remoteURL.path.hasPrefix("/patches/trystore/")
+                var request = URLRequest(url: remoteURL)
+                if requiresFeedAuth {
+                    guard let credentials else { throw PatchPackageError.remoteImportFailed }
+                    request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
+                    request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+                    request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+                }
                 let configuration = URLSessionConfiguration.ephemeral
                 configuration.timeoutIntervalForRequest = 60
                 configuration.timeoutIntervalForResource = 600
                 let session = URLSession(configuration: configuration)
                 defer { session.invalidateAndCancel() }
 
-                let (temporaryURL, response) = try await session.download(from: remoteURL)
+                let (temporaryURL, response) = try await session.download(for: request)
                 defer { try? FileManager.default.removeItem(at: temporaryURL) }
                 guard let response = response as? HTTPURLResponse,
                       (200..<300).contains(response.statusCode),
                       let finalURL = response.url,
+                      (!requiresFeedAuth || finalURL.host?.lowercased() == remoteURL.host?.lowercased()),
                       PatchImportRoute.validatedRemoteURL(finalURL) != nil else {
                     throw PatchPackageError.remoteImportFailed
                 }
 
                 let data = try PatchProjectLibrary.readPackage(at: temporaryURL)
+                if requiresFeedAuth {
+                    let expectedDigest = URLComponents(url: remoteURL, resolvingAgainstBaseURL: false)?
+                        .queryItems?.first(where: { $0.name == "v" })?.value
+                    let actualDigest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    guard let expectedDigest, expectedDigest.count == 64,
+                          actualDigest.caseInsensitiveCompare(expectedDigest) == .orderedSame else {
+                        throw PatchPackageError.remoteImportFailed
+                    }
+                }
                 let summary = try PatchPackageCodec.inspect(data)
                 let existingURL = await self?.existingPackageURL(for: summary.packageID)
                 if let pending = try Self.persistImportedPackage(

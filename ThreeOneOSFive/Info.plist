@@ -84,6 +84,8 @@
     <string>https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate</string>
     <key>TRYSTORE_PROJECT_ID</key>
     <string>trystore</string>
+    <key>TRYSTORE_PATCH_FEED_URL</key>
+    <string>https://trystore-patch-feed.burgoajustin.workers.dev</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSSupportsLiveActivities</key>

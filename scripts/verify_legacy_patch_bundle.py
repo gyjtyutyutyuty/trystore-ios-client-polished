@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate local TryStore packages, their UI buttons, and IPA resources."""
+"""Validate TryStore package sources, remote delivery wiring, UI mappings, and IPA exclusions."""
 from __future__ import annotations
 import argparse
 import plistlib
@@ -16,6 +16,7 @@ RESOURCE = ROOT / "ThreeOneOSFive/helpers/PatchResourceBundle.swift"
 DEVICE_SERVICE = ROOT / "ThreeOneOSFive/helpers/DevicePatchService.swift"
 TRANSACTION = ROOT / "ThreeOneOSFive/helpers/PatchTransaction.swift"
 PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
+WORKER = ROOT / "cloudflare/patch-feed-worker.js"
 
 BUNDLED = {
     "HEAD.TRYSTORE": "HEAD",
@@ -90,6 +91,7 @@ def check_source() -> None:
     device_service = DEVICE_SERVICE.read_text()
     transaction = TRANSACTION.read_text()
     pbx = PROJECT.read_text()
+    worker = WORKER.read_text()
 
     canonical_ids: dict[str, str] = {}
     for filename, project_name in BUNDLED.items():
@@ -97,7 +99,7 @@ def check_source() -> None:
             f'BundledPatch(resourceName: "{filename}", projectName: "{project_name}"' in store,
             f"bundled catalog is missing {filename}",
         )
-        require(f'"{filename}"' in resource, f"local resource list is missing {filename}")
+        require("URLSessionConfiguration.ephemeral" in resource, "remote patch client is missing")
         source = PATCH_DIR / filename
         require(source.is_file() and source.stat().st_size > 0, f"missing source patch: {filename}")
         metadata = package_metadata(filename)
@@ -108,7 +110,7 @@ def check_source() -> None:
         canonical_ids[project_name] = metadata["packageID"].upper()
 
     # The two historical schema-9 visual packages are normalized to fresh,
-    # distinct IDs during local installation; read those IDs from the app's map.
+    # distinct IDs during remote installation; read those IDs from the app's map.
     special_ids = dict(re.findall(
         r'"(HOLOGRAMA EXCLUSIVO (?:VERDE|ROSADO))": UUID\(uuidString: "([^"]+)"\)!',
         library,
@@ -191,12 +193,27 @@ def check_source() -> None:
             "patch action does not reach the restore transaction")
     require("static func apply(" in device_service and "static func restore(" in device_service,
             "device patch service is missing apply or restore routes")
-    require("Patches in Resources" in pbx and "D71300000000000000000001" in pbx,
-            "Patches folder is not registered as an Xcode resource")
-    require("func installBundledResources()" in store,
-            "local patch installer is not wired")
-    require("didInstallBundledResources = allInstalled" in store,
-            "failed package installations cannot be retried")
+    require("Patches in Resources" not in pbx and "D71300000000000000000001" not in pbx,
+            "patch folder is still registered as an Xcode resource")
+    require("func installBundledResources(credentials: PatchFeedCredentials?)" in store,
+            "authenticated remote patch sync is not wired")
+    require("didInstallRemoteResources = true" in store,
+            "failed remote package installations cannot be retried")
+    require("SHA256.hash(data: data)" in resource and "Authorization" in resource
+            and "isTrustedPackageURL" in resource,
+            "remote patch downloads are missing authentication, host, or digest checks")
+    require("installRemoteFeedPackageIfNeeded" in library and "remoteFeedIdentityMatches" in library,
+            "remote package installation is missing canonical UUID/name checks")
+    require("async function tryStoreLicenseIsActive" in worker
+            and "env.RESELLER.fetch" in worker
+            and "/api/v1/keys/validate" in worker
+            and worker.count("await requireTryStoreLicense(request, env, project)") >= 3,
+            "TryStore Worker manifest, report, and blob routes do not all require license validation")
+    require('project !== "trystore"' in worker
+            and 'project === "trystore" ? "no-store"' in worker,
+            "Worker does not preserve other project behavior and disable TryStore cacheability")
+    require('if (project !== "trystore") rows.push([{ text: "⬇️ Download"' in worker,
+            "Telegram patch manager still exposes public TryStore download URLs")
     require("canonicalBundledPackageFilenames" in library
             and "canonicalSelectedIDs.insert(summary.packageID)" in library,
             "legacy duplicate IDs can still disable the canonical bundled patch")
@@ -207,22 +224,22 @@ def check_source() -> None:
             and ".sorted { $0.2 > $1.2 }" in store
             and "static func activationDate(for receipt:" in transaction,
             "stacked conflicting patch receipts are not restored newest-first")
-    print(f"PASS: all {len(BUNDLED)} local packages have unique mappings, aligned paths, and distinct normal/Antena payloads")
+    print(f"PASS: {len(BUNDLED)} source packages have unique mappings, aligned paths, and authenticated remote delivery wiring")
 
 
 def check_app(app: Path) -> None:
     require(app.is_dir(), f"app bundle missing: {app}")
-    require((app / "Info.plist").is_file(), "Info.plist missing from app")
-    bundled = app / "Patches"
-    require(bundled.is_dir(), "local Patches folder missing from app bundle")
-    for filename in BUNDLED:
-        source = PATCH_DIR / filename
-        packaged = bundled / filename
-        require(packaged.is_file(), f"patch missing from IPA: {filename}")
-        require(packaged.stat().st_size == source.stat().st_size,
-                f"patch size mismatch in IPA: {filename}")
-    print(f"PASS: app bundle contains all {len(BUNDLED)} local patch packages")
-
+    info_path = app / "Info.plist"
+    require(info_path.is_file(), "Info.plist missing from app")
+    with info_path.open("rb") as stream:
+        info = plistlib.load(stream)
+    require(info.get("TRYSTORE_PATCH_FEED_URL") == "https://trystore-patch-feed.burgoajustin.workers.dev",
+            "remote patch feed URL missing or unexpected in app")
+    forbidden = [path for path in app.rglob("*") if path.is_file()
+                 and path.suffix.lower() in {".trystore", ".3105"}]
+    require(not forbidden, f"patch package files found in IPA: {forbidden[:3]}")
+    require(not (app / "Patches").exists(), "Patches folder still exists in the app bundle")
+    print(f"PASS: IPA contains no local patch packages; all {len(BUNDLED)} packages are fetched remotely")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

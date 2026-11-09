@@ -2,6 +2,8 @@
 
 3105 patch packages target an app by its stable bundle identifier. They never store the app-container UUID, because that UUID changes across devices and reinstalls.
 
+TryStore's preloaded patch catalog is delivered from its authenticated remote feed rather than shipped inside the IPA. A valid TryStore license and network connection are required for the initial catalog sync. Once a package has been fetched and verified, the app stores it in protected local application-support storage; this does not make a downloaded package impossible to extract from a device controlled by its user.
+
 ## Workspace layout
 
 Creating a patch named `ABC` for `com.abc.xyz` creates this editable tree:
