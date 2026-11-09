@@ -6,15 +6,16 @@ The patch feed is online-only for initial delivery: an active license and networ
 
 ## Production rollout
 
-The code change in this repository does not take effect on the live Worker until `cloudflare/patch-feed-worker.js` is deployed to the existing `trystore-patch-feed` Worker. The current Worker already has the required `PATCHES` KV namespace and `RESELLER` service binding, and the current KV manifest contains the 11 package names used by the app. No new server secret or asset upload is required for the current catalog.
+The updated `cloudflare/patch-feed-worker.js` was deployed to the existing `trystore-patch-feed` Worker on 2026-11-09. Cloudflare deployment ID: `75f2d9d0-fcc9-4929-b388-bc104ce762ad`; active version: `ef6cdb9c-56f4-4d5c-addb-b44d0be6ccea`. The content-only upload preserved the existing `PATCHES` KV namespace, `RESELLER` service binding, public variables, and Telegram secrets. The KV manifest remains unchanged; no asset upload was needed.
 
-Before deployment, preserve the existing Telegram secrets and bindings. After deployment, smoke-test the following without sharing a license key in logs or messages:
+Post-deployment checks completed without sharing a license key:
 
-1. An unauthenticated GET of `/api/patches/trystore/manifest.json` returns `401`.
-2. An unauthenticated GET of a TryStore package URL returns `401` and no cacheable body.
-3. The iOS app with a valid TryStore license receives the manifest and every catalog package; the app verifier passes and the normal/Antena patch paths still work.
-4. A revoked or expired license is denied by the existing license service.
-5. Existing non-TryStore projects continue to receive their current public-feed behavior.
+1. An unauthenticated GET of `/api/patches/trystore/manifest.json` returns `license_required` (HTTP 401).
+2. An unauthenticated GET of a TryStore package URL returns `license_required` (HTTP 401).
+3. The Apple Music manifest remains publicly accessible.
+4. Cloudflare's deployed module checksum matches the locally tested Wrangler bundle, excluding only the stale source-map reference.
+
+Still required before shipping the updated iOS client: verify a valid licensed app syncs the full catalog and normal/Antena patch paths, and verify revoked/expired keys are rejected by the existing license service.
 
 The Telegram patch manager will continue to list, add, replace, and delete TryStore assets, but it will not show a public TryStore download link. Direct TryStore links issued before protection is enabled will stop working without the app's authorization headers. Other project routes remain unchanged.
 
