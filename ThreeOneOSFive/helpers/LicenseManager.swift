@@ -34,6 +34,15 @@ final class LicenseManager: ObservableObject {
 
     var hasSavedKey: Bool { keychainString(for: keyAccount) != nil }
 
+    func patchFeedCredentials() -> PatchFeedCredentials? {
+        guard isActive,
+              let key = keychainString(for: keyAccount), !key.isEmpty,
+              let identifier = try? deviceID(), !identifier.isEmpty else {
+            return nil
+        }
+        return PatchFeedCredentials(licenseKey: key, deviceID: identifier)
+    }
+
     func beginLaunchSession() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
@@ -200,7 +209,7 @@ final class LicenseManager: ObservableObject {
         ]
         let attributes: [String: Any] = [
             kSecValueData as String: Data(value.utf8),
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if updateStatus == errSecSuccess { return }

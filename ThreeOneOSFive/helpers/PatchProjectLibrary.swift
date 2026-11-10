@@ -301,6 +301,78 @@ enum PatchProjectLibrary {
         }
     }
 
+    @discardableResult
+    static func installRemoteFeedPackageIfNeeded(
+        _ sourceData: Data,
+        resourceName: String,
+        projectName: String,
+        manifestName: String,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        do {
+            let expectedID = canonicalBundledPackageFilenames.first {
+                URL(fileURLWithPath: $0.value).deletingPathExtension().lastPathComponent
+                    .caseInsensitiveCompare(projectName) == .orderedSame
+            }?.key
+            guard let expectedID else { return false }
+
+            let feedData = try normalizeRemoteFeedPackage(sourceData, fileName: resourceName)
+            let feedSummary = try PatchPackageCodec.inspect(feedData)
+            guard !feedSummary.isPasswordProtected else { return false }
+            let feedPackage = try PatchPackageCodec.decode(feedData, password: nil)
+            guard feedSummary.packageID == expectedID,
+                  feedPackage.project.id == expectedID,
+                  remoteFeedIdentityMatches(
+                    expectedManifestName: manifestName,
+                    fileName: resourceName,
+                    actualProjectName: feedPackage.project.name
+                  ) else {
+                log("patch: remote package identity mismatch: \(resourceName)")
+                return false
+            }
+
+            let sourceRevision = SHA256.hash(data: sourceData)
+                .map { String(format: "%02x", $0) }
+                .joined()
+            let revisionKey = "patch.remotePackageRevision.\(normalizedProjectName(projectName))"
+            guard let root = try? packageRootURL(fileManager: fileManager) else { return false }
+            let canonicalFilename = canonicalBundledPackageFilenames[expectedID] ?? "\(projectName).TRYSTORE"
+            let destination = root.appendingPathComponent(canonicalFilename)
+            if UserDefaults.standard.string(forKey: revisionKey) == sourceRevision,
+               let existingData = try? readPackage(at: destination),
+               let existingSummary = try? PatchPackageCodec.inspect(existingData),
+               existingSummary.packageID == expectedID,
+               let existingPackage = try? PatchPackageCodec.decode(existingData, password: nil),
+               existingPackage.project.name == projectName {
+                return true
+            }
+
+            var normalizedProject = feedPackage.project
+            normalizedProject.name = projectName
+            normalizedProject.id = expectedID
+            let encoded = try PatchPackageCodec.encodeNew(project: normalizedProject, password: nil)
+            let summary = try PatchPackageCodec.inspect(encoded.data)
+            guard summary.packageID == expectedID, !summary.isPasswordProtected else { return false }
+            if let existingSummary = try? PatchPackageCodec.inspect(readPackage(at: destination)) {
+                try? PatchKeyStore.delete(for: existingSummary)
+            }
+            try installImportedPackage(
+                data: encoded.data,
+                decoded: DecodedPatchPackage(project: normalizedProject, contentKey: encoded.contentKey),
+                summary: summary,
+                existingURL: destination,
+                createWorkspace: false,
+                fileManager: fileManager
+            )
+            UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
+            log("patch: installed authenticated remote package: \(projectName)")
+            return true
+        } catch {
+            log("patch: remote package install failed: \(resourceName) — \(error)")
+            return false
+        }
+    }
+
     static func packageRootURL(fileManager: FileManager = .default) throws -> URL {
         let base = try fileManager.url(
             for: .applicationSupportDirectory,

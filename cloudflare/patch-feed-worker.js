@@ -398,14 +398,13 @@ async function projectText(env, project) {
 function patchKeyboard(env, project, index, entry) {
   const base = String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
   const downloadURL = entry.url.startsWith("http") ? entry.url : `${base}${entry.url}`;
-  return [
-    [
-      { text: "🔁 Replace", callback_data: `pm:r:${project}:${index}` },
-      { text: "🗑 Delete", callback_data: `pm:d:${project}:${index}` },
-    ],
-    [{ text: "⬇️ Download", url: downloadURL }],
-    [{ text: "⬅️ Back", callback_data: `pm:back:${project}` }],
-  ];
+  const rows = [[
+    { text: "🔁 Replace", callback_data: `pm:r:${project}:${index}` },
+    { text: "🗑 Delete", callback_data: `pm:d:${project}:${index}` },
+  ]];
+  if (project !== "trystore") rows.push([{ text: "⬇️ Download", url: downloadURL }]);
+  rows.push([{ text: "⬅️ Back", callback_data: `pm:back:${project}` }]);
+  return rows;
 }
 
 async function patchText(project, entry, index) {
@@ -781,6 +780,36 @@ async function telegramWebhook(request, env) {
   return forwardUpdate(env, rawBody);
 }
 
+async function tryStoreLicenseIsActive(request, env) {
+  const authorization = request.headers.get("authorization") || "";
+  const match = authorization.match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+  const deviceID = request.headers.get("x-trystore-device-id") || "";
+  if (!match || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceID)) {
+    return false;
+  }
+  if (!env.RESELLER || typeof env.RESELLER.fetch !== "function") return false;
+  try {
+    const response = await env.RESELLER.fetch(
+      new Request("https://reseller.internal/api/v1/keys/validate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key: match[1], deviceId: deviceID, projectId: "trystore" }),
+      }),
+    );
+    if (!response.ok) return false;
+    const result = await response.json();
+    return result.valid === true
+      && String(result.outcome || "").toLowerCase() === "active"
+      && (!result.expiresAt || Date.parse(result.expiresAt) > Date.now());
+  } catch {
+    return false;
+  }
+}
+
+async function requireTryStoreLicense(request, env, project) {
+  return project !== "trystore" || await tryStoreLicenseIsActive(request, env);
+}
+
 /* ------------------------------------------------------------------ */
 /* HTTP routes                                                         */
 /* ------------------------------------------------------------------ */
@@ -802,6 +831,7 @@ export default {
     if (manifestMatch && request.method === "GET") {
       const project = projectKey(manifestMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const manifest = await readManifest(env, project);
       return json(manifest, 200, { "cache-control": "no-store" });
     }
@@ -812,6 +842,7 @@ export default {
     if (reportMatch && request.method === "POST") {
       const project = projectKey(reportMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const body = await request.text();
       if (!body || body.length > 32768) return bad("invalid_report", 400);
       const stamp = new Date().toISOString();
@@ -828,6 +859,7 @@ export default {
     if (blobMatch && request.method === "GET") {
       const project = projectKey(blobMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);
       const blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");
@@ -836,7 +868,8 @@ export default {
         headers: {
           "content-type": "application/octet-stream",
           "content-length": String(blob.byteLength),
-          "cache-control": "public, max-age=31536000, immutable",
+          "cache-control": project === "trystore" ? "no-store" : "public, max-age=31536000, immutable",
+          ...(project === "trystore" ? { vary: "authorization, x-trystore-device-id" } : {}),
         },
       });
     }

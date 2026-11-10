@@ -140,7 +140,7 @@ struct HomeView: View {
             }
         }
         .task {
-            patchStore.installBundledResources()
+            patchStore.installBundledResources(credentials: licenseManager.patchFeedCredentials())
             patchStore.reload()
         }
         .task {
@@ -1095,7 +1095,7 @@ private struct DashboardView: View {
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
         .task {
-            patchStore.installBundledResources()
+            patchStore.installBundledResources(credentials: licenseManager.patchFeedCredentials())
         }
         .task(id: ambientPulseID) {
             guard ambientPulseID > 0 else { return }
@@ -2410,7 +2410,7 @@ private struct FreeFirePatchView: View {
     private func loadPatchLibrary() async {
         isLoading = true
         loadError = nil
-        store.installBundledResources()
+        store.installBundledResources(credentials: licenseManager.patchFeedCredentials())
         store.reload()
         isLoading = false
     }
@@ -2632,7 +2632,7 @@ private struct PatchesView: View {
             .tint(AppTheme.accent)
         }
         .task {
-            patchStore.installBundledResources()
+            patchStore.installBundledResources(credentials: licenseManager.patchFeedCredentials())
             patchStore.reload()
         }
         .alert(item: $patchStore.alert) { alert in

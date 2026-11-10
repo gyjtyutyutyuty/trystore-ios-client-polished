@@ -92,7 +92,7 @@ def main() -> None:
             and "TRYSTORE_LICENSE_API_URL" in manager
             and "TRYSTORE_PROJECT_ID" in manager,
             "license manager is not configured to call the Cloudflare validation endpoint")
-    require("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly" in manager
+    require("kSecAttrAccessibleWhenUnlockedThisDeviceOnly" in manager
             and "SecItemAdd" in manager and "SecItemUpdate" in manager,
             "validated key is not stored using device-only iOS Keychain protection")
     require('"key": key' in manager and '"projectId": projectID' in manager
