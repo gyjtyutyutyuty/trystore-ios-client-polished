@@ -13,7 +13,9 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    # macos-15 was terminating before checkout with no steps or logs.
+    # macos-14 is the stable hosted image used for this unsigned build.
+    runs-on: macos-14
     timeout-minutes: 60
     steps:
       - name: Check out source
