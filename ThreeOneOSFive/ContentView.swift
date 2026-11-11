@@ -18,19 +18,34 @@ struct LiveActivityState: ActivityAttributes {
     }
 }
 
+private enum AppSupportSheet: String, Identifiable {
+    case logs
+    case settings
+
+    var id: String { rawValue }
+}
+
 struct ContentView: View {
     @Environment(\.appLanguage) private var language
     @StateObject private var patchStore = PatchProjectStore(game: .max)
     @State private var selectedTab = 0
+    @State private var activeSupportSheet: AppSupportSheet?
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(onOpenPatches: { selectedTab = 1 })
+            HomeView(
+                onOpenPatches: { selectedTab = 1 },
+                onOpenLogs: { activeSupportSheet = .logs },
+                onOpenSettings: { activeSupportSheet = .settings }
+            )
                 .tabItem {
                     Label(language.text("tab.home"), systemImage: "house.fill")
                 }
                 .tag(0)
-            PatchesView()
+            PatchesView(
+                onOpenLogs: { activeSupportSheet = .logs },
+                onOpenSettings: { activeSupportSheet = .settings }
+            )
                 .tabItem {
                     Label(language.text("tab.patches"), systemImage: "square.grid.2x2")
                 }
@@ -45,6 +60,14 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .appSelectionFeedback(trigger: selectedTab)
         .environmentObject(patchStore)
+        .sheet(item: $activeSupportSheet) { destination in
+            switch destination {
+            case .logs:
+                LogView()
+            case .settings:
+                SettingsView()
+            }
+        }
     }
 }
 
@@ -55,8 +78,8 @@ struct HomeView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.appReduceMotion) private var reduceMotion
     var onOpenPatches: () -> Void = {}
-    @State private var showSettings = false
-    @State private var showLogs = false
+    var onOpenLogs: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
     @EnvironmentObject private var patchStore: PatchProjectStore
     @StateObject private var pairingController = PairingController()
     @State private var isPairingReady = false
@@ -94,8 +117,6 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .tint(AppTheme.accent)
         }
-        .sheet(isPresented: $showSettings) { SettingsView() }
-        .sheet(isPresented: $showLogs) { LogView() }
         .sheet(isPresented: $isPairingImporterPresented) {
             PairingDocumentPicker { url in
                 isPairingImporterPresented = false
@@ -168,16 +189,29 @@ struct HomeView: View {
 
             Spacer(minLength: AppSpacing.xs)
 
-            headerButtonHome(icon: "apple.terminal", label: language.text("accessibility.open_logs")) {
-                showLogs = true
+            headerButtonHome(
+                icon: "apple.terminal",
+                label: language.text("accessibility.open_logs"),
+                identifier: "home.open-logs"
+            ) {
+                onOpenLogs()
             }
-            headerButtonHome(icon: "slider.horizontal.3", label: language.text("accessibility.open_settings")) {
-                showSettings = true
+            headerButtonHome(
+                icon: "slider.horizontal.3",
+                label: language.text("accessibility.open_settings"),
+                identifier: "home.open-settings"
+            ) {
+                onOpenSettings()
             }
         }
     }
 
-    private func headerButtonHome(icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private func headerButtonHome(
+        icon: String,
+        label: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .regular))
@@ -185,9 +219,11 @@ struct HomeView: View {
                 .frame(width: 44, height: 44)
                 .background(AppPalette.surface, in: Circle())
                 .overlay(Circle().strokeBorder(AppPalette.hairline.opacity(0.55), lineWidth: 1))
+                .contentShape(Rectangle())
         }
         .buttonStyle(AppPressButtonStyle())
         .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     // MARK: - Hero
@@ -2534,6 +2570,8 @@ private struct PatchesView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.appReduceMotion) private var reduceMotion
     @EnvironmentObject private var patchStore: PatchProjectStore
+    var onOpenLogs: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
     @State private var selectedPatchProjectName: String?
     @State private var patchProgress: Double = 0
     @State private var patchProgressStage = ""
@@ -2611,19 +2649,53 @@ private struct PatchesView: View {
     }
 
     private var topBarPatches: some View {
-        HStack(spacing: AppSpacing.m) {
-            AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
+        HStack(spacing: horizontalSizeClass == .compact ? 4 : AppSpacing.m) {
+            AppLogo(size: horizontalSizeClass == .compact ? 34 : 46)
             VStack(alignment: .leading, spacing: 2) {
                 Text("PATCH STUDIO")
-                    .font(.system(size: horizontalSizeClass == .compact ? 19 : 21, weight: .semibold))
+                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 21, weight: .semibold))
                     .foregroundStyle(AppPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Text("FREE FIRE MAX  •  MODULE CONTROL")
                     .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
+            .frame(maxWidth: horizontalSizeClass == .compact ? 115 : 280, alignment: .leading)
 
-            Spacer(minLength: AppSpacing.xs)
+            Spacer(minLength: horizontalSizeClass == .compact ? 2 : AppSpacing.xs)
 
+            patchHeaderStatus
+            patchHeaderButton(
+                symbol: "apple.terminal",
+                label: language.text("accessibility.open_logs"),
+                identifier: "patches.open-logs",
+                action: onOpenLogs
+            )
+            patchHeaderButton(
+                symbol: "slider.horizontal.3",
+                label: language.text("accessibility.open_settings"),
+                identifier: "patches.open-settings",
+                action: onOpenSettings
+            )
+        }
+        .padding(AppSpacing.m)
+        .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
+    }
+
+    @ViewBuilder
+    private var patchHeaderStatus: some View {
+        if horizontalSizeClass == .compact {
+            Circle()
+                .fill(appState.isSupported ? AppPalette.mint : AppPalette.amber)
+                .frame(width: 8, height: 8)
+                .padding(8)
+                .background(AppPalette.raised, in: Capsule())
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(appState.isSupported ? language.text("patch.compat.ready") : language.text("patch.compat.review"))
+        } else {
             HStack(spacing: 6) {
                 Image(systemName: appState.isSupported ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(appState.isSupported ? AppPalette.mint : AppPalette.amber)
@@ -2636,8 +2708,31 @@ private struct PatchesView: View {
             .background(AppPalette.raised, in: Capsule())
             .accessibilityLabel(appState.isSupported ? language.text("patch.compat.ready") : language.text("patch.compat.review"))
         }
-        .padding(AppSpacing.m)
-        .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
+    }
+
+    private func patchHeaderButton(
+        symbol: String,
+        label: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            AppHaptics.tap()
+            action()
+        } label: {
+            ZStack {
+                Circle().fill(AppPalette.raised)
+                Circle().strokeBorder(AppPalette.hairline.opacity(0.55), lineWidth: 1)
+                Image(systemName: symbol)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(AppPalette.textPrimary)
+            }
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+        }
+        .buttonStyle(AppPressButtonStyle())
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     private var patchCharacter: HeroCharacterModel {
