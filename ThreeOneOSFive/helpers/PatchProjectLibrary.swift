@@ -517,7 +517,14 @@ enum PatchProjectLibrary {
         createWorkspace: Bool = true,
         fileManager: FileManager = .default
     ) throws {
-        let previousData = try existingURL.map { try readPackage(at: $0) }
+        // `existingURL` can also be the canonical destination for a first
+        // remote install. Only read it when a prior package actually exists.
+        let previousData: Data?
+        if let existingURL, fileManager.fileExists(atPath: existingURL.path) {
+            previousData = try readPackage(at: existingURL)
+        } else {
+            previousData = nil
+        }
         var savedURL: URL?
         do {
             savedURL = try save(

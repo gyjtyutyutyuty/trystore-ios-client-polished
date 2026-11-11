@@ -244,6 +244,10 @@ def check_source() -> None:
             "remote patch downloads are missing authentication, host, or digest checks")
     require("installRemoteFeedPackageIfNeeded" in library and "remoteFeedIdentityMatches" in library,
             "remote package installation is missing canonical UUID/name checks")
+    require(
+        "if let existingURL, fileManager.fileExists(atPath: existingURL.path)" in library,
+        "first remote install attempts to read a package before its destination exists",
+    )
     require("async function tryStoreLicenseIsActive" in worker
             and "env.RESELLER.fetch" in worker
             and "/api/v1/keys/validate" in worker
