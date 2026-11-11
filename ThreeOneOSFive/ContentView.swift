@@ -2476,7 +2476,7 @@ private struct PatchModuleCardView: View {
         ZStack(alignment: .topTrailing) {
             Button(action: onSelect) {
                 content
-                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
                     .padding(AppSpacing.m)
                     .background(fill)
                     .overlay(border)
@@ -2503,17 +2503,21 @@ private struct PatchModuleCardView: View {
 
     @ViewBuilder
     private var content: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.s) {
-            badge(size: 32)
-            Text(title)
-                .font(AppType.value().weight(.semibold))
-                .foregroundStyle(AppPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-            Spacer(minLength: 0)
-            HStack(spacing: AppSpacing.s) {
+        HStack(spacing: AppSpacing.m) {
+            badge(size: 38)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(AppType.value().weight(.semibold))
+                    .foregroundStyle(AppPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
                 statusRow
-                Spacer(minLength: 0)
+            }
+
+            Spacer(minLength: AppSpacing.s)
+
+            VStack(alignment: .trailing, spacing: 4) {
                 Text(indexLabel)
                     .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
@@ -2521,7 +2525,7 @@ private struct PatchModuleCardView: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
     }
 
     private func badge(size: CGFloat) -> some View {
@@ -2851,10 +2855,12 @@ private struct PatchesView: View {
                 HStack(spacing: AppSpacing.s) {
                     ForEach(PatchCategory.allCases, id: \.self) { category in
                         patchCategoryButton(category)
-                            .frame(minWidth: horizontalSizeClass == .compact ? 132 : 160)
+                            .frame(minWidth: horizontalSizeClass == .compact ? 126 : 150)
                     }
                 }
+                .padding(5)
             }
+            .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
         }
     }
 
@@ -2870,10 +2876,10 @@ private struct PatchesView: View {
             ZStack {
                 patchCategoryButtonBackground(isSelected: isSelected)
                 Label(language.text(category.titleKey), systemImage: category.icon)
-                    .font(AppType.label())
+                    .font(AppType.label().weight(.semibold))
                     .foregroundStyle(isSelected ? AppPalette.brand : AppPalette.textSecondary)
             }
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .clipShape(Capsule())
             .overlay(patchCategoryButtonOutline(isSelected: isSelected))
         }
@@ -2883,7 +2889,7 @@ private struct PatchesView: View {
 
     private func patchCategoryButtonBackground(isSelected: Bool) -> some View {
         Capsule()
-            .fill(isSelected ? AppPalette.raised : Color.clear)
+            .fill(isSelected ? AppPalette.canvas : Color.clear)
     }
 
     private func patchCategoryButtonOutline(isSelected: Bool) -> some View {
