@@ -25,9 +25,22 @@ workflows:
           python3 scripts/verify_license_activation.py
           npm ci --prefix cloudflare --ignore-scripts
           node scripts/verify_patch_feed_worker.mjs
+      - name: Install Rust toolchain for Airlift FFI
+        script: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+              | sh -s -- -y --no-modify-path
+          fi
+          source "$HOME/.cargo/env"
+          rustup default stable
+          rustup show active-toolchain
+          rustc --version
+          cargo --version
       - name: Validate Airlift FFI and build unsigned archive/IPA
         script: |
           set -euo pipefail
+          source "$HOME/.cargo/env"
           chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh
           REBUILD_AIRLIFT=1 ./build_supportpatch_unsigned.sh
       - name: Verify unsigned IPA contents
