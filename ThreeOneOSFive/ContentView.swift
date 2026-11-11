@@ -2567,6 +2567,7 @@ private struct PatchesView: View {
     @State private var patchOperationIsEnabling = true
     @State private var patchOperationFinished = false
     @State private var patchOperationSucceeded = true
+    @AppStorage("hero_character_model") private var patchCharacterRaw = HeroCharacterModel.rouk.rawValue
 
     var body: some View {
         NavigationStack {
@@ -2575,6 +2576,7 @@ private struct PatchesView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppSpacing.l) {
                         topBarPatches.appCinematicReveal(delay: 0.02)
+                        patchZoneControlCard.appCinematicReveal(delay: 0.06)
                         patchCategoriesView.appCinematicReveal(delay: 0.09)
                         activePatchesView.appCinematicReveal(delay: 0.16)
                     }
@@ -2660,6 +2662,116 @@ private struct PatchesView: View {
         }
         .padding(AppSpacing.m)
         .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
+    }
+
+    private var patchCharacter: HeroCharacterModel {
+        HeroCharacterModel(rawValue: patchCharacterRaw) ?? .rouk
+    }
+
+    private var patchCharacterSelection: Binding<HeroCharacterModel> {
+        Binding(
+            get: { HeroCharacterModel(rawValue: patchCharacterRaw) ?? .rouk },
+            set: { patchCharacterRaw = $0.rawValue }
+        )
+    }
+
+    private var selectedPatchZone: PatchAimZone? {
+        guard let option = selectedPatchOption else { return nil }
+        let zone = PatchAimZone.resolve(projectName: option.projectName)
+        return zone.isBodyZone ? zone : nil
+    }
+
+    private var patchZoneControlCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: AppSpacing.s) {
+                Circle()
+                    .fill(AppPalette.brand)
+                    .frame(width: 6, height: 6)
+                Text(language.text("patch.control.title"))
+                    .font(AppType.label().weight(.bold))
+                    .tracking(1.1)
+                    .foregroundStyle(AppPalette.textPrimary)
+                Spacer(minLength: AppSpacing.s)
+                HeroCharacterSwitcher(selection: patchCharacterSelection)
+            }
+            .padding(.horizontal, AppSpacing.l)
+            .padding(.top, AppSpacing.m)
+            .padding(.bottom, AppSpacing.s)
+
+            PatchBodyStageView(
+                model: patchCharacter,
+                zone: selectedPatchZone,
+                onSelect: selectPatchZone
+            )
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+            .padding(.horizontal, AppSpacing.s)
+
+            HStack(spacing: AppSpacing.s) {
+                Label(language.text("patch.stage.footer"), systemImage: "viewfinder")
+                    .font(AppType.label().weight(.bold))
+                    .tracking(0.8)
+                    .foregroundStyle(AppPalette.brand)
+                Spacer(minLength: AppSpacing.s)
+                Text(language.text(selectedPatchCategory.titleKey))
+                    .font(AppType.label())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.horizontal, AppSpacing.l)
+            .padding(.top, AppSpacing.m)
+            .padding(.bottom, AppSpacing.m)
+        }
+        .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 540)
+        .background(AppPalette.surface, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
+                .strokeBorder(AppPalette.hairline.opacity(0.5), lineWidth: 1)
+        }
+        .appDepthLayer(.card)
+    }
+
+    private func selectPatchZone(_ zone: PatchAimZone?) {
+        guard let zone else {
+            withAnimation(reduceMotion ? nil : AppMotion.tile) {
+                selectedPatchProjectName = nil
+            }
+            return
+        }
+
+        let category: PatchCategory
+        let projectName: String
+        let options: [DashboardPatchOption]
+        switch zone {
+        case .head:
+            category = .loadout
+            projectName = "HEAD"
+            options = DashboardPatchOption.loadout
+        case .neck:
+            category = .loadout
+            projectName = "NECK"
+            options = DashboardPatchOption.loadout
+        case .chest:
+            category = .loadout
+            projectName = "HS SLA PECHO"
+            options = DashboardPatchOption.loadout
+        case .aboveHead:
+            category = .antena
+            projectName = "Drag con Cuello"
+            options = DashboardPatchOption.antena
+        case .fullBody:
+            category = .antena
+            projectName = "Balas Magicas"
+            options = DashboardPatchOption.antena
+        case .other:
+            return
+        }
+
+        guard let option = options.first(where: { $0.projectName == projectName }) else { return }
+        withAnimation(reduceMotion ? nil : AppMotion.tile) {
+            selectedPatchCategory = category
+            selectedPatchProjectName = option.id
+        }
     }
 
     private func panelHeader(title: String, subtitle: String, icon: String) -> some View {

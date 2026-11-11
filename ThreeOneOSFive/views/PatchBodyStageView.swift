@@ -230,6 +230,8 @@ struct PatchBodyStageView: View {
                 onSelect(zone == candidate ? nil : candidate)
             } label: {
                 chip(candidate)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(AppPressButtonStyle())
             .accessibilityLabel(language.text(candidate.titleKey))
