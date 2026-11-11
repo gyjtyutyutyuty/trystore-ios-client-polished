@@ -72,10 +72,11 @@ struct HomeView: View {
             ZStack {
                 AppPremiumBackdrop()
                 GeometryReader { viewport in
+                    let heroDimensions = heroSize(for: viewport.size)
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: AppSpacing.l) {
                             topBarHome.appCinematicReveal(delay: 0.02)
-                            heroHome(side: heroSide(for: viewport.size.width)).appCinematicReveal(delay: 0.08)
+                            heroHome(size: heroDimensions).appCinematicReveal(delay: 0.08)
                             pipelineHome.appCinematicReveal(delay: 0.13)
                             connectionPanelHome.appCinematicReveal(delay: 0.16)
                             deviceSectionHome.appCinematicReveal(delay: 0.20)
@@ -161,6 +162,8 @@ struct HomeView: View {
                 Text("MAX CONTROL  /  VISUAL LAB")
                     .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
 
             Spacer(minLength: AppSpacing.xs)
@@ -211,7 +214,19 @@ struct HomeView: View {
         return min(availableWidth, maximumSide)
     }
 
-    private func heroHome(side: CGFloat) -> some View {
+    private func heroSize(for viewport: CGSize) -> CGSize {
+        let width = heroSide(for: viewport.width)
+        guard horizontalSizeClass == .compact else {
+            return CGSize(width: width, height: width)
+        }
+
+        // Keep the hero wide enough for its switcher and control deck, but avoid
+        // a full square consuming most of an iPhone's first screenful.
+        let height = min(width * 0.84, max(220, viewport.height * 0.38))
+        return CGSize(width: width, height: height)
+    }
+
+    private func heroHome(size: CGSize) -> some View {
         ZStack(alignment: .topTrailing) {
             BrandCharacterBackdrop(model: heroCharacter, reduceMotion: reduceMotion)
                 .accessibilityHidden(true)
@@ -224,7 +239,7 @@ struct HomeView: View {
                 heroControlDeck
             }
         }
-        .frame(width: side, height: side)
+        .frame(width: size.width, height: size.height)
         .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .appSpecularSheen(intensity: 0.7, cornerRadius: AppRadius.hero)
