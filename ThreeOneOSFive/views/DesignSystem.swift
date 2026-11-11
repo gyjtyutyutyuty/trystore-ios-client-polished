@@ -611,9 +611,9 @@ struct AppActionButton: View {
         Button(action: action) {
             HStack(spacing: AppSpacing.s) {
                 Image(systemName: icon)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
                 Text(title)
-                    .font(AppType.label())
+                    .font(AppType.label().weight(isProminent ? .semibold : .medium))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
@@ -622,8 +622,14 @@ struct AppActionButton: View {
             .padding(.vertical, 7)
             .frame(maxWidth: isProminent ? nil : .infinity, minHeight: 44)
             .background { background }
+            .overlay { gloss }
             .overlay { border }
             .clipShape(Capsule())
+            .shadow(
+                color: isProminent && isEnabled ? tint.opacity(0.30) : .clear,
+                radius: 12,
+                y: 5
+            )
         }
         .buttonStyle(AppPressButtonStyle())
         .disabled(!isEnabled)
@@ -637,19 +643,42 @@ struct AppActionButton: View {
         return isProminent ? AppPalette.canvas : AppPalette.brand
     }
 
+    /// The accent is a light source, not a fill: a short vertical ramp plus a
+    /// top gloss reads as a physical key instead of a flat sticker.
     @ViewBuilder
     private var background: some View {
         if isProminent && isEnabled {
-            Capsule().fill(tint)
+            Capsule().fill(
+                LinearGradient(
+                    colors: [tint, tint.opacity(0.80)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
         } else {
-            Capsule().fill(Color.clear)
+            Capsule().fill(tint.opacity(0.10))
         }
+    }
+
+    private var gloss: some View {
+        Capsule()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(isProminent && isEnabled ? 0.26 : 0.06),
+                        Color.white.opacity(0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+            )
+            .allowsHitTesting(false)
     }
 
     private var border: some View {
         Capsule()
             .strokeBorder(
-                isProminent && isEnabled ? Color.clear : tint.opacity(0.72),
+                isProminent && isEnabled ? Color.white.opacity(0.30) : tint.opacity(0.45),
                 lineWidth: 1
             )
             .allowsHitTesting(false)

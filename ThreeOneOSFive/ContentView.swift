@@ -76,12 +76,9 @@ struct HomeView: View {
                         VStack(spacing: AppSpacing.l) {
                             topBarHome.appCinematicReveal(delay: 0.02)
                             heroHome(side: heroSide(for: viewport.size.width)).appCinematicReveal(delay: 0.08)
-                            vitalPanelHome.appCinematicReveal(delay: 0.15)
-                            moduleStatusPanelHome.appCinematicReveal(delay: 0.19)
-                            connectionPanelHome.appCinematicReveal(delay: 0.21)
-                            quickAccessHome.appCinematicReveal(delay: 0.24)
-                            deviceSectionHome.appCinematicReveal(delay: 0.27)
-                            footerHome.appCinematicReveal(delay: 0.39)
+                            connectionPanelHome.appCinematicReveal(delay: 0.16)
+                            deviceSectionHome.appCinematicReveal(delay: 0.20)
+                            footerHome.appCinematicReveal(delay: 0.30)
                         }
                         .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 860)
                         .frame(maxWidth: .infinity)
@@ -220,11 +217,67 @@ struct HomeView: View {
 
             HeroCharacterSwitcher(selection: heroCharacterSelection)
                 .padding(AppSpacing.m)
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                heroControlDeck
+            }
         }
         .frame(width: side, height: side)
         .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .appSpecularSheen(intensity: 0.7, cornerRadius: AppRadius.hero)
         .frame(maxWidth: .infinity)
+    }
+
+    /// The hero is the dashboard, not a header. Module state and the one action
+    /// that matters live on the stage, so Home does not repeat them in panels
+    /// below and the first screenful stays a control deck.
+    private var heroControlDeck: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            HStack(spacing: 3) {
+                ForEach(DashboardPatchOption.unique) { option in
+                    Capsule()
+                        .fill(isModuleActiveHome(option) ? AppPalette.brand : AppPalette.hairline.opacity(0.75))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 4)
+                }
+            }
+            .accessibilityHidden(true)
+
+            HStack(spacing: AppSpacing.s) {
+                AppStatChip(
+                    icon: activeModuleCountHome > 0 ? "bolt.fill" : "circle.dashed",
+                    text: "\(activeModuleCountHome) / \(DashboardPatchOption.unique.count)",
+                    tint: activeModuleCountHome > 0 ? AppPalette.brand : AppPalette.textTertiary
+                )
+                AppStatChip(
+                    icon: appState.isSupported ? "checkmark.shield.fill" : "exclamationmark.triangle.fill",
+                    text: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
+                    tint: appState.isSupported ? AppPalette.mint : AppPalette.amber
+                )
+                Spacer(minLength: 0)
+            }
+
+            AppActionButton(
+                title: language.text("home.modules.open"),
+                icon: "square.grid.2x2.fill"
+            ) {
+                onOpenPatches()
+            }
+        }
+        .padding(AppSpacing.l)
+        .background(
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: AppPalette.canvas.opacity(0.88), location: 0.34),
+                    .init(color: AppPalette.canvas.opacity(0.98), location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     // MARK: - Module control
@@ -244,68 +297,7 @@ struct HomeView: View {
         }
     }
 
-    /// The patch store lives in the Patches tab, so Home reads the same receipts
-    /// the device already carries rather than keeping a second copy of the state.
-    private var moduleStatusPanelHome: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.m) {
-            AppSectionHeader(
-                icon: "square.grid.2x2.fill",
-                title: language.text("home.modules.title"),
-                subtitle: language.text("home.modules.subtitle")
-            )
-
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text("\(activeModuleCountHome)")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(AppPalette.textPrimary)
-                    .monospacedDigit()
-                Text("/ \(DashboardPatchOption.unique.count)")
-                    .font(AppType.value())
-                    .foregroundStyle(AppPalette.textTertiary)
-                    .monospacedDigit()
-                Spacer(minLength: AppSpacing.s)
-                AppStatChip(
-                    icon: activeModuleCountHome > 0 ? "checkmark.seal.fill" : "circle.dashed",
-                    text: language.text(activeModuleCountHome > 0 ? "home.modules.patched" : "home.modules.clean"),
-                    tint: activeModuleCountHome > 0 ? AppPalette.mint : AppPalette.textTertiary
-                )
-            }
-            .accessibilityElement(children: .combine)
-
-            HStack(spacing: 3) {
-                ForEach(DashboardPatchOption.unique) { option in
-                    Capsule()
-                        .fill(isModuleActiveHome(option) ? AppPalette.brand : AppPalette.hairline.opacity(0.75))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 5)
-                }
-            }
-            .accessibilityHidden(true)
-
-            Text(language.text("home.modules.caption"))
-                .font(AppType.meta())
-                .foregroundStyle(AppPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            AppActionButton(title: language.text("home.modules.open"), icon: "arrow.up.right") {
-                onOpenPatches()
-            }
-        }
-        .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
-    }
-
     // MARK: - Vitals
-
-    private var thermalProgress: Double {
-        switch appState.thermalStateLabel {
-        case "Nominal": return 0.28
-        case "Fair": return 0.55
-        case "Serious": return 0.78
-        case "Critical": return 1.0
-        default: return 0.08
-        }
-    }
 
     private var thermalTint: Color {
         switch appState.thermalStateLabel {
@@ -313,68 +305,6 @@ struct HomeView: View {
         case "Fair": return AppPalette.amber
         case "Serious", "Critical": return AppPalette.coral
         default: return AppPalette.textTertiary
-        }
-    }
-
-    private var vitalPanelHome: some View {
-        HStack(alignment: .center, spacing: AppSpacing.l) {
-            AppRingGauge(
-                progress: thermalProgress,
-                value: appState.thermalStateLabel,
-                caption: "THERMAL",
-                tint: thermalTint
-            )
-
-            VStack(alignment: .leading, spacing: AppSpacing.m) {
-                AppSectionHeader(
-                    icon: "waveform.path.ecg",
-                    title: "DEVICE VITALS",
-                    subtitle: "LIVE SYSTEM STATE",
-                    tint: thermalTint
-                )
-                VStack(spacing: AppSpacing.s) {
-                    vitalRow(
-                        icon: "clock.arrow.circlepath",
-                        label: language.text("dashboard.launch_count"),
-                        value: "\(appState.totalLaunches)",
-                        tint: AppTheme.accent
-                    )
-                    vitalRow(
-                        icon: "checkmark.shield.fill",
-                        label: language.text("settings.exploit_compatibility"),
-                        value: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
-                        tint: appState.isSupported ? AppPalette.mint : AppPalette.amber
-                    )
-                    vitalRow(
-                        icon: "star.fill",
-                        label: "FAVORITES",
-                        value: "\(appState.favorites.count)",
-                        tint: AppPalette.brand
-                    )
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
-    }
-
-    private func vitalRow(icon: String, label: String, value: String, tint: Color) -> some View {
-        HStack(spacing: AppSpacing.s) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .regular))
-                .foregroundStyle(tint)
-                .frame(width: 18)
-            Text(label)
-                .font(AppType.meta())
-                .foregroundStyle(AppPalette.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: AppSpacing.s)
-            Text(value)
-                .font(AppType.label())
-                .foregroundStyle(AppPalette.textPrimary)
-                .lineLimit(1)
         }
     }
 
@@ -560,69 +490,15 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Quick access
-
-    private var quickAccessHome: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: AppSpacing.m),
-                GridItem(.flexible(), spacing: AppSpacing.m)
-            ],
-            spacing: AppSpacing.m
-        ) {
-            quickAccessCardHome(
-                icon: "square.grid.2x2",
-                title: language.text("home.shortcut.patches"),
-                detail: language.text("home.shortcut.patches_detail")
-            ) {
-                onOpenPatches()
-            }
-            .accessibilityLabel(language.text("home.shortcut.patches"))
-
-            quickAccessCardHome(
-                icon: "apple.terminal",
-                title: language.text("home.shortcut.logs"),
-                detail: language.text("home.shortcut.logs_detail")
-            ) {
-                showLogs = true
-            }
-            .accessibilityLabel(language.text("accessibility.open_logs"))
-
-        }
-    }
-
-    private func quickAccessCardHome(icon: String, title: String, detail: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: AppSpacing.m) {
-                AppIconBadge(systemName: icon, tint: AppTheme.accent, size: 44)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(AppType.label())
-                        .tracking(0.6)
-                        .foregroundStyle(AppPalette.textPrimary)
-                    Text(detail)
-                        .font(AppType.meta())
-                        .foregroundStyle(AppPalette.textTertiary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(AppPalette.textTertiary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
-            .padding(AppSpacing.m)
-            .appPanel(radius: AppRadius.tile)
-        }
-        .buttonStyle(AppPressButtonStyle())
-    }
-
     // MARK: - Device
 
     private var deviceSectionHome: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            AppSectionHeader(icon: "iphone.gen3", title: "SYSTEM SNAPSHOT", subtitle: "LIVE DEVICE HEALTH")
+            AppSectionHeader(
+                icon: "iphone.gen3",
+                title: language.text("home.snapshot.title"),
+                subtitle: language.text("home.snapshot.subtitle")
+            )
 
             LazyVGrid(
                 columns: Array(
@@ -645,7 +521,7 @@ struct HomeView: View {
                 )
                 AppMetricTile(
                     icon: "thermometer.medium",
-                    label: "THERMAL",
+                    label: language.text("home.snapshot.thermal"),
                     value: appState.thermalStateLabel,
                     tint: thermalTint
                 )
@@ -669,7 +545,7 @@ struct HomeView: View {
             HStack(alignment: .top, spacing: AppSpacing.s) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(AppPalette.textTertiary)
-                Text("Thermal state is shown; iOS does not expose raw CPU/GPU temperatures.")
+                Text(language.text("home.snapshot.thermal_note"))
                     .foregroundStyle(AppPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -758,7 +634,7 @@ private struct BrandCharacterBackdrop: View {
 
 /// Two-way character choice for the hero stage. The names are proper nouns;
 /// the group label and selected value are localised for VoiceOver.
-private struct HeroCharacterSwitcher: View {
+struct HeroCharacterSwitcher: View {
     @Binding var selection: HeroCharacterModel
     @Environment(\.appLanguage) private var language
 
