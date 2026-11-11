@@ -7,6 +7,19 @@ struct LogView: View {
     @Environment(\.appLanguage) private var language
     @State private var copied = false
 
+    /// A console reads faster when the eye can find the failure without
+    /// reading every line. The rail is the only colour on the row.
+    private func severityTint(_ entry: String) -> Color {
+        let line = entry.lowercased()
+        if line.contains("fail") || line.contains("error") || line.contains("denied") {
+            return AppPalette.coral
+        }
+        if line.contains("warn") || line.contains("retry") {
+            return AppPalette.amber
+        }
+        return AppPalette.brand.opacity(0.55)
+    }
+
     private var shareText: String {
         var lines: [String] = []
         lines.append("Support Patch Log")
@@ -42,18 +55,21 @@ struct LogView: View {
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 0) {
                                 ForEach(Array(appLog.entries.enumerated()), id: \.offset) { index, entry in
-                                    VStack(spacing: 0) {
+                                    HStack(alignment: .top, spacing: AppSpacing.m) {
+                                        Capsule()
+                                            .fill(severityTint(entry))
+                                            .frame(width: 2)
+                                            .padding(.vertical, 1)
+
                                         Text(entry)
                                             .font(.system(.caption, design: .monospaced))
-                                            .foregroundStyle(.primary)
+                                            .foregroundStyle(AppPalette.textSecondary)
                                             .textSelection(.enabled)
                                             .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.vertical, 11)
-
-                                        if index < appLog.entries.count - 1 {
-                                            Divider()
-                                        }
                                     }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, AppSpacing.m)
+                                    .background(index.isMultiple(of: 2) ? Color.clear : AppPalette.raised.opacity(0.28))
                                     .id(index)
                                     .accessibilityLabel(language.text("accessibility.log_entry", Int64(index + 1), entry))
                                 }

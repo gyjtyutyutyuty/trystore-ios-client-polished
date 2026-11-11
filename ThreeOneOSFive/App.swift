@@ -34,6 +34,7 @@ struct ThreeOneOSFiveApp: App {
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @State private var showOnboarding = OnboardingStore.shouldShow()
     @State private var showAttribution = false
+    @State private var showLaunchReveal = true
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("settings_reduce_motion_enabled") private var appReduceMotionEnabled = false
@@ -45,11 +46,30 @@ struct ThreeOneOSFiveApp: App {
         SecuritySuiteProbe.denyDebugger()
         ["activation_granted", "activation_account", "activation_password", "activation_uuid", "activation_expires_at"]
             .forEach(UserDefaults.standard.removeObject(forKey:))
+        Self.configureTabBar()
         log("app: Support Patch launching — iOS \(AppInfo.osVersion) (\(AppInfo.osBuild)) \(AppInfo.machineName)")
     }
 
     private var language: AppLanguage {
         AppLanguage(rawValue: languageCode) ?? .english
+    }
+
+    /// The stock tab bar is a grey slab under a black instrument panel. This
+    /// keeps the native control but repaints it in the app's own materials.
+    private static func configureTabBar() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(AppPalette.canvas)
+        appearance.shadowColor = UIColor(AppPalette.hairline.opacity(0.45))
+
+        let item = appearance.stackedLayoutAppearance
+        item.normal.iconColor = UIColor(AppPalette.textTertiary)
+        item.normal.titleTextAttributes = [.foregroundColor: UIColor(AppPalette.textTertiary)]
+        item.selected.iconColor = UIColor(AppPalette.brand)
+        item.selected.titleTextAttributes = [.foregroundColor: UIColor(AppPalette.brand)]
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 
     private var effectiveReduceMotion: Bool {
@@ -87,6 +107,13 @@ struct ThreeOneOSFiveApp: App {
             // The design system scales with the user's text size now; the clamp
             // keeps 44 pt hit targets and gauge rings intact at the extremes.
             .dynamicTypeSize(.xSmall ... .accessibility1)
+            .overlay {
+                if showLaunchReveal && !effectiveReduceMotion {
+                    LaunchRevealView()
+                        .transition(.opacity)
+                        .zIndex(20)
+                }
+            }
             .displayIdentityAttribution(isPresented: $showAttribution, enabled: !showOnboarding && licenseManager.isActive)
             .sheet(isPresented: $showAttribution) {
                 DisplayAttributionSheet()
@@ -104,6 +131,15 @@ struct ThreeOneOSFiveApp: App {
                 if !showOnboarding {
                     licenseManager.beginLaunchSession()
                     appState.detectSupport()
+                }
+                if effectiveReduceMotion {
+                    showLaunchReveal = false
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
+                        withAnimation(.easeOut(duration: 0.35)) {
+                            showLaunchReveal = false
+                        }
+                    }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification)) { _ in
@@ -389,5 +425,48 @@ class AppState: ObservableObject {
                 }
             }
         }
+    }
+}
+
+/// A short, quiet arrival: the mark settles and the name follows. It is skipped
+/// entirely under Reduce Motion, so the app is never slower for the users who
+/// asked motion to stop.
+private struct LaunchRevealView: View {
+    @State private var settled = false
+
+    var body: some View {
+        ZStack {
+            AppPalette.canvas.ignoresSafeArea()
+
+            RadialGradient(
+                colors: [AppPalette.brand.opacity(0.20), .clear],
+                center: .center,
+                startRadius: 4,
+                endRadius: 240
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: AppSpacing.m) {
+                AppLogo(size: 86)
+                    .scaleEffect(settled ? 1 : 0.86)
+                VStack(spacing: AppSpacing.xs) {
+                    Text("TRY STORE")
+                        .font(.system(size: 22, weight: .semibold))
+                        .tracking(4)
+                        .foregroundStyle(AppPalette.textPrimary)
+                    Text("MAX CONTROL / VISUAL LAB")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(2.4)
+                        .foregroundStyle(AppPalette.textTertiary)
+                }
+            }
+            .opacity(settled ? 1 : 0)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.5)) {
+                settled = true
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

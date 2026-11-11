@@ -720,6 +720,15 @@
 "patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "VISUALS";
 "patch.mode.antena" = "ANTENA";
+"cleaner.bar.cache" = "CACHE";
+"cleaner.bar.temp" = "TEMPORARY";
+"patch.filter.clear" = "CLEAR";
+"patch.filter.empty" = "No packages land on this zone.";
+"patch.library.refreshed" = "%lld PACKAGES LOADED";
+"patch.transaction.files" = "%1$lld / %2$lld FILES";
+"patch.preview.title" = "PAYLOAD PREVIEW";
+"patch.preview.open" = "COMPARE PAYLOADS";
+"patch.preview.hint" = "Drag the divider";
 "home.snapshot.title" = "SYSTEM SNAPSHOT";
 "home.snapshot.subtitle" = "LIVE DEVICE HEALTH";
 "home.snapshot.thermal" = "THERMAL";

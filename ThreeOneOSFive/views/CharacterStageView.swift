@@ -27,13 +27,10 @@ enum HeroCharacterModel: String, CaseIterable, Identifiable, Hashable {
 
     var objectFile: String { "\(rawValue).obj" }
 
-    /// Folder reference in the app bundle: `CharacterModels/<rawValue>/`.
+    /// Folder reference in the app bundle: `CharacterVault/<rawValue>/`.
+    /// The vault holds sealed blobs and unlocks them into caches on first use.
     var objectURL: URL? {
-        Bundle.main.url(
-            forResource: rawValue,
-            withExtension: "obj",
-            subdirectory: "CharacterModels/\(rawValue)"
-        ) ?? Bundle.main.url(forResource: rawValue, withExtension: "obj")
+        CharacterVault.modelURL(self)
     }
 }
 

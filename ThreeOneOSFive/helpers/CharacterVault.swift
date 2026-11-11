@@ -1,0 +1,124 @@
+import Foundation
+import CryptoKit
+
+/// The character meshes ship as sealed TSC1 blobs, not as an .obj folder.
+/// Unzipping the IPA yields opaque files; the vault unlocks them into the
+/// caches directory for SceneKit at first use and keeps them out of the bundle.
+enum CharacterVault {
+    private enum VaultError: Error {
+        case corrupt
+        case missingAssets
+        case unavailable
+    }
+
+    private static let folder = "CharacterVault"
+    private static let magic = Data([0x54, 0x53, 0x43, 0x31])   // "TSC1"
+    private static let nonceLength = 16
+    private static let tagLength = 16
+    private static let blockLength = 32
+    private static let lock = NSLock()
+
+    // Split halves, not a plaintext key. Anyone with a debugger can still put
+    // them back together; the point is that the art is not a zip away.
+    private static let keyXor: [UInt8] = [0x45, 0x40, 0x08, 0x6A, 0x79, 0x5B, 0x2A, 0x74, 0x08, 0xDB, 0x8A, 0x8B, 0x75, 0xAC, 0x2B, 0x3D, 0x0C, 0x03, 0xE7, 0x45, 0x5B, 0xD2, 0xA7, 0xE1, 0xD3, 0xAD, 0xA8, 0xF3, 0x6C, 0x1F, 0xF5, 0x7B]
+    private static let keyPad: [UInt8] = [0x40, 0x96, 0xF7, 0xE9, 0x5B, 0xC0, 0x83, 0xEE, 0x1A, 0xE6, 0xE9, 0xFA, 0xB5, 0x67, 0x93, 0xA7, 0xD1, 0xD0, 0x1F, 0x18, 0x5C, 0xDB, 0x42, 0x73, 0x18, 0x42, 0xEC, 0xB7, 0x4F, 0x08, 0x7F, 0xC4]
+
+    static func modelURL(_ model: HeroCharacterModel) -> URL? {
+        guard let root = try? materialize() else { return nil }
+        let url = root
+            .appendingPathComponent(model.rawValue, isDirectory: true)
+            .appendingPathComponent(model.objectFile)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    private static var cacheRoot: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("CharacterVault", isDirectory: true)
+    }
+
+    private static var vaultKey: Data {
+        Data(zip(keyXor, keyPad).map { $0.0 ^ $0.1 })
+    }
+
+    private static func materialize() throws -> URL {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let cacheRoot else { throw VaultError.unavailable }
+        let stamp = cacheRoot.appendingPathComponent("v1")
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: stamp.path) {
+            return cacheRoot
+        }
+
+        let bundleRoot = Bundle.main.url(forResource: folder, withExtension: nil)
+            ?? Bundle.main.resourceURL?.appendingPathComponent(folder, isDirectory: true)
+        guard let bundleRoot else { throw VaultError.missingAssets }
+
+        try? fileManager.removeItem(at: cacheRoot)
+        try fileManager.createDirectory(at: cacheRoot, withIntermediateDirectories: true)
+
+        guard let walker = fileManager.enumerator(at: bundleRoot, includingPropertiesForKeys: nil) else {
+            throw VaultError.missingAssets
+        }
+        let prefix = bundleRoot.path + "/"
+        while let source = walker.nextObject() as? URL {
+            guard source.pathExtension == "tsc" else { continue }
+            let relative = source.path.replacingOccurrences(of: prefix, with: "")
+            guard relative.hasSuffix(".tsc") else { continue }
+            let target = cacheRoot.appendingPathComponent(String(relative.dropLast(4)))
+            try fileManager.createDirectory(
+                at: target.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let sealed = try Data(contentsOf: source)
+            try decrypt(sealed).write(to: target, options: .atomic)
+        }
+
+        try Data("v1".utf8).write(to: stamp)
+        return cacheRoot
+    }
+
+    private static func decrypt(_ sealed: Data) throws -> Data {
+        let header = magic.count + nonceLength + tagLength
+        guard sealed.count > header, sealed.prefix(magic.count) == magic else {
+            throw VaultError.corrupt
+        }
+        let nonce = sealed.subdata(in: magic.count..<(magic.count + nonceLength))
+        let tag = sealed.subdata(in: (magic.count + nonceLength)..<header)
+        let cipher = sealed.subdata(in: header..<sealed.count)
+
+        let expected = hmac(nonce + cipher).prefix(tagLength)
+        guard constantTimeEqual(Data(expected), tag) else { throw VaultError.corrupt }
+
+        var plain = cipher
+        var counter: UInt64 = 0
+        var offset = 0
+        while offset < plain.count {
+            var input = nonce
+            withUnsafeBytes(of: counter.bigEndian) { input.append(contentsOf: $0) }
+            let stream = hmac(input)
+            let take = min(blockLength, plain.count - offset)
+            for index in 0..<take {
+                plain[offset + index] ^= stream[stream.startIndex + index]
+            }
+            offset += take
+            counter += 1
+        }
+        return plain
+    }
+
+    private static func hmac(_ data: Data) -> Data {
+        let key = SymmetricKey(data: vaultKey)
+        return Data(HMAC<SHA256>.authenticationCode(for: data, using: key))
+    }
+
+    private static func constantTimeEqual(_ lhs: Data, _ rhs: Data) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        var difference: UInt8 = 0
+        for index in 0..<lhs.count {
+            difference |= lhs[lhs.startIndex + index] ^ rhs[rhs.startIndex + index]
+        }
+        return difference == 0
+    }
+}

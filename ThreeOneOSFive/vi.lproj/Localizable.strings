@@ -714,6 +714,15 @@
 "patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "HINH ANH";
 "patch.mode.antena" = "ANTENA";
+"cleaner.bar.cache" = "BỘ NHỚ ĐỆM";
+"cleaner.bar.temp" = "TẠM THỜI";
+"patch.filter.clear" = "XÓA";
+"patch.filter.empty" = "Không có gói nào nhắm vào vùng này.";
+"patch.library.refreshed" = "ĐÃ TẢI %lld GÓI";
+"patch.transaction.files" = "%1$lld / %2$lld TỆP";
+"patch.preview.title" = "XEM TRƯỚC PAYLOAD";
+"patch.preview.open" = "SO SÁNH PAYLOAD";
+"patch.preview.hint" = "Kéo vạch chia";
 "home.snapshot.title" = "TRẠNG THÁI HỆ THỐNG";
 "home.snapshot.subtitle" = "SỨC KHỎE THIẾT BỊ";
 "home.snapshot.thermal" = "NHIỆT ĐỘ";

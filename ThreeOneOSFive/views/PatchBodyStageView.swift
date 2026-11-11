@@ -96,6 +96,7 @@ enum PatchAimZone: String, CaseIterable, Identifiable {
 struct PatchBodyStageView: View {
     let model: HeroCharacterModel
     let zone: PatchAimZone?
+    var onSelect: ((PatchAimZone?) -> Void)? = nil
 
     @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.appLanguage) private var language
@@ -113,7 +114,6 @@ struct PatchBodyStageView: View {
                     isActive: isVisible,
                     turntable: false
                 )
-                .allowsHitTesting(false)
                 anchorMarkers(in: size)
                 calloutLines(in: size)
                 callouts(in: size)
@@ -213,14 +213,30 @@ struct PatchBodyStageView: View {
     private func callouts(in size: CGSize) -> some View {
         ZStack {
             ForEach(PatchAimZone.calloutZones) { candidate in
-                chip(candidate)
+                calloutItem(candidate)
                     .position(
                         x: candidate.calloutCenter.x * size.width,
                         y: candidate.calloutCenter.y * size.height
                     )
             }
         }
-        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func calloutItem(_ candidate: PatchAimZone) -> some View {
+        if let onSelect {
+            Button {
+                AppHaptics.select()
+                onSelect(zone == candidate ? nil : candidate)
+            } label: {
+                chip(candidate)
+            }
+            .buttonStyle(AppPressButtonStyle())
+            .accessibilityLabel(language.text(candidate.titleKey))
+            .accessibilityAddTraits(zone == candidate ? AccessibilityTraits.isSelected : AccessibilityTraits())
+        } else {
+            chip(candidate)
+        }
     }
 
     private func chip(_ candidate: PatchAimZone) -> some View {

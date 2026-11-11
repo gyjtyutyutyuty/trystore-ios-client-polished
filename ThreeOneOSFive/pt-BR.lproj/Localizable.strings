@@ -306,6 +306,15 @@
 "patch.mode.loadout" = "AIM";
 "patch.mode.visuals" = "VISUAIS";
 "patch.mode.antena" = "ANTENA";
+"cleaner.bar.cache" = "CACHE";
+"cleaner.bar.temp" = "TEMPORÁRIOS";
+"patch.filter.clear" = "LIMPAR";
+"patch.filter.empty" = "Nenhum pacote atinge esta zona.";
+"patch.library.refreshed" = "%lld PACOTES CARREGADOS";
+"patch.transaction.files" = "%1$lld / %2$lld ARQUIVOS";
+"patch.preview.title" = "PRÉVIA DO PAYLOAD";
+"patch.preview.open" = "COMPARAR PAYLOADS";
+"patch.preview.hint" = "Arraste o divisor";
 "home.snapshot.title" = "ESTADO DO SISTEMA";
 "home.snapshot.subtitle" = "SAÚDE DO DISPOSITIVO";
 "home.snapshot.thermal" = "TÉRMICO";

@@ -18,6 +18,8 @@ struct PatchProjectsView: View {
     @State private var showImporter = false
     @State private var selectedID: UUID?
     @State private var openID: UUID?
+    @State private var zoneFilter: PatchAimZone?
+    @State private var toast: AppToastMessage?
     @AppStorage("hero_character_model") private var heroCharacterRaw = HeroCharacterModel.rouk.rawValue
 
     init() {
@@ -46,6 +48,7 @@ struct PatchProjectsView: View {
                 .padding(.bottom, AppSpacing.xxl)
             }
             .background(AppPremiumBackdrop())
+            .appToast($toast)
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: Binding(
                 get: { openID != nil },
@@ -161,6 +164,13 @@ struct PatchProjectsView: View {
         store.items.filter { $0.summary.schemaVersion >= 2 }.count
     }
 
+    private var filteredItems: [PatchLibraryItem] {
+        guard let zoneFilter else { return store.items }
+        return store.items.filter {
+            PatchAimZone.resolve(projectName: Self.displayName(of: $0)) == zoneFilter
+        }
+    }
+
     private static func displayName(of item: PatchLibraryItem) -> String {
         item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
     }
@@ -187,9 +197,17 @@ struct PatchProjectsView: View {
             .padding(.top, AppSpacing.m)
             .padding(.bottom, AppSpacing.s)
 
-            PatchBodyStageView(model: heroCharacter, zone: selectedZone)
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
-                .padding(.horizontal, AppSpacing.m)
+            PatchBodyStageView(model: heroCharacter, zone: selectedZone ?? zoneFilter) { zone in
+                AppHaptics.select()
+                withAnimation(.easeOut(duration: AppMotion.control)) {
+                    zoneFilter = zone
+                    if zone != nil {
+                        selectedID = nil
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+            .padding(.horizontal, AppSpacing.m)
 
             HStack(spacing: AppSpacing.s) {
                 Text(language.text("patch.stage.footer"))
@@ -272,6 +290,10 @@ struct PatchProjectsView: View {
                 Button {
                     AppHaptics.tap()
                     store.reload()
+                    toast = AppToastMessage(
+                        text: language.text("patch.library.refreshed", Int64(store.items.count)),
+                        icon: "arrow.clockwise"
+                    )
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 13, weight: .semibold))
@@ -293,8 +315,49 @@ struct PatchProjectsView: View {
                 Spacer(minLength: 0)
             }
 
+            if let zoneFilter {
+                HStack(spacing: AppSpacing.s) {
+                    Image(systemName: zoneFilter.icon)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AppPalette.brand)
+                    Text(language.text(zoneFilter.titleKey))
+                        .font(AppType.label().weight(.bold))
+                        .tracking(0.8)
+                        .foregroundStyle(AppPalette.textPrimary)
+                    Text("\(filteredItems.count)")
+                        .font(AppType.label())
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .monospacedDigit()
+                    Spacer(minLength: AppSpacing.s)
+                    Button {
+                        AppHaptics.tap()
+                        withAnimation(.easeOut(duration: AppMotion.control)) {
+                            self.zoneFilter = nil
+                        }
+                    } label: {
+                        Text(language.text("patch.filter.clear"))
+                            .font(AppType.label().weight(.semibold))
+                            .foregroundStyle(AppPalette.brand)
+                            .frame(minHeight: 30)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, AppSpacing.m)
+                .padding(.vertical, AppSpacing.xs)
+                .background(AppPalette.raised, in: Capsule())
+                .overlay {
+                    Capsule().strokeBorder(AppPalette.brand.opacity(0.3), lineWidth: 1)
+                }
+            }
+
             if store.items.isEmpty && !store.isBusy {
                 emptyState
+            } else if filteredItems.isEmpty {
+                Text(language.text("patch.filter.empty"))
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, AppSpacing.xl)
             } else {
                 LazyVGrid(
                     columns: Array(
@@ -303,9 +366,9 @@ struct PatchProjectsView: View {
                     ),
                     spacing: AppSpacing.m
                 ) {
-                    ForEach(store.items) { item in
+                    ForEach(filteredItems) { item in
                         itemTile(item).appCinematicReveal(
-                            delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
+                            delay: min(Double(filteredItems.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
                         ).appDepthLayer(.hero)
                     }
                 }
@@ -315,10 +378,7 @@ struct PatchProjectsView: View {
 
     private func libraryStat(value: Int, key: String) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            Text("\(value)")
-                .font(AppType.digits(22))
-                .foregroundStyle(AppPalette.brand)
-                .monospacedDigit()
+            AppRollingNumber(value: value, size: 22)
             Text(language.text(key))
                 .font(AppType.label().weight(.bold))
                 .tracking(1.1)
@@ -543,6 +603,10 @@ struct PatchProjectDetailView: View {
     @State private var isWorking = false
     @State private var actionAlert: PatchStoreAlert?
     @State private var shareRequest: PatchShareRequest?
+    @State private var transaction: PatchTransactionProgress?
+    @State private var showPreview = false
+    @State private var previewLeading: PatchPayloadImage?
+    @State private var previewTrailing: PatchPayloadImage?
 
     private var item: PatchLibraryItem? {
         store.items.first(where: { $0.id == projectID })
@@ -554,6 +618,31 @@ struct PatchProjectDetailView: View {
 
     private var isWorkspaceProject: Bool {
         (item?.summary.schemaVersion ?? 1) >= 2
+    }
+
+    private var imageRules: [PatchRule] {
+        (item?.project?.rules ?? []).filter { $0.payloadLooksLikeImage }
+    }
+
+    private var previewPairAvailable: Bool {
+        imageRules.count >= 2
+    }
+
+    private func preparePreview() {
+        let rules = imageRules
+        guard rules.count >= 2,
+              let first = UIImage(data: rules[0].replacementData),
+              let second = UIImage(data: rules[1].replacementData) else { return }
+        previewLeading = PatchPayloadImage(image: first, label: rules[0].replacementFilename)
+        previewTrailing = PatchPayloadImage(image: second, label: rules[1].replacementFilename)
+        showPreview = true
+    }
+
+    private func localizedMessage(_ error: PatchPackageError) -> String {
+        if let argument = error.localizationArgument {
+            return language.text(error.localizationKey, argument)
+        }
+        return language.text(error.localizationKey)
     }
 
     var body: some View {
@@ -617,6 +706,15 @@ struct PatchProjectDetailView: View {
                         Text(language.text("patch.rules"))
                     } footer: {
                         Text(language.text("patch.legacy_footer"))
+                    }
+                }
+
+                if previewPairAvailable {
+                    Section(language.text("patch.preview.title")) {
+                        Button(action: preparePreview) {
+                            actionLabel("patch.preview.open", systemImage: "rectangle.split.2x1")
+                        }
+                        .disabled(isWorking)
                     }
                 }
 
@@ -685,6 +783,20 @@ struct PatchProjectDetailView: View {
         }
         .navigationTitle(item?.project?.name ?? language.text("patch.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if let transaction {
+                PatchTransactionOverlay(progress: transaction) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        self.transaction = nil
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showPreview) {
+            if let previewLeading, let previewTrailing {
+                PatchPayloadPreview(leading: previewLeading, trailing: previewTrailing)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !isWorkspaceProject {
@@ -787,31 +899,49 @@ struct PatchProjectDetailView: View {
     private func apply() {
         guard let item, let baseProject = item.project else { return }
         isWorking = true
+        transaction = PatchTransactionProgress(
+            title: item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent,
+            done: 0,
+            total: max(1, baseProject.rules.count),
+            phase: .running
+        )
         Task.detached(priority: .userInitiated) {
             do {
                 let project = item.summary.schemaVersion >= 2
                     ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
                     : baseProject
-                _ = try DevicePatchService.apply(project: project)
+                _ = try DevicePatchService.apply(project: project) { done, total in
+                    Task { @MainActor in
+                        guard var current = self.transaction else { return }
+                        current.done = done
+                        current.total = max(1, total)
+                        self.transaction = current
+                    }
+                }
                 await MainActor.run {
                     store.reload()
                     isWorking = false
-                    actionAlert = PatchStoreAlert(titleKey: "common.done", messageKey: "patch.applied_message")
+                    if var current = self.transaction {
+                        current.phase = .success(language.text("patch.applied_message"))
+                        self.transaction = current
+                    }
                     PatchAudioFeedback.play(enabled: true)
                 }
             } catch let error as PatchPackageError {
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: error.localizationKey,
-                        messageArgument: error.localizationArgument
-                    )
+                    if var current = self.transaction {
+                        current.phase = .failure(localizedMessage(error))
+                        self.transaction = current
+                    }
                 }
             } catch {
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.apply")
+                    if var current = self.transaction {
+                        current.phase = .failure(language.text("patch.error.apply"))
+                        self.transaction = current
+                    }
                 }
             }
         }
@@ -852,29 +982,47 @@ struct PatchProjectDetailView: View {
     }
 
     private func restore() {
-        guard let receipt else { return }
+        guard let receipt, let item else { return }
         isWorking = true
+        transaction = PatchTransactionProgress(
+            title: item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent,
+            done: 0,
+            total: max(1, item.project?.rules.count ?? 1),
+            phase: .running
+        )
         Task.detached(priority: .userInitiated) {
             do {
-                try DevicePatchService.restore(receipt: receipt)
+                try DevicePatchService.restore(receipt: receipt) { done, total in
+                    Task { @MainActor in
+                        guard var current = self.transaction else { return }
+                        current.done = done
+                        current.total = max(1, total)
+                        self.transaction = current
+                    }
+                }
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(titleKey: "common.done", messageKey: "patch.restored_message")
+                    if var current = self.transaction {
+                        current.phase = .success(language.text("patch.restored_message"))
+                        self.transaction = current
+                    }
                     PatchAudioFeedback.play(enabled: false)
                 }
             } catch let error as PatchPackageError {
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: error.localizationKey,
-                        messageArgument: error.localizationArgument
-                    )
+                    if var current = self.transaction {
+                        current.phase = .failure(localizedMessage(error))
+                        self.transaction = current
+                    }
                 }
             } catch {
                 await MainActor.run {
                     isWorking = false
-                    actionAlert = PatchStoreAlert(titleKey: "common.failed", messageKey: "patch.error.restore")
+                    if var current = self.transaction {
+                        current.phase = .failure(language.text("patch.error.restore"))
+                        self.transaction = current
+                    }
                 }
             }
         }

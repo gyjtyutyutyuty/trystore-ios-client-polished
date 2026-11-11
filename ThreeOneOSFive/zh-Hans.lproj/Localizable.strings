@@ -712,6 +712,15 @@
 "patch.mode.loadout" = "瞄准";
 "patch.mode.visuals" = "视觉";
 "patch.mode.antena" = "天线";
+"cleaner.bar.cache" = "缓存";
+"cleaner.bar.temp" = "临时文件";
+"patch.filter.clear" = "清除";
+"patch.filter.empty" = "没有安装包指向该部位。";
+"patch.library.refreshed" = "已加载 %lld 个安装包";
+"patch.transaction.files" = "%1$lld / %2$lld 个文件";
+"patch.preview.title" = "负载预览";
+"patch.preview.open" = "对比负载";
+"patch.preview.hint" = "拖动分隔线";
 "home.snapshot.title" = "系统状态";
 "home.snapshot.subtitle" = "设备健康";
 "home.snapshot.thermal" = "温度";

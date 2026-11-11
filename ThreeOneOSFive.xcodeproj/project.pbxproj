@@ -74,13 +74,16 @@
 		3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
 		B71300000000000000000006 /* PatchResourceBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71300000000000000000005; };
-		C71400000000000000000002 /* CharacterModels in Resources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000001; };
+		C71400000000000000000002 /* CharacterVault in Resources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000001; };
 		C71400000000000000000004 /* CharacterStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000003; };
 		C71500000000000000000001 /* worse_query.m in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000003; };
 		C71500000000000000000002 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000005; };
 		C71600000000000000000001 /* Hardening.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71600000000000000000002; };
 		C71700000000000000000001 /* PatchBundleKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71700000000000000000002; };
 		C71800000000000000000001 /* PatchBodyStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71800000000000000000002; };
+		C71900000000000000000001 /* CharacterVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71900000000000000000002; };
+		C71A00000000000000000001 /* AppFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71A00000000000000000002; };
+		C71B00000000000000000001 /* PatchPayloadPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71B00000000000000000002; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -172,7 +175,7 @@
 		3105B124 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		3105B125 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B71300000000000000000005 /* PatchResourceBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchResourceBundle.swift; sourceTree = "<group>"; };
-		C71400000000000000000001 /* CharacterModels */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CharacterModels; sourceTree = "<group>"; };
+		C71400000000000000000001 /* CharacterVault */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CharacterVault; sourceTree = "<group>"; };
 		C71400000000000000000003 /* CharacterStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterStageView.swift; sourceTree = "<group>"; };
 		C71500000000000000000003 /* worse_query.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = worse_query.m; sourceTree = "<group>"; };
 		C71500000000000000000004 /* worse_query.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = worse_query.h; sourceTree = "<group>"; };
@@ -181,6 +184,9 @@
 		C71600000000000000000002 /* Hardening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hardening.swift; sourceTree = "<group>"; };
 		C71700000000000000000002 /* PatchBundleKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchBundleKeyStore.swift; sourceTree = "<group>"; };
 		C71800000000000000000002 /* PatchBodyStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchBodyStageView.swift; sourceTree = "<group>"; };
+		C71900000000000000000002 /* CharacterVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterVault.swift; sourceTree = "<group>"; };
+		C71A00000000000000000002 /* AppFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFeedback.swift; sourceTree = "<group>"; };
+		C71B00000000000000000002 /* PatchPayloadPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPayloadPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -217,7 +223,7 @@
 				3105A406 /* kexploit */,
 				3105A120 /* Localizable.strings */,
 					3105A031 /* Assets.xcassets */,
-					C71400000000000000000001 /* CharacterModels */,
+					C71400000000000000000001 /* CharacterVault */,
 								3105K203 /* AirliftFFI.xcframework */,
 			);
 			path = ThreeOneOSFive;
@@ -252,6 +258,8 @@
 				3105A098 /* DesignSystem.swift */,
 				C71400000000000000000003 /* CharacterStageView.swift */,
 				C71800000000000000000002 /* PatchBodyStageView.swift */,
+				C71A00000000000000000002 /* AppFeedback.swift */,
+				C71B00000000000000000002 /* PatchPayloadPreview.swift */,
 				3105A023 /* SettingsView.swift */,
 				3105A024 /* LogView.swift */,
 				3105A105 /* AppDataBrowserView.swift */,
@@ -274,6 +282,7 @@
 			children = (
 					3105A114 /* ActivationGate.swift */,
 					B71300000000000000000003 /* LicenseManager.swift */,
+					C71900000000000000000002 /* CharacterVault.swift */,
 								3105K201 /* PairingController.swift */,
 				3105L201 /* GrappaHelper.m */,
 				3105L202 /* GrappaHelper.h */,
@@ -399,7 +408,7 @@
 				files = (
 					3105A211,
 					3105A228,
-					C71400000000000000000002, /* CharacterModels in Resources */
+					C71400000000000000000002, /* CharacterVault in Resources */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -425,6 +434,9 @@
 				C71600000000000000000001,
 				C71700000000000000000001,
 				C71800000000000000000001,
+				C71900000000000000000001,
+				C71A00000000000000000001,
+				C71B00000000000000000001,
 				3105A227,
 				3105A233,
 				3105A234,
@@ -497,7 +509,7 @@
 					CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 					CODE_SIGN_ENTITLEMENTS = ThreeOneOSFive/ThreeOneOSFive.entitlements;
 					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 14;
+					CURRENT_PROJECT_VERSION = 15;
 					ENABLE_USER_SCRIPT_SANDBOXING = NO;
 					GCC_C_LANGUAGE_STANDARD = gnu17;
 					GENERATE_INFOPLIST_FILE = YES;
@@ -534,7 +546,7 @@
 					CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 					CODE_SIGN_ENTITLEMENTS = ThreeOneOSFive/ThreeOneOSFive.entitlements;
 					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 14;
+					CURRENT_PROJECT_VERSION = 15;
 					DEPLOYMENT_POSTPROCESSING = YES;
 					ENABLE_TESTABILITY = NO;
 					GCC_SYMBOLS_PRIVATE_EXTERN = YES;

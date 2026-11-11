@@ -76,6 +76,7 @@ struct HomeView: View {
                         VStack(spacing: AppSpacing.l) {
                             topBarHome.appCinematicReveal(delay: 0.02)
                             heroHome(side: heroSide(for: viewport.size.width)).appCinematicReveal(delay: 0.08)
+                            pipelineHome.appCinematicReveal(delay: 0.13)
                             connectionPanelHome.appCinematicReveal(delay: 0.16)
                             deviceSectionHome.appCinematicReveal(delay: 0.20)
                             footerHome.appCinematicReveal(delay: 0.30)
@@ -309,6 +310,86 @@ struct HomeView: View {
     }
 
     // MARK: - Connections
+
+    /// Four steps stand between a package on disk and a patched app. Showing
+    /// them as one rail answers "why is the button not doing anything" before
+    /// the user has to open Settings.
+    private var pipelineHome: some View {
+        HStack(alignment: .top, spacing: 0) {
+            pipelineNode(
+                icon: "iphone.gen3",
+                key: "settings.pairing",
+                done: isPairingReady
+            )
+            pipelineLink(done: isPairingReady)
+            pipelineNode(
+                icon: "network",
+                key: "settings.tunnel",
+                done: tunnelConnected,
+                enabled: isPairingReady
+            )
+            pipelineLink(done: tunnelConnected)
+            pipelineNode(
+                icon: "checkmark.shield.fill",
+                key: "dashboard.kernel_status",
+                done: appState.isSupported,
+                enabled: tunnelConnected
+            )
+            pipelineLink(done: appState.isSupported)
+            pipelineNode(
+                icon: "square.grid.2x2.fill",
+                key: "home.shortcut.patches",
+                done: activeModuleCountHome > 0,
+                enabled: appState.isSupported
+            )
+        }
+        .padding(.horizontal, AppSpacing.l)
+        .padding(.vertical, AppSpacing.m)
+        .appPanel(radius: AppRadius.panel)
+    }
+
+    private func pipelineNode(
+        icon: String,
+        key: String,
+        done: Bool,
+        enabled: Bool = true
+    ) -> some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(done ? AppPalette.brand.opacity(0.16) : AppPalette.raised)
+                Circle()
+                    .strokeBorder(
+                        done ? AppPalette.brand.opacity(0.85) : AppPalette.hairline.opacity(0.7),
+                        lineWidth: 1
+                    )
+                Image(systemName: done ? "checkmark" : icon)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(done ? AppPalette.brand : AppPalette.textTertiary)
+            }
+            .frame(width: 34, height: 34)
+            .opacity(enabled ? 1 : 0.45)
+
+            Text(language.text(key))
+                .font(.system(size: 8, weight: .bold))
+                .tracking(0.5)
+                .foregroundStyle(done ? AppPalette.textPrimary : AppPalette.textTertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(language.text(done ? "settings.supported" : "settings.exploit_unverified"))
+    }
+
+    private func pipelineLink(done: Bool) -> some View {
+        Rectangle()
+            .fill(done ? AppPalette.brand.opacity(0.55) : AppPalette.hairline.opacity(0.6))
+            .frame(height: 1)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 17)
+            .accessibilityHidden(true)
+    }
 
     private var tunnelConnected: Bool {
         isTunnelConnected == true

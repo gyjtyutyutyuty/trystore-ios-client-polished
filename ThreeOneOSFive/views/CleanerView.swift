@@ -97,6 +97,7 @@ struct CleanerView: View {
                     VStack(spacing: AppSpacing.l) {
                         topBar.appCinematicReveal(delay: 0.02)
                         heroPanel.appCinematicReveal(delay: 0.08)
+                        storageBar.appCinematicReveal(delay: 0.11)
                         breakdownPanel.appCinematicReveal(delay: 0.14)
                         appsPanel.appCinematicReveal(delay: 0.20)
                         footerNote.appCinematicReveal(delay: 0.26)
@@ -169,6 +170,58 @@ struct CleanerView: View {
         }
         .padding(AppSpacing.m)
         .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
+    }
+
+    // MARK: - Composition
+
+    /// One bar answers "what is actually reclaimable" before the panel below
+    /// lists it. Cache, temporary files and everything else share the width.
+    private var storageBar: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let total = CGFloat(max(1, reclaimableBytes))
+                HStack(spacing: 2) {
+                    Rectangle()
+                        .fill(AppPalette.brand)
+                        .frame(width: max(0, width * CGFloat(cacheBytes) / total - 1), height: 8)
+                    Rectangle()
+                        .fill(AppPalette.amber)
+                        .frame(width: max(0, width * CGFloat(temporaryBytes) / total - 1), height: 8)
+                    Rectangle()
+                        .fill(AppPalette.hairline.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 8)
+                }
+                .clipShape(Capsule())
+            }
+            .frame(height: 8)
+
+            HStack(spacing: AppSpacing.l) {
+                barLegend(key: "cleaner.bar.cache", bytes: cacheBytes, tint: AppPalette.brand)
+                barLegend(key: "cleaner.bar.temp", bytes: temporaryBytes, tint: AppPalette.amber)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(AppSpacing.l)
+        .appPanel(radius: AppRadius.panel)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func barLegend(key: String, bytes: Int64, tint: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(tint)
+                .frame(width: 6, height: 6)
+            Text(language.text(key))
+                .font(.system(size: 8, weight: .bold))
+                .tracking(0.7)
+                .foregroundStyle(AppPalette.textTertiary)
+            Text(sizeText(bytes))
+                .font(AppType.label())
+                .foregroundStyle(AppPalette.textSecondary)
+                .monospacedDigit()
+        }
     }
 
     // MARK: - Hero
