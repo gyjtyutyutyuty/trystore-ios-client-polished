@@ -2681,8 +2681,6 @@ private struct PatchesView: View {
                 action: onOpenSettings
             )
         }
-        .padding(AppSpacing.m)
-        .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
     }
 
     @ViewBuilder
@@ -2794,12 +2792,8 @@ private struct PatchesView: View {
             .padding(.bottom, AppSpacing.m)
         }
         .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 540)
-        .background(AppPalette.surface, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
-                .strokeBorder(AppPalette.hairline.opacity(0.5), lineWidth: 1)
-        }
-        .appDepthLayer(.card)
+        .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
     }
 
     private func selectPatchZone(_ zone: PatchAimZone?) {
@@ -2851,19 +2845,17 @@ private struct PatchesView: View {
 
     private var patchCategoriesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            HStack {
-                panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: AppSpacing.s) {
-                ForEach(PatchCategory.allCases, id: \.self) { category in
-                    patchCategoryButton(category)
+            panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.s) {
+                    ForEach(PatchCategory.allCases, id: \.self) { category in
+                        patchCategoryButton(category)
+                            .frame(minWidth: horizontalSizeClass == .compact ? 132 : 160)
+                    }
                 }
             }
         }
-        .padding(AppSpacing.l)
-        .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
     }
 
     private func patchCategoryButton(_ category: PatchCategory) -> some View {

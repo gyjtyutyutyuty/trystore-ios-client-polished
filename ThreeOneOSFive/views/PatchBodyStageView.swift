@@ -104,23 +104,29 @@ struct PatchBodyStageView: View {
     @State private var pulse = false
 
     var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-            ZStack {
-                backdrop
-                CharacterStageView(
-                    model: model,
-                    reduceMotion: reduceMotion,
-                    isActive: isVisible,
-                    turntable: false
-                )
-                anchorMarkers(in: size)
-                calloutLines(in: size)
-                callouts(in: size)
+        VStack(spacing: AppSpacing.s) {
+            GeometryReader { proxy in
+                let size = proxy.size
+                ZStack {
+                    backdrop
+                    CharacterStageView(
+                        model: model,
+                        reduceMotion: reduceMotion,
+                        isActive: isVisible,
+                        turntable: false
+                    )
+                    anchorMarkers(in: size)
+                    calloutLines(in: size)
+                    callouts(in: size)
+                }
+                .frame(width: size.width, height: size.height)
             }
-            .frame(width: size.width, height: size.height)
+            .aspectRatio(1, contentMode: .fit)
+
+            if onSelect != nil {
+                zonePicker
+            }
         }
-        .aspectRatio(1, contentMode: .fit)
         .onAppear {
             isVisible = true
             guard !reduceMotion else { return }
@@ -212,14 +218,35 @@ struct PatchBodyStageView: View {
 
     private func callouts(in size: CGSize) -> some View {
         ZStack {
-            ForEach(PatchAimZone.calloutZones) { candidate in
-                calloutItem(candidate)
+            if let zone, zone.isBodyZone {
+                calloutItem(zone)
                     .position(
-                        x: candidate.calloutCenter.x * size.width,
-                        y: candidate.calloutCenter.y * size.height
+                        x: zone.calloutCenter.x * size.width,
+                        y: zone.calloutCenter.y * size.height
                     )
             }
         }
+    }
+
+    private var zonePicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.s) {
+                ForEach(PatchAimZone.calloutZones) { candidate in
+                    Button {
+                        AppHaptics.select()
+                        onSelect?(zone == candidate ? nil : candidate)
+                    } label: {
+                        chip(candidate)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(AppPressButtonStyle())
+                    .accessibilityLabel(language.text(candidate.titleKey))
+                    .accessibilityAddTraits(zone == candidate ? AccessibilityTraits.isSelected : AccessibilityTraits())
+                }
+            }
+            .padding(.horizontal, AppSpacing.xs)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
