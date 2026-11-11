@@ -288,6 +288,9 @@ class AppState: ObservableObject {
         case .blockedBySimulator:
             securityBlocked = true
             securityMessage = "Môi trường giả lập không được phép chạy phiên bản này."
+        case .blockedByTamper:
+            securityBlocked = true
+            securityMessage = "Thiết bị hoặc tiến trình đã bị can thiệp. Gỡ công cụ gỡ lỗi và mở lại ứng dụng."
         }
     }
 

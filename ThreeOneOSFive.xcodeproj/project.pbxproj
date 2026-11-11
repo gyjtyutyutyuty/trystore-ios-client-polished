@@ -78,6 +78,7 @@
 		C71400000000000000000004 /* CharacterStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000003; };
 		C71500000000000000000001 /* worse_query.m in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000003; };
 		C71500000000000000000002 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000005; };
+		C71600000000000000000001 /* Hardening.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71600000000000000000002; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -175,6 +176,7 @@
 		C71500000000000000000004 /* worse_query.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = worse_query.h; sourceTree = "<group>"; };
 		C71500000000000000000005 /* SandboxAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxAccess.swift; sourceTree = "<group>"; };
 		C71500000000000000000006 /* ThreeOneOSFive.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ThreeOneOSFive.entitlements; sourceTree = "<group>"; };
+		C71600000000000000000002 /* Hardening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hardening.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -302,6 +304,7 @@
 				3105A107 /* AppIconHelper.h */,
 				3105A202 /* KernelExploit.swift */,
 				C71500000000000000000005 /* SandboxAccess.swift */,
+				C71600000000000000000002 /* Hardening.swift */,
 				3105J202 /* DisplayIdentity.h */,
 				3105J203 /* DisplayIdentity.m */,
 				3105J205 /* DisplayIdentityAttribution.swift */,
@@ -413,6 +416,7 @@
 				C71400000000000000000004,
 				C71500000000000000000001,
 				C71500000000000000000002,
+				C71600000000000000000001,
 				3105A227,
 				3105A233,
 				3105A234,
@@ -485,7 +489,7 @@
 					CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 					CODE_SIGN_ENTITLEMENTS = ThreeOneOSFive/ThreeOneOSFive.entitlements;
 					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 10;
+					CURRENT_PROJECT_VERSION = 11;
 					ENABLE_USER_SCRIPT_SANDBOXING = NO;
 					GCC_C_LANGUAGE_STANDARD = gnu17;
 					GENERATE_INFOPLIST_FILE = YES;
@@ -522,7 +526,10 @@
 					CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 					CODE_SIGN_ENTITLEMENTS = ThreeOneOSFive/ThreeOneOSFive.entitlements;
 					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 10;
+					CURRENT_PROJECT_VERSION = 11;
+					DEPLOYMENT_POSTPROCESSING = YES;
+					ENABLE_TESTABILITY = NO;
+					GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 					ENABLE_USER_SCRIPT_SANDBOXING = NO;
 					GCC_C_LANGUAGE_STANDARD = gnu17;
 					GENERATE_INFOPLIST_FILE = YES;

@@ -7,6 +7,7 @@ enum RuntimeProbeState {
     case unavailable
     case blockedByDebug
     case blockedBySimulator
+    case blockedByTamper
     case ok
 }
 
@@ -19,6 +20,10 @@ enum RuntimeProbe {
 #endif
         if SecuritySuiteProbe.amIDebugged() { return .blockedByDebug }
         if SecuritySuiteProbe.amIRunInEmulator() { return .blockedBySimulator }
+        if let issue = Hardening.firstIssue() {
+            log("security: \(issue.logDescription)")
+            return .blockedByTamper
+        }
         return canOpenTarget() ? .ok : .unavailable
     }
 
