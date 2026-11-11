@@ -16,6 +16,9 @@ struct PatchProjectsView: View {
     @StateObject private var store = PatchProjectStore()
     @State private var showCreate = false
     @State private var showImporter = false
+    @State private var selectedID: UUID?
+    @State private var openID: UUID?
+    @AppStorage("hero_character_model") private var heroCharacterRaw = HeroCharacterModel.rouk.rawValue
 
     init() {
 #if targetEnvironment(simulator)
@@ -28,34 +31,30 @@ struct PatchProjectsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack {
-                    if store.items.isEmpty && !store.isBusy {
-                        emptyState
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        LazyVGrid(
-                            columns: Array(
-                                repeating: GridItem(.flexible(), spacing: 14),
-                                count: horizontalSizeClass == .regular ? 3 : 2
-                            ),
-                            spacing: 14
-                        ) {
-                            ForEach(store.items) { item in
-                                itemTile(item).appCinematicReveal(
-                                    delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
-                                ).appDepthLayer(.hero)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                    }
+                VStack(spacing: AppSpacing.l) {
+                    patchControlCard
+                        .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 480)
+                        .frame(maxWidth: .infinity)
+                        .appCinematicReveal(delay: 0.04)
+                    librarySection
+                        .appCinematicReveal(delay: 0.10)
                 }
                 .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 1040)
                 .frame(maxWidth: .infinity)
+                .padding(.horizontal, AppSpacing.screenInset)
+                .padding(.top, AppSpacing.s)
+                .padding(.bottom, AppSpacing.xxl)
             }
             .background(AppPremiumBackdrop())
-            .appCinematicReveal(delay: 0.06)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: Binding(
+                get: { openID != nil },
+                set: { if !$0 { openID = nil } }
+            )) {
+                if let detailID = openID {
+                    PatchProjectDetailView(store: store, projectID: detailID)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -135,6 +134,199 @@ struct PatchProjectsView: View {
         }
     }
 
+    // MARK: - Control card
+
+    private var heroCharacter: HeroCharacterModel {
+        HeroCharacterModel(rawValue: heroCharacterRaw) ?? .rouk
+    }
+
+    private var heroCharacterSelection: Binding<HeroCharacterModel> {
+        Binding(
+            get: { HeroCharacterModel(rawValue: heroCharacterRaw) ?? .rouk },
+            set: { heroCharacterRaw = $0.rawValue }
+        )
+    }
+
+    private var selectedItem: PatchLibraryItem? {
+        guard let selectedID else { return nil }
+        return store.items.first(where: { $0.id == selectedID })
+    }
+
+    private var selectedZone: PatchAimZone? {
+        guard let selectedItem else { return nil }
+        return PatchAimZone.resolve(projectName: Self.displayName(of: selectedItem))
+    }
+
+    private var workspaceCount: Int {
+        store.items.filter { $0.summary.schemaVersion >= 2 }.count
+    }
+
+    private static func displayName(of item: PatchLibraryItem) -> String {
+        item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
+    }
+
+    /// The stage, the character switch and the one action that matters. A
+    /// package is only a name until it is placed on the body, so selection
+    /// happens here and the detail sheet is one tap away instead of the tile's
+    /// whole surface.
+    private var patchControlCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: AppSpacing.s) {
+                Circle()
+                    .fill(AppPalette.brand)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: AppPalette.brand.opacity(0.8), radius: 5)
+                Text(language.text("patch.control.title"))
+                    .font(AppType.label().weight(.bold))
+                    .tracking(1.4)
+                    .foregroundStyle(AppPalette.textPrimary)
+                Spacer(minLength: AppSpacing.s)
+                HeroCharacterSwitcher(selection: heroCharacterSelection)
+            }
+            .padding(.horizontal, AppSpacing.l)
+            .padding(.top, AppSpacing.m)
+            .padding(.bottom, AppSpacing.s)
+
+            PatchBodyStageView(model: heroCharacter, zone: selectedZone)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+                .padding(.horizontal, AppSpacing.m)
+
+            HStack(spacing: AppSpacing.s) {
+                Text(language.text("patch.stage.footer"))
+                    .font(AppType.label().weight(.bold))
+                    .tracking(1.2)
+                    .foregroundStyle(AppPalette.brand)
+                Text(footerDetail)
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: AppSpacing.xs)
+
+                Button {
+                    guard let selectedItem else { return }
+                    AppHaptics.tap()
+                    openID = selectedItem.id
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(language.text("patch.stage.open"))
+                            .font(AppType.label().weight(.bold))
+                            .tracking(1.1)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(selectedItem == nil ? AppPalette.textTertiary : AppPalette.canvas)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 34)
+                    .background {
+                        if selectedItem == nil {
+                            Capsule().fill(AppPalette.raised)
+                        } else {
+                            Capsule().fill(
+                                LinearGradient(
+                                    colors: [AppPalette.brand, AppPalette.brand.opacity(0.82)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        }
+                    }
+                    .overlay {
+                        Capsule().strokeBorder(
+                            selectedItem == nil ? AppPalette.hairline.opacity(0.6) : Color.white.opacity(0.28),
+                            lineWidth: 1
+                        )
+                    }
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .disabled(selectedItem == nil)
+                .accessibilityLabel(language.text("patch.stage.open"))
+            }
+            .padding(.horizontal, AppSpacing.l)
+            .padding(.top, AppSpacing.m)
+            .padding(.bottom, AppSpacing.m)
+        }
+        .background(AppPalette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
+                .strokeBorder(AppPalette.hairline.opacity(0.5), lineWidth: 1)
+        }
+    }
+
+    private var footerDetail: String {
+        let count = "\(store.items.count) \(language.text("patch.stage.packages"))"
+        guard let selectedItem else { return count }
+        return count + " · " + Self.displayName(of: selectedItem).uppercased()
+    }
+
+    // MARK: - Library
+
+    private var librarySection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            HStack(spacing: AppSpacing.s) {
+                Text(language.text("patch.library"))
+                    .font(AppType.section())
+                    .foregroundStyle(AppPalette.textPrimary)
+                Spacer(minLength: AppSpacing.s)
+                Button {
+                    AppHaptics.tap()
+                    store.reload()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppPalette.brand)
+                        .frame(width: 34, height: 34)
+                        .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                .strokeBorder(AppPalette.hairline.opacity(0.6), lineWidth: 1)
+                        }
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .accessibilityLabel(language.text("patch.library.refresh"))
+            }
+
+            HStack(spacing: AppSpacing.xl) {
+                libraryStat(value: store.items.count, key: "patch.library.packages")
+                libraryStat(value: workspaceCount, key: "patch.library.workspaces")
+                Spacer(minLength: 0)
+            }
+
+            if store.items.isEmpty && !store.isBusy {
+                emptyState
+            } else {
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: AppSpacing.m),
+                        count: horizontalSizeClass == .regular ? 3 : 2
+                    ),
+                    spacing: AppSpacing.m
+                ) {
+                    ForEach(store.items) { item in
+                        itemTile(item).appCinematicReveal(
+                            delay: min(Double(store.items.firstIndex(where: { $0.id == item.id }) ?? 0) * 0.045, 0.32)
+                        ).appDepthLayer(.hero)
+                    }
+                }
+            }
+        }
+    }
+
+    private func libraryStat(value: Int, key: String) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xs) {
+            Text("\(value)")
+                .font(AppType.digits(22))
+                .foregroundStyle(AppPalette.brand)
+                .monospacedDigit()
+            Text(language.text(key))
+                .font(AppType.label().weight(.bold))
+                .tracking(1.1)
+                .foregroundStyle(AppPalette.textTertiary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private func consumeExternalImport() {
         guard let request = draftCoordinator.importRequest else { return }
         draftCoordinator.clearImport()
@@ -148,17 +340,24 @@ struct PatchProjectsView: View {
                 AppHaptics.tap()
                 store.requestUnlock(for: item)
             } label: {
-                PatchProjectTile(item: item, language: language)
+                PatchProjectTile(item: item, language: language, isSelected: false)
             }
             .buttonStyle(AppPressButtonStyle())
             .contextMenu { deleteButton(for: item) }
         } else {
-            NavigationLink {
-                PatchProjectDetailView(store: store, projectID: item.id)
+            Button {
+                AppHaptics.select()
+                withAnimation(.easeOut(duration: AppMotion.control)) {
+                    if selectedID == item.id {
+                        openID = item.id
+                    } else {
+                        selectedID = item.id
+                    }
+                }
             } label: {
-                PatchProjectTile(item: item, language: language)
+                PatchProjectTile(item: item, language: language, isSelected: selectedID == item.id)
             }
-            .simultaneousGesture(TapGesture().onEnded { AppHaptics.tap() })
+            .buttonStyle(AppPressButtonStyle())
             .contextMenu { deleteButton(for: item) }
         }
     }
@@ -196,44 +395,92 @@ struct PatchProjectsView: View {
 private struct PatchProjectTile: View {
     let item: PatchLibraryItem
     let language: AppLanguage
+    var isSelected: Bool = false
+
+    private var zone: PatchAimZone {
+        PatchAimZone.resolve(
+            projectName: item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent
+        )
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            AppRowIcon(
-                systemName: item.isLocked ? "lock.doc.fill" : "shippingbox.fill",
-                symbolSize: 22,
-                frameSize: 44
-            )
-            VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(alignment: .top, spacing: AppSpacing.xs) {
+                AppRowIcon(
+                    systemName: item.isLocked ? "lock.doc.fill" : "shippingbox.fill",
+                    symbolSize: 15,
+                    frameSize: 30
+                )
+                .background(
+                    AppPalette.brand.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(AppPalette.brand.opacity(0.18), lineWidth: 1)
+                }
+
+                Spacer(minLength: 0)
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppPalette.brand)
+                } else if item.summary.isPasswordProtected {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .accessibilityLabel(language.text("patch.password_protected"))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
                 Text(item.project?.name ?? language.text("patch.locked_project"))
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppPalette.textPrimary)
                     .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 Text(item.isLocked
                      ? language.text("patch.tap_to_unlock")
                      : language.text(
                         item.summary.schemaVersion >= 2 ? "patch.workspace_items_count" : "patch.rules_count",
                         Int64((item.project?.rules.count ?? 0) + (item.project?.directories.count ?? 0))
                      ))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
             }
+
             Spacer(minLength: 0)
-            if item.summary.isPasswordProtected {
-                Image(systemName: "key.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(language.text("patch.password_protected"))
+
+            HStack(spacing: 4) {
+                Image(systemName: zone.icon)
+                    .font(.system(size: 9, weight: .semibold))
+                Text(language.text(zone.titleKey))
+                    .font(.system(size: 8, weight: .bold))
+                    .tracking(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isSelected ? AppPalette.brand : AppPalette.textTertiary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(isSelected ? AppPalette.brand.opacity(0.14) : Color.white.opacity(0.04))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(14)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(AppSpacing.m)
+        .background(isSelected ? AppPalette.brand.opacity(0.10) : AppPalette.raised)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                .strokeBorder(
+                    isSelected ? AppPalette.brand.opacity(0.55) : AppPalette.hairline.opacity(0.45),
+                    lineWidth: 1
+                )
         }
         .aspectRatio(1, contentMode: .fit)
     }

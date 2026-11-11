@@ -45,15 +45,18 @@ struct CharacterStageView: UIViewRepresentable {
     let model: HeroCharacterModel
     let reduceMotion: Bool
     let isActive: Bool
+    /// The home hero turns on its own. The patch body map needs a fixed pose so
+    /// a callout always points at the same anatomy, so it passes `false`.
+    var turntable: Bool = true
 
     func makeUIView(context: Context) -> CharacterSceneView {
         let view = CharacterSceneView(frame: .zero)
-        view.apply(model: model, reduceMotion: reduceMotion, isActive: isActive)
+        view.apply(model: model, reduceMotion: reduceMotion, isActive: isActive, turntable: turntable)
         return view
     }
 
     func updateUIView(_ uiView: CharacterSceneView, context: Context) {
-        uiView.apply(model: model, reduceMotion: reduceMotion, isActive: isActive)
+        uiView.apply(model: model, reduceMotion: reduceMotion, isActive: isActive, turntable: turntable)
     }
 }
 
@@ -76,6 +79,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     private var isDragging = false
     private var reduceMotion = false
     private var isActive = false
+    private var turntable = true
 
     override init(frame: CGRect, options: [String: Any]? = nil) {
         super.init(frame: frame, options: options)
@@ -169,16 +173,17 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         stageScene.rootNode.addChildNode(node)
     }
 
-    func apply(model: HeroCharacterModel, reduceMotion: Bool, isActive: Bool) {
+    func apply(model: HeroCharacterModel, reduceMotion: Bool, isActive: Bool, turntable: Bool = true) {
         self.reduceMotion = reduceMotion
         self.isActive = isActive
+        self.turntable = turntable
 
         if requestedModel != model {
             requestedModel = model
             load(model)
         }
 
-        if reduceMotion {
+        if reduceMotion || !turntable {
             idleYaw = 0
             idleSpeed = 0
         }
@@ -320,7 +325,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
     private func install(_ root: SCNNode) {
         modelContainer.childNodes.forEach { $0.removeFromParentNode() }
-        baseYaw = -0.20
+        baseYaw = turntable ? -0.20 : 0
         dragYaw = 0
         idleYaw = 0
         idleSpeed = 0
@@ -362,23 +367,23 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         }
         lastTimestamp = link.timestamp
 
-        if !reduceMotion, !isDragging {
+        if !reduceMotion, turntable, !isDragging {
             idleTime += Double(delta)
             let target: Float = idleTime > 0.7 ? 0.34 : 0
             idleSpeed += (target - idleSpeed) * min(1, delta * 1.8)
         } else {
             idleSpeed = 0
-            if reduceMotion { idleYaw = 0 }
+            if reduceMotion || !turntable { idleYaw = 0 }
         }
         idleYaw += idleSpeed * delta
 
-        let gentleSway = reduceMotion ? 0 : Float(sin(link.timestamp * 0.48) * 0.016)
+        let gentleSway = reduceMotion || !turntable ? 0 : Float(sin(link.timestamp * 0.48) * 0.016)
         modelContainer.eulerAngles = SCNVector3(
             gentleSway,
             baseYaw + dragYaw + idleYaw,
             0
         )
-        let bob = reduceMotion ? 0 : Float(sin(link.timestamp * 0.9) * 0.0035)
+        let bob = reduceMotion || !turntable ? 0 : Float(sin(link.timestamp * 0.9) * 0.0035)
         modelContainer.position.y = bob
     }
 
