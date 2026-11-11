@@ -29,6 +29,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Verify local bundled patches
+        env:
+          TRYSTORE_BUNDLE_KEY: ${{ secrets.TRYSTORE_BUNDLE_KEY }}
         run: python3 scripts/verify_legacy_patch_bundle.py
 
       - name: Show build environment
@@ -38,6 +40,8 @@ jobs:
         run: bash ./build_supportpatch_unsigned.sh
 
       - name: Verify the IPA
+        env:
+          TRYSTORE_BUNDLE_KEY: ${{ secrets.TRYSTORE_BUNDLE_KEY }}
         run: |
           set -euo pipefail
           test -s build/SupportPatch-unsigned.ipa

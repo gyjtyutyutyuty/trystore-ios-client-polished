@@ -78,6 +78,7 @@ final class LicenseManager: ObservableObject {
 
     func clear() {
         deleteKeychainValue(for: keyAccount)
+        PatchBundleKeyStore.clear()
         isActive = false
         expirationDate = nil
         lastCheckedAt = nil
@@ -123,6 +124,17 @@ final class LicenseManager: ObservableObject {
                         messageKey = "license.error_secure_storage"
                         return
                     }
+                }
+                // The patch feed releases its bundle key only after this same
+                // licence check. Caching it here means bundled patches are
+                // never decryptable from the IPA alone.
+                do {
+                    try await PatchBundleKeyStore.refresh(
+                        licenseKey: key,
+                        deviceID: try deviceID()
+                    )
+                } catch {
+                    log("patches: bundle key unavailable — \(error)")
                 }
                 isActive = true
                 messageKey = nil

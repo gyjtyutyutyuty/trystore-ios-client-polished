@@ -2,6 +2,8 @@
 """Validate TryStore package sources, remote delivery wiring, UI mappings, and IPA exclusions."""
 from __future__ import annotations
 import argparse
+import base64
+import os
 import plistlib
 import re
 import subprocess
@@ -52,23 +54,58 @@ def package_metadata(filename: str) -> dict:
         fail(f"invalid package envelope {filename}: {error}")
 
 
-def package_project(filename: str) -> dict:
+def bundle_key() -> bytes | None:
+    raw = os.environ.get("TRYSTORE_BUNDLE_KEY", "").strip()
+    if not raw:
+        return None
+    try:
+        key = base64.b64decode(raw, validate=True)
+    except Exception as error:
+        fail(f"TRYSTORE_BUNDLE_KEY is not valid base64: {error}")
+    require(len(key) == 32, "TRYSTORE_BUNDLE_KEY must decode to 32 bytes")
+    return key
+
+
+DECRYPT = (
+    "const c=require('crypto');"
+    "const bk=Buffer.from(process.argv[1],'hex');"
+    "const wk=Buffer.from(process.argv[2],'hex');"
+    "const ka=Buffer.from(process.argv[3]);"
+    "const pa=Buffer.from(process.argv[4]);"
+    "let x=[];process.stdin.on('data',v=>x.push(v));process.stdin.on('end',()=>{"
+    "const p=Buffer.concat(x);"
+    "const ku=c.createDecipheriv('aes-256-gcm',bk,wk.subarray(0,12));"
+    "ku.setAAD(ka);ku.setAuthTag(wk.subarray(wk.length-16));"
+    "const ck=Buffer.concat([ku.update(wk.subarray(12,wk.length-16)),ku.final()]);"
+    "const n=p.subarray(0,12),t=p.subarray(p.length-16);"
+    "const d=c.createDecipheriv('aes-256-gcm',ck,n);d.setAAD(pa);d.setAuthTag(t);"
+    "process.stdout.write(Buffer.concat([d.update(p.subarray(12,p.length-16)),d.final()]));});"
+)
+
+
+def package_project(filename: str) -> dict | None:
     envelope = package_metadata(filename)
-    key = envelope.get("publicContentKey")
-    require(isinstance(key, bytes) and len(key) == 32,
-            f"public content key missing or invalid: {filename}")
-    aad = f"3105PATCH/v{envelope['schemaVersion']}/payload/{envelope['packageID']}"
-    decrypt = (
-        "const c=require('crypto'),k=Buffer.from(process.argv[1],'hex'),"
-        "a=Buffer.from(process.argv[2]);let x=[];"
-        "process.stdin.on('data',v=>x.push(v));process.stdin.on('end',()=>{"
-        "const p=Buffer.concat(x),n=p.subarray(0,12),t=p.subarray(p.length-16),"
-        "d=c.createDecipheriv('aes-256-gcm',k,n);d.setAAD(a);d.setAuthTag(t);"
-        "process.stdout.write(Buffer.concat([d.update(p.subarray(12,p.length-16)),d.final()]));});"
-    )
+    require(envelope.get("isPasswordProtected") is False,
+            f"bundled package requires a password: {filename}")
+    require(envelope.get("publicContentKey") is None,
+            f"bundled package still ships its content key: {filename}")
+    require(envelope.get("wrappingScheme") == "bundle",
+            f"bundled package is not wrapped under the app key: {filename}")
+    wrapped = envelope.get("wrappedContentKey")
+    require(isinstance(wrapped, bytes) and len(wrapped) == 60,
+            f"wrapped content key missing or malformed: {filename}")
+
+    key = bundle_key()
+    if key is None:
+        return None
+
+    aad_key = f"3105PATCH/v{envelope['schemaVersion']}/key/{envelope['packageID']}".encode()
+    aad_payload = (
+        f"3105PATCH/v{envelope['schemaVersion']}/payload/{envelope['packageID']}"
+    ).encode()
     try:
         decoded = subprocess.run(
-            ["node", "-e", decrypt, key.hex(), aad],
+            ["node", "-e", DECRYPT, key.hex(), wrapped.hex(), aad_key, aad_payload],
             input=envelope["encryptedPayload"],
             check=True,
             capture_output=True,
@@ -84,14 +121,14 @@ def package_project(filename: str) -> dict:
 
 
 def check_source() -> None:
-    app = APP_SOURCE.read_text()
-    store = STORE.read_text()
-    library = LIBRARY.read_text()
-    resource = RESOURCE.read_text()
-    device_service = DEVICE_SERVICE.read_text()
-    transaction = TRANSACTION.read_text()
-    pbx = PROJECT.read_text()
-    worker = WORKER.read_text()
+    app = APP_SOURCE.read_text(encoding="utf-8")
+    store = STORE.read_text(encoding="utf-8")
+    library = LIBRARY.read_text(encoding="utf-8")
+    resource = RESOURCE.read_text(encoding="utf-8")
+    device_service = DEVICE_SERVICE.read_text(encoding="utf-8")
+    transaction = TRANSACTION.read_text(encoding="utf-8")
+    pbx = PROJECT.read_text(encoding="utf-8")
+    worker = WORKER.read_text(encoding="utf-8")
 
     canonical_ids: dict[str, str] = {}
     for filename, project_name in BUNDLED.items():
@@ -135,20 +172,23 @@ def check_source() -> None:
     for filename in normal_packages + antena_packages:
         project = package_project(filename)
         decoded_projects[filename] = project
+        if project is None:
+            continue
         rules = project.get("rules", [])
         require(bool(rules), f"patch has no file rules: {filename}")
         require(all(rule.get("relativePath") == normal_path for rule in rules),
                 f"normal/Antena package target differs from expected avatar path: {filename}")
-    for normal_file, antena_file in (
-        ("NECK.TRYSTORE", "CUELLO3105.TRYSTORE"),
-        ("HSPESSCOSO.TRYSTORE", "Cuello y Drag.TRYSTORE"),
-        ("HS SLA PECHO.TRYSTORE", "Pecho3105.TRYSTORE"),
-    ):
-        normal_rules = decoded_projects[normal_file]["rules"]
-        antena_rules = decoded_projects[antena_file]["rules"]
-        require(len(normal_rules) == 1 and len(antena_rules) == 1
-                and normal_rules[0].get("replacementData") != antena_rules[0].get("replacementData"),
-                f"normal patch {normal_file} reuses Antena replacement data from {antena_file}")
+    if None not in decoded_projects.values():
+        for normal_file, antena_file in (
+            ("NECK.TRYSTORE", "CUELLO3105.TRYSTORE"),
+            ("HSPESSCOSO.TRYSTORE", "Cuello y Drag.TRYSTORE"),
+            ("HS SLA PECHO.TRYSTORE", "Pecho3105.TRYSTORE"),
+        ):
+            normal_rules = decoded_projects[normal_file]["rules"]
+            antena_rules = decoded_projects[antena_file]["rules"]
+            require(len(normal_rules) == 1 and len(antena_rules) == 1
+                    and normal_rules[0].get("replacementData") != antena_rules[0].get("replacementData"),
+                    f"normal patch {normal_file} reuses Antena replacement data from {antena_file}")
 
     # Every button is an actual DashboardPatchOption. Explicit package IDs must
     # refer to one of the shipped canonical packages; name-based options must
@@ -209,6 +249,18 @@ def check_source() -> None:
             and "/api/v1/keys/validate" in worker
             and worker.count("await requireTryStoreLicense(request, env, project)") >= 3,
             "TryStore Worker manifest, report, and blob routes do not all require license validation")
+    require("wrapTrystorePackage" in worker
+            and "APP_BUNDLE_KEY" in worker
+            and "/bundle-key" in worker,
+            "feed worker does not wrap TryStore packages under the app bundle key")
+    codec = (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text(encoding="utf-8")
+    key_store = (ROOT / "ThreeOneOSFive/helpers/PatchBundleKeyStore.swift").read_text(encoding="utf-8")
+    require('wrappingScheme == "bundle"' in codec
+            and "PatchBundleKeyStore.cachedKey()" in codec,
+            "client does not unwrap bundle-key packages")
+    require("api/patches/trystore/bundle-key" in key_store
+            and "X-TryStore-Device-ID" in key_store,
+            "client bundle-key endpoint or device binding missing")
     require('project !== "trystore"' in worker
             and 'project === "trystore" ? "no-store"' in worker,
             "Worker does not preserve other project behavior and disable TryStore cacheability")

@@ -17,6 +17,7 @@ enum PatchPackageCodec {
         let kdfIterations: Int?
         let wrappedContentKey: Data?
         let publicContentKey: Data?
+        let wrappingScheme: String?
         let keyFingerprint: Data
         let encryptedPayload: Data
     }
@@ -101,7 +102,8 @@ enum PatchPackageCodec {
             kdfSalt: salt,
             kdfIterations: iterations,
             wrappedContentKey: wrappedKey,
-            publicContentKey: publicKey
+            publicContentKey: publicKey,
+            wrappingScheme: nil
         )
         return EncodedPatchPackage(data: try serialize(envelope), contentKey: contentKey)
     }
@@ -121,9 +123,28 @@ enum PatchPackageCodec {
     // this bundled-resource migration path; normal imports remain strict.
     static func decodeBundledResource(_ data: Data) throws -> (summary: PatchPackageSummary, decoded: DecodedPatchPackage) {
         let envelope = try parseEnvelope(data, allowBundledSchema9: true)
-        guard !envelope.isPasswordProtected,
-              let contentKey = envelope.publicContentKey else {
+        guard !envelope.isPasswordProtected else {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
+        }
+        let contentKey: Data
+        if envelope.wrappingScheme == "bundle" {
+            guard let wrapped = envelope.wrappedContentKey,
+                  let bundleKey = PatchBundleKeyStore.cachedKey() else {
+                throw PatchPackageError.bundleKeyUnavailable
+            }
+            contentKey = try open(
+                wrapped,
+                key: bundleKey,
+                aad: keyAAD(
+                    for: envelope.packageID,
+                    version: envelope.keyAADVersion ?? envelope.schemaVersion
+                )
+            )
+        } else {
+            guard let storedKey = envelope.publicContentKey else {
+                throw PatchPackageError.invalidPasswordOrCorruptedPackage
+            }
+            contentKey = storedKey
         }
         let summary = PatchPackageSummary(
             packageID: envelope.packageID,
@@ -157,6 +178,19 @@ enum PatchPackageCodec {
                         version: envelope.keyAADVersion ?? envelope.schemaVersion
                     )
                 )
+            } else if envelope.wrappingScheme == "bundle" {
+                guard let bundleKey = PatchBundleKeyStore.cachedKey(),
+                      let wrapped = envelope.wrappedContentKey else {
+                    throw PatchPackageError.bundleKeyUnavailable
+                }
+                contentKey = try open(
+                    wrapped,
+                    key: bundleKey,
+                    aad: keyAAD(
+                        for: envelope.packageID,
+                        version: envelope.keyAADVersion ?? envelope.schemaVersion
+                    )
+                )
             } else {
                 guard let storedKey = envelope.publicContentKey else {
                     throw PatchPackageError.invalidPasswordOrCorruptedPackage
@@ -166,7 +200,7 @@ enum PatchPackageCodec {
             return try decode(envelope: envelope, contentKey: contentKey)
         } catch let error as PatchPackageError {
             switch error {
-            case .unsupportedFormat, .unsupportedVersion, .sizeLimitExceeded:
+            case .unsupportedFormat, .unsupportedVersion, .sizeLimitExceeded, .bundleKeyUnavailable:
                 throw error
             default:
                 throw PatchPackageError.invalidPasswordOrCorruptedPackage
@@ -182,7 +216,7 @@ enum PatchPackageCodec {
             return try decode(envelope: envelope, contentKey: contentKey)
         } catch let error as PatchPackageError {
             switch error {
-            case .unsupportedFormat, .unsupportedVersion, .sizeLimitExceeded:
+            case .unsupportedFormat, .unsupportedVersion, .sizeLimitExceeded, .bundleKeyUnavailable:
                 throw error
             default:
                 throw PatchPackageError.invalidPasswordOrCorruptedPackage
@@ -220,7 +254,8 @@ enum PatchPackageCodec {
             kdfSalt: oldEnvelope.kdfSalt,
             kdfIterations: oldEnvelope.kdfIterations,
             wrappedContentKey: oldEnvelope.wrappedContentKey,
-            publicContentKey: oldEnvelope.publicContentKey
+            publicContentKey: oldEnvelope.publicContentKey,
+            wrappingScheme: oldEnvelope.wrappingScheme
         )
         return try serialize(envelope)
     }
@@ -234,7 +269,8 @@ enum PatchPackageCodec {
         kdfSalt: Data?,
         kdfIterations: Int?,
         wrappedContentKey: Data?,
-        publicContentKey: Data?
+        publicContentKey: Data?,
+        wrappingScheme: String?
     ) throws -> Envelope {
         let digests = Dictionary(uniqueKeysWithValues: project.rules.map {
             ($0.id.uuidString, Data(SHA256.hash(data: $0.replacementData)))
@@ -258,6 +294,7 @@ enum PatchPackageCodec {
             kdfIterations: kdfIterations,
             wrappedContentKey: wrappedContentKey,
             publicContentKey: publicContentKey,
+            wrappingScheme: wrappingScheme,
             keyFingerprint: fingerprint(contentKey),
             encryptedPayload: encryptedPayload
         )
@@ -375,7 +412,8 @@ enum PatchPackageCodec {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
         if envelope.isPasswordProtected {
-            guard envelope.publicContentKey == nil,
+            guard envelope.wrappingScheme == nil,
+                  envelope.publicContentKey == nil,
                   (minimumSchemaVersion...latestSchemaVersion).contains(
                     envelope.keyAADVersion ?? envelope.schemaVersion
                   ),
@@ -387,8 +425,18 @@ enum PatchPackageCodec {
             else {
                 throw PatchPackageError.invalidPasswordOrCorruptedPackage
             }
-        } else {
+        } else if envelope.wrappingScheme == "bundle" {
             guard envelope.kdfSalt == nil,
+                  envelope.kdfIterations == nil,
+                  envelope.publicContentKey == nil,
+                  let wrapped = envelope.wrappedContentKey,
+                  wrapped.count >= 28
+            else {
+                throw PatchPackageError.invalidPasswordOrCorruptedPackage
+            }
+        } else {
+            guard envelope.wrappingScheme == nil,
+                  envelope.kdfSalt == nil,
                   envelope.kdfIterations == nil,
                   envelope.wrappedContentKey == nil,
                   envelope.publicContentKey?.count == 32

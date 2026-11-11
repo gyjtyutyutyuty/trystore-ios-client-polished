@@ -8,6 +8,7 @@
  * Routes
  *   GET  /health
  *   GET  /api/patches/:project/manifest.json
+ *   GET  /api/patches/:project/bundle-key
  *   GET  /patches/:project/:file
  *   POST /api/telegram/webhook
  *
@@ -152,7 +153,49 @@ async function writeManifest(env, project, manifest) {
   await env.PATCHES.put(`patches/${project}/manifest.json`, JSON.stringify(manifest, null, 2));
 }
 
-async function publishPatch(env, project, file, bytes) {
+async function wrapTrystorePackage(env, bytes) {
+  if (!env.APP_BUNDLE_KEY) return bytes;
+  let envelope;
+  try {
+    envelope = parsePackage(bytes);
+  } catch {
+    return bytes;
+  }
+  if (envelope.isPasswordProtected) return bytes;
+  if (envelope.wrappingScheme === "bundle") return bytes;
+  const contentKey = envelope.publicContentKey;
+  if (!contentKey) return bytes;
+
+  let keyBytes;
+  try {
+    keyBytes = Uint8Array.from(atob(String(env.APP_BUNDLE_KEY)), (c) => c.charCodeAt(0));
+  } catch {
+    return bytes;
+  }
+  if (keyBytes.length !== 32) return bytes;
+
+  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
+  const aad = new TextEncoder().encode(
+    `3105PATCH/v${envelope.schemaVersion}/key/${envelope.packageID}`,
+  );
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const sealed = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: aad },
+    key,
+    contentKey,
+  );
+
+  envelope.wrappedContentKey = Buffer.concat([Buffer.from(nonce), Buffer.from(sealed)]);
+  envelope.wrappingScheme = "bundle";
+  envelope.keyAADVersion = Number(envelope.schemaVersion);
+  delete envelope.publicContentKey;
+  return Buffer.concat([MAGIC, bplist(envelope)]);
+}
+
+async function publishPatch(env, project, file, rawBytes) {
+  const bytes = project === "trystore"
+    ? await wrapTrystorePackage(env, rawBytes)
+    : rawBytes;
   const digest = await sha256(bytes);
   await env.PATCHES.put(`patches/${project}/${file}`, bytes);
 
@@ -834,6 +877,28 @@ export default {
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const manifest = await readManifest(env, project);
       return json(manifest, 200, { "cache-control": "no-store" });
+    }
+
+    // Bundled and feed packages carry their content key wrapped under this
+    // app key. It is only released after the same licence and device check the
+    // blobs use, so an extracted IPA has no usable key material.
+    const bundleKeyMatch = path.match(/^\/api\/patches\/([a-z0-9-]+)\/bundle-key$/);
+    if (bundleKeyMatch && request.method === "GET") {
+      const project = projectKey(bundleKeyMatch[1]);
+      if (!project) return bad("unknown_project", 404);
+      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      const encoded = String(env.APP_BUNDLE_KEY || "");
+      let bytes;
+      try {
+        bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+      } catch {
+        return bad("key_unavailable", 503);
+      }
+      if (bytes.length !== 32) return bad("key_unavailable", 503);
+      return json({ valid: true, key: encoded, keyVersion: "1" }, 200, {
+        "cache-control": "no-store",
+        vary: "authorization, x-trystore-device-id",
+      });
     }
 
     // Client sync report. The app posts one small JSON document per sync so the

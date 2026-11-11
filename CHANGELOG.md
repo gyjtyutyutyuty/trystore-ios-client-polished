@@ -3,6 +3,10 @@
 All notable user-facing changes are documented in this file.
 
 ## [Unreleased]
+### Security
+- Patch packages no longer carry a usable content key. The feed wraps each key under an app bundle key that is released only after licence and device validation, and the client stores it in the keychain for this device.
+- Release builds now refuse a debugger, jailbreak filesystem, writable system paths, instrumentation variables, and dylibs injected outside the app bundle.
+
 ### Added
 - iOS 26.0–26.6.1 now activates through `bad_query`, and iOS 26.7–26.7.2, 27.0–27.2, and the 27.3 beta 1 build `24C5037i` through `worse_query`. iOS 17.0–17.7.x and 18.0–18.7.1 keep the kernel chain; 18.7.2 and later stay on the pairing tunnel.
 - Container identity on iOS 27.2 falls back to the worse_query identifier map when the metadata plist is no longer readable.
