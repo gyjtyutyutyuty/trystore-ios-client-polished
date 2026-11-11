@@ -900,7 +900,7 @@ struct PatchProjectDetailView: View {
         guard let item, let baseProject = item.project else { return }
         isWorking = true
         transaction = PatchTransactionProgress(
-            title: item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent,
+            title: language.text("patch.apply"),
             done: 0,
             total: max(1, baseProject.rules.count),
             phase: .running
@@ -985,7 +985,7 @@ struct PatchProjectDetailView: View {
         guard let receipt, let item else { return }
         isWorking = true
         transaction = PatchTransactionProgress(
-            title: item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent,
+            title: language.text("patch.restore"),
             done: 0,
             total: max(1, item.project?.rules.count ?? 1),
             phase: .running
