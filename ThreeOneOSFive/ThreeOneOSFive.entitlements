@@ -10,7 +10,7 @@
     -->
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>group.com.jvztxn.trystore</string>
+        <string>group.com.apple.mobile.MobileHouseArrest</string>
     </array>
 </dict>
 </plist>

@@ -530,7 +530,7 @@
 					    "-lz",
 					    "-lc++",
 				    );
-				PRODUCT_BUNDLE_IDENTIFIER = "com.jvztxn.trystore";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.apple.mobile.MobileHouseArrest";
 				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";
@@ -570,7 +570,7 @@
 					    "-lz",
 					    "-lc++",
 				    );
-				PRODUCT_BUNDLE_IDENTIFIER = "com.jvztxn.trystore";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.apple.mobile.MobileHouseArrest";
 				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";
