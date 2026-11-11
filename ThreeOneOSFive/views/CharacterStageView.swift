@@ -258,11 +258,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             }
         }
 
-        let bounds = root.boundingBox
-        let minimum = bounds.min
-        let maximum = bounds.max
-        guard minimum.x.isFinite, minimum.y.isFinite, minimum.z.isFinite,
-              maximum.x.isFinite, maximum.y.isFinite, maximum.z.isFinite else {
+        guard let (minimum, maximum) = geometryBounds(of: root) else {
             log("hero: character geometry has no bounds")
             return
         }
@@ -278,6 +274,48 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             -(minimum.y + maximum.y) * 0.5 * scale,
             -(minimum.z + maximum.z) * 0.5 * scale
         )
+    }
+
+    /// `SCNNode.boundingBox` only covers the node's own geometry, so the union
+    /// is built from every mesh and mapped into the root's space. The OBJ
+    /// exports keep the body parts in sibling nodes, not one merged mesh.
+    private func geometryBounds(
+        of root: SCNNode
+    ) -> (minimum: SCNVector3, maximum: SCNVector3)? {
+        var minimum = SCNVector3(Float.greatestFiniteMagnitude,
+                                 Float.greatestFiniteMagnitude,
+                                 Float.greatestFiniteMagnitude)
+        var maximum = SCNVector3(-Float.greatestFiniteMagnitude,
+                                 -Float.greatestFiniteMagnitude,
+                                 -Float.greatestFiniteMagnitude)
+        var found = false
+
+        root.enumerateHierarchy { node, _ in
+            guard node.geometry != nil else { return }
+            let (localMin, localMax) = node.boundingBox
+            let corners = [
+                SCNVector3(localMin.x, localMin.y, localMin.z),
+                SCNVector3(localMin.x, localMin.y, localMax.z),
+                SCNVector3(localMin.x, localMax.y, localMin.z),
+                SCNVector3(localMin.x, localMax.y, localMax.z),
+                SCNVector3(localMax.x, localMin.y, localMin.z),
+                SCNVector3(localMax.x, localMin.y, localMax.z),
+                SCNVector3(localMax.x, localMax.y, localMin.z),
+                SCNVector3(localMax.x, localMax.y, localMax.z)
+            ]
+            for corner in corners {
+                let point = node.convertPosition(corner, to: root)
+                minimum.x = min(minimum.x, point.x)
+                minimum.y = min(minimum.y, point.y)
+                minimum.z = min(minimum.z, point.z)
+                maximum.x = max(maximum.x, point.x)
+                maximum.y = max(maximum.y, point.y)
+                maximum.z = max(maximum.z, point.z)
+                found = true
+            }
+        }
+
+        return found ? (minimum, maximum) : nil
     }
 
     private func install(_ root: SCNNode) {
@@ -305,10 +343,12 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             link.add(to: .main, forMode: .common)
             displayLink = link
             lastTimestamp = 0
+            rendersContinuously = true
             isPlaying = true
         } else if !shouldRun, displayLink != nil {
             displayLink?.invalidate()
             displayLink = nil
+            rendersContinuously = false
             isPlaying = false
         }
     }
