@@ -48,6 +48,7 @@ jobs:
           shasum -a 256 build/SupportPatch-unsigned.ipa | tee build/SupportPatch-unsigned.ipa.sha256
 
       - name: Upload IPA artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: trystore-unsigned-ipa
@@ -58,6 +59,7 @@ jobs:
           retention-days: 1
 
       - name: Upload archive artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: trystore-xcarchive
