@@ -2420,8 +2420,7 @@ private struct FreeFireArtwork: View {
 // MARK: - PatchesView
 // MARK: - Patch module card
 
-/// One module. The featured variant leads the deck; the rest sit in a two-column
-/// grid. Selection and active state are indicated by a quiet edge and a clear label.
+/// Compact, uniform module tiles keep selection and active state easy to scan.
 private struct PatchModuleCardView: View {
     let title: String
     let icon: String
@@ -2432,7 +2431,6 @@ private struct PatchModuleCardView: View {
     let isSelected: Bool
     let isFavorite: Bool
     let isBusy: Bool
-    let isFeatured: Bool
     let onSelect: () -> Void
     let onToggleFavorite: () -> Void
 
@@ -2442,8 +2440,8 @@ private struct PatchModuleCardView: View {
         ZStack(alignment: .topTrailing) {
             Button(action: onSelect) {
                 content
-                    .frame(maxWidth: .infinity, minHeight: isFeatured ? 92 : 138, alignment: .leading)
-                    .padding(isFeatured ? AppSpacing.m : 13)
+                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+                    .padding(AppSpacing.m)
                     .background(fill)
                     .overlay(border)
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
@@ -2459,7 +2457,7 @@ private struct PatchModuleCardView: View {
                 starGlyph
             }
             .buttonStyle(AppPressButtonStyle())
-            .padding(.top, isFeatured ? 8 : 6)
+            .padding(.top, 6)
             .padding(.trailing, 6)
             .accessibilityLabel(isFavorite ? "Remove favorite" : "Add favorite")
         }
@@ -2469,47 +2467,25 @@ private struct PatchModuleCardView: View {
 
     @ViewBuilder
     private var content: some View {
-        if isFeatured {
-            HStack(spacing: AppSpacing.m) {
-                badge(size: 52)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(AppPalette.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.70)
-                    statusRow
-                }
-                Spacer(minLength: AppSpacing.s)
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            badge(size: 32)
+            Text(title)
+                .font(AppType.value().weight(.semibold))
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Spacer(minLength: 0)
+            HStack(spacing: AppSpacing.s) {
+                statusRow
+                Spacer(minLength: 0)
                 Text(indexLabel)
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
-                    .padding(.trailing, 2)
+                    .monospacedDigit()
                     .accessibilityHidden(true)
             }
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                badge(size: 42)
-                Spacer(minLength: AppSpacing.m)
-                Text(title)
-                    .font(AppType.body())
-                    .tracking(0.2)
-                    .foregroundStyle(AppPalette.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .minimumScaleFactor(0.78)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 7)
-                HStack(spacing: 6) {
-                    statusRow
-                    Spacer(minLength: 0)
-                    Text(indexLabel)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(AppPalette.textTertiary)
-                        .accessibilityHidden(true)
-                }
-            }
         }
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
     }
 
     private func badge(size: CGFloat) -> some View {
@@ -2540,7 +2516,7 @@ private struct PatchModuleCardView: View {
 
     private var fill: some View {
         RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
-            .fill(isSelected ? AppPalette.raised : AppPalette.canvas)
+            .fill(isSelected ? AppPalette.raised : AppPalette.surface)
     }
 
     private var border: some View {
@@ -2841,26 +2817,15 @@ private struct PatchesView: View {
 
             if selectedPatchCategory == .visuals { visualPatchPreview }
 
-            VStack(spacing: AppSpacing.m) {
-                if let featured = visiblePatchOptions.first {
-                    patchModuleCard(featured, index: 1, isFeatured: true)
-                }
-                HStack(spacing: AppSpacing.s) {
-                    Text(language.text("patch.other_modules"))
-                        .font(AppType.label())
-                        .foregroundStyle(AppPalette.textTertiary)
-                    AppHairline()
-                }
-                LazyVGrid(
-                    columns: Array(
-                        repeating: GridItem(.flexible(), spacing: AppSpacing.s),
-                        count: horizontalSizeClass == .regular ? 3 : 2
-                    ),
-                    spacing: AppSpacing.s
-                ) {
-                    ForEach(Array(visiblePatchOptions.dropFirst().enumerated()), id: \.element.id) { offset, option in
-                        patchModuleCard(option, index: offset + 2, isFeatured: false)
-                    }
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: AppSpacing.s),
+                    count: horizontalSizeClass == .regular ? 3 : 2
+                ),
+                spacing: AppSpacing.s
+            ) {
+                ForEach(Array(visiblePatchOptions.enumerated()), id: \.element.id) { index, option in
+                    patchModuleCard(option, index: index + 1)
                 }
             }
             .id(selectedPatchCategory)
@@ -2991,7 +2956,7 @@ private struct PatchesView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func patchModuleCard(_ option: DashboardPatchOption, index: Int, isFeatured: Bool) -> some View {
+    private func patchModuleCard(_ option: DashboardPatchOption, index: Int) -> some View {
         let item = patchItem(for: option)
         let isActive = item.map { DevicePatchService.latestReceipt(projectID: $0.id) != nil } ?? false
         let isSelected = selectedPatchProjectName == option.id
@@ -3008,7 +2973,6 @@ private struct PatchesView: View {
             isSelected: isSelected,
             isFavorite: isFavorite,
             isBusy: patchStore.isBusy,
-            isFeatured: isFeatured,
             onSelect: {
                 AppHaptics.select()
                 withAnimation(reduceMotion ? nil : AppMotion.tile) {
