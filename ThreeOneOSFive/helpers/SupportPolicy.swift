@@ -26,7 +26,7 @@ enum ExploitSupportPolicy {
     static let verifiedIOS18Range = "18.0–18.7.1"
     static let verifiedIOS26BadQueryRange = "26.0–26.6.1"
     static let verifiedIOS26WorseQueryRange = "26.7–26.7.2"
-    static let verifiedIOS27Range = "27.0–27.2"
+    static let verifiedIOS27Range = "27.0–27.2.1"
     static let experimentalIOS27Build = "24C5037i"
 
     static func buildCount(forMajor major: Int) -> Int {
@@ -117,7 +117,7 @@ enum ExploitSupportPolicy {
 
         .init(27, 0, builds: verifiedIOS27BetaBuilds.map { $0.build } + ["24A435", "24A437"]),
         .init(27, 0, 1, builds: verifiedIOS27_0_1Builds),
-        .init(27, 2, builds: ["24B5084k", "24B5089g"]),
+        .init(27, 2, builds: ["24B119", "24B5084k", "24B5089g"]),
         .init(27, 3, builds: [experimentalIOS27Build])
     ]
 
@@ -156,21 +156,21 @@ enum ExploitSupportPolicy {
             return minor == 7 && patch <= 2
         }
         if major == 27 {
-            return minor < 3
+            return minor < 2 || (minor == 2 && patch <= 1)
         }
         return false
     }
 
-    static func isExperimental(major: Int, minor: Int) -> Bool {
-        major == 27 && minor == 3
+    static func isExperimental(major: Int, minor: Int, patch: Int, build: String) -> Bool {
+        major == 27 && minor == 3 && patch == 0 && build == experimentalIOS27Build
     }
 
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
         if supportsKernelExploit(major: major, minor: minor, patch: patch) { return true }
         if supportsBadQuery(major: major, minor: minor, patch: patch) { return true }
         if supportsWorseQuery(major: major, minor: minor, patch: patch) { return true }
-        if isExperimental(major: major, minor: minor) {
-            return build == experimentalIOS27Build
+        if isExperimental(major: major, minor: minor, patch: patch, build: build) {
+            return true
         }
         // Builds past the exploit ranges still work through the pairing
         // tunnel; the enumerated list is the allowlist for those.

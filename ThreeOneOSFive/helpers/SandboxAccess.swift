@@ -4,7 +4,7 @@ import Foundation
 ///
 /// - `kernel`: the kexploit_opa334 chain and sandbox_escape, iOS 17 and 18.
 /// - `badQuery`: the sandbox grant used on iOS 26.0–26.6.1.
-/// - `worseQuery`: the worse_query escape for iOS 26.7+, 27.x, and the
+/// - `worseQuery`: the worse_query escape for iOS 26.7–26.7.2, 27.0–27.2.1, and the
 ///   experimental 27.3 beta 1 build.
 /// - `unsupported`: nothing on this build; the app stays read-only.
 enum SandboxBackend: String {
@@ -32,7 +32,7 @@ enum SandboxAccess {
             return .kernel
         }
         if ExploitSupportPolicy.supportsWorseQuery(major: v.major, minor: v.minor, patch: v.patch) ||
-            ExploitSupportPolicy.isExperimental(major: v.major, minor: v.minor) {
+            ExploitSupportPolicy.isExperimental(major: v.major, minor: v.minor, patch: v.patch, build: AppInfo.osBuild) {
             return .worseQuery
         }
         if ExploitSupportPolicy.supportsBadQuery(major: v.major, minor: v.minor, patch: v.patch) {
