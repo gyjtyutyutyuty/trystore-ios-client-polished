@@ -3,6 +3,14 @@
 All notable user-facing changes are documented in this file.
 
 ## [Unreleased]
+### Added
+- iOS 26.0–26.6.1 now activates through `bad_query`, and iOS 26.7–26.7.2, 27.0–27.2, and the 27.3 beta 1 build `24C5037i` through `worse_query`. iOS 17.0–17.7.x and 18.0–18.7.1 keep the kernel chain; 18.7.2 and later stay on the pairing tunnel.
+- Container identity on iOS 27.2 falls back to the worse_query identifier map when the metadata plist is no longer readable.
+- The Home hero now renders the supplied character meshes and offers a ROUK / SAKURA picker.
+
+### Fixed
+- The SceneKit hero compiles against the current SDK, uses the real mesh bounds, and no longer intercepts vertical scrolling.
+
 ### Documentation
 - Added the compatible patch-workspace guide from the supplied archive in English and Vietnamese.
 - Added the archive’s 1.0.1 release notes under `docs/releases/`.

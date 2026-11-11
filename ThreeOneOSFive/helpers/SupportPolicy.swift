@@ -22,6 +22,13 @@ enum ExploitSupportPolicy {
 
     static let supportedMajorVersions = [17, 18, 26, 27]
 
+    static let verifiedIOS17Range = "17.0–17.7.x"
+    static let verifiedIOS18Range = "18.0–18.7.1"
+    static let verifiedIOS26BadQueryRange = "26.0–26.6.1"
+    static let verifiedIOS26WorseQueryRange = "26.7–26.7.2"
+    static let verifiedIOS27Range = "27.0–27.2"
+    static let experimentalIOS27Build = "24C5037i"
+
     static func buildCount(forMajor major: Int) -> Int {
         verifiedVersions
             .filter { $0.major == major }
@@ -110,23 +117,73 @@ enum ExploitSupportPolicy {
 
         .init(27, 0, builds: verifiedIOS27BetaBuilds.map { $0.build } + ["24A435", "24A437"]),
         .init(27, 0, 1, builds: verifiedIOS27_0_1Builds),
-        .init(27, 2, builds: ["24B5084k", "24B5089g"])
+        .init(27, 2, builds: ["24B5084k", "24B5089g"]),
+        .init(27, 3, builds: [experimentalIOS27Build])
     ]
 
     static func iOS27BetaNumber(for build: String) -> Int? {
         verifiedIOS27BetaBuilds.first { $0.build == build }?.beta
     }
 
+    /// The kernel chain covers iOS 17 through 18.7.1. 18.7.2 and later moved
+    /// past the offsets in kexploit_opa334.
     static func supportsKernelExploit(major: Int, minor: Int, patch: Int) -> Bool {
         guard minor >= 0, patch >= 0 else { return false }
 
-        return major == 17 || major == 18
+        if major == 17 {
+            return minor <= 7
+        }
+
+        if major == 18 {
+            return minor < 7 || (minor == 7 && patch <= 1)
+        }
+
+        return false
+    }
+
+    /// bad_query still works on every build it was verified for and reaches
+    /// System Data, so it stays the primary backend on iOS 26.0–26.6.1.
+    static func supportsBadQuery(major: Int, minor: Int, patch: Int) -> Bool {
+        guard major == 26, minor >= 0, patch >= 0 else { return false }
+        return minor < 6 || (minor == 6 && patch <= 1)
+    }
+
+    /// worse_query covers iOS 26.7–26.7.2 and 27.0–27.2. The 27.3 beta 1
+    /// build is handled as experimental rather than as a stable range.
+    static func supportsWorseQuery(major: Int, minor: Int, patch: Int) -> Bool {
+        guard minor >= 0, patch >= 0 else { return false }
+        if major == 26 {
+            return minor == 7 && patch <= 2
+        }
+        if major == 27 {
+            return minor < 3
+        }
+        return false
+    }
+
+    static func isExperimental(major: Int, minor: Int) -> Bool {
+        major == 27 && minor == 3
     }
 
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
-        verifiedVersions.contains {
+        if supportsKernelExploit(major: major, minor: minor, patch: patch) { return true }
+        if supportsBadQuery(major: major, minor: minor, patch: patch) { return true }
+        if supportsWorseQuery(major: major, minor: minor, patch: patch) { return true }
+        if isExperimental(major: major, minor: minor) {
+            return build == experimentalIOS27Build
+        }
+        // Builds past the exploit ranges still work through the pairing
+        // tunnel; the enumerated list is the allowlist for those.
+        return verifiedVersions.contains {
             $0.major == major && $0.minor == minor && $0.patch == patch && $0.builds.contains(build)
         }
+    }
+
+    static func backendName(major: Int, minor: Int, patch: Int) -> String {
+        if supportsKernelExploit(major: major, minor: minor, patch: patch) { return "kernel" }
+        if supportsWorseQuery(major: major, minor: minor, patch: patch) { return "worse_query" }
+        if supportsBadQuery(major: major, minor: minor, patch: patch) { return "bad_query" }
+        return "unsupported"
     }
 
     static func requiresPairingTunnel(major: Int, minor: Int, patch: Int, build: String) -> Bool {
@@ -141,18 +198,6 @@ enum ExploitSupportPolicy {
     }
 
     static func isKernelExploitSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
-        guard isSupported(major: major, minor: minor, patch: patch, build: build) else { return false }
-
-        if supportsKernelExploit(major: major, minor: minor, patch: patch) {
-            return true
-        }
-
-        // kexploit_opa334 contains offsets only through iOS 26.0.x. The app's
-        // broader iOS 26 allowlist does not imply that this exploit supports 26.1+.
-        if major == 26 {
-            return minor == 0
-        }
-
-        return false
+        supportsKernelExploit(major: major, minor: minor, patch: patch)
     }
 }

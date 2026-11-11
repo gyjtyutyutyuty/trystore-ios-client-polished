@@ -38,8 +38,12 @@ struct FileEntry: Identifiable, Hashable {
 enum ContainerStore {
     static let appDataRoot = "/var/mobile/Containers/Data/Application"
     static let systemDataRoot = "/var/mobile/Containers/Data/System"
-    private static var shouldUseBadQuery: Bool {
-        ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26
+    /// Any non-kernel backend needs an explicit grant before a container read.
+    private static var usesSandboxGrants: Bool {
+        switch SandboxAccess.backend {
+        case .badQuery, .worseQuery: return true
+        case .kernel, .unsupported: return false
+        }
     }
     private static let applicationBundleRoots: [(path: String, nested: Bool)] = [
         ("/var/containers/Bundle/Application", true),
@@ -81,6 +85,13 @@ enum ContainerStore {
         if let scanned = resolveAppContainerPathByMetadataScan(bundleID: bundleID) {
             log("patch: filesystem metadata scan resolved \(bundleID)")
             return scanned
+        }
+        // iOS 27.2: metadata is gone. worse_query maps identifiers to paths
+        // from the container manager, which is the only lookup left.
+        if let mapped = SandboxAccess.identifierPaths()[bundleID],
+           isApplicationContainerPath(mapped) {
+            log("patch: worse_query identifier map resolved \(bundleID)")
+            return mapped
         }
         return nil
     }
@@ -269,7 +280,7 @@ enum ContainerStore {
     ) -> [ApplicationBundleMetadata] {
         let handle = grantContainerAccess(rootPath)
         defer {
-            if handle >= 0 { bad_query_release(handle) }
+            if handle >= 0 { SandboxAccess.release(handle) }
         }
 
         let fileManager = FileManager.default
@@ -332,7 +343,7 @@ enum ContainerStore {
             let cachePath = (servicePath as NSString).appendingPathComponent("Library/Caches")
             addCachePath(cachePath)
             leasedCachePaths.insert(ContainerDiscoveryMerger.canonicalPath(cachePath))
-        } else if shouldUseBadQuery {
+        } else if usesSandboxGrants {
             let detail = serviceLookupError.map { String($0) } ?? "no path"
             log("browser: MCM com.apple.lsd activation unavailable detail=\(detail)")
         }
@@ -365,7 +376,7 @@ enum ContainerStore {
                 ContainerDiscoveryMerger.canonicalPath(cachePath)
             )
             let handle: Int64
-            if hasLease || !shouldUseBadQuery {
+            if hasLease || !usesSandboxGrants {
                 handle = -1
             } else {
                 handle = grantContainerAccess(cachePath)
@@ -375,7 +386,7 @@ enum ContainerStore {
                 }
             }
             defer {
-                if handle >= 0 { bad_query_release(handle) }
+                if handle >= 0 { SandboxAccess.release(handle) }
             }
 
             let names = (try? FileManager.default.contentsOfDirectory(atPath: cachePath)) ?? []
@@ -421,6 +432,19 @@ enum ContainerStore {
             return names.map { (clean as NSString).appendingPathComponent($0) }
         }
 
+        // worse_query hands out a grant per path; retry the read under it
+        // before the inode walk, which needs a kernel path.
+        if SandboxAccess.backend == .worseQuery {
+            let handle = SandboxAccess.grant(path: clean)
+            if handle >= 0 {
+                defer { SandboxAccess.release(handle) }
+                if let names = try? FileManager.default.contentsOfDirectory(atPath: clean), !names.isEmpty {
+                    log("enumerate: worse_query grant for \(clean) -> \(names.count) entries")
+                    return names.map { (clean as NSString).appendingPathComponent($0) }
+                }
+            }
+        }
+
         var pathC = clean.utf8CString.map { Int8($0) }
         guard let result = bad_query_list(&pathC, maxInode) else {
             log("enumerate: NULL for \(clean)")
@@ -437,7 +461,7 @@ enum ContainerStore {
     }
 
     static func enumerateDirectoriesWithTraversalGrant(path: String) -> [String] {
-        if !shouldUseBadQuery {
+        if !usesSandboxGrants {
             if let names = try? FileManager.default.contentsOfDirectory(atPath: path), !names.isEmpty {
                 return names.map { (path as NSString).appendingPathComponent($0) }
             }
@@ -446,7 +470,7 @@ enum ContainerStore {
 
         let handle = grantContainerAccess(path)
         if handle >= 0 {
-            defer { bad_query_release(handle) }
+            defer { SandboxAccess.release(handle) }
             if let names = try? FileManager.default.contentsOfDirectory(atPath: path), !names.isEmpty {
                 return names.map { (path as NSString).appendingPathComponent($0) }
             }
@@ -494,10 +518,8 @@ enum ContainerStore {
     }
 
     static func grantContainerAccess(_ containerPath: String) -> Int64 {
-        guard shouldUseBadQuery else { return -1 }
-        let clean = containerPath.hasSuffix("/") ? String(containerPath.dropLast()) : containerPath
-        var pathC = clean.utf8CString.map { Int8($0) }
-        return bad_query(&pathC, true, nil, false)
+        guard usesSandboxGrants else { return -1 }
+        return SandboxAccess.grant(path: containerPath)
     }
 
     static func containersFromFilesystem() -> [InstalledApp] {
@@ -510,9 +532,30 @@ enum ContainerStore {
             dirs = grantedDirectories
             log("browser: filesystem root=\(appDataRoot) traversal enumerated \(dirs.count) containers")
         }
+        // iOS 27.2 stopped exposing the container identifier xattr and the
+        // metadata plist; worse_query rebuilds the map from the container
+        // manager itself, so resolve names through it before falling back.
+        let identifierMap = SandboxAccess.pathIdentifiers()
         let apps = dirs.compactMap { dir -> InstalledApp? in
             let uuid = (dir as NSString).lastPathComponent
             guard UUID(uuidString: uuid) != nil else { return nil }
+            let canonical = ContainerDiscoveryMerger.canonicalPath(dir)
+            let mappedBundleID = identifierMap[canonical] ?? identifierMap[dir]
+            if let mappedBundleID,
+               !mappedBundleID.hasPrefix("systemgroup."),
+               ContainerBundleCandidateResolver.isValidBundleIdentifier(mappedBundleID) {
+                let info = appInfoForBundleID(mappedBundleID) as? [String: Any] ?? [:]
+                return InstalledApp(
+                    bundleID: mappedBundleID,
+                    name: AppDisplayNamePolicy.resolve(
+                        bundleID: mappedBundleID,
+                        candidates: [info["name"] as? String]
+                    ),
+                    containerPath: dir,
+                    version: info["version"] as? String ?? "",
+                    icon: info["icon"] as? UIImage
+                )
+            }
             let fallback = ContainerIdentityResolver.fallbackIdentity(containerPath: dir)
             return InstalledApp(
                 bundleID: fallback.bundleID,
@@ -556,7 +599,7 @@ enum ContainerStore {
 
         let handle = grantContainerAccess(fallback.containerPath)
         defer {
-            if handle >= 0 { bad_query_release(handle) }
+            if handle >= 0 { SandboxAccess.release(handle) }
         }
 
         let libraryPath = (fallback.containerPath as NSString).appendingPathComponent("Library")

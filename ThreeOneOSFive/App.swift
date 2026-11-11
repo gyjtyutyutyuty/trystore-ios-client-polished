@@ -260,7 +260,7 @@ class AppState: ObservableObject {
         )
     }
 
-    private func markKernelExploitUnsupported() {
+    private func markExploitUnsupported() {
         let version = AppInfo.versionTuple
         guard let reason = KernelExploit.unsupportedReason(
             major: version.major,
@@ -272,7 +272,7 @@ class AppState: ObservableObject {
         let status = ExploitStatus.unsupported(reason)
         guard exploitStatus != status else { return }
         exploitStatus = status
-        log("kexploit: skipped — \(reason)")
+        log("exploit: skipped — \(reason)")
     }
 
     var isSupported: Bool { unsupportedMessage == nil }
@@ -320,10 +320,11 @@ class AppState: ObservableObject {
             build: AppInfo.osBuild
         )
         guard applicable else {
-            markKernelExploitUnsupported()
+            markExploitUnsupported()
             return
         }
 
+        SandboxAccess.prepare()
         refreshKernelExploitStatus()
         maybeAutoRunKernelExploit()
     }
@@ -334,7 +335,7 @@ class AppState: ObservableObject {
               !exploitStatus.isFailed,
               !autoRunAttempted else { return }
         autoRunAttempted = true
-        log("app: starting kernel exploit automatically")
+        log("app: starting \(KernelExploit.methodName) access chain automatically")
         runKernelExploitIfNeeded()
     }
 
@@ -346,19 +347,19 @@ class AppState: ObservableObject {
         if KernelExploit.requiresSandboxEscape {
             if KernelExploit.hasSandboxAccess() {
                 if !exploitStatus.isSuccess {
-                    exploitStatus = .success(method: "kexploit")
-                    log("app: existing sandbox access is still active; skipping kernel exploit")
+                    exploitStatus = .success(method: KernelExploit.methodName)
+                    log("app: existing \(KernelExploit.methodName) access is still active; skipping activation")
                 }
             } else if exploitStatus.isSuccess {
                 exploitStatus = .notStarted
-                log("app: sandbox access is no longer active")
+                log("app: \(KernelExploit.methodName) access is no longer active")
             }
         }
     }
 
     func runKernelExploitIfNeeded() {
         guard kernelExploitApplicable else {
-            markKernelExploitUnsupported()
+            markExploitUnsupported()
             return
         }
         refreshKernelExploitStatus()
@@ -367,21 +368,21 @@ class AppState: ObservableObject {
               !exploitStatus.isFailed else { return }
         kernelExploitRunning = true
         exploitStatus = .notStarted
-        log("app: running kernel exploit on background...")
+        log("app: running \(KernelExploit.methodName) access chain on background...")
         DispatchQueue.global(qos: .userInitiated).async {
             let ok = KernelExploit.run()
             DispatchQueue.main.async {
                 self.kernelExploitRunning = false
                 if ok {
-                    self.exploitStatus = .success(method: "kexploit")
+                    self.exploitStatus = .success(method: KernelExploit.methodName)
                     if KernelExploit.requiresSandboxEscape {
-                        log("app: kernel exploit success — sandbox access verified")
+                        log("app: \(KernelExploit.methodName) success — sandbox access verified")
                     } else {
-                        log("app: kernel exploit success — kernel access active")
+                        log("app: \(KernelExploit.methodName) success — kernel access active")
                     }
                 } else {
-                    self.exploitStatus = .failed(method: "kexploit", code: -1)
-                    log("app: kernel exploit failed — relaunch the app before retrying")
+                    self.exploitStatus = .failed(method: KernelExploit.methodName, code: -1)
+                    log("app: \(KernelExploit.methodName) failed — relaunch the app before retrying")
                 }
             }
         }

@@ -6,6 +6,8 @@ TryStore is a branded derivative of the supplied 3105 SwiftUI project. This repo
 | --- | --- | --- |
 | LeminLimez and contributors | Pocket Poster, Nugget, and the `.tendies` package format | [Pocket-Poster](https://github.com/leminlimez/Pocket-Poster) |
 | Mak5er / AirCard-iOS contributors | Airlift Rust pairing, AirTraffic, and AFC transport foundation | [AirCard-iOS](https://github.com/Mak5er/AirCard-iOS) |
+| Taj C (forcequitOS) | `worse_query` sandbox escape used on iOS 26.7+ and 27.x | [worse_query](https://github.com/forcequitOS/worse_query) |
+| Christoph Kolbicz | WQ Files safety, recovery, and open-verification helpers used by `worse_query` | [WQFiles](https://github.com/kolbicz/WQFiles) |
 
 Original portions of TryStore are distributed under GPL-3.0. Pocket-Poster also publishes a GPL-3.0 license in its upstream repository. Airlift source in `ThreeOneOSFive/airlift-rust-core` is distributed under the MIT License; its copyright and license are retained in that directory. Review each upstream project and its current terms before redistributing derived code.
 
