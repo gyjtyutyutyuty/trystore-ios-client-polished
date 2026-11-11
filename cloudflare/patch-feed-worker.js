@@ -311,6 +311,49 @@ async function decryptPayload(envelope) {
  * dedupes by packageID, so this is what turns an upload into a real in-place
  * replacement instead of a second patch next to the old one.
  */
+const TRYSTORE_SLOT_IDENTITIES = {
+  "HEAD": ["HEAD"],
+  "NECK": ["NECK"],
+  "HSPESSCOSO": ["HS PESSCOSO"],
+  "HS SLA PECHO": ["HS SLA PECHO"],
+  "EXCLUSIVO AZUL": ["EXCLUSIVO AZUL", "HOLOGRAMA ARMAS"],
+  "TryStore": ["TryStore", "Balas Magicas"],
+  "HOLOGRAMAEXCLUSIVO(4)": ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE"],
+  "HOLOGRAMAEXCLUSIVO(5)": ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO ROSADO"],
+  "Cuello y Drag": ["Drag con Cuello", "Cuello y Drag"],
+  "Pecho3105": ["Pecho3105", "Aimbot Pecho"],
+  "CUELLO3105": ["CUELLO3105", "Aimbot Pecho"],
+};
+
+function normalizeIdentity(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function tryStoreSlotIdentities(file) {
+  const stem = String(file || "").replace(/\.(trystore|3105|tipa|apple)$/i, "");
+  const key = normalizeIdentity(stem);
+  for (const [slot, names] of Object.entries(TRYSTORE_SLOT_IDENTITIES)) {
+    if (normalizeIdentity(slot) === key) return names.map(normalizeIdentity);
+  }
+  return null;
+}
+
+// A repack renames the uploaded project to the target slot. That is how an
+// Antena payload once ended up in an aim slot. Reject a source package whose
+// own project name does not belong to the target module.
+async function validateTrystoreUpload(project, targetFile, bytes) {
+  if (project !== "trystore") return;
+  const allowed = tryStoreSlotIdentities(targetFile);
+  if (!allowed) return;
+  const envelope = parsePackage(bytes);
+  if (envelope.isPasswordProtected) throw new Error("password_protected");
+  const { payload } = await decryptPayload(envelope);
+  const actual = normalizeIdentity(payload.project?.name);
+  if (!allowed.includes(actual)) {
+    throw new Error(`source_identity_mismatch:${payload.project?.name || "unknown"}`);
+  }
+}
+
 async function repackForTarget(sourceBytes, targetBytes) {
   const source = parsePackage(sourceBytes);
   const target = parsePackage(targetBytes);
@@ -602,6 +645,22 @@ async function handleDocument(env, message, chatId) {
 
   const project = session.project;
   const targetFile = session.action === "replace" ? session.file : uploadedFile;
+  try {
+    await validateTrystoreUpload(project, targetFile, bytes);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "identity_check_failed";
+    await sendMessage(
+      env,
+      chatId,
+      [
+        "Rejected: the package does not belong to that slot.",
+        `<code>${esc(reason)}</code>`,
+        "",
+        "Build the package with the same project name as the file you are replacing.",
+      ].join("\n"),
+    );
+    return;
+  }
   const existing = await env.PATCHES.get(`patches/${project}/${targetFile}`, "arrayBuffer");
   let replaced = false;
   if (existing) {

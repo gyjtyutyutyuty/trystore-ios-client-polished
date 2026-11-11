@@ -84,6 +84,15 @@ final class PatchProjectStore: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             do {
+                // Packages are wrapped under a key the feed releases only to an
+                // authenticated device. Fetch it before decoding, otherwise a
+                // cached licence would still leave every package unreadable.
+                if PatchBundleKeyStore.cachedKey() == nil {
+                    try await PatchBundleKeyStore.refresh(
+                        licenseKey: credentials.licenseKey,
+                        deviceID: credentials.deviceID
+                    )
+                }
                 let resources = try await PatchResourceBundle.load(
                     credentials: credentials,
                     expected: self.game.bundledPatches
@@ -91,26 +100,44 @@ final class PatchProjectStore: ObservableObject {
                 for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "Balas Magicas"] {
                     PatchProjectLibrary.removeBundledPackage(named: obsolete)
                 }
+                var failures: [String] = []
                 for patch in self.game.bundledPatches {
-                    guard let data = resources[patch.resourceName],
-                          PatchProjectLibrary.installRemoteFeedPackageIfNeeded(
-                            data,
-                            resourceName: patch.resourceName,
-                            projectName: patch.projectName,
-                            manifestName: patch.resourceName.replacingOccurrences(of: ".TRYSTORE", with: "")
-                          ) else {
-                        throw PatchPackageError.remoteImportFailed
+                    guard let data = resources[patch.resourceName] else {
+                        failures.append(patch.resourceName)
+                        continue
+                    }
+                    let installed = PatchProjectLibrary.installRemoteFeedPackageIfNeeded(
+                        data,
+                        resourceName: patch.resourceName,
+                        projectName: patch.projectName,
+                        manifestName: patch.resourceName.replacingOccurrences(of: ".TRYSTORE", with: "")
+                    )
+                    if !installed {
+                        failures.append(patch.resourceName)
                     }
                 }
-                self.didInstallRemoteResources = true
+                self.didInstallRemoteResources = failures.isEmpty
                 self.reload()
                 self.isBusy = false
+                if failures.isEmpty {
+                    log("patch: authenticated remote sync complete")
+                } else {
+                    log("patch: authenticated remote sync incomplete: \(failures.joined(separator: ", "))")
+                    self.present(.remoteImportFailed)
+                }
             } catch {
                 self.isBusy = false
                 self.present(.remoteImportFailed)
                 log("patch: authenticated remote patch sync failed: \(error)")
             }
         }
+    }
+
+    func reportMissingPackage() {
+        alert = PatchStoreAlert(
+            titleKey: "patch.status.missing",
+            messageKey: "patch.detail.package_missing_long"
+        )
     }
 
     func reload() {

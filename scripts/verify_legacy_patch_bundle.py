@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import base64
+import hashlib
 import os
 import plistlib
 import re
@@ -118,6 +119,41 @@ def package_project(filename: str) -> dict | None:
         return project
     except Exception as error:
         fail(f"cannot authenticate/decode bundled package {filename}: {error}")
+
+
+def payload_fingerprint(project: dict) -> str:
+    """Mirror PatchProjectLibrary.projectPayloadFingerprint."""
+    digest = hashlib.sha256()
+
+    def feed(value: str) -> None:
+        digest.update(value.encode("utf-8"))
+        digest.update(b"\0")
+
+    feed("v1")
+    feed(str(project.get("id", "")).upper())
+    feed(project.get("name", ""))
+    for bundle in sorted(project.get("bundleIdentifiers", [])):
+        feed("b")
+        feed(bundle)
+    directories = sorted(
+        project.get("directories", []),
+        key=lambda item: (item.get("bundleID", ""), item.get("relativePath", "")),
+    )
+    for directory in directories:
+        feed("d")
+        feed(directory.get("bundleID", ""))
+        feed(directory.get("relativePath", ""))
+    rules = sorted(
+        project.get("rules", []),
+        key=lambda item: (item.get("bundleID", ""), item.get("relativePath", "")),
+    )
+    for rule in rules:
+        feed("r")
+        feed(rule.get("bundleID", ""))
+        feed(rule.get("relativePath", ""))
+        feed(rule.get("replacementFilename", ""))
+        digest.update(hashlib.sha256(rule.get("replacementData") or b"").digest())
+    return digest.hexdigest()
 
 
 def check_source() -> None:
@@ -237,8 +273,9 @@ def check_source() -> None:
             "patch folder is still registered as an Xcode resource")
     require("func installBundledResources(credentials: PatchFeedCredentials?)" in store,
             "authenticated remote patch sync is not wired")
-    require("didInstallRemoteResources = true" in store,
-            "failed remote package installations cannot be retried")
+    require("didInstallRemoteResources = failures.isEmpty" in store
+            and "var failures: [String] = []" in store,
+            "failed remote package installations cannot be retried or reported")
     require("SHA256.hash(data: data)" in resource and "Authorization" in resource
             and "isTrustedPackageURL" in resource,
             "remote patch downloads are missing authentication, host, or digest checks")
@@ -257,6 +294,9 @@ def check_source() -> None:
             and "APP_BUNDLE_KEY" in worker
             and "/bundle-key" in worker,
             "feed worker does not wrap TryStore packages under the app bundle key")
+    require("validateTrystoreUpload" in worker
+            and "TRYSTORE_SLOT_IDENTITIES" in worker,
+            "feed worker does not reject a package whose project does not match its slot")
     codec = (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text(encoding="utf-8")
     key_store = (ROOT / "ThreeOneOSFive/helpers/PatchBundleKeyStore.swift").read_text(encoding="utf-8")
     require('wrappingScheme == "bundle"' in codec
@@ -280,6 +320,32 @@ def check_source() -> None:
             and ".sorted { $0.2 > $1.2 }" in store
             and "static func activationDate(for receipt:" in transaction,
             "stacked conflicting patch receipts are not restored newest-first")
+
+    # The binary seed is the offline guard against a package whose rules were
+    # swapped with another module. It must describe the packages in this tree.
+    if bundle_key() is not None:
+        seed_block = re.search(
+            r"bundledPayloadFingerprints: \[UUID: String\] = \[(.*?)\n    \]",
+            library,
+            re.S,
+        )
+        require(seed_block is not None, "payload fingerprint seed table missing")
+        seeds = dict(re.findall(
+            r'UUID\(uuidString: "([^"]+)"\)!: "([0-9a-f]{64})"',
+            seed_block.group(1),
+        ))
+        require(len(seeds) == len(BUNDLED), "payload fingerprint seed table is incomplete")
+        for filename, project_name in BUNDLED.items():
+            project = package_project(filename)
+            require(project is not None, f"cannot decode bundled package: {filename}")
+            normalized = dict(project)
+            normalized["id"] = canonical_ids[project_name]
+            normalized["name"] = project_name
+            expected = seeds.get(canonical_ids[project_name].upper())
+            require(expected is not None, f"missing payload seed for {project_name}")
+            require(expected == payload_fingerprint(normalized),
+                    f"payload fingerprint seed is stale for {filename}")
+
     print(f"PASS: {len(BUNDLED)} source packages have unique mappings, aligned paths, and authenticated remote delivery wiring")
 
 

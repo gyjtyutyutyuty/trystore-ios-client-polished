@@ -2635,6 +2635,10 @@ private struct PatchesView: View {
             patchStore.installBundledResources(credentials: licenseManager.patchFeedCredentials())
             patchStore.reload()
         }
+        .onChange(of: licenseManager.isActive) { isActive in
+            guard isActive else { return }
+            patchStore.installBundledResources(credentials: licenseManager.patchFeedCredentials())
+        }
         .alert(item: $patchStore.alert) { alert in
             let title = Text(language.text(alert.titleKey))
             let message = Text(alert.message(language: language))
@@ -2945,14 +2949,14 @@ private struct PatchesView: View {
     }
 
     private func patchRowLabel(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
-        if item == nil { return language.text("patch.status.missing") }
         if isActive { return language.text("patch.status.active") }
+        if item == nil || item?.project == nil { return language.text("patch.status.missing") }
         return isSelected ? language.text("patch.status.selected") : language.text("patch.status.ready")
     }
 
     private func patchRowAccessibilityValue(item: PatchLibraryItem?, isActive: Bool, isSelected: Bool) -> String {
-        if item == nil { return language.text("patch.detail.package_missing") }
         if isActive { return language.text("patch.detail.active") }
+        if item == nil || item?.project == nil { return language.text("patch.detail.package_missing") }
         return isSelected ? language.text("patch.detail.selected_ready") : language.text("patch.detail.available")
     }
 
@@ -2995,11 +2999,17 @@ private struct PatchesView: View {
         guard let option = selectedPatchOption else { return }
         guard let item = selectedPatchItem else {
             log("patch: activation refused — no unique package identity matched UI key \(option.projectName)")
+            patchStore.reportMissingPackage()
+            return
+        }
+        let shouldEnable = !selectedPatchIsActive
+        guard !shouldEnable || item.project != nil else {
+            log("patch: activation refused — package payload is not trusted for \(item.packageURL.lastPathComponent)")
+            patchStore.reportMissingPackage()
             return
         }
         let resolvedName = item.project?.name ?? "locked package"
         log("patch: UI key \(option.projectName) resolved to \(resolvedName), file \(item.packageURL.lastPathComponent), id \(item.id.uuidString)")
-        let shouldEnable = !selectedPatchIsActive
         beginPatchProgress(enabling: shouldEnable, title: option.title)
 
         patchStore.setEnabled(

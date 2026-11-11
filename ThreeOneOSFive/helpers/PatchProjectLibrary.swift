@@ -30,6 +30,24 @@ enum PatchProjectLibrary {
         "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "Drag con Cuello",
         "Pecho3105", "CUELLO3105"
     ]
+    /// Payload fingerprints for the canonical packages. They are not secret:
+    /// they let a device refuse a local package whose rules were swapped or
+    /// edited, even before the signed feed has a chance to repair it. A feed
+    /// install overwrites the stored fingerprint with the payload it delivered.
+    private static let bundledPayloadFingerprints: [UUID: String] = [
+        UUID(uuidString: "668D6990-D407-439F-8846-2AC6E03498BA")!: "ad023df96e09a81fe4b5a776a2396b449f300a8ee4c6037874f00ef2d726ede4",
+        UUID(uuidString: "74028F92-DE35-43F0-8E40-423D10EE3D42")!: "82afb625c0a319127a607934e509bd7448efa82246cab13ef274fe27555f0504",
+        UUID(uuidString: "6E3DE2CA-1F8D-435F-A366-7692994D0094")!: "a55fb498b7bfc0e785c556a22f56637d5471ab225f09e88ed461057707a14eed",
+        UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!: "89fb8543ed57a68e3ef3985d0fb7769de572e7b2fb8066e0d8391732683a4ef4",
+        UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!: "3639ef703b2a87685ebb5283eb41c4464d7c018b2534748383ecd13cca398563",
+        UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!: "8e7468115ee151bda82c24f4985ccfe85252da923e43ff1945703392c59cea21",
+        UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!: "98e854db4cbb76daba25dbf868de35c2ae30151ae64a49f3ef7ab5b2856ab362",
+        UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!: "9a3692209ec509547dff9f642416fd329ad46478ed47f54f2b9d91b484c0dead",
+        UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!: "326b4f3c99fdcb8968aef964db942ef557a3ac070c26fe91111416c524754291",
+        UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!: "e8fa800ae6ed75ceb8b3c13aa234775017c30a28d7ed025910d0a9423f0cba47",
+        UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!: "d6545ed17594911430e378a28d6c81c07057517c6a2f5f682355e2e62aeb11e2"
+    ]
+
     private static let canonicalBundledPackageFilenames: [UUID: String] = [
         UUID(uuidString: "668D6990-D407-439F-8846-2AC6E03498BA")!: "HEAD.TRYSTORE",
         UUID(uuidString: "74028F92-DE35-43F0-8E40-423D10EE3D42")!: "NECK.TRYSTORE",
@@ -331,25 +349,33 @@ enum PatchProjectLibrary {
                 return false
             }
 
-            let sourceRevision = SHA256.hash(data: sourceData)
-                .map { String(format: "%02x", $0) }
-                .joined()
-            let revisionKey = "patch.remotePackageRevision.\(normalizedProjectName(projectName))"
             guard let root = try? packageRootURL(fileManager: fileManager) else { return false }
             let canonicalFilename = canonicalBundledPackageFilenames[expectedID] ?? "\(projectName).TRYSTORE"
             let destination = root.appendingPathComponent(canonicalFilename)
-            if UserDefaults.standard.string(forKey: revisionKey) == sourceRevision,
-               let existingData = try? readPackage(at: destination),
-               let existingSummary = try? PatchPackageCodec.inspect(existingData),
-               existingSummary.packageID == expectedID,
-               let existingPackage = try? PatchPackageCodec.decode(existingData, password: nil),
-               existingPackage.project.name == projectName {
-                return true
-            }
 
             var normalizedProject = feedPackage.project
             normalizedProject.name = projectName
             normalizedProject.id = expectedID
+            let feedFingerprint = projectPayloadFingerprint(normalizedProject)
+            if let existingData = try? readPackage(at: destination),
+               let existingSummary = try? PatchPackageCodec.inspect(existingData),
+               existingSummary.packageID == expectedID,
+               !existingSummary.isPasswordProtected,
+               let existingPackage = try? PatchPackageCodec.decode(existingData, password: nil),
+               projectPayloadFingerprint(existingPackage.project) == feedFingerprint {
+                UserDefaults.standard.set(
+                    hexString(feedFingerprint),
+                    forKey: trustedPayloadKey(expectedID)
+                )
+                removeDuplicatePackages(
+                    packageID: expectedID,
+                    keeping: destination,
+                    in: root,
+                    fileManager: fileManager
+                )
+                return true
+            }
+
             let encoded = try PatchPackageCodec.encodeNew(project: normalizedProject, password: nil)
             let summary = try PatchPackageCodec.inspect(encoded.data)
             guard summary.packageID == expectedID, !summary.isPasswordProtected else { return false }
@@ -364,7 +390,16 @@ enum PatchProjectLibrary {
                 createWorkspace: false,
                 fileManager: fileManager
             )
-            UserDefaults.standard.set(sourceRevision, forKey: revisionKey)
+            UserDefaults.standard.set(
+                hexString(projectPayloadFingerprint(normalizedProject)),
+                forKey: trustedPayloadKey(expectedID)
+            )
+            removeDuplicatePackages(
+                packageID: expectedID,
+                keeping: destination,
+                in: root,
+                fileManager: fileManager
+            )
             log("patch: installed authenticated remote package: \(projectName)")
             return true
         } catch {
@@ -415,12 +450,19 @@ enum PatchProjectLibrary {
                 } else {
                     decoded = try PatchPackageCodec.decode(data, password: nil)
                 }
-                let item = PatchLibraryItem(
+                var item = PatchLibraryItem(
                     summary: summary,
                     project: decoded?.project,
                     contentKey: decoded?.contentKey,
                     packageURL: url
                 )
+                if let project = item.project,
+                   let trusted = trustedPayloadFingerprint(for: summary.packageID),
+                   trusted != projectPayloadFingerprint(project) {
+                    log("patch: refusing package with modified payload \(url.lastPathComponent); restore-only until the feed repairs it")
+                    item.project = nil
+                    item.contentKey = nil
+                }
                 if let canonicalFilename = canonicalBundledPackageFilenames[summary.packageID],
                    canonicalFilename.caseInsensitiveCompare(url.lastPathComponent) == .orderedSame,
                    item.project != nil {
@@ -609,5 +651,94 @@ enum PatchProjectLibrary {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .prefix(80)
         return result.isEmpty ? "Patch" : String(result)
+    }
+
+    // MARK: - Payload trust
+
+    private static func trustedPayloadKey(_ packageID: UUID) -> String {
+        "patch.trustedPayload.\(packageID.uuidString.lowercased())"
+    }
+
+    private static func trustedPayloadFingerprint(for packageID: UUID) -> Data? {
+        if let stored = UserDefaults.standard.string(forKey: trustedPayloadKey(packageID)),
+           let data = data(fromHex: stored) {
+            return data
+        }
+        guard let seeded = bundledPayloadFingerprints[packageID] else { return nil }
+        return data(fromHex: seeded)
+    }
+
+    /// Canonical identity of everything that changes the game file. Name, id,
+    /// targets and replacement bytes are all covered, so an aim package that
+    /// was swapped with an Antena payload cannot pass as the aim package.
+    private static func projectPayloadFingerprint(_ project: PatchProject) -> Data {
+        var hasher = SHA256()
+        func feed(_ value: String) {
+            hasher.update(data: Data(value.utf8))
+            hasher.update(data: Data([0]))
+        }
+        feed("v1")
+        feed(project.id.uuidString)
+        feed(project.name)
+        for bundleID in project.bundleIdentifiers.sorted() {
+            feed("b")
+            feed(bundleID)
+        }
+        for directory in project.directories.sorted(by: {
+            $0.bundleID + "\0" + $0.relativePath < $1.bundleID + "\0" + $1.relativePath
+        }) {
+            feed("d")
+            feed(directory.bundleID)
+            feed(directory.relativePath)
+        }
+        for rule in project.rules.sorted(by: {
+            $0.bundleID + "\0" + $0.relativePath < $1.bundleID + "\0" + $1.relativePath
+        }) {
+            feed("r")
+            feed(rule.bundleID)
+            feed(rule.relativePath)
+            feed(rule.replacementFilename)
+            hasher.update(data: Data(SHA256.hash(data: rule.replacementData)))
+        }
+        return Data(hasher.finalize())
+    }
+
+    private static func hexString(_ data: Data) -> String {
+        data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func data(fromHex hex: String) -> Data? {
+        guard hex.count % 2 == 0 else { return nil }
+        var data = Data(capacity: hex.count / 2)
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
+            data.append(byte)
+            index = next
+        }
+        return data
+    }
+
+    private static func removeDuplicatePackages(
+        packageID: UUID,
+        keeping destination: URL,
+        in root: URL,
+        fileManager: FileManager
+    ) {
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+        ) else { return }
+        let canonicalDestination = destination.standardizedFileURL
+        for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
+            guard url.standardizedFileURL != canonicalDestination,
+                  let data = try? readPackage(at: url),
+                  let summary = try? PatchPackageCodec.inspect(data),
+                  summary.packageID == packageID else { continue }
+            try? fileManager.removeItem(at: url)
+            log("patch: removed stale duplicate package \(url.lastPathComponent)")
+        }
     }
 }

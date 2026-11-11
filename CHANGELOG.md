@@ -14,6 +14,8 @@ All notable user-facing changes are documented in this file.
 
 ### Fixed
 - The SceneKit hero compiles against the current SDK, uses the real mesh bounds, and no longer intercepts vertical scrolling.
+- Aim packages can no longer apply an Antena payload. Each shipped package carries a canonical payload fingerprint that is checked before activation, the feed rewrites a mismatched package instead of keeping it, and the Telegram publisher rejects an upload whose project name does not match the slot.
+- A failed remote patch sync no longer stops the remaining packages; the library reports the missing entries instead of silently keeping stale bytes.
 
 ### Documentation
 - Added the compatible patch-workspace guide from the supplied archive in English and Vietnamese.
