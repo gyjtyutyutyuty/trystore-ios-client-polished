@@ -15,6 +15,9 @@ enum PatchBundleKeyError: Error {
 /// in the keychain for this device.
 enum PatchBundleKeyStore {
     private static let service = "com.trystore.supportpatch.patch-bundle"
+    /// Identifier this app was signed with before it moved to its own bundle id.
+    /// Readable only while the profile still carries that keychain access group.
+    private static let legacyService = "com.apple.mobile.MobileHouseArrest.patch-bundle"
     private static let account = "bundle-key-v1"
     private static let expectedHost = "trystore-patch-feed.burgoajustin.workers.dev"
 
@@ -112,8 +115,31 @@ enum PatchBundleKeyStore {
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else {
+            return migrateLegacyKey()
+        }
+        return data
+    }
+
+    /// Moves the cached feed key from the pre-rename service once, so a device
+    /// that already held it does not need to hit the feed again.
+    private static func migrateLegacyKey() -> Data? {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: legacyService,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data,
+              data.count == 32 else {
             return nil
         }
+        guard (try? store(data)) != nil else { return nil }
+        query.removeValue(forKey: kSecReturnData as String)
+        query.removeValue(forKey: kSecMatchLimit as String)
+        _ = SecItemDelete(query as CFDictionary)
         return data
     }
 
