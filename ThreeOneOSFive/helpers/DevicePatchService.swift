@@ -6,7 +6,9 @@ enum DevicePatchService {
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) throws -> PatchTransactionReceipt {
         let bundleIDs = orderedBundleIdentifiers(in: project)
-        if usesPairingTunnel {
+        let useTunnel = usesPairingTunnel
+        log("patch: apply route \(useTunnel ? "pairing tunnel" : "local sandbox")")
+        if useTunnel {
             let context = try pairingRemoteContext(bundleIDs: bundleIDs)
             return try PatchTransaction.apply(
                 project: project,
@@ -42,7 +44,9 @@ enum DevicePatchService {
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) throws {
         let bundleIDs = try PatchTransaction.requiredBundleIdentifiers(for: receipt)
-        if usesPairingTunnel {
+        let useTunnel = usesPairingTunnel
+        log("patch: restore route \(useTunnel ? "pairing tunnel" : "local sandbox")")
+        if useTunnel {
             let context = try pairingRemoteContext(bundleIDs: bundleIDs)
             try PatchTransaction.restore(
                 receipt: receipt,
@@ -85,9 +89,25 @@ enum DevicePatchService {
     /// chain, and 26.7+/27 lose worse_query when the signing profile carries no
     /// App Group, so those builds go over the pairing tunnel instead — the
     /// tunnel is build-agnostic and was how they patched before.
+    ///
+    /// The kernel and bad_query builds never take this branch: a failed kernel
+    /// probe there means the exploit has not run yet, not that the tunnel is
+    /// the next step, and the transaction reports that failure itself.
     static var usesPairingTunnel: Bool {
-        guard SandboxAccess.backend != .unsupported else { return true }
-        return !KernelExploit.hasSandboxAccess()
+        let version = AppInfo.versionTuple
+        let tunnelSupported = ExploitSupportPolicy.supportsPairingTunnel(
+            major: version.major,
+            minor: version.minor,
+            patch: version.patch
+        )
+        switch SandboxAccess.backend {
+        case .kernel, .badQuery:
+            return false
+        case .worseQuery:
+            return tunnelSupported && !KernelExploit.hasSandboxAccess()
+        case .unsupported:
+            return tunnelSupported
+        }
     }
 
     private struct PairingRemoteContext {

@@ -168,8 +168,16 @@ enum ExploitSupportPolicy {
     /// The Airlift pairing tunnel is build-agnostic: it talks to lockdownd and
     /// AirTraffic over a pairing record, not to kernel offsets. 18.7.2 moved
     /// past the kexploit offsets, so the tunnel is what patches those builds.
+    /// iOS 27 keeps it as the fallback when worse_query cannot probe because
+    /// the signing profile carries no App Group.
     static func supportsPairingTunnel(major: Int, minor: Int, patch: Int) -> Bool {
-        major == 18 && minor == 7 && patch >= 2
+        if major == 18 {
+            return minor == 7 && patch >= 2
+        }
+        if major >= 27 {
+            return true
+        }
+        return false
     }
 
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
