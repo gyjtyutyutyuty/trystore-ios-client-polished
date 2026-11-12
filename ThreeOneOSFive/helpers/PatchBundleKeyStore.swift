@@ -14,7 +14,7 @@ enum PatchBundleKeyError: Error {
 /// after the same licence and device check that guards the blobs, then cached
 /// in the keychain for this device.
 enum PatchBundleKeyStore {
-    private static let service = "com.trystore.supportpatch.patch-bundle"
+    private static let service = "cc.forcequit.worse-query.patch-bundle"
     private static let account = "bundle-key-v1"
     private static let expectedHost = "trystore-patch-feed.burgoajustin.workers.dev"
 

@@ -513,6 +513,7 @@
 					CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 					CODE_SIGN_ENTITLEMENTS = ThreeOneOSFive/ThreeOneOSFive.entitlements;
 					CODE_SIGN_STYLE = Automatic;
+					DEVELOPMENT_TEAM = K976G5HK7K;
 					REGISTER_APP_GROUPS = YES;
 					CURRENT_PROJECT_VERSION = 15;
 					ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -535,7 +536,7 @@
 					    "-lz",
 					    "-lc++",
 				    );
-				PRODUCT_BUNDLE_IDENTIFIER = "com.trystore.supportpatch";
+				PRODUCT_BUNDLE_IDENTIFIER = "cc.forcequit.worse-query";
 				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";
@@ -551,6 +552,7 @@
 					CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 					CODE_SIGN_ENTITLEMENTS = ThreeOneOSFive/ThreeOneOSFive.entitlements;
 					CODE_SIGN_STYLE = Automatic;
+					DEVELOPMENT_TEAM = K976G5HK7K;
 					REGISTER_APP_GROUPS = YES;
 					CURRENT_PROJECT_VERSION = 15;
 					DEPLOYMENT_POSTPROCESSING = YES;
@@ -576,7 +578,7 @@
 					    "-lz",
 					    "-lc++",
 				    );
-				PRODUCT_BUNDLE_IDENTIFIER = "com.trystore.supportpatch";
+				PRODUCT_BUNDLE_IDENTIFIER = "cc.forcequit.worse-query";
 				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";

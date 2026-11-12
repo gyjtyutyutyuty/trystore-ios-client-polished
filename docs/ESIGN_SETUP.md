@@ -1,6 +1,6 @@
 # eSign Setup
 
-This project is packaged as an **unsigned iOS IPA** so that the owner can apply their own Apple certificate and provisioning profile in an on-device signer such as eSign. The project has one application target and no extensions. The bundle identifier is `com.trystore.supportpatch` and the App Group it declares is `group.com.trystore.supportpatch`.
+This project is packaged as an **unsigned iOS IPA** so that the owner can apply their own Apple certificate and provisioning profile in an on-device signer such as eSign. The project has one application target and no extensions. The bundle identifier is `cc.forcequit.worse-query` and the App Group it declares is `group.cc.forcequit.worse-query`.
 
 ## The App Group is not optional
 
