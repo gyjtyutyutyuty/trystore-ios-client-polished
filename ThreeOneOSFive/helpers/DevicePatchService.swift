@@ -114,12 +114,20 @@ enum DevicePatchService {
         }
     }
 
-    /// worse_query cannot start without the App Group the signer must carry.
-    /// Say that plainly instead of failing later at container resolution.
+    /// worse_query cannot start without the App Group the signer must carry,
+    /// and a signed group still fails when the escape itself cannot probe.
+    /// Both are reported before any container lookup, with different errors.
     private static func requireAppGroupIfNeeded() throws {
         guard SandboxAccess.backend == .worseQuery else { return }
-        guard !SandboxAccess.hasAppGroup else { return }
-        throw PatchPackageError.appGroupMissing
+        guard SandboxAccess.hasAppGroup else {
+            log("patch: worse_query blocked — no App Group entitlement in the signed profile")
+            throw PatchPackageError.appGroupMissing
+        }
+        guard SandboxAccess.probe() else {
+            log("patch: worse_query blocked — App Group present but the probe failed")
+            throw PatchPackageError.worseQueryUnavailable
+        }
+        log("patch: worse_query probe passed on \(SandboxAccess.appGroup ?? "the App Group")")
     }
 
     private struct PairingRemoteContext {
@@ -218,6 +226,7 @@ enum DevicePatchService {
             // Held for the whole transaction: releasing before the write or the
             // read-back would revoke access on worse_query.
             let grant = ContainerStore.grantContainerAccess(path)
+            log("patch: container grant \(bundleID) -> \(grant)")
             if grant >= 0 { grants.append(grant) }
             roots[bundleID] = PatchPathValidator.canonicalFileURL(URL(fileURLWithPath: path, isDirectory: true))
         }

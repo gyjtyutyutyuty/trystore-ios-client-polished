@@ -215,6 +215,7 @@
 "patch.error.keychain" = "Không thể lưu hoặc đọc khóa mở gói một cách an toàn.";
 "patch.error.app_unavailable" = "Bundle app %@ chưa được cài hoặc không thể mở. Patch chưa thay đổi file nào.";
 "patch.error.app_group_missing" = "Bản iOS 27 này cần entitlement App Group để vá. Hãy ký lại ứng dụng bằng hồ sơ có entitlement này rồi áp dụng lại.";
+"patch.error.worse_query_unavailable" = "App Group đã được ký nhưng worse_query không mở được container. Hãy khởi động lại ứng dụng; nếu vẫn lỗi, hãy ký lại bằng hồ sơ có App Group.";
 "patch.error.symlink" = "Đường dẫn patch không được đi qua liên kết tượng trưng.";
 "patch.error.apply" = "Không thể áp dụng patch. Mọi file đã ghi trước đó đã được rollback.";
 "patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.11, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";

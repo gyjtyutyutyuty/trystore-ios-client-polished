@@ -157,6 +157,7 @@ enum PatchPackageError: Error, Equatable {
     case remoteTargetMissing
     case remoteReplacementFailed(String)
     case appGroupMissing
+    case worseQueryUnavailable
 }
 
 extension PatchPackageError: LocalizedError {
@@ -184,6 +185,7 @@ extension PatchPackageError: LocalizedError {
         case .remoteTargetMissing: return "patch.error.remote_target_missing"
         case .remoteReplacementFailed: return "patch.error.remote_replacement_failed"
         case .appGroupMissing: return "patch.error.app_group_missing"
+        case .worseQueryUnavailable: return "patch.error.worse_query_unavailable"
         }
     }
 

@@ -217,6 +217,7 @@
 "patch.error.keychain" = "无法安全保存或读取已记住的解锁密钥。";
 "patch.error.app_unavailable" = "未安装应用 bundle %@，或无法打开该应用。未更改任何补丁文件。";
 "patch.error.app_group_missing" = "此 iOS 27 版本需要 App Group 权限才能应用补丁。请使用包含该权限的描述文件重新签名应用，然后重试。";
+"patch.error.worse_query_unavailable" = "App Group 已签名，但 worse_query 无法打开容器。请重启应用；若仍失败，请使用包含 App Group 的描述文件重新签名。";
 "patch.error.symlink" = "补丁目标路径不能经过符号链接。";
 "patch.error.apply" = "无法应用补丁。之前的所有写入均已回滚。";
 "patch.error.pairing_tunnel_required" = "在 iOS 18.7.2–18.7.11 上，应用或恢复补丁前请先连接 LocalDevVPN。";

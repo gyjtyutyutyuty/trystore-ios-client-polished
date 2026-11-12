@@ -257,6 +257,7 @@ enum PatchTransaction {
                 let parentGrant = ContainerStore.grantContainerAccess(
                     resolved.target.deletingLastPathComponent().path
                 )
+                log("patch: directory grant \(resolved.rule.bundleID)/\(resolved.relativePath) -> \(parentGrant)")
                 defer {
                     if parentGrant >= 0 { SandboxAccess.release(parentGrant) }
                 }
@@ -274,6 +275,7 @@ enum PatchTransaction {
                 let parentGrant = ContainerStore.grantContainerAccess(
                     resolved.target.deletingLastPathComponent().path
                 )
+                log("patch: target grant \(resolved.rule.bundleID)/\(resolved.rule.relativePath) -> \(parentGrant)")
                 defer {
                     if parentGrant >= 0 { SandboxAccess.release(parentGrant) }
                 }
@@ -517,6 +519,7 @@ enum PatchTransaction {
             let parentGrant = ContainerStore.grantContainerAccess(
                 target.deletingLastPathComponent().path
             )
+            log("patch: restore grant \(record.bundleID)/\(record.relativePath) -> \(parentGrant)")
             defer {
                 if parentGrant >= 0 { SandboxAccess.release(parentGrant) }
             }
