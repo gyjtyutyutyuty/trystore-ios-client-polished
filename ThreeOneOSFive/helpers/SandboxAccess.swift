@@ -4,8 +4,8 @@ import Foundation
 ///
 /// - `kernel`: the kexploit_opa334 chain and sandbox_escape, iOS 17 and 18.
 /// - `badQuery`: the sandbox grant used on iOS 26.0–26.6.1.
-/// - `worseQuery`: the worse_query escape for iOS 26.7–26.7.2, 27.0–27.2.1, and the
-///   experimental 27.3 beta 1 build.
+/// - `worseQuery`: the worse_query escape for iOS 26.7–26.7.2 and
+///   27.0–27.3 beta 1.
 /// - `unsupported`: nothing on this build; the app stays read-only.
 enum SandboxBackend: String {
     case kernel
@@ -60,6 +60,27 @@ enum SandboxAccess {
         case .unsupported:
             return false
         }
+    }
+
+    /// True when the current backend can reach Shared/SystemGroup containers
+    /// (MobileGestalt cache, ConfigurationProfiles, supervised-mode files).
+    /// worse_query grants those on 26.7+, and the kernel chain escapes the
+    /// sandbox entirely on 17/18. bad_query covers app containers only.
+    static var systemGroupWritable: Bool {
+        backend == .worseQuery || backend == .kernel
+    }
+
+    /// True when a feature needs a SystemGroup but the running backend cannot
+    /// provide one.
+    static var systemGroupFeaturesUnavailable: Bool {
+        !systemGroupWritable
+    }
+
+    /// iOS 27.0.1 cannot list the System Groups parent; callers that need it
+    /// probe the known container names instead.
+    static var systemGroupParentListable: Bool {
+        let version = AppInfo.versionTuple
+        return !(version.major == 27 && version.minor == 0 && version.patch == 1)
     }
 
     /// Heals an interrupted Library/Caches swap. Called once at launch.

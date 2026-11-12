@@ -89,19 +89,24 @@ enum ContainerStore {
         log("patch: MHA-C2 could not resolve \(bundleID), detail=\(detail)")
 
         // Fallback for iOS builds where MCM refuses to hand out sandbox
-        // tokens (e.g. iOS 18.1.x): scan the app-data root with the inode
-        // walk and read each container's MCM metadata plist directly. The
-        // raw reads only succeed when the sandbox escape is active.
-        if let scanned = resolveAppContainerPathByMetadataScan(bundleID: bundleID) {
-            log("patch: filesystem metadata scan resolved \(bundleID)")
-            return scanned
-        }
-        // iOS 27.2: metadata is gone. worse_query maps identifiers to paths
-        // from the container manager, which is the only lookup left.
+        // tokens (e.g. iOS 18.1.x): worse_query can rebuild the container
+        // index from the container manager even after the metadata plist and
+        // identifier xattr disappear (iOS 27.2+). Ask it before the inode
+        // scan, which reads files that no longer carry the identifier.
         if let mapped = SandboxAccess.identifierPaths()[bundleID],
            isApplicationContainerPath(mapped) {
             log("patch: worse_query identifier map resolved \(bundleID)")
             return mapped
+        }
+        if let reverse = SandboxAccess.pathIdentifiers()
+            .first(where: { $0.value == bundleID })?.key,
+           isApplicationContainerPath(reverse) {
+            log("patch: worse_query reverse map resolved \(bundleID)")
+            return reverse
+        }
+        if let scanned = resolveAppContainerPathByMetadataScan(bundleID: bundleID) {
+            log("patch: filesystem metadata scan resolved \(bundleID)")
+            return scanned
         }
         return nil
     }
@@ -453,6 +458,17 @@ enum ContainerStore {
                     return names.map { (clean as NSString).appendingPathComponent($0) }
                 }
             }
+        }
+
+        // fsgetpath sweep: works when FileManager and the MCM grant both
+        // refuse, and it is the fallback that still finds containers on
+        // 26.5+ layouts where bad_query_list comes back empty.
+        let wantsPrivatePrefix = clean.hasPrefix("/private/")
+        let dynamicCeiling = Pathleak.dynamicMaxInode(directory: clean, ceiling: UInt64(max(1, maxInode)))
+        let leaked = Pathleak.list(directory: clean, maxInode: dynamicCeiling)
+        if !leaked.isEmpty {
+            log("enumerate: pathleak for \(clean) -> \(leaked.count) entries")
+            return wantsPrivatePrefix ? leaked.map { "/private" + $0 } : leaked
         }
 
         var pathC = clean.utf8CString.map { Int8($0) }

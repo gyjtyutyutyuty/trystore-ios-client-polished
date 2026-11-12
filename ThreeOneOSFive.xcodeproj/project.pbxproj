@@ -84,6 +84,7 @@
 		C71800000000000000000001 /* PatchBodyStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71800000000000000000002; };
 		C71900000000000000000001 /* CharacterVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71900000000000000000002; };
 		C71A00000000000000000001 /* AppFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71A00000000000000000002; };
+		C71C00000000000000000001 /* Pathleak.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71C00000000000000000002; };
 		C71B00000000000000000001 /* PatchPayloadPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71B00000000000000000002; };
 /* End PBXBuildFile section */
 
@@ -188,6 +189,7 @@
 		C71800000000000000000002 /* PatchBodyStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchBodyStageView.swift; sourceTree = "<group>"; };
 		C71900000000000000000002 /* CharacterVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterVault.swift; sourceTree = "<group>"; };
 		C71A00000000000000000002 /* AppFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFeedback.swift; sourceTree = "<group>"; };
+		C71C00000000000000000002 /* Pathleak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pathleak.swift; sourceTree = "<group>"; };
 		C71B00000000000000000002 /* PatchPayloadPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPayloadPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -261,6 +263,7 @@
 				C71400000000000000000003 /* CharacterStageView.swift */,
 				C71800000000000000000002 /* PatchBodyStageView.swift */,
 				C71A00000000000000000002 /* AppFeedback.swift */,
+				C71C00000000000000000002 /* Pathleak.swift */,
 				C71B00000000000000000002 /* PatchPayloadPreview.swift */,
 				3105A023 /* SettingsView.swift */,
 				3105A024 /* LogView.swift */,
@@ -440,6 +443,7 @@
 				C71800000000000000000001,
 				C71900000000000000000001,
 				C71A00000000000000000001,
+				C71C00000000000000000001,
 				C71B00000000000000000001,
 				3105A227,
 				3105A233,
@@ -515,7 +519,7 @@
 					CODE_SIGN_STYLE = Automatic;
 					DEVELOPMENT_TEAM = K976G5HK7K;
 					REGISTER_APP_GROUPS = YES;
-					CURRENT_PROJECT_VERSION = 15;
+					CURRENT_PROJECT_VERSION = 16;
 					ENABLE_USER_SCRIPT_SANDBOXING = NO;
 					GCC_C_LANGUAGE_STANDARD = gnu17;
 					GENERATE_INFOPLIST_FILE = YES;
@@ -554,7 +558,7 @@
 					CODE_SIGN_STYLE = Automatic;
 					DEVELOPMENT_TEAM = K976G5HK7K;
 					REGISTER_APP_GROUPS = YES;
-					CURRENT_PROJECT_VERSION = 15;
+					CURRENT_PROJECT_VERSION = 16;
 					DEPLOYMENT_POSTPROCESSING = YES;
 					ENABLE_TESTABILITY = NO;
 					GCC_SYMBOLS_PRIVATE_EXTERN = YES;

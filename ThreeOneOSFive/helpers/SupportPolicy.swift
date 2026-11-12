@@ -26,7 +26,7 @@ enum ExploitSupportPolicy {
     static let verifiedIOS18Range = "18.0–18.7.1"
     static let verifiedIOS26BadQueryRange = "26.0–26.6.1"
     static let verifiedIOS26WorseQueryRange = "26.7–26.7.2"
-    static let verifiedIOS27Range = "27.0–27.2.1"
+    static let verifiedIOS27Range = "27.0–27.3 beta 1"
     static let experimentalIOS27Build = "24C5037i"
 
     static func buildCount(forMajor major: Int) -> Int {
