@@ -493,7 +493,7 @@ struct HomeView: View {
                 )
             }
 
-            if AppInfo.versionTuple.major >= 27 || DevicePatchService.requiresPairingTunnel {
+            if AppInfo.versionTuple.major >= 27 {
                 AppActionButton(
                     title: language.text(connectActionTitleKey),
                     icon: connectActionIcon,

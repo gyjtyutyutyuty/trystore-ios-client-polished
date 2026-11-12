@@ -69,6 +69,16 @@ enum ContainerStore {
         guard (try? PatchPathValidator.canonicalBundleIdentifier(bundleID)) == bundleID else {
             return nil
         }
+        // This process can always read its own data container, so a project
+        // that targets the app itself resolves without any container-manager
+        // lookup. Every other identifier falls through to the backends below.
+        if let ownBundleID = Bundle.main.bundleIdentifier, bundleID == ownBundleID {
+            let home = NSHomeDirectory()
+            if isApplicationContainerPath(home) {
+                log("patch: own container resolved \(bundleID)")
+                return home
+            }
+        }
         var lookupError: NSString?
         if let path = MCMActivateContainerPath(2, bundleID, false, &lookupError),
            isApplicationContainerPath(path) {

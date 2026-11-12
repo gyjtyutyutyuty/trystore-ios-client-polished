@@ -3,14 +3,14 @@
 <plist version="1.0">
 <dict>
     <!--
-      worse_query needs an App Group on iOS 26.7 and later. The value here is
-      a placeholder: the signing tool creates its own group and re-signs the
-      app, and worse_query reads whichever group it receives at runtime via
-      SecTaskCopyValueForEntitlement. A wildcard profile cannot carry this.
+      The App Group belongs to this app's own team prefix and must be enabled
+      for the bundle identifier in the provisioning profile — a wildcard
+      profile cannot carry it. The app resolves patch, backup and workspace
+      containers through its own data container and this group only.
     -->
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>group.com.apple.mobile.MobileHouseArrest</string>
+        <string>group.com.qingtang.3105</string>
     </array>
 </dict>
 </plist>

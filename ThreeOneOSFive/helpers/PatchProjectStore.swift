@@ -372,10 +372,6 @@ final class PatchProjectStore: ObservableObject {
         onSuccess: (@MainActor @Sendable (Bool) -> Void)? = nil
     ) {
         guard !isBusy else { return }
-        if DevicePatchService.requiresPairingTunnel, !LocalDevTunnelProbe.isConnected {
-            present(.pairingTunnelRequired)
-            return
-        }
 
         let resolvedGroup = group ?? Self.group(for: item)
 
