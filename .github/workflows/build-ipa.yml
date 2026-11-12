@@ -41,8 +41,35 @@ jobs:
         working-directory: ThreeOneOSFive/airlift-rust-core
         run: cargo check --locked
 
+  swift-build:
+    # A compile, not an archive: the Swift changes in this repo were only ever
+    # checked by eye before, and a typo should fail the push, not the release.
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Compile the app
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ThreeOneOSFive.xcodeproj \
+            -scheme SupportPatch \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
   build:
-    # Pushes only run the Rust check; the IPA needs a manual dispatch.
+    # Pushes run the Rust check and the Swift compile; the IPA needs a manual dispatch.
     if: github.event_name == 'workflow_dispatch'
     # macos-15 was terminating before checkout with no steps or logs.
     # macos-14 is the stable hosted image used for this unsigned build.
