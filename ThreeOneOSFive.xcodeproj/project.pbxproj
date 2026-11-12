@@ -78,6 +78,7 @@
 		C71400000000000000000004 /* CharacterStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000003; };
 		C71500000000000000000001 /* worse_query.m in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000003; };
 		C71500000000000000000002 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000005; };
+		C71500000000000000000007 /* PairingTunnelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000008; };
 		C71600000000000000000001 /* Hardening.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71600000000000000000002; };
 		C71700000000000000000001 /* PatchBundleKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71700000000000000000002; };
 		C71800000000000000000001 /* PatchBodyStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71800000000000000000002; };
@@ -180,6 +181,7 @@
 		C71500000000000000000003 /* worse_query.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = worse_query.m; sourceTree = "<group>"; };
 		C71500000000000000000004 /* worse_query.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = worse_query.h; sourceTree = "<group>"; };
 		C71500000000000000000005 /* SandboxAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxAccess.swift; sourceTree = "<group>"; };
+		C71500000000000000000008 /* PairingTunnelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingTunnelService.swift; sourceTree = "<group>"; };
 		C71500000000000000000006 /* ThreeOneOSFive.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ThreeOneOSFive.entitlements; sourceTree = "<group>"; };
 		C71600000000000000000002 /* Hardening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hardening.swift; sourceTree = "<group>"; };
 		C71700000000000000000002 /* PatchBundleKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchBundleKeyStore.swift; sourceTree = "<group>"; };
@@ -318,6 +320,7 @@
 				3105A107 /* AppIconHelper.h */,
 				3105A202 /* KernelExploit.swift */,
 				C71500000000000000000005 /* SandboxAccess.swift */,
+				C71500000000000000000008 /* PairingTunnelService.swift */,
 				C71600000000000000000002 /* Hardening.swift */,
 				C71700000000000000000002 /* PatchBundleKeyStore.swift */,
 				3105J202 /* DisplayIdentity.h */,
@@ -431,6 +434,7 @@
 				C71400000000000000000004,
 				C71500000000000000000001,
 				C71500000000000000000002,
+				C71500000000000000000007,
 				C71600000000000000000001,
 				C71700000000000000000001,
 				C71800000000000000000001,

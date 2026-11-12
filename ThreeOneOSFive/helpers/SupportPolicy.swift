@@ -165,15 +165,21 @@ enum ExploitSupportPolicy {
         major == 27 && minor == 3 && patch == 0 && build == experimentalIOS27Build
     }
 
+    /// The Airlift pairing tunnel is build-agnostic: it talks to lockdownd and
+    /// AirTraffic over a pairing record, not to kernel offsets. 18.7.2 moved
+    /// past the kexploit offsets, so the tunnel is what patches those builds.
+    static func supportsPairingTunnel(major: Int, minor: Int, patch: Int) -> Bool {
+        major == 18 && minor == 7 && patch >= 2
+    }
+
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
         if supportsKernelExploit(major: major, minor: minor, patch: patch) { return true }
         if supportsBadQuery(major: major, minor: minor, patch: patch) { return true }
         if supportsWorseQuery(major: major, minor: minor, patch: patch) { return true }
+        if supportsPairingTunnel(major: major, minor: minor, patch: patch) { return true }
         if isExperimental(major: major, minor: minor, patch: patch, build: build) {
             return true
         }
-        // Builds past the exploit ranges still work through the pairing
-        // tunnel; the enumerated list is the allowlist for those.
         return verifiedVersions.contains {
             $0.major == major && $0.minor == minor && $0.patch == patch && $0.builds.contains(build)
         }
@@ -187,14 +193,7 @@ enum ExploitSupportPolicy {
     }
 
     static func requiresPairingTunnel(major: Int, minor: Int, patch: Int, build: String) -> Bool {
-        if major >= 27 {
-            return true
-        }
-
-        return major == 18
-            && minor == 7
-            && (2...10).contains(patch)
-            && isSupported(major: major, minor: minor, patch: patch, build: build)
+        supportsPairingTunnel(major: major, minor: minor, patch: patch)
     }
 
     static func isKernelExploitSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
