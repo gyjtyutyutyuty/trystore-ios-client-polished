@@ -10,7 +10,7 @@
     -->
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>group.com.qingtang.3105</string>
+        <string>group.com.trystore.supportpatch</string>
     </array>
 </dict>
 </plist>

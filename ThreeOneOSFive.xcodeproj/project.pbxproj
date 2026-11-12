@@ -534,7 +534,7 @@
 					    "-lz",
 					    "-lc++",
 				    );
-				PRODUCT_BUNDLE_IDENTIFIER = "com.qingtang.3105";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.trystore.supportpatch";
 				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";
@@ -574,7 +574,7 @@
 					    "-lz",
 					    "-lc++",
 				    );
-				PRODUCT_BUNDLE_IDENTIFIER = "com.qingtang.3105";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.trystore.supportpatch";
 				PRODUCT_NAME = SupportPatch;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "ThreeOneOSFive/ThreeOneOSFive-Bridging-Header.h";

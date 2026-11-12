@@ -92,7 +92,7 @@ Unlisted builds are marked unsupported rather than assumed compatible. The iOS 1
 
 ## Installation notes
 
-- The bundle identifier is `com.qingtang.3105` and the App Group is `group.com.qingtang.3105`; the group must be enabled for that identifier in the provisioning profile, so a wildcard profile is not enough.
+- The bundle identifier is `com.trystore.supportpatch` and the App Group is `group.com.trystore.supportpatch`; the group must be enabled for that identifier in the provisioning profile, so a wildcard profile is not enough.
 - Device functionality requires signing with an **enterprise certificate**.
 - SideStore, AltStore, 3uTools, and LiveContainer are not supported installation paths.
 - Patch apply, restore, the file workspace and backups resolve the app's own data container and its App Group container only. Projects that target another app's container fail with a target-unavailable error instead of writing outside the sandbox.

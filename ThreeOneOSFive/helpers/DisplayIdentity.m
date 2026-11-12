@@ -23,7 +23,7 @@ NSURL *DisplayIdentityAttributionURL(void) {
 NSString *DisplayIdentityAttestationToken(void) {
     // Cheap attestation token derived from the same seed + bundle id.
     // Called from Swift at launch; if stripped, UI shows "attestation failed".
-    NSString *bid = [[NSBundle mainBundle] bundleIdentifier] ?: @"com.qingtang.3105";
+    NSString *bid = [[NSBundle mainBundle] bundleIdentifier] ?: @"com.trystore.supportpatch";
     NSString *base = decodedAttributionString();
     NSString *raw = [NSString stringWithFormat:@"%@|%@", bid, base];
     NSData *d = [raw dataUsingEncoding:NSUTF8StringEncoding];
