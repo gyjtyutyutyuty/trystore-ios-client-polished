@@ -60,6 +60,7 @@ final class PatchProjectStore: ObservableObject {
     /// Bundle identifiers this device cannot resolve, per package, surfaced in
     /// the library before an apply has a chance to fail.
     @Published private(set) var unavailableTargets: [UUID: [String]] = [:]
+    private var availabilityTask: Task<Void, Never>?
     @Published private(set) var isBusy = false
     @Published private(set) var operationProgress: Double = 0
     @Published var passwordRequest: PatchPasswordRequest?
@@ -148,10 +149,15 @@ final class PatchProjectStore: ObservableObject {
         refreshTargetAvailability()
     }
 
+    deinit {
+        availabilityTask?.cancel()
+    }
+
     /// Resolution is heavy on iOS 27 (container-manager map plus a metadata
-    /// scan), so it runs off the main actor and the result replaces the whole
-    /// map on each reload.
+    /// scan), so one task per store runs it off the main actor; a reload cancels
+    /// the previous pass instead of stacking another.
     private func refreshTargetAvailability() {
+        availabilityTask?.cancel()
         let snapshot: [(UUID, [String])] = items.compactMap { item in
             guard let project = item.project else { return nil }
             return (item.id, project.allBundleIdentifiers)
@@ -160,11 +166,15 @@ final class PatchProjectStore: ObservableObject {
             unavailableTargets = [:]
             return
         }
-        Task.detached(priority: .utility) { [weak self] in
+        availabilityTask = Task.detached(priority: .utility) { [weak self] in
             var missing: [UUID: [String]] = [:]
             for (id, bundleIDs) in snapshot {
-                let unresolved = bundleIDs.filter {
-                    ContainerStore.resolveAppContainerPath(bundleID: $0) == nil
+                var unresolved: [String] = []
+                for bundleID in bundleIDs {
+                    if Task.isCancelled { return }
+                    if ContainerStore.resolveAppContainerPath(bundleID: bundleID) == nil {
+                        unresolved.append(bundleID)
+                    }
                 }
                 if !unresolved.isEmpty { missing[id] = unresolved }
             }
