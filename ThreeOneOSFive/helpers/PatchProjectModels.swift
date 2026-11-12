@@ -156,6 +156,7 @@ enum PatchPackageError: Error, Equatable {
     case pairingFileImportRequired
     case remoteTargetMissing
     case remoteReplacementFailed(String)
+    case appGroupMissing
 }
 
 extension PatchPackageError: LocalizedError {
@@ -182,6 +183,7 @@ extension PatchPackageError: LocalizedError {
         case .pairingFileImportRequired: return "patch.error.pairing_file_import_required"
         case .remoteTargetMissing: return "patch.error.remote_target_missing"
         case .remoteReplacementFailed: return "patch.error.remote_replacement_failed"
+        case .appGroupMissing: return "patch.error.app_group_missing"
         }
     }
 

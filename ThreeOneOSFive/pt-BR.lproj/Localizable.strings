@@ -50,7 +50,7 @@
 "settings.exploit_unverified" = "Não verificado";
 
 "patch.error.wrong_password" = "Senha incorreta.";
-"patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.10 e iOS 27+, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
+"patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.11, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
 "activate_all_patches" = "Ativar Todos";
 "deactivate_all_patches" = "Desativar Todos";
 "patch.operation_in_progress" = "Processando patch…";
@@ -443,6 +443,7 @@
 "patch.error.replacement_required" = "Escolha um arquivo de substituição para cada caminho de destino antes de salvar.";
 "patch.error.keychain" = "A chave de desbloqueio lembrada não pôde ser salva ou lida com segurança.";
 "patch.error.app_unavailable" = "O pacote do app %@ não está instalado ou não pode ser aberto. Nenhum arquivo de patch foi alterado.";
+"patch.error.app_group_missing" = "Os patches nesta versão do iOS 27 precisam do entitlement App Group. Assine o app novamente com um perfil que o inclua e aplique outra vez.";
 "patch.error.symlink" = "Os destinos do patch não podem passar por links simbólicos.";
 "patch.error.apply" = "O patch não pôde ser aplicado. As gravações anteriores foram revertidas.";
 "patch.error.restore" = "Os originais não puderam ser restaurados com segurança. Nenhum destino não verificado foi sobrescrito.";

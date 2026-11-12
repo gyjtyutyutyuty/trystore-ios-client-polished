@@ -148,15 +148,15 @@ enum ExploitSupportPolicy {
         return minor < 6 || (minor == 6 && patch <= 1)
     }
 
-    /// worse_query covers iOS 26.7–26.7.2 and 27.0–27.2. The 27.3 beta 1
-    /// build is handled as experimental rather than as a stable range.
+    /// worse_query covers iOS 26.7–26.7.2 and all of 27.0–27.3. Every 27.x
+    /// build patches locally; there is no tunnel fallback on that range.
     static func supportsWorseQuery(major: Int, minor: Int, patch: Int) -> Bool {
         guard minor >= 0, patch >= 0 else { return false }
         if major == 26 {
             return minor == 7 && patch <= 2
         }
         if major == 27 {
-            return minor < 2 || (minor == 2 && patch <= 1)
+            return minor <= 3
         }
         return false
     }
@@ -168,16 +168,9 @@ enum ExploitSupportPolicy {
     /// The Airlift pairing tunnel is build-agnostic: it talks to lockdownd and
     /// AirTraffic over a pairing record, not to kernel offsets. 18.7.2 moved
     /// past the kexploit offsets, so the tunnel is what patches those builds.
-    /// iOS 27 keeps it as the fallback when worse_query cannot probe because
-    /// the signing profile carries no App Group.
+    /// iOS 27 has its own local backend (worse_query) and never routes here.
     static func supportsPairingTunnel(major: Int, minor: Int, patch: Int) -> Bool {
-        if major == 18 {
-            return minor == 7 && patch >= 2
-        }
-        if major >= 27 {
-            return true
-        }
-        return false
+        major == 18 && minor == 7 && patch >= 2
     }
 
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {

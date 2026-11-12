@@ -214,9 +214,10 @@
 "patch.error.replacement_required" = "Hãy chọn tệp thay thế cho mọi đường dẫn đích trước khi lưu.";
 "patch.error.keychain" = "Không thể lưu hoặc đọc khóa mở gói một cách an toàn.";
 "patch.error.app_unavailable" = "Bundle app %@ chưa được cài hoặc không thể mở. Patch chưa thay đổi file nào.";
+"patch.error.app_group_missing" = "Bản iOS 27 này cần entitlement App Group để vá. Hãy ký lại ứng dụng bằng hồ sơ có entitlement này rồi áp dụng lại.";
 "patch.error.symlink" = "Đường dẫn patch không được đi qua liên kết tượng trưng.";
 "patch.error.apply" = "Không thể áp dụng patch. Mọi file đã ghi trước đó đã được rollback.";
-"patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.10 và iOS 27+, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";
+"patch.error.pairing_tunnel_required" = "Trên iOS 18.7.2–18.7.11, hãy kết nối LocalDevVPN trước khi áp dụng hoặc khôi phục patch.";
 "activate_all_patches" = "Kích hoạt tất cả";
 "deactivate_all_patches" = "Tắt tất cả";
 "patch.operation_in_progress" = "Đang xử lý patch…";

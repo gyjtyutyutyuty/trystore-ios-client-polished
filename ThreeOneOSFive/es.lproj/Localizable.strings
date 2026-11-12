@@ -50,7 +50,7 @@
 "settings.exploit_unverified" = "Sin verificar";
 
 "patch.error.wrong_password" = "Contraseña incorrecta.";
-"patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.10 y iOS 27+, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
+"patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.11, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
 "patch.operation_in_progress" = "Procesando parche…";
 "patch.error.pairing_file_missing" = "No hay un archivo de emparejamiento. Empareja este iPhone o importa uno primero.";
 "patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 no admite el emparejamiento directo. Importa un archivo de emparejamiento primero.";
@@ -443,6 +443,7 @@
 "patch.error.replacement_required" = "Elige un archivo de reemplazo para cada ruta de destino antes de guardar.";
 "patch.error.keychain" = "No se pudo guardar o leer de forma segura la clave de desbloqueo recordada.";
 "patch.error.app_unavailable" = "El paquete de la app %@ no está instalado o no se puede abrir. No se cambió ningún archivo del parche.";
+"patch.error.app_group_missing" = "Los parches en esta versión de iOS 27 necesitan el entitlement App Group. Vuelve a firmar la app con un perfil que lo incluya y aplica de nuevo.";
 "patch.error.symlink" = "Los destinos del parche no pueden pasar por enlaces simbólicos.";
 "patch.error.apply" = "No se pudo aplicar el parche. Se revirtieron las escrituras anteriores.";
 "activate_all_patches" = "Activar todo";

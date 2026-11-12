@@ -5,6 +5,7 @@ enum DevicePatchService {
         project: PatchProject,
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) throws -> PatchTransactionReceipt {
+        try requireAppGroupIfNeeded()
         let bundleIDs = orderedBundleIdentifiers(in: project)
         let useTunnel = usesPairingTunnel
         log("patch: apply route \(useTunnel ? "pairing tunnel" : "local sandbox")")
@@ -43,6 +44,7 @@ enum DevicePatchService {
         receipt: PatchTransactionReceipt,
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) throws {
+        try requireAppGroupIfNeeded()
         let bundleIDs = try PatchTransaction.requiredBundleIdentifiers(for: receipt)
         let useTunnel = usesPairingTunnel
         log("patch: restore route \(useTunnel ? "pairing tunnel" : "local sandbox")")
@@ -104,10 +106,20 @@ enum DevicePatchService {
         case .kernel, .badQuery:
             return false
         case .worseQuery:
-            return tunnelSupported && !KernelExploit.hasSandboxAccess()
+            // iOS 27 patches only run locally; a failed probe is reported as a
+            // missing App Group, never as a reason to open the tunnel.
+            return false
         case .unsupported:
             return tunnelSupported
         }
+    }
+
+    /// worse_query cannot start without the App Group the signer must carry.
+    /// Say that plainly instead of failing later at container resolution.
+    private static func requireAppGroupIfNeeded() throws {
+        guard SandboxAccess.backend == .worseQuery else { return }
+        guard !SandboxAccess.hasAppGroup else { return }
+        throw PatchPackageError.appGroupMissing
     }
 
     private struct PairingRemoteContext {
