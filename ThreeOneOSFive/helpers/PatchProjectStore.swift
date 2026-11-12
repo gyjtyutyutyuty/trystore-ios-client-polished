@@ -178,7 +178,7 @@ final class PatchProjectStore: ObservableObject {
                 }
                 if !unresolved.isEmpty { missing[id] = unresolved }
             }
-            await MainActor.run {
+            await MainActor.run { [missing] in
                 self?.unavailableTargets = missing
             }
         }
