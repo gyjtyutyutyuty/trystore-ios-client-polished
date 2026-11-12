@@ -89,10 +89,14 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     }
 
     private func configure() {
+        let constrained = AppPerformance.isConstrained
         backgroundColor = .clear
         isOpaque = false
-        antialiasingMode = .multisampling4X
-        preferredFramesPerSecond = 60
+        // A 2–3 GB phone fills the hero at 60 fps with 4x MSAA, HDR and PBR.
+        // The lean path keeps the silhouette and drops the per-pixel work.
+        antialiasingMode = constrained ? .none : .multisampling4X
+        preferredFramesPerSecond = constrained ? 30 : 60
+        contentScaleFactor = constrained ? min(UIScreen.main.scale, 2) : UIScreen.main.scale
         rendersContinuously = false
         isPlaying = false
         allowsCameraControl = false
@@ -114,7 +118,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         camera.fieldOfView = 30
         camera.zNear = 0.01
         camera.zFar = 100
-        camera.wantsHDR = true
+        camera.wantsHDR = !constrained
         camera.wantsExposureAdaptation = false
         cameraNode.camera = camera
         cameraNode.position = SCNVector3(0, 0, 2.2)
@@ -249,13 +253,14 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     }
 
     private func prepare(_ root: SCNNode) {
+        let constrained = AppPerformance.isConstrained
         root.enumerateHierarchy { node, _ in
             guard let geometry = node.geometry else { return }
             for material in geometry.materials {
                 material.isDoubleSided = true
-                material.lightingModel = .physicallyBased
+                material.lightingModel = constrained ? .blinn : .physicallyBased
                 material.diffuse.intensity = 1.0
-                material.metalness.contents = NSNumber(value: 0.03)
+                material.metalness.contents = NSNumber(value: constrained ? 0 : 0.03)
                 material.roughness.contents = NSNumber(value: 0.68)
             }
         }
@@ -335,13 +340,17 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         SCNTransaction.animationDuration = 0.42
         root.opacity = 1
         SCNTransaction.commit()
+        setNeedsDisplay()
     }
 
     private func updateDisplayLink() {
-        let shouldRun = isActive && window != nil
+        // A fixed pose (the patch body map) only needs frames while a finger is
+        // turning it. The old link kept rendering a still image at 60 fps.
+        let isAnimating = turntable && !reduceMotion
+        let shouldRun = isActive && window != nil && (isAnimating || isDragging)
         if shouldRun, displayLink == nil {
             let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
-            link.preferredFramesPerSecond = 60
+            link.preferredFramesPerSecond = AppPerformance.isConstrained ? 30 : 60
             link.add(to: .main, forMode: .common)
             displayLink = link
             lastTimestamp = 0
@@ -389,6 +398,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         case .began:
             isDragging = true
             idleTime = 0
+            updateDisplayLink()
         case .changed:
             let translation = pan.translation(in: self)
             pan.setTranslation(.zero, in: self)
@@ -397,6 +407,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         case .ended, .cancelled, .failed:
             isDragging = false
             idleTime = 0
+            updateDisplayLink()
         default:
             break
         }

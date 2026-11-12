@@ -38,6 +38,31 @@ enum AppSpacing {
     static let screenInset: CGFloat = 20
 }
 
+/// The tier below "everything animates". A 2–3 GB or low-core phone spends its
+/// frame budget on the SceneKit stage, so the interface drops continuous tilt,
+/// multi-sample AA and the reveal blur before it drops frames.
+enum AppPerformance {
+    static var isConstrained: Bool {
+        let info = ProcessInfo.processInfo
+        if info.isLowPowerModeEnabled { return true }
+        if info.physicalMemory <= 3 * 1_024 * 1_024 * 1_024 { return true }
+        if info.processorCount <= 5 { return true }
+        return false
+    }
+}
+
+private struct AppPerformanceModeKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// True when the hardware or Low Power Mode asks for the lean render path.
+    var appPerformanceMode: Bool {
+        get { self[AppPerformanceModeKey.self] }
+        set { self[AppPerformanceModeKey.self] = newValue }
+    }
+}
+
 enum AppRadius {
     static let chip: CGFloat = 10
     static let control: CGFloat = 18
@@ -125,16 +150,19 @@ struct AppPremiumBackdrop: View {
 
 struct AppCinematicReveal: ViewModifier {
     @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
     @State private var isVisible = false
     let delay: Double
 
+    private var isInstant: Bool { reduceMotion || performanceMode }
+
     func body(content: Content) -> some View {
         content
-            .opacity(isVisible || reduceMotion ? 1 : 0)
-            .offset(y: !isVisible && !reduceMotion ? 14 : 0)
-            .blur(radius: !isVisible && !reduceMotion ? 4 : 0)
+            .opacity(isVisible || isInstant ? 1 : 0)
+            .offset(y: !isVisible && !isInstant ? 14 : 0)
+            .blur(radius: !isVisible && !isInstant ? 4 : 0)
             .onAppear {
-                guard !reduceMotion else {
+                guard !isInstant else {
                     isVisible = true
                     return
                 }
@@ -166,6 +194,7 @@ final class DeviceTiltMotion: ObservableObject {
 
     func start() {
         guard !isRunning, motionManager.isDeviceMotionAvailable else { return }
+        guard !AppPerformance.isConstrained else { return }
         isRunning = true
         motionManager.deviceMotionUpdateInterval = 1.0 / 30.0
         motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] motion, error in
@@ -237,12 +266,14 @@ enum AppDepthMetrics {
 struct AppDepthMotion: ViewModifier {
     @EnvironmentObject private var deviceTilt: DeviceTiltMotion
     @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
 
     let travel: CGFloat
     let rotation: CGFloat
 
-    private var roll: CGFloat { reduceMotion ? 0 : CGFloat(deviceTilt.roll) }
-    private var pitch: CGFloat { reduceMotion ? 0 : CGFloat(deviceTilt.pitch) }
+    private var isStatic: Bool { reduceMotion || performanceMode }
+    private var roll: CGFloat { isStatic ? 0 : CGFloat(deviceTilt.roll) }
+    private var pitch: CGFloat { isStatic ? 0 : CGFloat(deviceTilt.pitch) }
 
     func body(content: Content) -> some View {
         content
@@ -260,8 +291,8 @@ struct AppDepthMotion: ViewModifier {
                 x: roll * AppDepthMetrics.maxTravel * travel,
                 y: pitch * -AppDepthMetrics.maxTravel * 0.6 * travel
             )
-            .animation(reduceMotion ? nil : .linear(duration: AppDepthMetrics.follow), value: deviceTilt.roll)
-            .animation(reduceMotion ? nil : .linear(duration: AppDepthMetrics.follow), value: deviceTilt.pitch)
+            .animation(isStatic ? nil : .linear(duration: AppDepthMetrics.follow), value: deviceTilt.roll)
+            .animation(isStatic ? nil : .linear(duration: AppDepthMetrics.follow), value: deviceTilt.pitch)
     }
 }
 
@@ -305,12 +336,18 @@ enum PatchAudioFeedback {
 
 struct AppPressButtonStyle: ButtonStyle {
     @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion && !performanceMode ? 0.985 : 1)
             .brightness(configuration.isPressed ? 0.02 : 0)
-            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: configuration.isPressed)
+            .animation(
+                reduceMotion || performanceMode
+                    ? nil
+                    : .spring(response: 0.28, dampingFraction: 0.82),
+                value: configuration.isPressed
+            )
     }
 }
 
@@ -735,6 +772,7 @@ struct AppSkeleton: View {
     var radius: CGFloat = AppRadius.tile
 
     @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
     @State private var sweep: CGFloat = -0.6
 
     var body: some View {
@@ -759,7 +797,7 @@ struct AppSkeleton: View {
                     .stroke(AppPalette.hairline.opacity(0.55), lineWidth: 1)
             )
             .onAppear {
-                guard !reduceMotion else { return }
+                guard !reduceMotion, !performanceMode else { return }
                 withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
                     sweep = 1.4
                 }

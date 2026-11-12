@@ -35,6 +35,7 @@ struct ThreeOneOSFiveApp: App {
     @State private var showOnboarding = OnboardingStore.shouldShow()
     @State private var showAttribution = false
     @State private var showLaunchReveal = true
+    @State private var performanceMode = AppPerformance.isConstrained
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("settings_reduce_motion_enabled") private var appReduceMotionEnabled = false
@@ -102,13 +103,14 @@ struct ThreeOneOSFiveApp: App {
             .environmentObject(fileOperationCoordinator)
             .environmentObject(deviceTiltMotion)
             .environment(\.appReduceMotion, effectiveReduceMotion)
+            .environment(\.appPerformanceMode, performanceMode)
             .environment(\.appLanguage, language)
             .environment(\.locale, language.locale)
             // The design system scales with the user's text size now; the clamp
             // keeps 44 pt hit targets and gauge rings intact at the extremes.
             .dynamicTypeSize(.xSmall ... .accessibility1)
             .overlay {
-                if showLaunchReveal && !effectiveReduceMotion {
+                if showLaunchReveal && !effectiveReduceMotion && !performanceMode {
                     LaunchRevealView()
                         .transition(.opacity)
                         .zIndex(20)
@@ -125,14 +127,14 @@ struct ThreeOneOSFiveApp: App {
                 appState.recordLaunch()
                 appState.refreshThermalState()
                 appState.evaluateRuntimeSecurity()
-                if scenePhase == .active && !effectiveReduceMotion {
+                if scenePhase == .active && !effectiveReduceMotion && !performanceMode {
                     deviceTiltMotion.start()
                 }
                 if !showOnboarding {
                     licenseManager.beginLaunchSession()
                     appState.detectSupport()
                 }
-                if effectiveReduceMotion {
+                if effectiveReduceMotion || performanceMode {
                     showLaunchReveal = false
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
@@ -146,7 +148,7 @@ struct ThreeOneOSFiveApp: App {
                 appState.refreshThermalState()
             }
             .onChange(of: scenePhase) { phase in
-                if phase == .active && !effectiveReduceMotion {
+                if phase == .active && !effectiveReduceMotion && !performanceMode {
                     deviceTiltMotion.start()
                 } else {
                     deviceTiltMotion.stop()
@@ -161,9 +163,19 @@ struct ThreeOneOSFiveApp: App {
             .onChange(of: effectiveReduceMotion) { isReduced in
                 if isReduced {
                     deviceTiltMotion.stop()
-                } else if scenePhase == .active {
+                } else if scenePhase == .active && !performanceMode {
                     deviceTiltMotion.start()
                 }
+            }
+            .onChange(of: performanceMode) { isConstrained in
+                if isConstrained {
+                    deviceTiltMotion.stop()
+                } else if scenePhase == .active && !effectiveReduceMotion {
+                    deviceTiltMotion.start()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)) { _ in
+                performanceMode = AppPerformance.isConstrained
             }
             .task {
                 while !Task.isCancelled {

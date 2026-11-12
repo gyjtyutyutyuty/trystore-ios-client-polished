@@ -101,7 +101,9 @@ struct HomeView: View {
                             topBarHome.appCinematicReveal(delay: 0.02)
                             heroHome(size: heroDimensions).appCinematicReveal(delay: 0.08)
                             pipelineHome.appCinematicReveal(delay: 0.13)
-                            connectionPanelHome.appCinematicReveal(delay: 0.16)
+                            if requiresPairingTunnel {
+                                connectionPanelHome.appCinematicReveal(delay: 0.16)
+                            }
                             deviceSectionHome.appCinematicReveal(delay: 0.20)
                             footerHome.appCinematicReveal(delay: 0.30)
                         }
@@ -164,6 +166,10 @@ struct HomeView: View {
             patchStore.reload()
         }
         .task {
+            guard requiresPairingTunnel else {
+                isTunnelConnected = false
+                return
+            }
             while !Task.isCancelled {
                 isTunnelConnected = LocalDevTunnelProbe.isConnected
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
@@ -367,24 +373,35 @@ struct HomeView: View {
     /// the user has to open Settings.
     private var pipelineHome: some View {
         HStack(alignment: .top, spacing: 0) {
-            pipelineNode(
-                icon: "iphone.gen3",
-                key: "settings.pairing",
-                done: isPairingReady
-            )
-            pipelineLink(done: isPairingReady)
-            pipelineNode(
-                icon: "network",
-                key: "settings.tunnel",
-                done: tunnelConnected,
-                enabled: isPairingReady
-            )
-            pipelineLink(done: tunnelConnected)
+            if requiresPairingTunnel {
+                pipelineNode(
+                    icon: "iphone.gen3",
+                    key: "settings.pairing",
+                    done: isPairingReady
+                )
+                pipelineLink(done: isPairingReady)
+                pipelineNode(
+                    icon: "network",
+                    key: "settings.tunnel",
+                    done: tunnelConnected,
+                    enabled: isPairingReady
+                )
+                pipelineLink(done: tunnelConnected)
+            } else {
+                // This build patches locally; the tunnel is not a step and the
+                // rail must not imply the user is missing one.
+                pipelineNode(
+                    icon: "iphone.gen3",
+                    key: "common.device",
+                    done: true
+                )
+                pipelineLink(done: true)
+            }
             pipelineNode(
                 icon: "checkmark.shield.fill",
-                key: "dashboard.kernel_status",
+                key: requiresPairingTunnel ? "dashboard.kernel_status" : "settings.supported",
                 done: appState.isSupported,
-                enabled: tunnelConnected
+                enabled: requiresPairingTunnel ? tunnelConnected : true
             )
             pipelineLink(done: appState.isSupported)
             pipelineNode(
@@ -444,6 +461,12 @@ struct HomeView: View {
 
     private var tunnelConnected: Bool {
         isTunnelConnected == true
+    }
+
+    /// True only on 18.7.2–18.7.10, the range where patching has no local
+    /// backend. Everything else must not be shown a VPN step it cannot use.
+    private var requiresPairingTunnel: Bool {
+        DevicePatchService.usesPairingTunnel
     }
 
     private var tunnelStatusKeyHome: String {
@@ -868,6 +891,8 @@ private struct PlatinumExpiryCard: View {
     let expirationDate: Date?
     let isActive: Bool
 
+    @Environment(\.appPerformanceMode) private var performanceMode
+
     var body: some View {
         HStack(spacing: 11) {
             ZStack {
@@ -901,7 +926,10 @@ private struct PlatinumExpiryCard: View {
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
                         .fixedSize(horizontal: false, vertical: true)
-                    TimelineView(.periodic(from: Date(), by: 1)) { context in
+                    // One tick per second is a new body evaluation every second
+                    // on the patching screen. Constrained devices read the same
+                    // countdown at a coarser cadence instead of losing frames.
+                    TimelineView(.periodic(from: Date(), by: performanceMode ? 30 : 1)) { context in
                         Text(countdown(to: expirationDate, now: context.date))
                             .font(AppType.digits(10))
                             .foregroundStyle(AppPalette.textSecondary)
@@ -923,13 +951,17 @@ private struct PlatinumExpiryCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func expiryStamp(_ date: Date) -> String {
+    private static let expiryFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         formatter.timeZone = .current
         formatter.dateStyle = .full
         formatter.timeStyle = .long
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func expiryStamp(_ date: Date) -> String {
+        Self.expiryFormatter.string(from: date)
     }
 
     private func countdown(to expiry: Date, now: Date) -> String {
@@ -2796,8 +2828,12 @@ private struct PatchesView: View {
             .padding(.bottom, AppSpacing.m)
         }
         .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 540)
-        .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
+        .background(AppPalette.surface, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
+                .strokeBorder(AppPalette.hairline.opacity(0.5), lineWidth: 1)
+        }
+        .appDepthLayer(.card)
     }
 
     private func selectPatchZone(_ zone: PatchAimZone?) {

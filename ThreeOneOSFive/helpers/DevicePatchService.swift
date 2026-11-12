@@ -1,10 +1,18 @@
 import Foundation
 
 enum DevicePatchService {
+    /// `latestReceipt` is read from every patch card and every bus segment on
+    /// each SwiftUI pass. A cold read enumerates the backup tree and parses a
+    /// journal per transaction, so the answer is cached until an apply or
+    /// restore invalidates it.
+    private static var receiptCache: [UUID: PatchTransactionReceipt?] = [:]
+    private static let receiptCacheLock = NSLock()
+
     static func apply(
         project: PatchProject,
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) throws -> PatchTransactionReceipt {
+        defer { invalidateReceiptCache() }
         try requireAppGroupIfNeeded()
         let bundleIDs = orderedBundleIdentifiers(in: project)
         let useTunnel = usesPairingTunnel
@@ -44,6 +52,7 @@ enum DevicePatchService {
         receipt: PatchTransactionReceipt,
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) throws {
+        defer { invalidateReceiptCache() }
         try requireAppGroupIfNeeded()
         let bundleIDs = try PatchTransaction.requiredBundleIdentifiers(for: receipt)
         let useTunnel = usesPairingTunnel
@@ -79,8 +88,30 @@ enum DevicePatchService {
     }
 
     static func latestReceipt(projectID: UUID) -> PatchTransactionReceipt? {
-        guard let backupRoot = try? PatchProjectLibrary.backupRootURL() else { return nil }
-        return PatchTransaction.latestReceipt(projectID: projectID, backupRoot: backupRoot)
+        receiptCacheLock.lock()
+        if let cached = receiptCache[projectID] {
+            receiptCacheLock.unlock()
+            return cached
+        }
+        receiptCacheLock.unlock()
+
+        guard let backupRoot = try? PatchProjectLibrary.backupRootURL() else {
+            receiptCacheLock.lock()
+            receiptCache.updateValue(nil, forKey: projectID)
+            receiptCacheLock.unlock()
+            return nil
+        }
+        let receipt = PatchTransaction.latestReceipt(projectID: projectID, backupRoot: backupRoot)
+        receiptCacheLock.lock()
+        receiptCache.updateValue(receipt, forKey: projectID)
+        receiptCacheLock.unlock()
+        return receipt
+    }
+
+    static func invalidateReceiptCache() {
+        receiptCacheLock.lock()
+        receiptCache.removeAll(keepingCapacity: true)
+        receiptCacheLock.unlock()
     }
 
     private static func orderedBundleIdentifiers(in project: PatchProject) -> [String] {
