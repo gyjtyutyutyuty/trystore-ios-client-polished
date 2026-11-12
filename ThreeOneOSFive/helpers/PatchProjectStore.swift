@@ -57,6 +57,9 @@ enum FreeFireGame: Hashable {
 @MainActor
 final class PatchProjectStore: ObservableObject {
     @Published private(set) var items: [PatchLibraryItem] = []
+    /// Bundle identifiers this device cannot resolve, per package, surfaced in
+    /// the library before an apply has a chance to fail.
+    @Published private(set) var unavailableTargets: [UUID: [String]] = [:]
     @Published private(set) var isBusy = false
     @Published private(set) var operationProgress: Double = 0
     @Published var passwordRequest: PatchPasswordRequest?
@@ -142,6 +145,33 @@ final class PatchProjectStore: ObservableObject {
 
     func reload() {
         items = PatchProjectLibrary.load()
+        refreshTargetAvailability()
+    }
+
+    /// Resolution is heavy on iOS 27 (container-manager map plus a metadata
+    /// scan), so it runs off the main actor and the result replaces the whole
+    /// map on each reload.
+    private func refreshTargetAvailability() {
+        let snapshot: [(UUID, [String])] = items.compactMap { item in
+            guard let project = item.project else { return nil }
+            return (item.id, project.allBundleIdentifiers)
+        }
+        guard !snapshot.isEmpty else {
+            unavailableTargets = [:]
+            return
+        }
+        Task.detached(priority: .utility) { [weak self] in
+            var missing: [UUID: [String]] = [:]
+            for (id, bundleIDs) in snapshot {
+                let unresolved = bundleIDs.filter {
+                    ContainerStore.resolveAppContainerPath(bundleID: $0) == nil
+                }
+                if !unresolved.isEmpty { missing[id] = unresolved }
+            }
+            await MainActor.run {
+                self?.unavailableTargets = missing
+            }
+        }
     }
 
     func create(project: PatchProject, password: String?) {

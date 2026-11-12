@@ -220,7 +220,8 @@
 "patch.error.replacement_required" = "Choose a replacement file for every target path before saving.";
 "patch.error.keychain" = "The remembered unlock key could not be saved or read securely.";
 "patch.error.app_unavailable" = "The app bundle %@ is not installed or cannot be opened. No patch files were changed.";
-"patch.error.app_group_missing" = "Patches on this iOS 27 build need the App Group entitlement. Re-sign the app with a provisioning profile that includes it, then apply again.";
+"patch.error.app_group_missing" = "Patches on this iOS 27 build need the App Group group.com.trystore.supportpatch. Re-sign the app with a provisioning profile that includes it, then apply again.";
+"patch.target_unavailable" = "Not installed: %@";
 "patch.error.worse_query_unavailable" = "The App Group is signed in, but worse_query could not open a container. Restart the app; if it keeps failing, re-sign with a profile that carries the App Group.";
 "patch.error.symlink" = "Patch targets cannot pass through symbolic links.";
 "patch.error.apply" = "The patch could not be applied. Any earlier writes were rolled back.";

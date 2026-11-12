@@ -443,7 +443,8 @@
 "patch.error.replacement_required" = "Elige un archivo de reemplazo para cada ruta de destino antes de guardar.";
 "patch.error.keychain" = "No se pudo guardar o leer de forma segura la clave de desbloqueo recordada.";
 "patch.error.app_unavailable" = "El paquete de la app %@ no está instalado o no se puede abrir. No se cambió ningún archivo del parche.";
-"patch.error.app_group_missing" = "Los parches en esta versión de iOS 27 necesitan el entitlement App Group. Vuelve a firmar la app con un perfil que lo incluya y aplica de nuevo.";
+"patch.error.app_group_missing" = "Los parches en esta versión de iOS 27 necesitan el App Group group.com.trystore.supportpatch. Vuelve a firmar la app con un perfil que lo incluya y aplica de nuevo.";
+"patch.target_unavailable" = "No instalada: %@";
 "patch.error.worse_query_unavailable" = "El App Group está firmado, pero worse_query no pudo abrir un contenedor. Reinicia la app; si sigue fallando, vuelve a firmar con un perfil que incluya el App Group.";
 "patch.error.symlink" = "Los destinos del parche no pueden pasar por enlaces simbólicos.";
 "patch.error.apply" = "No se pudo aplicar el parche. Se revirtieron las escrituras anteriores.";

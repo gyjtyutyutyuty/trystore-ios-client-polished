@@ -400,7 +400,12 @@ struct PatchProjectsView: View {
                 AppHaptics.tap()
                 store.requestUnlock(for: item)
             } label: {
-                PatchProjectTile(item: item, language: language, isSelected: false)
+                PatchProjectTile(
+                    item: item,
+                    language: language,
+                    isSelected: false,
+                    unavailable: store.unavailableTargets[item.id] ?? []
+                )
             }
             .buttonStyle(AppPressButtonStyle())
             .contextMenu { deleteButton(for: item) }
@@ -415,7 +420,12 @@ struct PatchProjectsView: View {
                     }
                 }
             } label: {
-                PatchProjectTile(item: item, language: language, isSelected: selectedID == item.id)
+                PatchProjectTile(
+                    item: item,
+                    language: language,
+                    isSelected: selectedID == item.id,
+                    unavailable: store.unavailableTargets[item.id] ?? []
+                )
             }
             .buttonStyle(AppPressButtonStyle())
             .contextMenu { deleteButton(for: item) }
@@ -456,6 +466,7 @@ private struct PatchProjectTile: View {
     let item: PatchLibraryItem
     let language: AppLanguage
     var isSelected: Bool = false
+    var unavailable: [String] = []
 
     private var zone: PatchAimZone {
         PatchAimZone.resolve(
@@ -509,6 +520,17 @@ private struct PatchProjectTile: View {
                     .font(AppType.meta())
                     .foregroundStyle(AppPalette.textTertiary)
                     .lineLimit(1)
+            }
+
+            if !unavailable.isEmpty {
+                Label(
+                    language.text("patch.target_unavailable", unavailable.joined(separator: ", ")),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(AppPalette.amber)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
             }
 
             Spacer(minLength: 0)
