@@ -88,6 +88,29 @@ enum ContainerStore {
         let detail = lookupError.map(String.init) ?? "unavailable"
         log("patch: MHA-C2 could not resolve \(bundleID), detail=\(detail)")
 
+        // iOS 27: MCM refuses the lookup for this process (posix=0, meaning
+        // entitlement, not a missing app), but LaunchServices still reports the
+        // data container and worse_query grants the path itself. Ask LS before
+        // walking the filesystem, which cannot see other apps' metadata here.
+        if let info = appInfoForBundleID(bundleID) as? [String: Any],
+           let lsContainer = info["container"] as? String,
+           isApplicationContainerPath(lsContainer) {
+            let canonical = ContainerDiscoveryMerger.canonicalPath(lsContainer)
+            log("patch: LaunchServices resolved \(bundleID)")
+            return canonical
+        }
+
+        // iOS 27: the metadata plist is gone and MCM lookups are denied, but
+        // every container still carries its bundle identifier in the
+        // `com.apple.containermanager.identifier` xattr, which becomes readable
+        // once worse_query has granted that container. The escape refuses the
+        // parent data root, so this walks container by container and caches the
+        // result — one scan, then every rule resolves from the index.
+        if let identified = locateContainerByIdentifier(bundleID) {
+            log("patch: container identifier index resolved \(bundleID)")
+            return identified
+        }
+
         // Fallback for iOS builds where MCM refuses to hand out sandbox
         // tokens (e.g. iOS 18.1.x): worse_query can rebuild the container
         // index from the container manager even after the metadata plist and
@@ -108,7 +131,78 @@ enum ContainerStore {
             log("patch: filesystem metadata scan resolved \(bundleID)")
             return scanned
         }
+        log("patch: unresolved \(bundleID) — MCM, LaunchServices, identifier map and metadata scan all declined")
         return nil
+    }
+
+    private static var identifierIndex: [String: String] = [:]
+    private static var identifierIndexAt = Date.distantPast
+    private static let identifierIndexLifetime: TimeInterval = 120
+
+    private static func containerDirectories() -> [String] {
+        enumerateDirectories(path: appDataRoot).filter {
+            UUID(uuidString: ($0 as NSString).lastPathComponent) != nil
+        }
+    }
+
+    /// Bundle identifier → data container, read from each container's
+    /// `com.apple.containermanager.identifier` extended attribute. This is the
+    /// only mapping iOS 27 still exposes once MCM refuses lookups. Reading the
+    /// attribute often needs no grant; when it does, the caller falls through to
+    /// `locateContainerByIdentifier`, which grants one container at a time.
+    static func containerIdentifierIndex(force: Bool = false) -> [String: String] {
+        if !force, !identifierIndex.isEmpty,
+           Date().timeIntervalSince(identifierIndexAt) < identifierIndexLifetime {
+            return identifierIndex
+        }
+        let directories = containerDirectories()
+        guard !directories.isEmpty else {
+            log("patch: container identifier scan found no containers")
+            return identifierIndex
+        }
+        var index: [String: String] = [:]
+        for directory in directories {
+            guard let identifier = containerIdentifier(atPath: directory) else { continue }
+            index[identifier] = ContainerDiscoveryMerger.canonicalPath(directory)
+        }
+        if !index.isEmpty {
+            identifierIndex = index
+            identifierIndexAt = Date()
+        }
+        log("patch: container identifiers readable without a grant: \(index.count)/\(directories.count)")
+        return index
+    }
+
+    /// Walks containers until one reports `bundleID`, consuming a worse_query
+    /// grant for each. The escape refuses the parent data root, so there is no
+    /// single directory to grant; one container at a time is the only way in.
+    /// Skipped on the main thread — a full walk can take a minute.
+    static func locateContainerByIdentifier(_ bundleID: String) -> String? {
+        if let mapped = containerIdentifierIndex()[bundleID] { return mapped }
+        guard SandboxAccess.backend == .worseQuery, !Thread.isMainThread else { return nil }
+        for directory in containerDirectories() {
+            if Task.isCancelled { return nil }
+            let handle = SandboxAccess.grant(path: directory)
+            if handle < 0 { continue }
+            defer { SandboxAccess.release(handle) }
+            guard let identifier = containerIdentifier(atPath: directory) else { continue }
+            identifierIndex[identifier] = ContainerDiscoveryMerger.canonicalPath(directory)
+            identifierIndexAt = Date()
+            if identifier == bundleID {
+                log("patch: granted container scan resolved \(bundleID)")
+                return identifierIndex[bundleID]
+            }
+        }
+        log("patch: granted container scan found no container for \(bundleID)")
+        return nil
+    }
+
+    private static func containerIdentifier(atPath path: String) -> String? {
+        var buffer = [CChar](repeating: 0, count: 512)
+        let length = getxattr(path, "com.apple.containermanager.identifier", &buffer, 511, 0, 0)
+        guard length > 0 else { return nil }
+        let identifier = String(cString: buffer)
+        return identifier.isEmpty ? nil : identifier
     }
 
     static func resolveAppContainerPathByMetadataScan(bundleID: String) -> String? {
