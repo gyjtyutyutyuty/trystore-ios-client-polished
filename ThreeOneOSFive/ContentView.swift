@@ -516,14 +516,14 @@ struct HomeView: View {
                 )
             }
 
-            if AppInfo.versionTuple.major >= 27 {
-                AppActionButton(
-                    title: language.text(connectActionTitleKey),
-                    icon: connectActionIcon,
-                    tint: tunnelConnected ? AppPalette.mint : AppTheme.accent
-                ) {
-                    handleConnectAction()
-                }
+            // The panel only exists on the tunnel range, so the action that
+            // opens LocalDevVPN or starts pairing belongs here on 18.7.2-10 too.
+            AppActionButton(
+                title: language.text(connectActionTitleKey),
+                icon: connectActionIcon,
+                tint: tunnelConnected ? AppPalette.mint : AppTheme.accent
+            ) {
+                handleConnectAction()
             }
 
             if let pin = pairingController.pin {
