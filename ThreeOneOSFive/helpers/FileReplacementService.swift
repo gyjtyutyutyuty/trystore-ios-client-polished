@@ -89,6 +89,16 @@ enum FileReplacementService {
         with sourceURL: URL,
         fileManager: FileManager = .default
     ) throws -> FileReplacementResult {
+        // iOS 26/27: the target lives in another app's container, so the stat,
+        // the staging write and the rename all need a token for its directory.
+        let containerGrant = ContainerStore.grantContainerAccess(
+            targetURL.deletingLastPathComponent().path
+        )
+        log("filereplace: target grant \(targetURL.path) -> \(containerGrant)")
+        defer {
+            if containerGrant >= 0 { SandboxAccess.release(containerGrant) }
+        }
+
         let targetValues = try values(
             for: targetURL,
             missingError: .targetMissing,
