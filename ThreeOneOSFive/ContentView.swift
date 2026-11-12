@@ -3586,9 +3586,9 @@ struct LiveActivityView: View {
 
 /// Mirrors a running patch or purge onto the Lock Screen and Dynamic Island.
 /// Display needs a Widget Extension target holding an `ActivityConfiguration`
-/// for `LiveActivityState`; `LiveActivityWidget.swift` is that widget, ready to
-/// join such a target. Until it does, request() simply returns nothing on the
-/// display side — which is why every call site is availability guarded.
+/// for `LiveActivityState`, and this project has none, so request() returns
+/// nothing on the display side — which is why every call site is availability
+/// guarded.
 @available(iOS 16.1, *)
 enum PatchActivityController {
     static func start(operation: String, detail: String, thermal: String) {
