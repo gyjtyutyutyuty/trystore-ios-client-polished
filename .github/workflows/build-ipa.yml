@@ -1,6 +1,7 @@
 name: Build unsigned iOS IPA
 
 on:
+  push:
   workflow_dispatch:
     inputs:
       publish_release:
@@ -12,7 +13,37 @@ permissions:
   contents: write
 
 jobs:
+  rust-core:
+    # The Rust core is a prebuilt static library checked into the tree, so a
+    # broken exploit.rs would only surface when someone rebuilds it on a Mac.
+    # Checking it on every push keeps the prebuilt artefact honest.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ThreeOneOSFive/airlift-rust-core/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('ThreeOneOSFive/airlift-rust-core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check the Airlift Rust core
+        working-directory: ThreeOneOSFive/airlift-rust-core
+        run: cargo check --locked
+
   build:
+    # Pushes only run the Rust check; the IPA needs a manual dispatch.
+    if: github.event_name == 'workflow_dispatch'
     # macos-15 was terminating before checkout with no steps or logs.
     # macos-14 is the stable hosted image used for this unsigned build.
     runs-on: macos-14
