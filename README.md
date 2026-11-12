@@ -10,7 +10,7 @@
 
 <p align="center">
   <img alt="Version" src="https://img.shields.io/badge/version-1.1.0-E6753A?style=flat-square">
-  <img alt="iOS" src="https://img.shields.io/badge/iOS-17.0–18.7.1%20%7C%2026.0–26.6.1%20%7C%2027%20beta%201–4-222222?style=flat-square">
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-17.0–18.7.10%20%7C%2026.0–26.7.2%20%7C%2027.0–27.3-222222?style=flat-square">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5-F05138?style=flat-square&logo=swift&logoColor=white">
   <img alt="Languages" src="https://img.shields.io/badge/languages-English%20%7C%20Tiếng%20Việt%20%7C%20简体中文-E6753A?style=flat-square">
 </p>
@@ -59,29 +59,43 @@ See the complete [Patch workspace guide](docs/PATCH_GUIDE.md).
 
 ## Compatibility
 
-SupportPatch enables device-level features only for builds explicitly verified by the project:
+SupportPatch enables device-level features only for builds it has verified. The gate lives in
+[`ExploitSupportPolicy`](ThreeOneOSFive/helpers/SupportPolicy.swift), and this section is written
+from those constants: a range listed here is a range the code accepts.
 
-| System | Verified range/builds |
+### Version ranges
+
+| iOS | Range | Backend |
+| --- | --- | --- |
+| 17 | 17.0 – 17.7.x | kernel exploit |
+| 18 | 18.0 – 18.7.1 | kernel exploit |
+| 18 | 18.7.2 – 18.7.10 | pairing tunnel, listed builds only |
+| 26 | 26.0 – 26.6.1 | `bad_query` |
+| 26 | 26.6.2 | allowlist only, no named backend |
+| 26 | 26.7 – 26.7.2 | `worse_query` |
+| 27 | 27.0 – 27.2.1 | `worse_query` over the pairing tunnel |
+| 27 | 27.3 | `worse_query`, experimental, build `24C5037i` only |
+
+### Build allowlist
+
+`verifiedVersions` and `verifiedIOS27BetaBuilds` enumerate the exact builds behind those ranges.
+A build that is not in this list is unsupported, including another build of a listed version.
+
+| System | Builds |
 | --- | --- |
-| iOS 17 | 17.0 through 17.7 (kernel exploit) |
-| iOS 18 | 18.0 through 18.7.1 (kernel exploit) |
-| iOS 26 | 26.0 through 26.6.1 |
-| iOS 27 Developer Beta 1 | `24A5355q` |
-| iOS 27 Developer Beta 2 | `24A5370h` |
-| iOS 27 Developer Beta 3 / Public Beta 1 | `24A5380h` |
-| iOS 27 Developer Beta 4 / Public Beta 2 | `24A5390f` |
-| iOS 27.0 RC | `24A435` |
-| iOS 27.0 final | `24A437` |
-| iOS 27.0.1 | `24A446` |
-| iOS 27.2 | `24B119`, `24B5084k`, `24B5089g` |
+| 17.0 – 17.7.2 | `21A329`, `21A340`, `21A350`, `21A351`, `21A360`, `21B74`, `21B80`, `21B91`, `21B101`, `21C62`, `21C66`, `21D50`, `21D61`, `21E219`, `21E236`, `21E237`, `21F79`, `21F90`, `21G80`, `21G93`, `21G101`, `21H16`, `21H216`, `21H221` |
+| 18.0 – 18.7.10 | `22A3354`, `22A3370`, `22B83`, `22B91`, `22C152`, `22C161`, `22D63`, `22D72`, `22D82`, `22E240`, `22E252`, `22F76`, `22G86`, `22G90`, `22G100`, `22H20`, `22H31`, `22H124`, `22H217`, `22H218`, `22H311`, `22H320`, `22H333`, `22H340`, `22H352`, `22H355`, `22H374` |
+| 26.0 – 26.7 | `23A341`, `23A345`, `23A355`, `23B85`, `23C55`, `23C71`, `23D127`, `23D8133`, `23E246`, `23E254`, `23E261`, `23F77`, `23F81`, `23F84`, `23G71`, `23G83`, `23G90`, `23H24` |
+| 27.0 – 27.3 | `24A5355q`, `24A5370h`, `24A5380h`, `24A5390f`, `24A5408d`, `24A5418b`, `24A5424a`, `24A5430a`, `24A435`, `24A437`, `24A446`, `24B119`, `24B5084k`, `24B5089g`, `24C5037i` |
 
-Unlisted iOS 27 builds are marked unsupported rather than assumed compatible. The iOS 17–18 kernel exploit is opt-in (manual button) because a failed exploit attempt may restart the app.
+Unlisted builds are marked unsupported rather than assumed compatible. The iOS 17–18 kernel exploit is opt-in (manual button) because a failed exploit attempt may restart the app.
 
 ## Installation notes
 
+- The bundle identifier is `com.qingtang.3105` and the App Group is `group.com.qingtang.3105`; the group must be enabled for that identifier in the provisioning profile, so a wildcard profile is not enough.
 - Device functionality requires signing with an **enterprise certificate**.
 - SideStore, AltStore, 3uTools, and LiveContainer are not supported installation paths.
-- The target bundle identifier is intentionally `com.apple.mobile.MobileHouseArrest` for legacy MHA-C2 browsing; iOS 27 patch operations resolve app containers through the pairing tunnel.
+- Patch apply, restore, the file workspace and backups resolve the app's own data container and its App Group container only. Projects that target another app's container fail with a target-unavailable error instead of writing outside the sandbox.
 - The source tree does not contain certificates, provisioning profiles, signed applications, or IPA files; release assets may provide an unsigned IPA.
 
 ## Project layout
