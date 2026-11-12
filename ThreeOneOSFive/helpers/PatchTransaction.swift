@@ -252,6 +252,14 @@ enum PatchTransaction {
 
         do {
             for resolved in resolvedDirectories where !fileManager.fileExists(atPath: resolved.target.path) {
+                // A container-root grant does not always cover nested folders, so
+                // ask for the target's own parent before creating anything.
+                let parentGrant = ContainerStore.grantContainerAccess(
+                    resolved.target.deletingLastPathComponent().path
+                )
+                defer {
+                    if parentGrant >= 0 { SandboxAccess.release(parentGrant) }
+                }
                 try fileManager.createDirectory(
                     at: resolved.target,
                     withIntermediateDirectories: false
@@ -260,6 +268,15 @@ enum PatchTransaction {
             for (index, resolved) in resolvedRules.enumerated() {
                 try beforeWrite?(index)
                 progress?(index, resolvedRules.count)
+                // worse_query hands out one token per path; without this the
+                // staging file and its rename into another app's container are
+                // denied even though the container resolved.
+                let parentGrant = ContainerStore.grantContainerAccess(
+                    resolved.target.deletingLastPathComponent().path
+                )
+                defer {
+                    if parentGrant >= 0 { SandboxAccess.release(parentGrant) }
+                }
                 log("patch: applying target \(resolved.rule.bundleID)/\(resolved.rule.relativePath)")
                 if let remoteWriter {
                     try remoteWriter(
@@ -497,6 +514,12 @@ enum PatchTransaction {
         }
 
         for (record, target) in resolvedTargets.reversed() {
+            let parentGrant = ContainerStore.grantContainerAccess(
+                target.deletingLastPathComponent().path
+            )
+            defer {
+                if parentGrant >= 0 { SandboxAccess.release(parentGrant) }
+            }
             if record.originalExisted {
                 let backup = transactionDirectory.appendingPathComponent(record.backupFilename!)
                 if let remoteWriter {

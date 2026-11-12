@@ -205,12 +205,20 @@ enum DevicePatchService {
         operation: ([String: URL]) throws -> T
     ) throws -> T {
         var roots: [String: URL] = [:]
+        var grants: [Int64] = []
+        defer {
+            for grant in grants { SandboxAccess.release(grant) }
+        }
 
         for bundleID in bundleIDs {
             guard let path = ContainerStore.resolveAppContainerPath(bundleID: bundleID),
                   ContainerStore.isApplicationContainerPath(path) else {
                 throw PatchPackageError.targetAppUnavailable(bundleID)
             }
+            // Held for the whole transaction: releasing before the write or the
+            // read-back would revoke access on worse_query.
+            let grant = ContainerStore.grantContainerAccess(path)
+            if grant >= 0 { grants.append(grant) }
             roots[bundleID] = PatchPathValidator.canonicalFileURL(URL(fileURLWithPath: path, isDirectory: true))
         }
         return try operation(roots)
