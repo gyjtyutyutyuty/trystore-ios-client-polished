@@ -73,12 +73,13 @@ jobs:
             build 2>&1 | tee /tmp/xcodebuild.log | tail -n 200
 
       - name: Publish the compile log
-        if: steps.compile.outcome == 'failure'
+        if: always()
         run: |
           set -euo pipefail
           {
             echo "commit: ${{ github.sha }}"
             echo "run: ${{ github.run_id }}"
+            echo "outcome: ${{ steps.compile.outcome }}"
             echo
             grep -E "error:|warning: .*never used|BUILD FAILED" /tmp/xcodebuild.log | tail -n 120 || true
             echo
