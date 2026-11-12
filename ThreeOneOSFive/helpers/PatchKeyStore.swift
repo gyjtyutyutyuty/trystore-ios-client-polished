@@ -4,11 +4,6 @@ import Security
 
 enum PatchKeyStore {
     private static let service = "com.trystore.supportpatch.patch-keys"
-    /// The identifier this app was signed with before the move to its own bundle
-    /// id. Items are only readable if the signing profile still carries this
-    /// keychain access group; otherwise the lookup fails and the package simply
-    /// asks for its password again.
-    private static let legacyService = "com.apple.mobile.MobileHouseArrest.patch-keys"
 
     static func account(for summary: PatchPackageSummary) -> String {
         let fingerprint = summary.keyFingerprint.map { String(format: "%02x", $0) }.joined()
@@ -53,14 +48,7 @@ enum PatchKeyStore {
         ]
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound {
-            guard let legacy = readLegacy(account: account(for: summary)),
-                  Data(SHA256.hash(data: legacy)) == summary.keyFingerprint else {
-                return nil
-            }
-            try? store(legacy, for: summary)
-            return legacy
-        }
+        if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess,
               let data = result as? Data,
               data.count == 32,
@@ -71,33 +59,14 @@ enum PatchKeyStore {
     }
 
     static func delete(for summary: PatchPackageSummary) throws {
-        for service in [service, legacyService] {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: account(for: summary)
-            ]
-            let status = SecItemDelete(query as CFDictionary)
-            guard status == errSecSuccess || status == errSecItemNotFound else {
-                throw PatchPackageError.keychainFailed
-            }
-        }
-    }
-
-    private static func readLegacy(account: String) -> Data? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: legacyService,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account(for: summary)
         ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data,
-              data.count == 32 else {
-            return nil
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw PatchPackageError.keychainFailed
         }
-        return data
     }
 }
