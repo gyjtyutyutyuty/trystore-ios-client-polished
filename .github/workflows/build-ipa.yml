@@ -97,6 +97,30 @@ jobs:
         if: steps.compile.outcome == 'failure'
         run: exit 1
 
+  ci-ping:
+    # Cheap liveness probe in seconds instead of minutes: proves the runner starts
+    # and its token can write a branch, which is the only channel a cloud agent
+    # has into a private repository.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Publish a marker branch
+        run: |
+          set -euo pipefail
+          {
+            echo "commit: ${{ github.sha }}"
+            echo "run: ${{ github.run_id }}"
+            date -u +"at: %Y-%m-%dT%H:%M:%SZ"
+          } > /tmp/ping.txt
+          export GIT_AUTHOR_NAME=ci GIT_AUTHOR_EMAIL=ci@users.noreply.github.com
+          export GIT_COMMITTER_NAME=ci GIT_COMMITTER_EMAIL=ci@users.noreply.github.com
+          blob=$(git hash-object -w /tmp/ping.txt)
+          tree=$(printf '100644 blob %s\tping.txt\n' "$blob" | git mktree)
+          commit=$(git commit-tree "$tree" -m "ci ping ${{ github.sha }}")
+          git push --force origin "$commit:refs/heads/ci-ping"
+
   build:
     # Pushes run the Rust check and the Swift compile; the IPA needs a manual dispatch.
     if: github.event_name == 'workflow_dispatch'
