@@ -185,7 +185,15 @@ enum ContainerStore {
             let handle = SandboxAccess.grant(path: directory)
             if handle < 0 { continue }
             defer { SandboxAccess.release(handle) }
-            guard let identifier = containerIdentifier(atPath: directory) else { continue }
+            // The xattr is the 27.2+ source; the metadata plist still exists on
+            // 27.0-27.1 and carries the same bundle identifier once the grant
+            // makes the container readable.
+            var identifier = containerIdentifier(atPath: directory)
+            if identifier == nil,
+               let metadata = readContainerMetadata(containerPath: directory) {
+                identifier = metadata.bundleID
+            }
+            guard let identifier else { continue }
             identifierIndex[identifier] = ContainerDiscoveryMerger.canonicalPath(directory)
             identifierIndexAt = Date()
             if identifier == bundleID {
