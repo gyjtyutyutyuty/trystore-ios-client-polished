@@ -42,18 +42,26 @@ patch: worse_query blocked — no App Group entitlement in the signed profile
 Run these commands on a Mac with Xcode installed:
 
 ```bash
-chmod +x ./build_unsigned.sh ./build_esign_ready_ipa.sh
-./build_unsigned.sh
-./build_esign_ready_ipa.sh
+chmod +x ./build_supportpatch_unsigned.sh
+./build_supportpatch_unsigned.sh
 ```
 
-The second command verifies that the package has the expected `Payload/SupportPatch.app` layout and has not already been signed. This environment cannot compile a real iOS IPA because Xcode, the iOS SDK, and Apple signing utilities are macOS-only; the validator therefore checks packaging structure only.
+The script verifies that the package has the expected `Payload/SupportPatch.app` layout and has not already been signed. This environment cannot compile a real iOS IPA because Xcode, the iOS SDK, and Apple signing utilities are macOS-only; the validator therefore checks packaging structure only.
 
 ## Sign and install
 
 Transfer the unsigned IPA to the device, import it into eSign, import the certificate and provisioning profile, and sign the IPA without injecting additional dynamic libraries. Install the signed output from eSign. If iOS prompts for trust, use **Settings → General → VPN & Device Management**.
 
 Successful installation is not guaranteed by the source package alone. It depends on a valid certificate, a matching provisioning profile, device authorization where applicable, certificate status, and the iOS version supported by the signing material.
+
+## What a wrong signature looks like on device
+
+Two failures are worth recognising without a console:
+
+- `exploit: FAILED — no App Group entitlement` at launch, followed by a container scan that returns `-1` for every path. The signature has no `com.apple.security.application-groups` at all. Re-signing with the same certificate will reproduce it; the profile has to change.
+- `patch: worse_query probe passed on <group>` where `<group>` is not the group you expected. The signer substituted its own profile. worse_query still works — it accepts any granted group — but the bundle identifier no longer matches what you asked for.
+
+Each launch logs `signing: id=… group=…` so the signed identity can be read without attaching a debugger. A build where the line says `group=none` cannot apply patches on iOS 27, no matter which bundle identifier it carries.
 
 ## References
 
