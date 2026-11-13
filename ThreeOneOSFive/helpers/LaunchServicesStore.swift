@@ -29,8 +29,12 @@ struct LaunchServicesSnapshot: Equatable {
         containerBundleIDs[LaunchServicesStore.canonicalContainerPath(path)]
     }
 
+    func containerPaths(forBundleID bundleID: String) -> [String] {
+        containerPaths.filter { containerBundleIDs[$0] == bundleID }
+    }
+
     func containerPath(forBundleID bundleID: String) -> String? {
-        containerPaths.first { containerBundleIDs[$0] == bundleID }
+        containerPaths(forBundleID: bundleID).first
     }
 
     func displayName(forBundleID bundleID: String) -> String? {

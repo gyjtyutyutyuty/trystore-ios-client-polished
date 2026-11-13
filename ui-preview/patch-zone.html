@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Patches tab — fixed module tiles</title>
+<style>
+  :root{
+    --canvas:#05080c;
+    --surface:#0b1118;
+    --raised:#111923;
+    --hairline:#232c36;
+    --text:#eef3f7;
+    --secondary:#9aa6b2;
+    --tertiary:#68737e;
+    --brand:#2ea6ff;
+    --mint:#38d39f;
+    --amber:#f5b544;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#1a1d21;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .stage{display:flex;justify-content:center;padding:24px}
+  .phone{
+    width:390px;background:var(--canvas);color:var(--text);
+    border-radius:44px;overflow:hidden;position:relative;
+    border:1px solid #2a3138;box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+  .statusbar{
+    height:47px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:12px;font-weight:600;color:#fff;position:relative;z-index:2;
+  }
+  .statusbar .icons{display:flex;gap:5px;align-items:center;font-size:11px}
+  .island{position:absolute;left:50%;top:9px;transform:translateX(-50%);width:118px;height:29px;border-radius:16px;background:#000;z-index:3}
+  .scroll{padding:8px 20px 0}
+  .console{
+    background:var(--surface);border-radius:16px;padding:12px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .console-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .console-title{font-size:17px;font-weight:600;letter-spacing:-.2px;white-space:nowrap}
+  .console-sub{font-size:12px;color:var(--tertiary);margin-top:3px;white-space:nowrap}
+  .counter{display:flex;align-items:baseline;gap:3px;flex:none}
+  .counter b{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+  .counter span{font-size:17px;font-weight:600;color:var(--tertiary);font-variant-numeric:tabular-nums}
+  .bus{display:flex;flex-direction:column;gap:7px}
+  .segments{display:flex;gap:3px}
+  .segments i{flex:1;height:5px;border-radius:3px;background:#2a323b}
+  .segments i.on{background:var(--brand)}
+  .bus-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--tertiary);letter-spacing:.2px}
+  .bus-labels b{color:var(--brand);font-weight:400}
+  .notice{
+    margin-top:13px;background:#0a1c2c;border:1px solid #123a58;border-radius:16px;
+    padding:14px;display:flex;gap:10px;align-items:flex-start;
+  }
+  .notice svg{flex:none;margin-top:1px}
+  .notice h4{font-size:13px;letter-spacing:.9px;color:#57b6f4;font-weight:700}
+  .notice p{font-size:13px;line-height:1.35;color:#c8d7e3;margin-top:5px}
+  .license{
+    margin-top:13px;background:var(--surface);border-radius:16px;padding:14px;
+    display:flex;gap:14px;align-items:center;
+  }
+  .ring{
+    width:62px;height:62px;border-radius:50%;flex:none;position:relative;
+    background:conic-gradient(var(--brand) 0 8%, #1d2731 8% 100%);
+    display:grid;place-items:center;
+  }
+  .ring::before{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--surface)}
+  .ring svg{position:relative;z-index:1}
+  .license-body{flex:1;min-width:0}
+  .license-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.8px;font-weight:700;color:var(--tertiary)}
+  .license-top b{color:var(--brand);font-weight:700}
+  .license-date{font-size:15px;line-height:1.25;margin-top:4px}
+  .license-rem{font-size:10px;letter-spacing:1.6px;color:var(--secondary);margin-top:6px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
+  .tile{
+    position:relative;background:var(--surface);border:1px solid #1e2832;border-radius:16px;
+    padding:12px;min-height:112px;display:flex;flex-direction:column;align-items:flex-start;
+  }
+  .badge{
+    width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+    background:rgba(46,166,255,.10);color:var(--brand);
+  }
+  .tile h3{font-size:17px;font-weight:600;letter-spacing:-.2px;margin-top:8px;max-width:100%;white-space:nowrap}
+  .tile .spacer{flex:1}
+  .tile-foot{display:flex;align-items:center;width:100%;gap:8px;margin-top:8px}
+  .state{display:flex;align-items:center;gap:5px;font-size:12px;letter-spacing:.3px;color:var(--secondary)}
+  .state i{width:5px;height:5px;border-radius:50%;background:#333d47}
+  .idx{margin-left:auto;font-size:12px;color:var(--tertiary);font-variant-numeric:tabular-nums}
+  .star{position:absolute;top:6px;right:6px;width:44px;height:44px;display:grid;place-items:center;color:#5d6873}
+  .note{font-size:12px;line-height:1.4;color:var(--tertiary);margin:13px 2px 0}
+  .action{
+    margin-top:16px;height:52px;border-radius:26px;background:var(--brand);
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    color:#fff;font-size:17px;font-weight:600;letter-spacing:.2px;
+  }
+  .action svg{opacity:.95}
+  .hint{display:flex;gap:10px;align-items:flex-start;margin-top:16px}
+  .hint svg{flex:none;margin-top:2px}
+  .hint p{font-size:17px;line-height:1.25;color:var(--text)}
+  .tabbar{
+    margin:22px 20px 12px;height:72px;border-radius:36px;background:#0e141b;
+    display:flex;align-items:center;justify-content:space-around;border:1px solid #1c252e;
+  }
+  .tab{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;color:#7f8b96;width:88px}
+  .tab.active{color:var(--brand)}
+  .tab.active .pill{background:#132a3d}
+  .pill{width:76px;height:34px;border-radius:17px;display:grid;place-items:center}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone">
+    <div class="island"></div>
+    <div class="statusbar">
+      <span>18:37</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="#fff"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="#fff"><path d="M8 2.2c2.2 0 4.2.8 5.7 2.2l1.1-1.2A9.7 9.7 0 0 0 8 .5 9.7 9.7 0 0 0 1.2 3.2l1.1 1.2A8.3 8.3 0 0 1 8 2.2Zm0 3.1c1.3 0 2.5.5 3.4 1.3l1.1-1.2A6.9 6.9 0 0 0 8 3.6a6.9 6.9 0 0 0-4.5 1.8l1.1 1.2A5.5 5.5 0 0 1 8 5.3Zm0 3.1c.6 0 1.1.2 1.5.6L8 10.6 6.5 9c.4-.4.9-.6 1.5-.6Z"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3.5" fill="none" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="#fff"/><path d="M23 4v4c.9-.3 1.5-1.1 1.5-2S23.9 4.3 23 4Z" fill="#fff" opacity=".5"/></svg>
+      </span>
+    </div>
+
+    <div class="scroll">
+      <section class="console">
+        <div class="console-head">
+          <div>
+            <div class="console-title">TRYSTORE PATCHES</div>
+            <div class="console-sub">FREE FIRE MAX&nbsp; • &nbsp;ORIGINAL MODULES</div>
+          </div>
+          <div class="counter"><b>1</b><span>/ 11</span></div>
+        </div>
+        <div class="bus">
+          <div class="segments">
+            <i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="bus-labels"><span>MODULE BUS</span><b>1 ONLINE</b></div>
+        </div>
+      </section>
+
+      <section class="notice">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 9.3 8 10.5C16.6 20.3 20 16 20 11V5l-8-3Z" fill="#2ea6ff"/><path d="m8.4 11.6 2.4 2.4 4.8-4.8" stroke="#04202f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <h4>SAFE • RESTORABLE</h4>
+          <p>Safe refers only to local file restoration; it does not guarantee game-account or anti-cheat safety.</p>
+        </div>
+      </section>
+
+      <section class="license">
+        <div class="ring">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ea6ff" stroke-width="1.8"><path d="M7 3h10M7 21h10M8 3c0 4 8 5 8 9s-8 5-8 9M16 3c0 4-8 5-8 9s8 5 8 9"/></svg>
+        </div>
+        <div class="license-body">
+          <div class="license-top"><span>LICENSE WINDOW</span><b>AUTHORIZED</b></div>
+          <div class="license-date">Monday, November 23, 2026 at 12:47:02 AM EST</div>
+          <div class="license-rem">10D&nbsp; 04H&nbsp; 45M&nbsp; 30S REMAINING</div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <article class="tile">
+          <div class="badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="2.6"/></svg></div>
+          <h3>HEAD</h3>
+          <div class="spacer"></div>
+          <div class="tile-foot"><span class="state"><i></i>READY</span><span class="idx">01</span></div>
+          <div class="star"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></div>
+        </article>
+
+        <article class="tile">
+          <div class="badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+          <h3>NECK</h3>
+          <div class="spacer"></div>
+          <div class="tile-foot"><span class="state"><i></i>READY</span><span class="idx">02</span></div>
+          <div class="star"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></div>
+        </article>
+
+        <article class="tile">
+          <div class="badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10"/></svg></div>
+          <h3>DRAG</h3>
+          <div class="spacer"></div>
+          <div class="tile-foot"><span class="state"><i></i>READY</span><span class="idx">03</span></div>
+          <div class="star"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></div>
+        </article>
+
+        <article class="tile">
+          <div class="badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+          <h3>PECHO</h3>
+          <div class="spacer"></div>
+          <div class="tile-foot"><span class="state"><i></i>READY</span><span class="idx">04</span></div>
+          <div class="star"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></div>
+        </article>
+      </div>
+
+      <p class="note">Aim modules share a game file, so only one aim option can be active at a time.</p>
+
+      <div class="hint">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2ea6ff" stroke-width="1.8" stroke-linecap="round"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10M12 10V4.5a1.5 1.5 0 0 1 3 0V10M15 10V6a1.5 1.5 0 0 1 3 0v6.5c0 4-2.7 7-6.5 7S5 17 5 13.5V10a1.5 1.5 0 0 1 3 0"/></svg>
+        <p>Choose a patch above to review its status and activate it.</p>
+      </div>
+
+      <div class="action">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.3 2.3 4.7-4.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ACTIVATE PATCH
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2v-9Z"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="tab active">
+          <span class="pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></span>
+          <span>Patches</span>
+        </div>
+        <div class="tab">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z"/><path d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></svg>
+          <span>Clean</span>
+        </div>
+      </nav>
+    </div>
+  </div>
+</div>
+</body>
+<script>
+  if (location.search.includes("capture")) {
+    document.documentElement.style.width = "390px";
+    document.documentElement.style.background = "#05080c";
+    document.body.style.width = "390px";
+    document.body.style.background = "#05080c";
+    const stage = document.querySelector(".stage");
+    stage.style.padding = "0";
+    stage.style.display = "block";
+    const phone = document.querySelector(".phone");
+    phone.style.width = "390px";
+    phone.style.borderRadius = "0";
+    phone.style.border = "none";
+    phone.style.boxShadow = "none";
+  }
+</script>
+</html>

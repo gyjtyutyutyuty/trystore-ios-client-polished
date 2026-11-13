@@ -65,6 +65,10 @@ enum ContainerStore {
         "com.apple.compass", "com.apple.Magnifier", "com.apple.DocumentsApp"
     ]
 
+    /// Resolves an app's data container. Every candidate is checked on disk:
+    /// lsd can keep a container UUID that no longer exists after a reinstall,
+    /// and returning it made worse_query fail its own lstat with -254 while
+    /// the transaction reported a missing Documents folder.
     static func resolveAppContainerPath(bundleID: String) -> String? {
         guard (try? PatchPathValidator.canonicalBundleIdentifier(bundleID)) == bundleID else {
             return nil
@@ -74,26 +78,57 @@ enum ContainerStore {
         // lookup. Every other identifier falls through to the backends below.
         if let ownBundleID = Bundle.main.bundleIdentifier, bundleID == ownBundleID {
             let home = NSHomeDirectory()
-            if isApplicationContainerPath(home) {
+            if acceptedApplicationContainer(home) != nil {
                 log("patch: own container resolved \(bundleID)")
                 return home
             }
         }
 
+        // 27.2 dropped the identifier xattr and the metadata plist; the
+        // container-manager map is live, so ask it before trusting lsd's
+        // store, which can keep a tombstoned container path.
+        if let mapped = SandboxAccess.identifierPaths()[bundleID],
+           let existing = acceptedApplicationContainer(mapped) {
+            log("patch: worse_query identifier map resolved \(bundleID)")
+            return existing
+        }
+        let reverseCandidates = SandboxAccess.pathIdentifiers()
+            .filter { $0.value == bundleID }
+            .map(\.key)
+            .sorted()
+        if let reverse = reverseCandidates.first(where: {
+            acceptedApplicationContainer($0) != nil
+        }), let existing = acceptedApplicationContainer(reverse) {
+            log("patch: worse_query reverse map resolved \(bundleID)")
+            return existing
+        }
+
         // iOS 27: lsd's store pairs the identifier with its data container
         // even when MCM refuses the lookup and LaunchServices has no URL.
-        // This is the step that keeps patch targets resolvable on 27.0.x.
-        if let mapped = launchServicesSnapshot()?.containerPath(forBundleID: bundleID),
-           isApplicationContainerPath(mapped) {
-            log("patch: LaunchServices store resolved \(bundleID)")
-            return mapped
+        // The store can list a tombstoned path, so only return one that is
+        // still a directory.
+        if let snapshot = launchServicesSnapshot() {
+            let mapped = snapshot.containerPaths(forBundleID: bundleID)
+            if let path = preferredApplicationContainer(mapped) {
+                log("patch: LaunchServices store resolved \(bundleID)")
+                return path
+            }
+            if !mapped.isEmpty {
+                log("patch: LaunchServices store paths stale for \(bundleID) count=\(mapped.count)")
+                refreshLaunchServicesSnapshot()
+                if let refreshed = launchServicesSnapshot(),
+                   let path = preferredApplicationContainer(refreshed.containerPaths(forBundleID: bundleID)) {
+                    log("patch: LaunchServices store resolved \(bundleID) after refresh")
+                    return path
+                }
+            }
         }
 
         var lookupError: NSString?
         if let path = MCMActivateContainerPath(2, bundleID, false, &lookupError),
-           isApplicationContainerPath(path) {
+           let existing = acceptedApplicationContainer(path) {
             log("patch: MHA-C2 resolved \(bundleID)")
-            return path
+            return existing
         }
         // MCM refusing a lookup is expected on 27, so this stays quiet until
         // every fallback below has also declined; printing it here made a
@@ -102,49 +137,48 @@ enum ContainerStore {
 
         // iOS 27: MCM refuses the lookup for this process (posix=0, meaning
         // entitlement, not a missing app), but LaunchServices still reports the
-        // data container and worse_query grants the path itself. Ask LS before
-        // walking the filesystem, which cannot see other apps' metadata here.
+        // data container and worse_query grants the path itself.
         if let info = appInfoForBundleID(bundleID) as? [String: Any],
            let lsContainer = info["container"] as? String,
-           isApplicationContainerPath(lsContainer) {
-            let canonical = ContainerDiscoveryMerger.canonicalPath(lsContainer)
+           let existing = acceptedApplicationContainer(lsContainer) {
             log("patch: LaunchServices resolved \(bundleID)")
-            return canonical
+            return existing
         }
 
-        // iOS 27: the metadata plist is gone and MCM lookups are denied, but
-        // every container still carries its bundle identifier in the
-        // `com.apple.containermanager.identifier` xattr, which becomes readable
-        // once worse_query has granted that container. The escape refuses the
-        // parent data root, so this walks container by container and caches the
-        // result — one scan, then every rule resolves from the index.
+        // Older 27 builds expose the identifier xattr even when the map is
+        // empty. This walks one container at a time, so it stays behind the
+        // live map.
         if let identified = locateContainerByIdentifier(bundleID) {
             log("patch: container identifier index resolved \(bundleID)")
             return identified
         }
 
-        // Fallback for iOS builds where MCM refuses to hand out sandbox
-        // tokens (e.g. iOS 18.1.x): worse_query can rebuild the container
-        // index from the container manager even after the metadata plist and
-        // identifier xattr disappear (iOS 27.2+). Ask it before the inode
-        // scan, which reads files that no longer carry the identifier.
-        if let mapped = SandboxAccess.identifierPaths()[bundleID],
-           isApplicationContainerPath(mapped) {
-            log("patch: worse_query identifier map resolved \(bundleID)")
-            return mapped
-        }
-        if let reverse = SandboxAccess.pathIdentifiers()
-            .first(where: { $0.value == bundleID })?.key,
-           isApplicationContainerPath(reverse) {
-            log("patch: worse_query reverse map resolved \(bundleID)")
-            return reverse
-        }
-        if let scanned = resolveAppContainerPathByMetadataScan(bundleID: bundleID) {
+        if let scanned = resolveAppContainerPathByMetadataScan(bundleID: bundleID),
+           let existing = acceptedApplicationContainer(scanned) {
             log("patch: filesystem metadata scan resolved \(bundleID)")
-            return scanned
+            return existing
         }
-        log("patch: unresolved \(bundleID) — MCM=\(detail), no LaunchServices container, no container identifier or metadata match")
+        log("patch: unresolved \(bundleID) - MCM=\(detail), no live LaunchServices container, no container identifier or metadata match")
         return nil
+    }
+
+    /// True only for a container directory that is still on disk. `lstat` is
+    /// the same check worse_query makes before it issues a grant, so a path
+    /// that passes here will not come back as -254.
+    private static func acceptedApplicationContainer(_ rawPath: String) -> String? {
+        let canonical = ContainerDiscoveryMerger.canonicalPath(rawPath)
+        guard isApplicationContainerPath(canonical) else { return nil }
+        var info = stat()
+        guard lstat(canonical, &info) == 0, (info.st_mode & S_IFMT) == S_IFDIR else {
+            return nil
+        }
+        return canonical
+    }
+
+    /// lsd can pair one identifier with several containers (the app and its
+    /// extensions). Return the first one that still exists.
+    private static func preferredApplicationContainer(_ rawPaths: [String]) -> String? {
+        rawPaths.compactMap { acceptedApplicationContainer($0) }.first
     }
 
     private static var identifierIndex: [String: String] = [:]
@@ -190,7 +224,10 @@ enum ContainerStore {
     /// single directory to grant; one container at a time is the only way in.
     /// Skipped on the main thread — a full walk can take a minute.
     static func locateContainerByIdentifier(_ bundleID: String) -> String? {
-        if let mapped = containerIdentifierIndex()[bundleID] { return mapped }
+        if let mapped = containerIdentifierIndex()[bundleID],
+           let existing = acceptedApplicationContainer(mapped) {
+            return existing
+        }
         guard SandboxAccess.backend == .worseQuery, !Thread.isMainThread else { return nil }
         for directory in containerDirectories() {
             if Task.isCancelled { return nil }
@@ -206,11 +243,13 @@ enum ContainerStore {
                 identifier = metadata.bundleID
             }
             guard let identifier else { continue }
-            identifierIndex[identifier] = ContainerDiscoveryMerger.canonicalPath(directory)
+            let canonical = ContainerDiscoveryMerger.canonicalPath(directory)
+            identifierIndex[identifier] = canonical
             identifierIndexAt = Date()
-            if identifier == bundleID {
+            if identifier == bundleID,
+               acceptedApplicationContainer(canonical) != nil {
                 log("patch: granted container scan resolved \(bundleID)")
-                return identifierIndex[bundleID]
+                return canonical
             }
         }
         log("patch: granted container scan found no container for \(bundleID)")
