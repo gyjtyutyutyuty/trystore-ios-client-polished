@@ -69,12 +69,11 @@ from those constants: a range listed here is a range the code accepts.
 | --- | --- | --- |
 | 17 | 17.0 – 17.7.x | kernel exploit |
 | 18 | 18.0 – 18.7.1 | kernel exploit |
-| 18 | 18.7.2 – 18.7.10 | pairing tunnel, listed builds only |
-| 26 | 26.0 – 26.6.1 | `bad_query` |
-| 26 | 26.6.2 | allowlist only, no named backend |
-| 26 | 26.7 – 26.7.2 | `worse_query` |
-| 27 | 27.0 – 27.2.1 | `worse_query` over the pairing tunnel |
-| 27 | 27.3 | `worse_query`, experimental, build `24C5037i` only |
+| 18 | 18.7.2 – 18.7.12 | pairing tunnel, listed builds only |
+| 26 | 26.0 – 26.6.x | `bad_query` |
+| 26 | 26.7 – 26.7.3 | `worse_query` |
+| 27 | 27.0 – 27.3 | `worse_query`, local only, no tunnel |
+| 27 | 27.3 | experimental, build `24C5037i` only |
 
 ### Build allowlist
 
