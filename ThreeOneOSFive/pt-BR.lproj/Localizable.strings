@@ -50,7 +50,7 @@
 "settings.exploit_unverified" = "Não verificado";
 
 "patch.error.wrong_password" = "Senha incorreta.";
-"patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.11, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
+"patch.error.pairing_tunnel_required" = "No iOS 18.7.2–18.7.12, conecte o LocalDevVPN antes de aplicar ou restaurar um patch.";
 "activate_all_patches" = "Ativar Todos";
 "deactivate_all_patches" = "Desativar Todos";
 "patch.operation_in_progress" = "Processando patch…";

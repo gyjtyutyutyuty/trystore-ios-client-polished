@@ -25,7 +25,7 @@ enum ExploitSupportPolicy {
     static let verifiedIOS17Range = "17.0–17.7.x"
     static let verifiedIOS18Range = "18.0–18.7.1"
     static let verifiedIOS26BadQueryRange = "26.0–26.6.1"
-    static let verifiedIOS26WorseQueryRange = "26.7–26.7.2"
+    static let verifiedIOS26WorseQueryRange = "26.7–26.7.3"
     static let verifiedIOS27Range = "27.0–27.3 beta 1"
     static let experimentalIOS27Build = "24C5037i"
 
@@ -46,10 +46,10 @@ enum ExploitSupportPolicy {
         (8, "24A5430a")
     ]
 
-    static let verifiedIOS27_0_1Builds = ["24A446"]
+    static let verifiedIOS27_0_1Builds = ["24A445", "24A446"]
 
     static let verifiedVersions: [VerifiedVersion] = [
-        .init(17, 0, builds: ["21A329"]),
+        .init(17, 0, builds: ["21A301", "21A326", "21A327", "21A329", "21A331"]),
         .init(17, 0, 1, builds: ["21A340"]),
         .init(17, 0, 2, builds: ["21A350", "21A351"]),
         .init(17, 0, 3, builds: ["21A360"]),
@@ -64,21 +64,23 @@ enum ExploitSupportPolicy {
         .init(17, 4, 1, builds: ["21E236", "21E237"]),
         .init(17, 5, builds: ["21F79"]),
         .init(17, 5, 1, builds: ["21F90"]),
+        .init(17, 5, 2, builds: ["21F101"]),
         .init(17, 6, builds: ["21G80"]),
         .init(17, 6, 1, builds: ["21G93", "21G101"]),
-        .init(17, 7, builds: ["21H16"]),
+        .init(17, 7, builds: ["21H15", "21H16"]),
         .init(17, 7, 1, builds: ["21H216"]),
         .init(17, 7, 2, builds: ["21H221"]),
+        .init(17, 7, 3, builds: ["21H312"]),
 
-        .init(18, 0, builds: ["22A3354"]),
+        .init(18, 0, builds: ["22A3351", "22A3354"]),
         .init(18, 0, 1, builds: ["22A3370"]),
         .init(18, 1, builds: ["22B83"]),
         .init(18, 1, 1, builds: ["22B91"]),
-        .init(18, 2, builds: ["22C152"]),
+        .init(18, 2, builds: ["22C152", "22C154"]),
         .init(18, 2, 1, builds: ["22C161"]),
-        .init(18, 3, builds: ["22D63"]),
-        .init(18, 3, 1, builds: ["22D72"]),
-        .init(18, 3, 2, builds: ["22D82"]),
+        .init(18, 3, builds: ["22D63", "22D64", "22D8063"]),
+        .init(18, 3, 1, builds: ["22D72", "22D8075"]),
+        .init(18, 3, 2, builds: ["22D82", "22D8082"]),
         .init(18, 4, builds: ["22E240"]),
         .init(18, 4, 1, builds: ["22E252"]),
         .init(18, 5, builds: ["22F76"]),
@@ -93,16 +95,18 @@ enum ExploitSupportPolicy {
         .init(18, 7, 5, builds: ["22H311"]),
         .init(18, 7, 6, builds: ["22H320"]),
         .init(18, 7, 7, builds: ["22H333", "22H340"]),
-        .init(18, 7, 8, builds: ["22H352"]),
+        .init(18, 7, 8, builds: ["22H351", "22H352"]),
         .init(18, 7, 9, builds: ["22H355"]),
         .init(18, 7, 10, builds: ["22H374"]),
+        .init(18, 7, 11, builds: ["22H384"]),
+        .init(18, 7, 12, builds: ["22H390"]),
 
-        .init(26, 0, builds: ["23A341", "23A345"]),
-        .init(26, 0, 1, builds: ["23A355"]),
+        .init(26, 0, builds: ["23A256", "23A258", "23A330", "23A341", "23A345"]),
+        .init(26, 0, 1, builds: ["23A355", "23A357", "23A365"]),
         .init(26, 1, builds: ["23B85"]),
         .init(26, 2, builds: ["23C55"]),
         .init(26, 2, 1, builds: ["23C71"]),
-        .init(26, 3, builds: ["23D127"]),
+        .init(26, 3, builds: ["23D127", "23D90", "23D8128"]),
         .init(26, 3, 1, builds: ["23D8133"]),
         .init(26, 4, builds: ["23E246"]),
         .init(26, 4, 1, builds: ["23E254"]),
@@ -111,13 +115,18 @@ enum ExploitSupportPolicy {
         .init(26, 5, 1, builds: ["23F81"]),
         .init(26, 5, 2, builds: ["23F84"]),
         .init(26, 6, builds: ["23G71"]),
-        .init(26, 6, 1, builds: ["23G83"]),
+        .init(26, 6, 1, builds: ["23G80", "23G83"]),
         .init(26, 6, 2, builds: ["23G90"]),
-        .init(26, 7, builds: ["23H24"]),
+        .init(26, 7, builds: ["23H20", "23H24"]),
+        .init(26, 7, 1, builds: ["23H30"]),
+        .init(26, 7, 2, builds: ["23H128"]),
+        .init(26, 7, 3, builds: ["23H131"]),
 
-        .init(27, 0, builds: verifiedIOS27BetaBuilds.map { $0.build } + ["24A435", "24A437"]),
+        .init(27, 0, builds: verifiedIOS27BetaBuilds.map { $0.build } + ["24A343", "24A349", "24A388", "24A391", "24A400", "24A425", "24A427", "24A435", "24A437", "24A8428"]),
         .init(27, 0, 1, builds: verifiedIOS27_0_1Builds),
-        .init(27, 2, builds: ["24B119", "24B5084k", "24B5089g"]),
+        .init(27, 1, builds: ["24A94229", "24A94232", "24A94425"]),
+        .init(27, 2, builds: ["24B115", "24B119", "24B120", "24B5084k", "24B5089g", "24B5099f", "24B5110a", "24B91020"]),
+        .init(27, 2, 1, builds: ["24B156", "24B91034"]),
         .init(27, 3, builds: [experimentalIOS27Build])
     ]
 
@@ -148,12 +157,12 @@ enum ExploitSupportPolicy {
         return minor < 6 || (minor == 6 && patch <= 1)
     }
 
-    /// worse_query covers iOS 26.7–26.7.2 and all of 27.0–27.3. Every 27.x
+    /// worse_query covers iOS 26.7–26.7.3 and all of 27.0–27.3. Every 27.x
     /// build patches locally; there is no tunnel fallback on that range.
     static func supportsWorseQuery(major: Int, minor: Int, patch: Int) -> Bool {
         guard minor >= 0, patch >= 0 else { return false }
         if major == 26 {
-            return minor == 7 && patch <= 2
+            return minor == 7 && patch <= 3
         }
         if major == 27 {
             return minor <= 3

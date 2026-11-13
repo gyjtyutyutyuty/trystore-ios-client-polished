@@ -2508,7 +2508,7 @@ private struct PatchModuleCardView: View {
         ZStack(alignment: .topTrailing) {
             Button(action: onSelect) {
                 content
-                    .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
                     .padding(AppSpacing.m)
                     .background(fill)
                     .overlay(border)
@@ -2535,21 +2535,20 @@ private struct PatchModuleCardView: View {
 
     @ViewBuilder
     private var content: some View {
-        HStack(spacing: AppSpacing.m) {
-            badge(size: 38)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(AppType.value().weight(.semibold))
-                    .foregroundStyle(AppPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+        // Give the module name the full card width. The previous horizontal
+        // row left a two-column iPhone only a few characters for "HEAD" and
+        // turned every title and status into an ellipsis.
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            badge(size: 32)
+            Text(title)
+                .font(AppType.value().weight(.semibold))
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Spacer(minLength: 0)
+            HStack(spacing: AppSpacing.s) {
                 statusRow
-            }
-
-            Spacer(minLength: AppSpacing.s)
-
-            VStack(alignment: .trailing, spacing: 4) {
+                Spacer(minLength: 0)
                 Text(indexLabel)
                     .font(AppType.label())
                     .foregroundStyle(AppPalette.textTertiary)
@@ -2557,7 +2556,7 @@ private struct PatchModuleCardView: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
     }
 
     private func badge(size: CGFloat) -> some View {
@@ -3028,9 +3027,13 @@ private struct PatchesView: View {
                     Text("TRYSTORE PATCHES")
                         .font(AppType.value())
                         .foregroundStyle(AppPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Text("FREE FIRE MAX  •  ORIGINAL MODULES")
                         .font(AppType.label())
                         .foregroundStyle(AppPalette.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
                 Spacer(minLength: AppSpacing.s)
                 if patchStore.isBusy {

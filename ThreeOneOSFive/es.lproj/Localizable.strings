@@ -50,7 +50,7 @@
 "settings.exploit_unverified" = "Sin verificar";
 
 "patch.error.wrong_password" = "Contraseña incorrecta.";
-"patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.11, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
+"patch.error.pairing_tunnel_required" = "En iOS 18.7.2–18.7.12, conecta LocalDevVPN antes de aplicar o restaurar un parche.";
 "patch.operation_in_progress" = "Procesando parche…";
 "patch.error.pairing_file_missing" = "No hay un archivo de emparejamiento. Empareja este iPhone o importa uno primero.";
 "patch.error.pairing_file_import_required" = "iOS 18.7.2–18.7.10 no admite el emparejamiento directo. Importa un archivo de emparejamiento primero.";

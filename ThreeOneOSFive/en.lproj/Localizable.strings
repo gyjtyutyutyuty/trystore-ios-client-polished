@@ -225,7 +225,7 @@
 "patch.error.worse_query_unavailable" = "The App Group is signed in, but worse_query could not open a container. Restart the app; if it keeps failing, re-sign with a profile that carries the App Group.";
 "patch.error.symlink" = "Patch targets cannot pass through symbolic links.";
 "patch.error.apply" = "The patch could not be applied. Any earlier writes were rolled back.";
-"patch.error.pairing_tunnel_required" = "On iOS 18.7.2–18.7.11, connect LocalDevVPN before applying or restoring a patch.";
+"patch.error.pairing_tunnel_required" = "On iOS 18.7.2–18.7.12, connect LocalDevVPN before applying or restoring a patch.";
 "activate_all_patches" = "Activate All";
 "deactivate_all_patches" = "Deactivate All";
 "patch.operation_in_progress" = "Processing patch…";
