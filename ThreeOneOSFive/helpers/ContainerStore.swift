@@ -229,6 +229,12 @@ enum ContainerStore {
             return existing
         }
         guard SandboxAccess.backend == .worseQuery, !Thread.isMainThread else { return nil }
+        // Without a group the escape cannot grant anything, so walking 274
+        // containers would only repeat the same refusal 274 times.
+        guard SandboxAccess.hasAppGroup else {
+            log("patch: container scan skipped — the signed profile has no App Group")
+            return nil
+        }
         for directory in containerDirectories() {
             if Task.isCancelled { return nil }
             let handle = SandboxAccess.grant(path: directory)
@@ -751,7 +757,7 @@ enum ContainerStore {
         // before the inode walk, which needs a kernel path. The data root is
         // deliberately skipped: the escape refuses a non-container target, so
         // granting it only costs a query and logs a spurious failure.
-        if SandboxAccess.backend == .worseQuery, clean != appDataRoot {
+        if SandboxAccess.backend == .worseQuery, SandboxAccess.hasAppGroup, clean != appDataRoot {
             let handle = SandboxAccess.grant(path: clean)
             if handle >= 0 {
                 defer { SandboxAccess.release(handle) }
