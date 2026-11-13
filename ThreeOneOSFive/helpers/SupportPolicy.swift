@@ -24,7 +24,7 @@ enum ExploitSupportPolicy {
 
     static let verifiedIOS17Range = "17.0–17.7.x"
     static let verifiedIOS18Range = "18.0–18.7.1"
-    static let verifiedIOS26BadQueryRange = "26.0–26.6.1"
+    static let verifiedIOS26BadQueryRange = "26.0–26.6.x"
     static let verifiedIOS26WorseQueryRange = "26.7–26.7.3"
     static let verifiedIOS27Range = "27.0–27.3 beta 1"
     static let experimentalIOS27Build = "24C5037i"
@@ -151,10 +151,12 @@ enum ExploitSupportPolicy {
     }
 
     /// bad_query still works on every build it was verified for and reaches
-    /// System Data, so it stays the primary backend on iOS 26.0–26.6.1.
+    /// System Data, so it stays the primary backend through the whole 26.6 line.
+    /// Stopping at 26.6.1 left 26.6.2 — a verified build — without any backend,
+    /// which made `isApplicable` reject it as unsupported.
     static func supportsBadQuery(major: Int, minor: Int, patch: Int) -> Bool {
         guard major == 26, minor >= 0, patch >= 0 else { return false }
-        return minor < 6 || (minor == 6 && patch <= 1)
+        return minor <= 6
     }
 
     /// worse_query covers iOS 26.7–26.7.3 and all of 27.0–27.3. Every 27.x
