@@ -158,7 +158,7 @@ enum ContainerStore {
             log("patch: filesystem metadata scan resolved \(bundleID)")
             return existing
         }
-        log("patch: unresolved \(bundleID) - MCM=\(detail), no live LaunchServices container, no container identifier or metadata match")
+        logOnce("patch-unresolved:\(bundleID)", "patch: unresolved \(bundleID) - MCM=\(detail), no live LaunchServices container, no container identifier or metadata match")
         return nil
     }
 
@@ -215,7 +215,7 @@ enum ContainerStore {
             identifierIndex = index
             identifierIndexAt = Date()
         }
-        log("patch: container identifiers readable without a grant: \(index.count)/\(directories.count)")
+        logOnce("patch-identifier-index:\(index.count)/\(directories.count)", "patch: container identifiers readable without a grant: \(index.count)/\(directories.count)")
         return index
     }
 
@@ -224,17 +224,18 @@ enum ContainerStore {
     /// single directory to grant; one container at a time is the only way in.
     /// Skipped on the main thread — a full walk can take a minute.
     static func locateContainerByIdentifier(_ bundleID: String) -> String? {
+        // Without a group the escape cannot grant anything, so the xattr pass and
+        // the walk would only repeat the same refusal; bail before touching 274
+        // containers.
+        if SandboxAccess.backend == .worseQuery, !SandboxAccess.hasAppGroup {
+            logOnce("patch-no-group-scan", "patch: container scan skipped — the signed profile has no App Group")
+            return nil
+        }
         if let mapped = containerIdentifierIndex()[bundleID],
            let existing = acceptedApplicationContainer(mapped) {
             return existing
         }
         guard SandboxAccess.backend == .worseQuery, !Thread.isMainThread else { return nil }
-        // Without a group the escape cannot grant anything, so walking 274
-        // containers would only repeat the same refusal 274 times.
-        guard SandboxAccess.hasAppGroup else {
-            log("patch: container scan skipped — the signed profile has no App Group")
-            return nil
-        }
         for directory in containerDirectories() {
             if Task.isCancelled { return nil }
             let handle = SandboxAccess.grant(path: directory)
@@ -258,7 +259,7 @@ enum ContainerStore {
                 return canonical
             }
         }
-        log("patch: granted container scan found no container for \(bundleID)")
+        logOnce("patch-scan-miss:\(bundleID)", "patch: granted container scan found no container for \(bundleID)")
         return nil
     }
 
@@ -273,7 +274,7 @@ enum ContainerStore {
     static func resolveAppContainerPathByMetadataScan(bundleID: String) -> String? {
         // iOS < 26: kernel R/W is enough, no need to require full sandbox escape
         if KernelExploit.requiresSandboxEscape, !KernelExploit.hasSandboxAccess() {
-            log("patch: metadata scan skipped — sandbox access not active")
+            logOnce("patch-metadata-scan-skipped", "patch: metadata scan skipped — sandbox access not active")
             return nil
         }
         let dirs = enumerateDirectories(path: appDataRoot)
@@ -555,7 +556,7 @@ enum ContainerStore {
             } else {
                 handle = grantContainerAccess(cachePath)
                 if handle < 0 {
-                    log("browser: LaunchServices traversal grant failed \(cachePath) -> \(handle)")
+                    logOnce("browser-ls-grant:\(cachePath)", "browser: LaunchServices traversal grant failed \(cachePath) -> \(handle)")
                     continue
                 }
             }
@@ -809,7 +810,7 @@ enum ContainerStore {
                 return names.map { (path as NSString).appendingPathComponent($0) }
             }
         } else {
-            log("browser: root traversal grant failed \(path) -> \(handle)")
+            logOnce("browser-root-traversal:\(path)", "browser: root traversal grant failed \(path) -> \(handle)")
         }
 
         return enumerateDirectories(path: path)

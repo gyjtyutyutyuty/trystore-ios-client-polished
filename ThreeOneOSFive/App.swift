@@ -378,7 +378,7 @@ class AppState: ObservableObject {
         SandboxAccess.prepare()
         // What the signer actually gave us, without a debugger attached. A build
         // with group=none cannot grant anything on iOS 27.
-        log("signing: id=\(Bundle.main.bundleIdentifier ?? "unknown") group=\(SandboxAccess.appGroup ?? "none")")
+        logOnce("signing-identity", "signing: id=\(Bundle.main.bundleIdentifier ?? "unknown") group=\(SandboxAccess.appGroup ?? "none")")
         refreshKernelExploitStatus()
         maybeAutoRunKernelExploit()
     }

@@ -13,6 +13,19 @@ class AppLog: ObservableObject {
 }
 func log(_ msg: String) { AppLog.shared.append("[Support Patch] \(msg)") }
 
+private let logOnceLock = NSLock()
+private var loggedOnce: Set<String> = []
+
+/// Logs `msg` only the first time `key` is seen in this process. Container and
+/// metadata scans retry the same failing path dozens of times; the log should
+/// still read as one event.
+func logOnce(_ key: String, _ msg: String) {
+    logOnceLock.lock()
+    let first = loggedOnce.insert(key).inserted
+    logOnceLock.unlock()
+    if first { log(msg) }
+}
+
 // Retain the pipe for the app's lifetime so stdout/stderr stay redirected.
 private var logCapturePipe: Pipe?
 

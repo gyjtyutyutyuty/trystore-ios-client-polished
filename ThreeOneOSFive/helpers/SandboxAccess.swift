@@ -41,8 +41,19 @@ enum SandboxAccess {
         return .unsupported
     }
 
+    private static let appGroupLock = NSLock()
+    private static var cachedAppGroup: String?
+
+    /// The group the signature granted, resolved once. A miss is not cached:
+    /// the group container is created by install, but a nil result from an
+    /// early launch call should not be treated as final for the process.
     static var appGroup: String? {
-        worse_query_app_group()
+        appGroupLock.lock()
+        defer { appGroupLock.unlock() }
+        if let cached = cachedAppGroup { return cached }
+        let resolved = worse_query_app_group()
+        cachedAppGroup = resolved
+        return resolved
     }
 
     static var hasAppGroup: Bool { appGroup != nil }
@@ -108,7 +119,7 @@ enum SandboxAccess {
                   let groupURL = FileManager.default.containerURL(
                     forSecurityApplicationGroupIdentifier: group
                   ) else {
-                log("sandbox: no App Group entitlement — worse_query cannot run")
+                logOnce("sandbox-no-app-group", "sandbox: no App Group entitlement — worse_query cannot run")
                 return false
             }
             // Exercise the real query path on our own group container first;
