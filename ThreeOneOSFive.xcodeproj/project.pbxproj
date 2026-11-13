@@ -85,6 +85,7 @@
 		C71900000000000000000001 /* CharacterVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71900000000000000000002; };
 		C71A00000000000000000001 /* AppFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71A00000000000000000002; };
 		C71C00000000000000000001 /* Pathleak.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71C00000000000000000002; };
+		C71D00000000000000000001 /* LaunchServicesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71D00000000000000000002; };
 		C71B00000000000000000001 /* PatchPayloadPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71B00000000000000000002; };
 /* End PBXBuildFile section */
 
@@ -190,6 +191,7 @@
 		C71900000000000000000002 /* CharacterVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterVault.swift; sourceTree = "<group>"; };
 		C71A00000000000000000002 /* AppFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFeedback.swift; sourceTree = "<group>"; };
 		C71C00000000000000000002 /* Pathleak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pathleak.swift; sourceTree = "<group>"; };
+		C71D00000000000000000002 /* LaunchServicesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchServicesStore.swift; sourceTree = "<group>"; };
 		C71B00000000000000000002 /* PatchPayloadPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPayloadPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -288,6 +290,7 @@
 					B71300000000000000000003 /* LicenseManager.swift */,
 					C71900000000000000000002 /* CharacterVault.swift */,
 				C71C00000000000000000002 /* Pathleak.swift */,
+				C71D00000000000000000002 /* LaunchServicesStore.swift */,
 								3105K201 /* PairingController.swift */,
 				3105L201 /* GrappaHelper.m */,
 				3105L202 /* GrappaHelper.h */,
@@ -444,6 +447,7 @@
 				C71900000000000000000001,
 				C71A00000000000000000001,
 				C71C00000000000000000001,
+				C71D00000000000000000001,
 				C71B00000000000000000001,
 				3105A227,
 				3105A233,

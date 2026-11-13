@@ -79,6 +79,16 @@ enum ContainerStore {
                 return home
             }
         }
+
+        // iOS 27: lsd's store pairs the identifier with its data container
+        // even when MCM refuses the lookup and LaunchServices has no URL.
+        // This is the step that keeps patch targets resolvable on 27.0.x.
+        if let mapped = launchServicesSnapshot()?.containerPath(forBundleID: bundleID),
+           isApplicationContainerPath(mapped) {
+            log("patch: LaunchServices store resolved \(bundleID)")
+            return mapped
+        }
+
         var lookupError: NSString?
         if let path = MCMActivateContainerPath(2, bundleID, false, &lookupError),
            isApplicationContainerPath(path) {
@@ -532,6 +542,153 @@ enum ContainerStore {
 
         log("browser: LaunchServices store total candidates=\(identifiers.count)")
         return identifiers
+    }
+
+    // MARK: LaunchServices store snapshot
+    //
+    // MCM refuses third-party lookups on iOS 27 and the container identifier
+    // xattr/metadata plist are not always readable. lsd's CSStore still pairs
+    // a bundle id with its data container, so read that pairing before asking
+    // MCM or walking the app-data root. The parser is the WQ Files port in
+    // LaunchServicesStore.swift.
+
+    private struct LaunchServicesStoreCandidate {
+        let url: URL
+        let parentPath: String
+        let modifiedAt: Date
+        let size: Int
+    }
+
+    private static let launchServicesSnapshotLock = NSLock()
+    private static var launchServicesSnapshotCache:
+        (signature: String, snapshot: LaunchServicesSnapshot?, at: Date)?
+
+    static func refreshLaunchServicesSnapshot() {
+        launchServicesSnapshotLock.lock()
+        launchServicesSnapshotCache = nil
+        launchServicesSnapshotLock.unlock()
+    }
+
+    static func launchServicesSnapshot() -> LaunchServicesSnapshot? {
+        launchServicesSnapshotLock.lock()
+        defer { launchServicesSnapshotLock.unlock() }
+
+        if let cached = launchServicesSnapshotCache {
+            // A miss can happen before the escape is active; retry it soon
+            // instead of hiding the store for the whole cache window.
+            let lifetime: TimeInterval = cached.snapshot == nil ? 10 : 300
+            if Date().timeIntervalSince(cached.at) < lifetime {
+                return cached.snapshot
+            }
+        }
+
+        let candidates = launchServicesStoreCandidates()
+        guard let newest = candidates.max(by: { left, right in
+            if left.modifiedAt != right.modifiedAt {
+                return left.modifiedAt < right.modifiedAt
+            }
+            return left.size < right.size
+        }) else {
+            launchServicesSnapshotCache = ("none", nil, Date())
+            log("patch: LaunchServices store not found")
+            return nil
+        }
+
+        let signature = "\(newest.url.path)|\(newest.size)|\(newest.modifiedAt.timeIntervalSince1970)"
+        if let cached = launchServicesSnapshotCache, cached.signature == signature {
+            launchServicesSnapshotCache = (signature, cached.snapshot, Date())
+            return cached.snapshot
+        }
+
+        let handle = usesSandboxGrants ? grantContainerAccess(newest.parentPath) : -1
+        defer {
+            if handle >= 0 { SandboxAccess.release(handle) }
+        }
+        guard let data = try? Data(contentsOf: newest.url, options: .mappedIfSafe),
+              data.count <= LaunchServicesStore.maximumStoreBytes else {
+            launchServicesSnapshotCache = (signature, nil, Date())
+            log("patch: LaunchServices store read failed \(newest.url.lastPathComponent)")
+            return nil
+        }
+        guard let snapshot = LaunchServicesStore.parse(data) else {
+            launchServicesSnapshotCache = (signature, nil, Date())
+            log("patch: LaunchServices store parse failed \(newest.url.lastPathComponent) bytes=\(data.count)")
+            return nil
+        }
+
+        launchServicesSnapshotCache = (signature, snapshot, Date())
+        log(
+            "patch: LaunchServices layout=\(snapshot.layoutLabel) " +
+                "containers=\(snapshot.mappedContainerCount) bytes=\(data.count)"
+        )
+        return snapshot
+    }
+
+    private static func launchServicesStoreCandidates() -> [LaunchServicesStoreCandidate] {
+        var candidates: [LaunchServicesStoreCandidate] = []
+        var visited = Set<String>()
+
+        func inspect(_ rawPath: String) {
+            let directory = canonicalLookupPath(rawPath)
+            guard visited.insert(directory).inserted else { return }
+
+            let handle = usesSandboxGrants ? grantContainerAccess(directory) : -1
+            defer {
+                if handle >= 0 { SandboxAccess.release(handle) }
+            }
+
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? []
+            for name in names
+            where name.hasPrefix("com.apple.LaunchServices-") && name.hasSuffix(".csstore") {
+                let path = (directory as NSString).appendingPathComponent(name)
+                guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+                      let sizeNumber = attributes[.size] as? NSNumber,
+                      sizeNumber.intValue >= LaunchServicesStore.minimumStoreBytes,
+                      sizeNumber.intValue <= LaunchServicesStore.maximumStoreBytes,
+                      let modifiedAt = attributes[.modificationDate] as? Date,
+                      let header = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else {
+                    continue
+                }
+                let magic = (try? header.read(upToCount: 4)) ?? Data()
+                try? header.close()
+                guard magic == Data([0x62, 0x64, 0x73, 0x6c]) else { continue }
+                candidates.append(LaunchServicesStoreCandidate(
+                    url: URL(fileURLWithPath: path),
+                    parentPath: directory,
+                    modifiedAt: modifiedAt,
+                    size: sizeNumber.intValue
+                ))
+            }
+        }
+
+        var serviceLookupError: NSString?
+        if let servicePath = MCMActivateContainerPath(10, "com.apple.lsd", false, &serviceLookupError) {
+            inspect((servicePath as NSString).appendingPathComponent("Library/Caches"))
+        }
+        inspect("/var/mobile/Library/Caches")
+        inspect("/var/db/lsd")
+
+        // iOS 27.2 moved lsd's store under the Internal Daemon containers.
+        // Only pay for that walk when the classic locations came back empty.
+        if candidates.isEmpty {
+            for root in ["/var/mobile/Containers/Data/InternalDaemon", systemDataRoot] {
+                let containers = enumerateDirectoriesWithTraversalGrant(path: root)
+                for container in containers {
+                    inspect((container as NSString).appendingPathComponent("Library/Caches"))
+                }
+            }
+        }
+        return candidates
+    }
+
+    /// Canonical form for paths handed to the container manager, which spells
+    /// the /var alias as /private/var.
+    static func canonicalLookupPath(_ path: String) -> String {
+        let clean = path.hasSuffix("/") && path.count > 1 ? String(path.dropLast()) : path
+        if clean == "/var" || clean.hasPrefix("/var/") {
+            return "/private" + clean
+        }
+        return clean
     }
 
     static func isApplicationContainerPath(_ path: String) -> Bool {
