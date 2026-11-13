@@ -85,8 +85,10 @@ enum ContainerStore {
             log("patch: MHA-C2 resolved \(bundleID)")
             return path
         }
+        // MCM refusing a lookup is expected on 27, so this stays quiet until
+        // every fallback below has also declined; printing it here made a
+        // successful LaunchServices or identifier resolution look like an error.
         let detail = lookupError.map(String.init) ?? "unavailable"
-        log("patch: MHA-C2 could not resolve \(bundleID), detail=\(detail)")
 
         // iOS 27: MCM refuses the lookup for this process (posix=0, meaning
         // entitlement, not a missing app), but LaunchServices still reports the
@@ -131,7 +133,7 @@ enum ContainerStore {
             log("patch: filesystem metadata scan resolved \(bundleID)")
             return scanned
         }
-        log("patch: unresolved \(bundleID) — MCM, LaunchServices, identifier map and metadata scan all declined")
+        log("patch: unresolved \(bundleID) — MCM=\(detail), no LaunchServices container, no container identifier or metadata match")
         return nil
     }
 
@@ -550,8 +552,10 @@ enum ContainerStore {
         }
 
         // worse_query hands out a grant per path; retry the read under it
-        // before the inode walk, which needs a kernel path.
-        if SandboxAccess.backend == .worseQuery {
+        // before the inode walk, which needs a kernel path. The data root is
+        // deliberately skipped: the escape refuses a non-container target, so
+        // granting it only costs a query and logs a spurious failure.
+        if SandboxAccess.backend == .worseQuery, clean != appDataRoot {
             let handle = SandboxAccess.grant(path: clean)
             if handle >= 0 {
                 defer { SandboxAccess.release(handle) }
