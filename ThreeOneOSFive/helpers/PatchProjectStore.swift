@@ -126,8 +126,13 @@ final class PatchProjectStore: ObservableObject {
                 if failures.isEmpty {
                     log("patch: authenticated remote sync complete")
                 } else {
+                    // One package the feed cannot hand over must not fail the
+                    // whole library, and "check the link" is the wrong story
+                    // when the bytes arrived and only the envelope was wrong.
                     log("patch: authenticated remote sync incomplete: \(failures.joined(separator: ", "))")
-                    self.present(.remoteImportFailed)
+                    if failures.count == self.game.bundledPatches.count {
+                        self.present(.remoteImportFailed)
+                    }
                 }
             } catch {
                 self.isBusy = false

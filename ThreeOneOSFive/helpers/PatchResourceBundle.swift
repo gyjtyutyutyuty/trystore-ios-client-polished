@@ -53,14 +53,28 @@ enum PatchResourceBundle {
         defer { session.invalidateAndCancel() }
 
         let manifestURL = baseURL.appendingPathComponent("api/patches/trystore/manifest.json")
-        let (manifestData, manifestResponse) = try await session.data(
-            for: authenticatedRequest(url: manifestURL, credentials: credentials)
-        )
-        guard let manifestHTTP = manifestResponse as? HTTPURLResponse,
-              manifestHTTP.statusCode == 200,
-              manifestHTTP.url?.host?.lowercased() == expectedHost else {
-            throw PatchFeedError.unavailable
+        var manifestData: Data?
+        var lastManifestError: Error = PatchFeedError.unavailable
+        for attempt in 0..<3 {
+            do {
+                let (data, manifestResponse) = try await session.data(
+                    for: authenticatedRequest(url: manifestURL, credentials: credentials)
+                )
+                guard let manifestHTTP = manifestResponse as? HTTPURLResponse,
+                      manifestHTTP.statusCode == 200,
+                      manifestHTTP.url?.host?.lowercased() == expectedHost else {
+                    throw PatchFeedError.unavailable
+                }
+                manifestData = data
+                break
+            } catch {
+                lastManifestError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64(400_000_000) << attempt)
+                }
+            }
         }
+        guard let manifestData else { throw lastManifestError }
         let manifest: Manifest
         do {
             manifest = try JSONDecoder().decode(Manifest.self, from: manifestData)
@@ -84,20 +98,37 @@ enum PatchResourceBundle {
                   isTrustedPackageURL(entry.url, filename: patch.resourceName, digest: entry.sha256) else {
                 throw PatchFeedError.invalidManifest
             }
-            let (data, response) = try await session.data(
-                for: authenticatedRequest(url: entry.url, credentials: credentials)
-            )
-            guard let http = response as? HTTPURLResponse,
-                  http.statusCode == 200,
-                  http.url?.host?.lowercased() == expectedHost,
-                  data.count == entry.size,
-                  data.count <= maximumPackageSize else {
-                throw PatchFeedError.unavailable
+            // A dropped connection or a truncated body used to abort the whole
+            // sync with one package missing. Retry the transfer and re-verify
+            // the digest on every attempt before giving up on it.
+            var fetched: Data?
+            var lastError: Error = PatchFeedError.unavailable
+            for attempt in 0..<3 {
+                do {
+                    let (data, response) = try await session.data(
+                        for: authenticatedRequest(url: entry.url, credentials: credentials)
+                    )
+                    guard let http = response as? HTTPURLResponse,
+                          http.statusCode == 200,
+                          http.url?.host?.lowercased() == expectedHost,
+                          data.count == entry.size,
+                          data.count <= maximumPackageSize else {
+                        throw PatchFeedError.unavailable
+                    }
+                    let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    guard digest.caseInsensitiveCompare(entry.sha256) == .orderedSame else {
+                        throw PatchFeedError.invalidPackage(patch.resourceName)
+                    }
+                    fetched = data
+                    break
+                } catch {
+                    lastError = error
+                    if attempt < 2 {
+                        try? await Task.sleep(nanoseconds: UInt64(400_000_000) << attempt)
+                    }
+                }
             }
-            let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            guard digest.caseInsensitiveCompare(entry.sha256) == .orderedSame else {
-                throw PatchFeedError.invalidPackage(patch.resourceName)
-            }
+            guard let data = fetched else { throw lastError }
             resources[patch.resourceName] = data
         }
         return resources

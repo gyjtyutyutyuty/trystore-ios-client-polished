@@ -127,6 +127,41 @@ enum PatchProjectLibrary {
         }
     }
 
+    /// Decodes a feed package in any format the feed has shipped: the current
+    /// envelope, a bundle-wrapped one that only the fetched feed key can open,
+    /// and the legacy schema-9 envelopes. Identity is verified before the
+    /// project is renamed, so accepting more envelopes cannot accept a
+    /// different patch than the one the manifest announced.
+    private static func decodeRemoteFeedPackage(
+        _ sourceData: Data,
+        resourceName: String
+    ) throws -> (data: Data, decoded: DecodedPatchPackage) {
+        if let normalized = try? normalizeRemoteFeedPackage(sourceData, fileName: resourceName),
+           let summary = try? PatchPackageCodec.inspect(normalized),
+           !summary.isPasswordProtected,
+           let decoded = try? PatchPackageCodec.decode(normalized, password: nil) {
+            return (normalized, decoded)
+        }
+
+        // The feed wraps a few visual patches with the bundle key. inspect()
+        // accepts the envelope but decode(password: nil) cannot open it, which
+        // used to drop the whole sync with invalidPasswordOrCorruptedPackage.
+        // The payload keeps its own name here; the caller checks it against the
+        // manifest and only then renames the project.
+        guard let bundled = try? PatchPackageCodec.decodeBundledResource(sourceData) else {
+            throw PatchPackageError.invalidPasswordOrCorruptedPackage
+        }
+
+        let encoded = try PatchPackageCodec.encodeNew(project: bundled.decoded.project, password: nil)
+        guard let summary = try? PatchPackageCodec.inspect(encoded.data),
+              !summary.isPasswordProtected,
+              let decoded = try? PatchPackageCodec.decode(encoded.data, password: nil) else {
+            throw PatchPackageError.invalidPasswordOrCorruptedPackage
+        }
+        log("patch: recovered bundle-wrapped feed package: \(resourceName)")
+        return (encoded.data, decoded)
+    }
+
     static func isBundledProject(_ project: PatchProject) -> Bool {
         bundledProjectNames.contains(project.name)
     }
@@ -334,17 +369,15 @@ enum PatchProjectLibrary {
             }?.key
             guard let expectedID else { return false }
 
-            let feedData = try normalizeRemoteFeedPackage(sourceData, fileName: resourceName)
-            let feedSummary = try PatchPackageCodec.inspect(feedData)
-            guard !feedSummary.isPasswordProtected else { return false }
-            let feedPackage = try PatchPackageCodec.decode(feedData, password: nil)
-            guard feedSummary.packageID == expectedID,
-                  feedPackage.project.id == expectedID,
-                  remoteFeedIdentityMatches(
-                    expectedManifestName: manifestName,
-                    fileName: resourceName,
-                    actualProjectName: feedPackage.project.name
-                  ) else {
+            let feedPackage = try decodeRemoteFeedPackage(
+                sourceData,
+                resourceName: resourceName
+            ).decoded
+            guard remoteFeedIdentityMatches(
+                expectedManifestName: manifestName,
+                fileName: resourceName,
+                actualProjectName: feedPackage.project.name
+            ) else {
                 log("patch: remote package identity mismatch: \(resourceName)")
                 return false
             }
