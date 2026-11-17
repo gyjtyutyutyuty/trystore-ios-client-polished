@@ -78,6 +78,12 @@ def main() -> None:
         require(build_id in source_ids, f"{filename} is not compiled into the SupportPatch target")
         require((APP / ("helpers" if filename == "LicenseManager.swift" else "views") / filename).is_file(),
                 f"source file not found: {filename}")
+    release_block = re.search(r"3105AA02 /\* Release \*/ = \{.*?name = Release;", pbx, re.S)
+    require(release_block is not None
+            and "COPY_PHASE_STRIP = YES;" in release_block.group(0)
+            and "DEBUG_INFORMATION_FORMAT = dwarf-with-dsym;" in release_block.group(0)
+            and "GCC_GENERATE_DEBUGGING_SYMBOLS = NO;" in release_block.group(0),
+            "Release build must strip the app while keeping debug symbols outside the product")
 
     app_source = APP_SOURCE.read_text()
     manager = MANAGER.read_text()
@@ -137,8 +143,9 @@ def main() -> None:
     require("async function hyperActivate" in worker
             and "const claim=await claimDevice(e,g,b.deviceId)" in worker
             and "device_mismatch" in worker
+            and "Number(p.exp||0)<now()" in worker
             and "String(b.deviceId)!==String(p.device)" in worker,
-            "secondary activation and heartbeat routes are missing device binding")
+            "secondary activation and heartbeat routes are missing device binding or token expiry")
     require(RATE_LIMIT_MIGRATION.is_file()
             and "CREATE TABLE IF NOT EXISTS api_rate_limits" in rate_limit_migration
             and "PRIMARY KEY (bucket, subject, window_start)" in rate_limit_migration
