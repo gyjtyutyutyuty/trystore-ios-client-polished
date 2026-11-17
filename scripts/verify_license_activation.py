@@ -127,6 +127,16 @@ def main() -> None:
             and "claimDevice(e,g,b.deviceId)" in worker
             and "claimDevice(e,g,device)" in worker,
             "Worker does not enforce device binding on validation and bundle-key routes")
+    require("u.pathname==='/__sendmenu'" not in worker
+            and "u.pathname==='/__chatcheck'" not in worker
+            and "u.pathname==='/__tgcheck'" not in worker
+            and "['/__sendmenu','/__chatcheck','/__tgcheck']" in worker,
+            "public Telegram diagnostic endpoints must remain disabled")
+    require("async function hyperActivate" in worker
+            and "const claim=await claimDevice(e,g,b.deviceId)" in worker
+            and "device_mismatch" in worker
+            and "String(b.deviceId)!==String(p.device)" in worker,
+            "secondary activation and heartbeat routes are missing device binding")
     require("licenseManager.activate(key: keyInput)" in gate
             and "licenseManager.refresh()" in gate,
             "activation gate does not support activation and retry")
