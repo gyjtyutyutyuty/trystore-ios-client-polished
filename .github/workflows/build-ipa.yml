@@ -162,6 +162,7 @@ jobs:
           unzip -q build/SupportPatch-unsigned.ipa -d /tmp/ipa-check
           test -x /tmp/ipa-check/Payload/SupportPatch.app/SupportPatch
           python3 scripts/verify_legacy_patch_bundle.py --app /tmp/ipa-check/Payload/SupportPatch.app
+          python3 scripts/verify_ipa_release.py build/SupportPatch-unsigned.ipa
           shasum -a 256 build/SupportPatch-unsigned.ipa | tee build/SupportPatch-unsigned.ipa.sha256
 
       - name: Upload IPA artifact
