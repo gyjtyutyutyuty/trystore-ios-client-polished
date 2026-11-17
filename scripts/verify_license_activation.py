@@ -18,6 +18,7 @@ MANAGER = APP / "helpers/LicenseManager.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
 DEVICE_MIGRATION = ROOT / "cloudflare/migrations/0001_license_devices.sql"
 RATE_LIMIT_MIGRATION = ROOT / "cloudflare/migrations/0002_api_rate_limits.sql"
+APP_ATTEST_MIGRATION = ROOT / "cloudflare/migrations/0003_app_attest.sql"
 ACTIVATION_GATE = APP / "helpers/ActivationGate.swift"
 GATE = APP / "views/LicenseGateView.swift"
 SETTINGS = APP / "views/SettingsView.swift"
@@ -35,7 +36,7 @@ LOCALIZATION_KEYS = (
     "license.verifying", "license.activate", "license.checking",
     "license.keychain_note", "license.retry", "license.error_required",
     "license.error_configuration", "license.error_secure_storage",
-    "license.error_offline", "license.error_server", "license.error_invalid",
+    "license.error_offline", "license.error_server", "license.error_attestation", "license.error_invalid",
     "license.error_expired", "license.error_revoked", "license.error_frozen",
     "license.error_wrong_project", "license.error_device_limit", "license.error_inactive",
     "license.settings_section", "license.settings_status", "license.settings_active",
@@ -90,6 +91,11 @@ def main() -> None:
     worker = WORKER.read_text()
     migration = DEVICE_MIGRATION.read_text()
     rate_limit_migration = RATE_LIMIT_MIGRATION.read_text()
+    app_attest_migration = APP_ATTEST_MIGRATION.read_text()
+    app_attest_worker = (ROOT / "cloudflare/app-attest.js").read_text()
+    patch_feed_worker = (ROOT / "cloudflare/patch-feed-worker.js").read_text()
+    key_store = (APP / "helpers/PatchBundleKeyStore.swift").read_text()
+    entitlements = (APP / "ThreeOneOSFive.entitlements").read_text()
     activation_gate = ACTIVATION_GATE.read_text()
     gate = GATE.read_text()
     settings = SETTINGS.read_text()
@@ -135,6 +141,30 @@ def main() -> None:
             and "claimDevice(e,g,b.deviceId)" in worker
             and "claimDevice(e,g,device)" in worker,
             "Worker does not enforce device binding on validation and bundle-key routes")
+    require(APP_ATTEST_MIGRATION.is_file()
+            and "CREATE TABLE IF NOT EXISTS app_attest_keys" in app_attest_migration
+            and "CREATE TABLE IF NOT EXISTS app_attest_challenges" in app_attest_migration
+            and "UNIQUE (license_key_id, device_id)" in app_attest_migration,
+            "App Attest D1 registration/challenge migration is missing or incomplete")
+    require("handleAppAttestRoute" in worker
+            and "verifyAttestation(" in app_attest_worker
+            and "verifyAssertion(" in app_attest_worker
+            and "consumed_at IS NULL" in app_attest_worker
+            and "sign_count=?6" in app_attest_worker,
+            "license Worker does not verify Apple attestation/assertions with one-use challenges and atomic counters")
+    require("attestation_required" in worker
+            and "proxyAppAttest" in patch_feed_worker
+            and "method_not_allowed" in patch_feed_worker
+            and "APP_ATTEST_INTERNAL_TOKEN" in patch_feed_worker,
+            "TryStore bundle key has a GET or service-binding bypass around App Attest")
+    require("DCAppAttestService.shared" in key_store
+            and "attestKey(" in key_store
+            and "generateAssertion(" in key_store
+            and "X-TryStore-Device-ID" in key_store
+            and "license.error_attestation" in manager
+            and "com.apple.developer.devicecheck.appattest-environment" in entitlements
+            and "APP_ATTEST_ENVIRONMENT = production;" in PROJECT.read_text(),
+            "iOS App Attest implementation, entitlement, production environment, or fail-closed gate is missing")
     require("u.pathname==='/__sendmenu'" not in worker
             and "u.pathname==='/__chatcheck'" not in worker
             and "u.pathname==='/__tgcheck'" not in worker

@@ -592,6 +592,7 @@
 "license.error_secure_storage" = "iOS không thể lưu khóa an toàn.";
 "license.error_offline" = "Không kết nối được dịch vụ giấy phép. Kiểm tra mạng và thử lại.";
 "license.error_server" = "Dịch vụ giấy phép trả về phản hồi không hợp lệ. Hãy thử lại sau.";
+"license.error_attestation" = "Không thể xác minh tính toàn vẹn của ứng dụng. Hãy cập nhật TryStore hoặc liên hệ bộ phận hỗ trợ.";
 "license.error_invalid" = "Không nhận diện được khóa này.";
 "license.error_expired" = "Khóa này đã hết hạn.";
 "license.error_revoked" = "Khóa này đã bị thu hồi.";

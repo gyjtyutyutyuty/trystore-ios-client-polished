@@ -1,6 +1,14 @@
 {
+  "type": "module",
+  "scripts": {
+    "build:license": "esbuild license-worker.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/license-worker.js"
+  },
   "dependencies": {
+    "@bradford-tech/supabase-integrity-attest": "0.9.1",
     "bplist-creator": "^0.1.1",
     "bplist-parser": "^0.3.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

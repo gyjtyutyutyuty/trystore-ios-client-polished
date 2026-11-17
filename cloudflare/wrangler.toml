@@ -25,3 +25,5 @@ PATCH_ADMIN_IDS = "7551063281,5869209007"
 #   TELEGRAM_BOT_TOKEN
 #   TELEGRAM_WEBHOOK_SECRET   must match the reseller worker's secret
 #   TELEGRAM_OWNER_ID
+#   APP_ATTEST_INTERNAL_TOKEN must be the same random 32+ character secret on both Workers
+#   APP_BUNDLE_KEY            32-byte base64 key used to wrap TryStore package keys

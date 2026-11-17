@@ -46,6 +46,7 @@ final class LicenseManager: ObservableObject {
     func beginLaunchSession() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            PatchBundleKeyStore.invalidateBundleKey()
             isActive = false
             expirationDate = nil
             maskedKey = nil
@@ -68,6 +69,7 @@ final class LicenseManager: ObservableObject {
     func refresh() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            PatchBundleKeyStore.invalidateBundleKey()
             isActive = false
             messageKey = "license.error_required"
             return
@@ -90,6 +92,7 @@ final class LicenseManager: ObservableObject {
     private func validate(key: String, persistOnSuccess: Bool) {
         isActive = false
         guard let endpoint else {
+            PatchBundleKeyStore.invalidateBundleKey()
             isActive = false
             messageKey = "license.error_configuration"
             return
@@ -111,6 +114,7 @@ final class LicenseManager: ObservableObject {
                 lastCheckedAt = Date()
                 isOffline = false
                 guard active else {
+                    PatchBundleKeyStore.invalidateBundleKey()
                     isActive = false
                     messageKey = Self.messageKey(for: response.outcome)
                     return
@@ -120,14 +124,14 @@ final class LicenseManager: ObservableObject {
                     do {
                         try saveKeychainString(key, for: keyAccount)
                     } catch {
+                        PatchBundleKeyStore.invalidateBundleKey()
                         isActive = false
                         messageKey = "license.error_secure_storage"
                         return
                     }
                 }
-                // The patch feed releases its bundle key only after this same
-                // licence check. Caching it here means bundled patches are
-                // never decryptable from the IPA alone.
+                // App Attest and a server assertion are required before the
+                // patch key is released; do not open the app if this fails.
                 do {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: key,
@@ -135,18 +139,25 @@ final class LicenseManager: ObservableObject {
                     )
                 } catch {
                     log("patches: bundle key unavailable — \(error)")
+                    PatchBundleKeyStore.invalidateBundleKey()
+                    isActive = false
+                    messageKey = "license.error_attestation"
+                    return
                 }
                 isActive = true
                 messageKey = nil
                 maskedKey = Self.mask(key)
             } catch LicenseRequestError.network {
+                PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
                 isOffline = true
                 messageKey = "license.error_offline"
             } catch LicenseRequestError.secureStorage {
+                PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
                 messageKey = "license.error_secure_storage"
             } catch {
+                PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
                 isOffline = false
                 messageKey = "license.error_server"

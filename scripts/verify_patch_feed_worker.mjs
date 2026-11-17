@@ -11,9 +11,13 @@ const copy = path.join(scratch, 'worker.mjs');
 await copyFile(path.join(root, 'patch-feed-worker.js'), copy);
 
 let validationCalls = 0;
+let attestCalls = 0;
+const internalToken = 'mock-internal-token'.padEnd(64, 'x');
 const manifest = { schemaVersion: 1, project: 'trystore', patches: [] };
 const blob = new Uint8Array([0x31, 0x30, 0x35]);
 const env = {
+  APP_ATTEST_INTERNAL_TOKEN: internalToken,
+  APP_BUNDLE_KEY: Buffer.alloc(32, 0xab).toString('base64'),
   PATCHES: {
     async get(key, type) {
       if (key === 'patches/trystore/manifest.json') return JSON.stringify(manifest);
@@ -27,8 +31,29 @@ const env = {
   },
   RESELLER: {
     async fetch(request) {
-      validationCalls += 1;
+      const url = new URL(request.url);
       const body = await request.json();
+      if (url.pathname.startsWith('/api/v1/app-attest/')) {
+        attestCalls += 1;
+        if (request.headers.get('x-app-attest-internal-token') !== internalToken) {
+          return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
+        }
+        if (body.key !== 'ACTIVE-KEY-001' || body.projectId !== 'trystore') {
+          return new Response(JSON.stringify({ error: 'license_required' }), { status: 401 });
+        }
+        if (url.pathname.endsWith('/challenge')) {
+          return new Response(JSON.stringify({ challengeId: 'challenge-id', challenge: 'challenge-value', mode: 'attest' }), {
+            status: 200, headers: { 'content-type': 'application/json' },
+          });
+        }
+        if (url.pathname.endsWith('/register')) {
+          return new Response(JSON.stringify({ valid: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        return body.assertion === 'VALID-ASSERTION'
+          ? new Response(JSON.stringify({ valid: true }), { status: 200, headers: { 'content-type': 'application/json' } })
+          : new Response(JSON.stringify({ error: 'assertion_rejected' }), { status: 403, headers: { 'content-type': 'application/json' } });
+      }
+      validationCalls += 1;
       if (body.key === 'ACTIVE-KEY-001' && body.projectId === 'trystore') {
         return new Response(JSON.stringify({
           valid: true,
@@ -54,8 +79,11 @@ const authorizedHeaders = {
   authorization: 'Bearer ACTIVE-KEY-001',
   'x-trystore-device-id': deviceID,
 };
-const request = (route, headers = {}) => new Request(`https://feed.test${route}`, { headers });
-
+const request = (route, headers = {}, method = 'GET', body = undefined) => new Request(`https://feed.test${route}`, {
+  method,
+  headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
+  body: body === undefined ? undefined : JSON.stringify(body),
+});
 try {
   const worker = (await import(pathToFileURL(copy).href)).default;
   let response = await worker.fetch(request('/api/patches/trystore/manifest.json'), env);
@@ -77,6 +105,40 @@ try {
   check('TryStore package responses are not cacheable', response.headers.get('cache-control') === 'no-store');
   check('TryStore response varies on authorization headers', /authorization/i.test(response.headers.get('vary') || ''));
 
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', authorizedHeaders), env);
+  check('legacy TryStore GET bundle-key route is denied', response.status === 405);
+  check('denied GET does not reach the authorization service', attestCalls === 0);
+
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', {}, 'POST', {
+    challengeID: 'c', challenge: 'n', keyId: 'k', assertion: 'VALID-ASSERTION',
+  }), env);
+  check('bundle-key POST without license/device credentials is denied', response.status === 401);
+  check('missing credentials do not call App Attest authorization', attestCalls === 0);
+
+  response = await worker.fetch(request('/api/patches/trystore/app-attest/challenge', authorizedHeaders, 'POST', {}), env);
+  const challenge = await response.json();
+  check('challenge route proxies through the authenticated service binding', response.status === 200
+    && challenge.mode === 'attest' && attestCalls === 1);
+
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', authorizedHeaders, 'POST', {
+    challengeID: 'challenge-id', challenge: 'challenge-value', keyId: 'key-id', assertion: 'BAD-ASSERTION',
+  }), env);
+  check('invalid server-side assertion response prevents bundle-key release', response.status === 403);
+
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', authorizedHeaders, 'POST', {
+    challengeID: 'challenge-id', challenge: 'challenge-value', keyId: 'key-id', assertion: 'VALID-ASSERTION',
+  }), env);
+  const keyResponse = await response.json();
+  check('valid authorization returns the wrapped key without caching', response.status === 200
+    && keyResponse.valid === true && keyResponse.key === env.APP_BUNDLE_KEY
+    && response.headers.get('cache-control') === 'no-store');
+
+  const missingSecretEnv = { ...env, APP_ATTEST_INTERNAL_TOKEN: '' };
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', authorizedHeaders, 'POST', {
+    challengeID: 'challenge-id', challenge: 'challenge-value', keyId: 'key-id', assertion: 'VALID-ASSERTION',
+  }), missingSecretEnv);
+  check('missing internal Worker secret fails closed', response.status === 503);
+
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json'), env);
   check('other-project manifest behavior remains public', response.status === 200);
   response = await worker.fetch(request('/patches/apple-music/track.apple'), env);
@@ -85,5 +147,4 @@ try {
 } finally {
   await rm(scratch, { recursive: true, force: true });
 }
-
 if (failures) process.exitCode = 1;

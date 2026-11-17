@@ -600,6 +600,7 @@
 "license.error_secure_storage" = "iOS could not save your key securely.";
 "license.error_offline" = "The license service is unavailable. Check your connection and retry.";
 "license.error_server" = "The license service returned an unreadable response. Try again later.";
+"license.error_attestation" = "App integrity could not be verified. Update TryStore or contact support.";
 "license.error_invalid" = "That key was not recognized.";
 "license.error_expired" = "This key has expired.";
 "license.error_revoked" = "This key has been revoked.";

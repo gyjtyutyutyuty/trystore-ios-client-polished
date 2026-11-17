@@ -176,6 +176,7 @@
 "license.error_secure_storage" = "iOS no pudo guardar la clave de forma segura.";
 "license.error_offline" = "El servicio de licencias no está disponible. Comprueba la conexión e inténtalo de nuevo.";
 "license.error_server" = "El servicio de licencias devolvió una respuesta ilegible. Inténtalo más tarde.";
+"license.error_attestation" = "No se pudo verificar la integridad de la app. Actualiza TryStore o contacta con soporte.";
 "license.error_invalid" = "No se reconoce esta clave.";
 "license.error_expired" = "Esta clave ha caducado.";
 "license.error_revoked" = "Esta clave ha sido revocada.";
