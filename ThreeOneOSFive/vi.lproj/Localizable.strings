@@ -598,6 +598,7 @@
 "license.error_frozen" = "Khóa này hiện đang bị khóa.";
 "license.error_wrong_project" = "Khóa này không dành cho TryStore.";
 "license.error_inactive" = "Khóa này chưa được kích hoạt.";
+"license.error_device_limit" = "Key này đã được kích hoạt trên số thiết bị tối đa.";
 "license.settings_section" = "Giấy phép";
 "license.settings_status" = "Trạng thái";
 "license.settings_active" = "Đang hoạt động";

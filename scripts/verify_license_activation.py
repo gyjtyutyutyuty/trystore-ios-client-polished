@@ -16,6 +16,7 @@ PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 APP_SOURCE = APP / "App.swift"
 MANAGER = APP / "helpers/LicenseManager.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
+DEVICE_MIGRATION = ROOT / "cloudflare/migrations/0001_license_devices.sql"
 ACTIVATION_GATE = APP / "helpers/ActivationGate.swift"
 GATE = APP / "views/LicenseGateView.swift"
 SETTINGS = APP / "views/SettingsView.swift"
@@ -35,7 +36,7 @@ LOCALIZATION_KEYS = (
     "license.error_configuration", "license.error_secure_storage",
     "license.error_offline", "license.error_server", "license.error_invalid",
     "license.error_expired", "license.error_revoked", "license.error_frozen",
-    "license.error_wrong_project", "license.error_inactive",
+    "license.error_wrong_project", "license.error_device_limit", "license.error_inactive",
     "license.settings_section", "license.settings_status", "license.settings_active",
     "license.settings_required", "license.settings_expiration", "license.settings_key",
     "license.settings_verify", "license.settings_forget", "license.forget_title",
@@ -80,6 +81,7 @@ def main() -> None:
     app_source = APP_SOURCE.read_text()
     manager = MANAGER.read_text()
     worker = WORKER.read_text()
+    migration = DEVICE_MIGRATION.read_text()
     activation_gate = ACTIVATION_GATE.read_text()
     gate = GATE.read_text()
     settings = SETTINGS.read_text()
@@ -114,6 +116,17 @@ def main() -> None:
             and "if(g.slug!==project)" in worker
             and "g.slug!==requestedProject" in worker,
             "Worker must retain live project-scoped checks and Apple Music v1 compatibility")
+    require(DEVICE_MIGRATION.is_file()
+            and "CREATE TABLE IF NOT EXISTS license_devices" in migration
+            and "PRIMARY KEY (key_id, device_id)" in migration,
+            "D1 device-binding migration is missing or incomplete")
+    require("const DEVICE_ID=" in worker
+            and "async function claimDevice" in worker
+            and "max_devices" in worker
+            and "device_limit" in worker
+            and "claimDevice(e,g,b.deviceId)" in worker
+            and "claimDevice(e,g,device)" in worker,
+            "Worker does not enforce device binding on validation and bundle-key routes")
     require("licenseManager.activate(key: keyInput)" in gate
             and "licenseManager.refresh()" in gate,
             "activation gate does not support activation and retry")

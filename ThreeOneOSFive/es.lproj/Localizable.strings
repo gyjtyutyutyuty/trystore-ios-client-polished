@@ -182,6 +182,7 @@
 "license.error_frozen" = "Esta clave está congelada actualmente.";
 "license.error_wrong_project" = "Esta clave no es para TryStore.";
 "license.error_inactive" = "Esta clave no está activa.";
+"license.error_device_limit" = "Esta clave ya está activa en el número máximo de dispositivos.";
 "license.settings_section" = "Licencia";
 "license.settings_status" = "Estado";
 "license.settings_active" = "Activa";

@@ -13,7 +13,7 @@
 
 An iOS app runs on a device controlled by its user. A determined person can inspect the executable, disassemble code, instrument runtime behavior, alter local checks, and extract files delivered to that app. Remote authorization protects the feed from unauthenticated downloads, while SHA-256 and identity checks detect corrupted or mismatched packages. Once an authorized client receives a patch, a determined device owner can still copy it. There is no honest way to make a client IPA "anticrackable" or impossible to reverse engineer.
 
-The current license validation service accepts a `deviceId` field but does not enforce device binding or its `max_devices` value. The ID is sent with patch requests as context, not as a theft-prevention guarantee. For stronger protection, enforce device binding in the license service with a documented recovery/reset path. App Attest can add server-verifiable signals for supported devices, but requires a separate server integration and does not prove that a client is unmodified.
+The license service now enforces the submitted `deviceId` and each key's `max_devices` value in D1, including before releasing patch-bundle material. This reduces casual key sharing but is not a cryptographic proof that a client is unmodified. App Attest can add server-verifiable signals for supported devices, but requires a separate server integration and does not prove that a client is unmodified.
 
 ## Release checklist
 

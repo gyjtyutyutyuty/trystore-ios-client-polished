@@ -10,6 +10,6 @@ The app sends the entered key, project slug, app version, and a random per-insta
 
 Patch packages are separate from license validation. TryStore now ships its approved `.TRYSTORE` packages as local app resources and does not call the Cloudflare patch-bundle-key route to import them. A valid license is still required to enter the app; license status is rechecked at launch or when the app becomes active.
 
-## Important current limitation
+## Device binding
 
-The existing `/api/v1/keys/validate` TryStore route does **not** enforce device binding: it ignores the submitted `deviceId` and does not consult the key's `max_devices` value. Enforcing one-device activation requires a separate server-side Worker/D1 change; do not implement it by embedding an admin or signing secret in the iOS client.
+The global-control Worker now validates the submitted UUID-form `deviceId` against the D1 `license_devices` table and enforces each key's `max_devices` value. The default generated key allows one device. A second device receives `device_limit`, and the patch-bundle-key endpoint applies the same check before releasing bundle material. The migration is documented in `docs/LICENSE_DEVICE_BINDING.md`; do not implement this by embedding an admin or signing secret in the iOS client.

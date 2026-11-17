@@ -593,6 +593,7 @@
 "license.error_frozen" = "此密钥目前已被冻结。";
 "license.error_wrong_project" = "此密钥不适用于 TryStore。";
 "license.error_inactive" = "此密钥尚未启用。";
+"license.error_device_limit" = "此密钥已在最大数量的设备上激活。";
 "license.settings_section" = "许可证";
 "license.settings_status" = "状态";
 "license.settings_active" = "已激活";

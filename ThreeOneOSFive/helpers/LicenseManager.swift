@@ -255,6 +255,7 @@ final class LicenseManager: ObservableObject {
         case "revoked": return "license.error_revoked"
         case "frozen", "suspended": return "license.error_frozen"
         case "wrong_project": return "license.error_wrong_project"
+        case "device_limit": return "license.error_device_limit"
         default: return "license.error_inactive"
         }
     }

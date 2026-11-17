@@ -606,6 +606,7 @@
 "license.error_frozen" = "This key is currently frozen.";
 "license.error_wrong_project" = "This key is not for TryStore.";
 "license.error_inactive" = "This key is not active.";
+"license.error_device_limit" = "This key is already active on the maximum number of devices.";
 "license.settings_section" = "License";
 "license.settings_status" = "Status";
 "license.settings_active" = "Active";
