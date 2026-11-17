@@ -5,6 +5,26 @@ const SUPPORTED_STORE_PROJECTS=new Set(['trystore','apple-music','me-store']);
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'content-type':'application/json','cache-control':'no-store','access-control-allow-origin':'*'}});
 const owner=(e,id)=>String(e.TELEGRAM_OWNER_ID||'')===String(id);
 const now=()=>Math.floor(Date.now()/1000);
+const MAX_JSON_BYTES=16*1024;
+const clientIP=(r)=>String(r.headers.get('CF-Connecting-IP')||'unknown').slice(0,128);
+async function rateLimit(e,r,bucket,limit){
+  const windowStart=Math.floor(now()/60),subject=clientIP(r);
+  try{
+    await e.DB.prepare("INSERT INTO api_rate_limits(bucket,subject,window_start,hits) VALUES (?1,?2,?3,1) ON CONFLICT(bucket,subject,window_start) DO UPDATE SET hits=hits+1").bind(bucket,subject,windowStart).run();
+    const row=await e.DB.prepare("SELECT hits FROM api_rate_limits WHERE bucket=?1 AND subject=?2 AND window_start=?3").bind(bucket,subject,windowStart).first();
+    return Number(row?.hits||0)<=limit;
+  }catch{return false}
+}
+async function guardJSON(r,e,bucket,limit){
+  if(r.method!=='POST')return J({error:'method_not_allowed'},405);
+  const contentType=String(r.headers.get('content-type')||'').toLowerCase();
+  const length=Number(r.headers.get('content-length')||0);
+  if(!contentType.startsWith('application/json')||length>MAX_JSON_BYTES)return J({error:'invalid_request'},400);
+  if(!length&&(await r.clone().arrayBuffer()).byteLength>MAX_JSON_BYTES)return J({error:'invalid_request'},400);
+  if(!(await rateLimit(e,r,bucket,limit)))return J({error:'rate_limited'},429);
+  return null;
+}
+
 const DEVICE_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const validDevice=(value)=>DEVICE_ID.test(String(value||'').trim());
 async function claimDevice(e,g,device){
@@ -36,5 +56,5 @@ if(q&&q.data==='owner:help'&&o){await tg(e,'sendMessage',{chat_id:c,text:'👑 O
 if(m&&!o){const key=String(m?.text||'').trim();if(key){const g=await findKey(e,key);if(g){const r=await e.DB.prepare("SELECT r.id FROM resellers r WHERE r.id=?1 AND r.telegram_id=?2 AND r.status='active'").bind(g.reseller_id,id).first();if(r){if(g.status!=='active'){await tg(e,'sendMessage',{chat_id:c,text:'ℹ️ Esa key ya no está activa.'})}else{await e.DB.prepare("UPDATE global_keys SET status='revoked',updated_at=?1 WHERE id=?2 AND reseller_id=?3 AND status='active'").bind(now(),g.id,r.id).run();await tg(e,'sendMessage',{chat_id:c,text:'✅ Key revocada correctamente.'})}return J({ok:true})}await tg(e,'sendMessage',{chat_id:c,text:'⛔ Solo puedes revocar keys que tú enviaste.'});return J({ok:true})}}await tg(e,'sendMessage',{chat_id:c,text:'👋 Panel de revendedor — gestiona tus proyectos con los botones',reply_markup:{inline_keyboard:[[{text:'Mis proyectos',callback_data:'reseller:projects'}]]}});return J({ok:true})}return J({ok:true})}
 async function fwd(r,base,path){const u=new URL(r.url),h=new Headers(r.headers);h.delete('host');return fetch(new Request(base+path+u.search,{method:r.method,headers:h,body:r.method==='GET'||r.method==='HEAD'?undefined:r.body,redirect:'follow'}))}
 async function proxy(r){const u=new URL(r.url);let p=u.pathname;if(p==='/panel'||p==='/panel/')p='/';else if(p.startsWith('/panel/'))p=p.slice(6)||'/';return fwd(r,WEB,p)}
-async function subscriptionSweep(e){const rows=await e.DB.prepare("SELECT reseller_id,project_id FROM reseller_subscriptions WHERE override_active=0 AND (paid_until IS NULL OR paid_until<?1) AND status!='suspended'").bind(now()).all();for(const r of (rows.results||[])){await e.DB.prepare("UPDATE reseller_subscriptions SET status='suspended',updated_at=?1 WHERE reseller_id=?2 AND project_id=?3").bind(now(),r.reseller_id,r.project_id).run();await e.DB.prepare("UPDATE global_keys SET status='frozen',updated_at=?1 WHERE reseller_id=?2 AND project_id=?3 AND status='active'").bind(now(),r.reseller_id,r.project_id).run()}}
-export default{async scheduled(ev,e){try{await subscriptionSweep(e)}catch{}},async fetch(r,e){try{const u=new URL(r.url);if(u.pathname==='/health')return J({status:'ok',service:'Global Key Control'});if(['/__sendmenu','/__chatcheck','/__tgcheck'].includes(u.pathname))return J({error:'not_found'},404);if(u.pathname==='/api/telegram/webhook'&&r.method==='POST')return webhook(r,e);if(u.pathname==='/api/v1/keys/patch-bundle-key'&&r.method==='POST')return patchBundleKey(r,e);if(u.pathname==='/api/v1/keys/validate'&&r.method==='POST'){const x=await tryValidate(r,e);return x?.legacy?fwd(x.legacy,TRY,u.pathname):J(x)}if(u.pathname==='/api/license/activate'&&r.method==='POST'){const x=await hyperActivate(r,e);return x?.legacy?fwd(x.legacy,HYP,u.pathname):J(x)}if(u.pathname==='/api/license/heartbeat'&&r.method==='POST'){const x=await hyperHeartbeat(r,e);return x?.legacy?fwd(x.legacy,HYP,u.pathname):J(x)}return proxy(r)}catch(x){return J({error:'server_error'},500)}}};
+async function subscriptionSweep(e){const rows=await e.DB.prepare("SELECT reseller_id,project_id FROM reseller_subscriptions WHERE override_active=0 AND (paid_until IS NULL OR paid_until<?1) AND status!='suspended'").bind(now()).all();for(const r of (rows.results||[])){await e.DB.prepare("UPDATE reseller_subscriptions SET status='suspended',updated_at=?1 WHERE reseller_id=?2 AND project_id=?3").bind(now(),r.reseller_id,r.project_id).run();await e.DB.prepare("UPDATE global_keys SET status='frozen',updated_at=?1 WHERE reseller_id=?2 AND project_id=?3 AND status='active'").bind(now(),r.reseller_id,r.project_id).run()}await e.DB.prepare("DELETE FROM api_rate_limits WHERE window_start<?1").bind(Math.floor(now()/60)-120).run()}
+export default{async scheduled(ev,e){try{await subscriptionSweep(e)}catch{}},async fetch(r,e){try{const u=new URL(r.url);if(u.pathname==='/health')return J({status:'ok',service:'Global Key Control'});if(['/__sendmenu','/__chatcheck','/__tgcheck'].includes(u.pathname))return J({error:'not_found'},404);if(u.pathname==='/api/telegram/webhook'&&r.method==='POST')return webhook(r,e);if(u.pathname==='/api/v1/keys/patch-bundle-key'){const guard=await guardJSON(r,e,'patch-bundle-key',60);if(guard)return guard;return patchBundleKey(r,e)}if(u.pathname==='/api/v1/keys/validate'){const guard=await guardJSON(r,e,'validate',30);if(guard)return guard;const x=await tryValidate(r,e);return x?.legacy?fwd(x.legacy,TRY,u.pathname):J(x)}if(u.pathname==='/api/license/activate'){const guard=await guardJSON(r,e,'activate',20);if(guard)return guard;const x=await hyperActivate(r,e);return x?.legacy?fwd(x.legacy,HYP,u.pathname):J(x)}if(u.pathname==='/api/license/heartbeat'){const guard=await guardJSON(r,e,'heartbeat',120);if(guard)return guard;const x=await hyperHeartbeat(r,e);return x?.legacy?fwd(x.legacy,HYP,u.pathname):J(x)}return proxy(r)}catch(x){return J({error:'server_error'},500)}}};

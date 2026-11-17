@@ -17,6 +17,7 @@ APP_SOURCE = APP / "App.swift"
 MANAGER = APP / "helpers/LicenseManager.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
 DEVICE_MIGRATION = ROOT / "cloudflare/migrations/0001_license_devices.sql"
+RATE_LIMIT_MIGRATION = ROOT / "cloudflare/migrations/0002_api_rate_limits.sql"
 ACTIVATION_GATE = APP / "helpers/ActivationGate.swift"
 GATE = APP / "views/LicenseGateView.swift"
 SETTINGS = APP / "views/SettingsView.swift"
@@ -82,6 +83,7 @@ def main() -> None:
     manager = MANAGER.read_text()
     worker = WORKER.read_text()
     migration = DEVICE_MIGRATION.read_text()
+    rate_limit_migration = RATE_LIMIT_MIGRATION.read_text()
     activation_gate = ACTIVATION_GATE.read_text()
     gate = GATE.read_text()
     settings = SETTINGS.read_text()
@@ -137,6 +139,14 @@ def main() -> None:
             and "device_mismatch" in worker
             and "String(b.deviceId)!==String(p.device)" in worker,
             "secondary activation and heartbeat routes are missing device binding")
+    require(RATE_LIMIT_MIGRATION.is_file()
+            and "CREATE TABLE IF NOT EXISTS api_rate_limits" in rate_limit_migration
+            and "PRIMARY KEY (bucket, subject, window_start)" in rate_limit_migration
+            and "async function rateLimit" in worker
+            and "async function guardJSON" in worker
+            and "MAX_JSON_BYTES=16*1024" in worker
+            and "rate_limited" in worker,
+            "public license routes are missing request-size and rate-limit controls")
     require("licenseManager.activate(key: keyInput)" in gate
             and "licenseManager.refresh()" in gate,
             "activation gate does not support activation and retry")
