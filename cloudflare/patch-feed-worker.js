@@ -890,6 +890,13 @@ async function tryStoreLicenseIsActive(request, env) {
     return false;
   }
   if (!env.RESELLER || typeof env.RESELLER.fetch !== "function") return false;
+  // One patch is dozens of blob requests. Each one would otherwise validate the
+  // key again and burn the licence worker's per-IP budget halfway through the
+  // download. A short positive cache keeps the whole package on one check.
+  const cacheKey = "feed-auth/" + await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
+  try {
+    if ((await env.PATCHES.get(cacheKey)) === "1") return true;
+  } catch {}
   try {
     const response = await env.RESELLER.fetch(
       new Request("https://reseller.internal/api/v1/keys/validate", {
@@ -906,9 +913,15 @@ async function tryStoreLicenseIsActive(request, env) {
     );
     if (!response.ok) return false;
     const result = await response.json();
-    return result.valid === true
+    const valid = result.valid === true
       && String(result.outcome || "").toLowerCase() === "active"
       && (!result.expiresAt || Date.parse(result.expiresAt) > Date.now());
+    if (valid) {
+      try {
+        await env.PATCHES.put(cacheKey, "1", { expirationTtl: 120 });
+      } catch {}
+    }
+    return valid;
   } catch {
     return false;
   }

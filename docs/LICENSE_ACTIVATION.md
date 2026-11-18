@@ -84,3 +84,10 @@ X-TryStore-Device-ID: <device uuid>
 worker and returns `APP_BUNDLE_KEY` in the legacy `key` field. Feed routes are
 rate limited per IP in KV: 10/min bundle key, 30/min report, 120/min manifest
 and blob downloads.
+
+A successful validation is cached in KV for two minutes under a hash of the key
+and device id. One patch is dozens of blob requests; without the cache each one
+would revalidate and exhaust the licence worker's 30/min per-IP budget midway
+through a download. If the KV rate counter itself fails, the feed continues to
+the licence check instead of returning 500 — the auth gate is mandatory, the
+counter is best effort.
