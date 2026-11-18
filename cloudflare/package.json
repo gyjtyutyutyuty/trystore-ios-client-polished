@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "dependencies": {
     "bplist-creator": "^0.1.1",
     "bplist-parser": "^0.3.2"
