@@ -11,7 +11,7 @@ const licenseKey = "TRY-AAAAAA-BBBBBB-CCCCCC";
 const bundleKey = crypto.getRandomValues(new Uint8Array(32));
 const bundleKeyB64 = Buffer.from(bundleKey).toString("base64");
 
-function feedEnv({ licenseValid = false, values = new Map() } = {}) {
+function feedEnv({ licenseValid = false, values = new Map(), rateLimitUnavailable = false } = {}) {
   const rateLimits = new Map();
   return {
     APP_BUNDLE_KEY: bundleKeyB64,
@@ -32,6 +32,9 @@ function feedEnv({ licenseValid = false, values = new Map() } = {}) {
     },
     PATCHES: {
       async get(key, type) {
+        if (rateLimitUnavailable && key.startsWith("rl:")) {
+          throw new Error("simulated KV quota failure");
+        }
         const value = values.get(key) ?? rateLimits.get(key) ?? null;
         if (type === "arrayBuffer" && value instanceof Uint8Array) {
           return value.slice().buffer;
@@ -39,6 +42,9 @@ function feedEnv({ licenseValid = false, values = new Map() } = {}) {
         return value;
       },
       async put(key, value) {
+        if (rateLimitUnavailable && key.startsWith("rl:")) {
+          throw new Error("simulated KV quota failure");
+        }
         rateLimits.set(key, value);
       },
     },
@@ -104,11 +110,24 @@ const blobResponse = await feedWorker.fetch(
 assert.equal(blobResponse.status, 200);
 assert.deepEqual(new Uint8Array(await blobResponse.arrayBuffer()), patchBytes);
 
+const quotaFailureBlobResponse = await feedWorker.fetch(
+  request("/patches/trystore/sample.TRYSTORE"),
+  feedEnv({ licenseValid: true, values, rateLimitUnavailable: true }),
+);
+assert.equal(quotaFailureBlobResponse.status, 200);
+
+const quotaFailureAnonymousResponse = await feedWorker.fetch(
+  request("/patches/trystore/sample.TRYSTORE", null),
+  feedEnv({ licenseValid: true, values, rateLimitUnavailable: true }),
+);
+assert.equal(quotaFailureAnonymousResponse.status, 401);
+
 const anonymousBlobResponse = await feedWorker.fetch(
   request("/patches/trystore/sample.TRYSTORE", null),
   authorizedEnv(),
 );
 assert.equal(anonymousBlobResponse.status, 401);
 console.log("ok: legacy licensed IPA can download manifest and patch bytes; anonymous access stays blocked");
+console.log("ok: KV rate-counter failures do not block licensed downloads or authorize anonymous requests");
 
 console.log("\nall legacy IPA compatibility checks passed");

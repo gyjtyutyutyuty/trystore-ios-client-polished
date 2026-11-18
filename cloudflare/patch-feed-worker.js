@@ -925,10 +925,16 @@ async function requireTryStoreLicense(request, env, project) {
 async function allowFeed(env, bucket, ip, limit, windowSeconds) {
   const window = Math.floor(Date.now() / 1000 / windowSeconds);
   const key = `rl:${bucket}:${ip}:${window}`;
-  const current = Number((await env.PATCHES.get(key)) || 0);
-  if (current >= limit) return false;
-  await env.PATCHES.put(key, String(current + 1), { expirationTtl: windowSeconds * 2 });
-  return true;
+  try {
+    const current = Number((await env.PATCHES.get(key)) || 0);
+    if (current >= limit) return false;
+    await env.PATCHES.put(key, String(current + 1), { expirationTtl: windowSeconds * 2 });
+    return true;
+  } catch {
+    // Rate-limit counters are best-effort. If KV quota/storage is unavailable,
+    // continue to the mandatory license and device authorization checks below.
+    return true;
+  }
 }
 const feedIP = (request) => String(request.headers.get("cf-connecting-ip") || "unknown");
 
