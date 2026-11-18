@@ -180,6 +180,7 @@
 "license.error_expired" = "Esta clave ha caducado.";
 "license.error_revoked" = "Esta clave ha sido revocada.";
 "license.error_frozen" = "Esta clave está congelada actualmente.";
+"license.error_device_limit" = "Esta clave ya está activa en el número máximo de dispositivos.";
 "license.error_wrong_project" = "Esta clave no es para TryStore.";
 "license.error_inactive" = "Esta clave no está activa.";
 "license.settings_section" = "Licencia";

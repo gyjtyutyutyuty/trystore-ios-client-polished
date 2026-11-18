@@ -596,6 +596,7 @@
 "license.error_expired" = "Khóa này đã hết hạn.";
 "license.error_revoked" = "Khóa này đã bị thu hồi.";
 "license.error_frozen" = "Khóa này hiện đang bị khóa.";
+"license.error_device_limit" = "Khóa này đã hoạt động trên số thiết bị tối đa.";
 "license.error_wrong_project" = "Khóa này không dành cho TryStore.";
 "license.error_inactive" = "Khóa này chưa được kích hoạt.";
 "license.settings_section" = "Giấy phép";

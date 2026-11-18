@@ -916,6 +916,16 @@ async function requireTryStoreLicense(request, env, project) {
 /* HTTP routes                                                         */
 /* ------------------------------------------------------------------ */
 
+async function allowFeed(env, bucket, ip, limit, windowSeconds) {
+  const window = Math.floor(Date.now() / 1000 / windowSeconds);
+  const key = `rl:${bucket}:${ip}:${window}`;
+  const current = Number((await env.PATCHES.get(key)) || 0);
+  if (current >= limit) return false;
+  await env.PATCHES.put(key, String(current + 1), { expirationTtl: windowSeconds * 2 });
+  return true;
+}
+const feedIP = (request) => String(request.headers.get("cf-connecting-ip") || "unknown");
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -933,6 +943,7 @@ export default {
     if (manifestMatch && request.method === "GET") {
       const project = projectKey(manifestMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await allowFeed(env, "manifest", feedIP(request), 120, 60))) return bad("rate_limited", 429);
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const manifest = await readManifest(env, project);
       return json(manifest, 200, { "cache-control": "no-store" });
@@ -945,6 +956,7 @@ export default {
     if (bundleKeyMatch && request.method === "GET") {
       const project = projectKey(bundleKeyMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await allowFeed(env, "bundle-key", feedIP(request), 10, 60))) return bad("rate_limited", 429);
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const encoded = String(env.APP_BUNDLE_KEY || "");
       let bytes;
@@ -966,6 +978,7 @@ export default {
     if (reportMatch && request.method === "POST") {
       const project = projectKey(reportMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await allowFeed(env, "report", feedIP(request), 30, 60))) return bad("rate_limited", 429);
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const body = await request.text();
       if (!body || body.length > 32768) return bad("invalid_report", 400);
@@ -983,6 +996,7 @@ export default {
     if (blobMatch && request.method === "GET") {
       const project = projectKey(blobMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (!(await allowFeed(env, "blob", feedIP(request), 120, 60))) return bad("rate_limited", 429);
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);

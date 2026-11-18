@@ -185,6 +185,7 @@
 "license.error_expired" = "Esta chave expirou.";
 "license.error_revoked" = "Esta chave foi revogada.";
 "license.error_frozen" = "Esta chave está congelada no momento.";
+"license.error_device_limit" = "Esta chave já está ativa no número máximo de dispositivos.";
 "license.error_wrong_project" = "Esta chave não é para o TryStore.";
 "license.error_inactive" = "Esta chave não está ativa.";
 "license.settings_section" = "Licença";
