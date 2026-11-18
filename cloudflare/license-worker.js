@@ -14,7 +14,7 @@ async function findKey(e,key){return e.DB.prepare("SELECT g.*,p.slug,p.name FROM
 const SESSION_ISSUER='trystore-license';
 const SESSION_AUDIENCE='trystore-feed';
 const SESSION_KID='trystore-ed25519-v1';
-const SESSION_TTL=3600;
+const SESSION_TTL=900;
 const TEXT=new TextEncoder();
 function b64urlBytes(bytes){let s='';for(const b of new Uint8Array(bytes))s+=String.fromCharCode(b);return btoa(s).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')}
 function b64urlText(text){return b64urlBytes(TEXT.encode(text))}

@@ -909,7 +909,7 @@ async function readLicenseSession(request, project) {
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [payload, signature] = parts;
-  let publicKey;
+  let publicKey, signatureBytes;
   try {
     publicKey = await crypto.subtle.importKey(
       "raw",
@@ -918,15 +918,24 @@ async function readLicenseSession(request, project) {
       false,
       ["verify"],
     );
+    signatureBytes = b64ToBytes(signature);
   } catch {
     return null;
   }
-  const valid = await crypto.subtle.verify(
-    "Ed25519",
-    publicKey,
-    b64ToBytes(signature),
-    new TextEncoder().encode(payload),
-  );
+  // Ed25519 signatures are 64 bytes; a malformed token must read as an
+  // authentication failure, not a worker exception.
+  if (signatureBytes.length !== 64) return null;
+  let valid = false;
+  try {
+    valid = await crypto.subtle.verify(
+      "Ed25519",
+      publicKey,
+      signatureBytes,
+      new TextEncoder().encode(payload),
+    );
+  } catch {
+    return null;
+  }
   if (!valid) return null;
   let claims;
   try {
