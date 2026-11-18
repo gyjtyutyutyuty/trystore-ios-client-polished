@@ -29,6 +29,7 @@ DerivedData/
 .env
 .env.*
 !.env.example
+.secrets/
 
 # Local QA artifacts and internal working notes
 /*.png
