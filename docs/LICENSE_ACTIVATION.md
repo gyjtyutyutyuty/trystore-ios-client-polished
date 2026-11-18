@@ -68,10 +68,11 @@ npx wrangler d1 execute jvztxnx-global-control --remote \
 
 ## Patch packages
 
-Bundled `.TRYSTORE` packages carry their content key wrapped under
-`APP_BUNDLE_KEY`. A package with `publicContentKey` set is rejected by the app
-and by `scripts/verify_legacy_patch_bundle.py`; the key must not travel inside
-the IPA.
+Bundled `.TRYSTORE` resources carry their content key wrapped under
+`APP_BUNDLE_KEY`. A bundled resource with `publicContentKey` set is rejected by
+the app and by `scripts/verify_legacy_patch_bundle.py`; the key must not travel
+inside the IPA. Feed packages use the same bundle wrapping, and the importer
+also opens a `publicContentKey` package for older uploads.
 
 Feed requests from installed builds:
 
