@@ -40,7 +40,7 @@ Rotating it requires a client build. That is deliberate.
 ## Device binding and limits
 
 `/api/v1/keys/validate` registers the first devices against a key in
-`global_key_devices` and refuses beyond `max_devices` with outcome
+`license_devices` and refuses beyond `max_devices` with outcome
 `device_limit`. Both key endpoints are rate limited per IP in D1
 (`api_rate_limits`): 30/min for validate, 10/min for the bundle key.
 

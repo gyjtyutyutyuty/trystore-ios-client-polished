@@ -1,7 +1,10 @@
--- Device binding and edge rate limiting for the global licence worker.
--- Apply with: wrangler d1 execute <db> --file migrations/0001_license_devices.sql
+-- License devices and rate limiting for the Global Key Control worker.
+-- Own tables: nothing here reads or writes another project's schema.
+-- Apply with:
+--   wrangler d1 execute jvztxnx-global-control --remote \
+--     --file migrations/0001_license_devices.sql -c wrangler.license.toml
 
-CREATE TABLE IF NOT EXISTS global_key_devices (
+CREATE TABLE IF NOT EXISTS license_devices (
   key_id     INTEGER NOT NULL,
   device_id  TEXT    NOT NULL,
   first_seen INTEGER NOT NULL,
@@ -9,8 +12,8 @@ CREATE TABLE IF NOT EXISTS global_key_devices (
   PRIMARY KEY (key_id, device_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_global_key_devices_device
-  ON global_key_devices (device_id);
+CREATE INDEX IF NOT EXISTS idx_license_devices_device
+  ON license_devices (device_id);
 
 CREATE TABLE IF NOT EXISTS api_rate_limits (
   bucket       TEXT    NOT NULL,

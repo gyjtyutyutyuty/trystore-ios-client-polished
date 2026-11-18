@@ -43,7 +43,7 @@ function stubDB() {
           return null;
         },
         async all() {
-          if (sql.includes("FROM global_key_devices")) return { results: [] };
+          if (sql.includes("FROM license_devices")) return { results: [] };
           return { results: [] };
         },
         async run() {
@@ -133,5 +133,6 @@ assert.equal(forgedOK, false);
 console.log("ok: tampered claims rejected");
 
 console.log("\nall session checks passed");
+
 
 
