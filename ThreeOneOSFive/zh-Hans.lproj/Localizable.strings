@@ -592,6 +592,8 @@
 "license.error_revoked" = "此密钥已被撤销。";
 "license.error_frozen" = "此密钥目前已被冻结。";
 "license.error_device_limit" = "此密钥已在最大设备数量上激活。";
+"license.error_device" = "æ— æ³•è¯†åˆ«æ­¤è®¾å¤‡ã€‚è¯·é‡æ–°å®‰è£…åŽå†è¯•ã€‚";
+"license.error_rate_limited" = "尝试次数过多。请等待一分钟后重试。";
 "license.error_wrong_project" = "此密钥不适用于 TryStore。";
 "license.error_inactive" = "此密钥尚未启用。";
 "license.settings_section" = "许可证";

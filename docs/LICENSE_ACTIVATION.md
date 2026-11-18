@@ -1,15 +1,62 @@
 # TryStore license activation
 
-The iOS app validates customer access keys through the existing Cloudflare Global Key Control Worker:
+The iOS app validates customer access keys through the Cloudflare Global Key
+Control Worker:
 
 - **Endpoint:** `https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate`
 - **Health check:** `https://jvztxnx-global-control.burgoajustin.workers.dev/health`
 - **Project slug:** `trystore`
 
-The app sends the entered key, project slug, app version, and a random per-install device identifier over HTTPS. A key is saved only after successful validation, in the app's device-only iOS Keychain. The admin token and signing secret remain server-side and are not included in the app.
+The app sends the key, project slug, app version, and a per-install device
+identifier over HTTPS. A key is saved only after successful validation, in the
+app's device-only iOS Keychain. The admin token and signing secret stay
+server-side and never ship in the app.
 
-Patch packages are separate from license validation. TryStore now ships its approved `.TRYSTORE` packages as local app resources and does not call the Cloudflare patch-bundle-key route to import them. A valid license is still required to enter the app; license status is rechecked at launch or when the app becomes active.
+## Signed session
 
-## Important current limitation
+The validate answer is not trusted on its own. Every active answer carries a
+session:
 
-The existing `/api/v1/keys/validate` TryStore route does **not** enforce device binding: it ignores the submitted `deviceId` and does not consult the key's `max_devices` value. Enforcing one-device activation requires a separate server-side Worker/D1 change; do not implement it by embedding an admin or signing secret in the iOS client.
+```
+session = base64url(claims) . base64url(ed25519(signature over claims))
+```
+
+Claims: `v`, `iss` (`trystore-license`), `aud` (`trystore-feed`), `kid`
+(`trystore-ed25519-v1`), `project`, `keyId`, `keyHint`, `device`, `nonce`,
+`iat`, `exp`. `exp` is capped at one hour even when the key itself is longer
+lived.
+
+The app pins the public half in `LicenseManager.SessionVerifier`, so a
+repointed endpoint cannot mint a session and an `Info.plist` edit no longer
+changes who is trusted. The signing key is `SESSION_SIGNING_KEY`, a base64
+PKCS#8 DER Ed25519 private key:
+
+```
+wrangler secret put SESSION_SIGNING_KEY -c wrangler.license.toml
+```
+
+Rotating it requires a client build. That is deliberate.
+
+## Device binding and limits
+
+`/api/v1/keys/validate` registers the first devices against a key in
+`global_key_devices` and refuses beyond `max_devices` with outcome
+`device_limit`. Both key endpoints are rate limited per IP in D1
+(`api_rate_limits`): 30/min for validate, 10/min for the bundle key.
+
+Apply the schema before deploying the worker:
+
+```
+wrangler d1 execute jvztxnx-global-control --file cloudflare/migrations/0001_license_devices.sql
+```
+
+## Patch packages
+
+Bundled `.TRYSTORE` packages carry their content key wrapped under
+`APP_BUNDLE_KEY`, released by the patch feed after the same licence and device
+check. A package with `publicContentKey` set is rejected by the app and by
+`scripts/verify_legacy_patch_bundle.py`; the key must not travel inside the
+IPA.
+
+Feed routes are rate limited per IP in KV: 10/min for `bundle-key`, 30/min for
+`report`, 120/min for `manifest` and blob downloads.

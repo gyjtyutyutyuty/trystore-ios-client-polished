@@ -1,4 +1,5 @@
 import Combine
+import CryptoKit
 import Foundation
 import Security
 import UIKit
@@ -136,13 +137,25 @@ final class LicenseManager: ObservableObject {
                         return
                     }
                 }
+
+                // An active answer is not enough: the server must prove it came
+                // from us. The session is Ed25519-signed with a key whose public
+                // half is pinned below, so a repointed endpoint cannot mint one.
+                let identifier = try deviceID()
+                guard let token = response.session,
+                      SessionVerifier.claims(in: token, deviceID: identifier, project: projectID) != nil else {
+                    isActive = false
+                    messageKey = "license.error_server"
+                    return
+                }
+
                 // The patch feed releases its bundle key only after this same
                 // licence check. Caching it here means bundled patches are
                 // never decryptable from the IPA alone.
                 do {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: key,
-                        deviceID: try deviceID()
+                        deviceID: identifier
                     )
                 } catch {
                     log("patches: bundle key unavailable — \(error)")
@@ -266,6 +279,8 @@ final class LicenseManager: ObservableObject {
         case "revoked": return "license.error_revoked"
         case "frozen", "suspended": return "license.error_frozen"
         case "device_limit": return "license.error_device_limit"
+        case "invalid_device": return "license.error_device"
+        case "rate_limited": return "license.error_rate_limited"
         case "wrong_project": return "license.error_wrong_project"
         default: return "license.error_inactive"
         }
@@ -275,17 +290,20 @@ final class LicenseManager: ObservableObject {
         let valid: Bool
         let outcome: String
         let expiresAt: Date?
+        let session: String?
 
         private enum CodingKeys: String, CodingKey {
             case valid
             case outcome
             case expiresAt
+            case session
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             valid = try container.decode(Bool.self, forKey: .valid)
             outcome = try container.decode(String.self, forKey: .outcome)
+            session = try container.decodeIfPresent(String.self, forKey: .session)
             guard let rawDate = try container.decodeIfPresent(String.self, forKey: .expiresAt) else {
                 expiresAt = nil
                 return
@@ -296,6 +314,67 @@ final class LicenseManager: ObservableObject {
                 throw DecodingError.dataCorruptedError(forKey: .expiresAt, in: container, debugDescription: "Invalid license expiration date")
             }
             expiresAt = parsed
+        }
+    }
+
+    /// The signed claims the licence worker returns with an active answer.
+    /// Only the fields this client acts on are decoded; the signature covers
+    /// the whole payload, so unknown fields are still authenticated.
+    private struct SessionClaims: Decodable {
+        let v: Int
+        let iss: String
+        let aud: String
+        let kid: String
+        let project: String
+        let keyId: Int
+        let device: String
+        let nonce: String
+        let exp: Int
+    }
+
+    /// `base64url(claims).base64url(ed25519 signature)`.
+    ///
+    /// The public half is pinned here. Rotating the signing key requires a
+    /// build, which is the point: a server an attacker controls cannot answer
+    /// for this one.
+    private enum SessionVerifier {
+        private static let pinnedPublicKey = "R3pdNCNDvN23ofwX8d262L8kc446tjhhE0hayw8d7Fg="
+        private static let issuer = "trystore-license"
+        private static let audience = "trystore-feed"
+        private static let keyID = "trystore-ed25519-v1"
+
+        static func claims(in token: String, deviceID: String, project: String) -> SessionClaims? {
+            let parts = token.split(separator: ".", omittingEmptySubsequences: false)
+            guard parts.count == 2,
+                  let payload = decode(String(parts[0])),
+                  let signature = decode(String(parts[1])),
+                  let rawKey = Data(base64Encoded: pinnedPublicKey),
+                  rawKey.count == 32,
+                  let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: rawKey),
+                  publicKey.isValidSignature(signature, for: Data(parts[0].utf8)),
+                  let claims = try? JSONDecoder().decode(SessionClaims.self, from: payload) else {
+                return nil
+            }
+            let now = Int(Date().timeIntervalSince1970)
+            guard claims.v == 1,
+                  claims.iss == issuer,
+                  claims.aud == audience,
+                  claims.kid == keyID,
+                  claims.project == project,
+                  claims.device.caseInsensitiveCompare(deviceID) == .orderedSame,
+                  claims.nonce.count >= 16,
+                  claims.exp > now else {
+                return nil
+            }
+            return claims
+        }
+
+        private static func decode(_ text: String) -> Data? {
+            var value = text
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            while value.count % 4 != 0 { value.append("=") }
+            return Data(base64Encoded: value)
         }
     }
 

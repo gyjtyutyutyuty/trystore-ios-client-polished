@@ -181,6 +181,8 @@
 "license.error_revoked" = "Esta clave ha sido revocada.";
 "license.error_frozen" = "Esta clave está congelada actualmente.";
 "license.error_device_limit" = "Esta clave ya está activa en el número máximo de dispositivos.";
+"license.error_device" = "No se pudo identificar este dispositivo. Reinstala e intÃ©ntalo de nuevo.";
+"license.error_rate_limited" = "Demasiados intentos. Espera un minuto y reinténtalo.";
 "license.error_wrong_project" = "Esta clave no es para TryStore.";
 "license.error_inactive" = "Esta clave no está activa.";
 "license.settings_section" = "Licencia";
