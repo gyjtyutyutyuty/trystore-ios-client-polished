@@ -882,34 +882,103 @@ async function telegramWebhook(request, env) {
   return forwardUpdate(env, rawBody);
 }
 
-async function tryStoreLicenseIsActive(request, env) {
-  const authorization = request.headers.get("authorization") || "";
-  const match = authorization.match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
-  const deviceID = request.headers.get("x-trystore-device-id") || "";
-  if (!match || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceID)) {
-    return false;
-  }
-  if (!env.RESELLER || typeof env.RESELLER.fetch !== "function") return false;
-  try {
-    const response = await env.RESELLER.fetch(
-      new Request("https://reseller.internal/api/v1/keys/validate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key: match[1], deviceId: deviceID, projectId: "trystore" }),
-      }),
-    );
-    if (!response.ok) return false;
-    const result = await response.json();
-    return result.valid === true
-      && String(result.outcome || "").toLowerCase() === "active"
-      && (!result.expiresAt || Date.parse(result.expiresAt) > Date.now());
-  } catch {
-    return false;
-  }
+const SESSION_PUBLIC_B64 = "R3pdNCNDvN23ofwX8d262L8kc446tjhhE0hayw8d7Fg=";
+const SESSION_ISSUER = "trystore-license";
+const SESSION_AUDIENCE = "trystore-feed";
+const SESSION_KID = "trystore-ed25519-v1";
+const BUNDLE_KEK_INFO = "trystore-bundle-v1";
+
+function b64ToBytes(text) {
+  const normalized = String(text || "").replaceAll("-", "+").replaceAll("_", "/");
+  return Uint8Array.from(atob(normalized), (c) => c.charCodeAt(0));
 }
 
-async function requireTryStoreLicense(request, env, project) {
-  return project !== "trystore" || await tryStoreLicenseIsActive(request, env);
+function bytesToB64(bytes) {
+  let text = "";
+  for (const byte of new Uint8Array(bytes)) text += String.fromCharCode(byte);
+  return btoa(text);
+}
+
+// Verifies the Ed25519 session the licence worker mints. The token is bound to
+// a project, a device header and an expiry, so a captured request is only
+// useful until exp and only from the same device identifier.
+async function readLicenseSession(request, project) {
+  const header = request.headers.get("authorization") || "";
+  if (!header.toLowerCase().startsWith("bearer ")) return null;
+  const token = header.slice(7).trim();
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [payload, signature] = parts;
+  let publicKey;
+  try {
+    publicKey = await crypto.subtle.importKey(
+      "raw",
+      b64ToBytes(SESSION_PUBLIC_B64),
+      { name: "Ed25519" },
+      false,
+      ["verify"],
+    );
+  } catch {
+    return null;
+  }
+  const valid = await crypto.subtle.verify(
+    "Ed25519",
+    publicKey,
+    b64ToBytes(signature),
+    new TextEncoder().encode(payload),
+  );
+  if (!valid) return null;
+  let claims;
+  try {
+    claims = JSON.parse(new TextDecoder().decode(b64ToBytes(payload)));
+  } catch {
+    return null;
+  }
+  const device = String(request.headers.get("x-trystore-device-id") || "");
+  if (claims.v !== 1) return null;
+  if (claims.iss !== SESSION_ISSUER || claims.aud !== SESSION_AUDIENCE || claims.kid !== SESSION_KID) return null;
+  if (claims.project !== project) return null;
+  if (String(claims.device || "").toLowerCase() !== device.toLowerCase()) return null;
+  if (!(Number(claims.exp) > nowSeconds())) return null;
+  return { token, claims };
+}
+
+// APP_BUNDLE_KEY never leaves in the clear: each answer is sealed under a key
+// derived from the caller's session, with a fresh salt and IV.
+async function wrapBundleKey(sessionToken, encoded) {
+  let raw;
+  try {
+    raw = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+  } catch {
+    return null;
+  }
+  if (raw.length !== 32) return null;
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const base = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(sessionToken),
+    "HKDF",
+    false,
+    ["deriveKey"],
+  );
+  const kek = await crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt, info: new TextEncoder().encode(BUNDLE_KEK_INFO) },
+    base,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, raw));
+  const combined = new Uint8Array(iv.length + sealed.length);
+  combined.set(iv, 0);
+  combined.set(sealed, iv.length);
+  return { wrappedKey: bytesToB64(combined), salt: bytesToB64(salt) };
+}
+
+async function requireSession(request, project) {
+  if (project !== "trystore") return true;
+  return (await readLicenseSession(request, project)) !== null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -944,7 +1013,7 @@ export default {
       const project = projectKey(manifestMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "manifest", feedIP(request), 120, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      if (!(await requireSession(request, project))) return bad("license_required", 401);
       const manifest = await readManifest(env, project);
       return json(manifest, 200, { "cache-control": "no-store" });
     }
@@ -957,19 +1026,17 @@ export default {
       const project = projectKey(bundleKeyMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "bundle-key", feedIP(request), 10, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      const session = await readLicenseSession(request, project);
+      if (!session) return bad("license_required", 401);
       const encoded = String(env.APP_BUNDLE_KEY || "");
-      let bytes;
-      try {
-        bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
-      } catch {
-        return bad("key_unavailable", 503);
-      }
-      if (bytes.length !== 32) return bad("key_unavailable", 503);
-      return json({ valid: true, key: encoded, keyVersion: "1" }, 200, {
-        "cache-control": "no-store",
-        vary: "authorization, x-trystore-device-id",
-      });
+      if (!encoded) return bad("key_unavailable", 503);
+      const wrapped = await wrapBundleKey(session.token, encoded).catch(() => null);
+      if (!wrapped) return bad("key_unavailable", 503);
+      return json(
+        { valid: true, wrappedKey: wrapped.wrappedKey, salt: wrapped.salt, keyVersion: "1" },
+        200,
+        { "cache-control": "no-store", vary: "authorization, x-trystore-device-id" },
+      );
     }
 
     // Client sync report. The app posts one small JSON document per sync so the
@@ -979,7 +1046,7 @@ export default {
       const project = projectKey(reportMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "report", feedIP(request), 30, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      if (!(await requireSession(request, project))) return bad("license_required", 401);
       const body = await request.text();
       if (!body || body.length > 32768) return bad("invalid_report", 400);
       const stamp = new Date().toISOString();
@@ -997,7 +1064,7 @@ export default {
       const project = projectKey(blobMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "blob", feedIP(request), 120, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      if (!(await requireSession(request, project))) return bad("license_required", 401);
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);
       const blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");

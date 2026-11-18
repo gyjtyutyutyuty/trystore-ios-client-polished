@@ -17,6 +17,7 @@ final class LicenseManager: ObservableObject {
     private let keychainService = "com.trystore.license"
     private let keyAccount = "license-key"
     private let deviceAccount = "device-id"
+    private let sessionAccount = "session-v1"
     private let defaultEndpoint = "https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate"
 
     /// The licence answer decides whether the app unlocks, so the host that
@@ -48,11 +49,11 @@ final class LicenseManager: ObservableObject {
 
     func patchFeedCredentials() -> PatchFeedCredentials? {
         guard isActive,
-              let key = keychainString(for: keyAccount), !key.isEmpty,
+              let session = keychainString(for: sessionAccount), !session.isEmpty,
               let identifier = try? deviceID(), !identifier.isEmpty else {
             return nil
         }
-        return PatchFeedCredentials(licenseKey: key, deviceID: identifier)
+        return PatchFeedCredentials(sessionToken: session, deviceID: identifier)
     }
 
     func beginLaunchSession() {
@@ -90,6 +91,7 @@ final class LicenseManager: ObservableObject {
 
     func clear() {
         deleteKeychainValue(for: keyAccount)
+        deleteKeychainValue(for: sessionAccount)
         PatchBundleKeyStore.clear()
         isActive = false
         expirationDate = nil
@@ -148,13 +150,21 @@ final class LicenseManager: ObservableObject {
                     messageKey = "license.error_server"
                     return
                 }
+                do {
+                    try saveKeychainString(token, for: sessionAccount)
+                } catch {
+                    isActive = false
+                    messageKey = "license.error_secure_storage"
+                    return
+                }
 
                 // The patch feed releases its bundle key only after this same
-                // licence check. Caching it here means bundled patches are
-                // never decryptable from the IPA alone.
+                // licence check, and only sealed under this session. Caching
+                // the unwrapped key here means bundled patches are never
+                // decryptable from the IPA alone.
                 do {
                     try await PatchBundleKeyStore.refresh(
-                        licenseKey: key,
+                        sessionToken: token,
                         deviceID: identifier
                     )
                 } catch {

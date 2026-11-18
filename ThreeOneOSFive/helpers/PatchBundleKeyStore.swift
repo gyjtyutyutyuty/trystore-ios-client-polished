@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Security
 
@@ -30,7 +31,7 @@ enum PatchBundleKeyStore {
         return stored
     }
 
-    static func refresh(licenseKey: String, deviceID: String) async throws {
+    static func refresh(sessionToken: String, deviceID: String) async throws {
         guard let configured = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_FEED_URL") as? String,
               let baseURL = URL(string: configured),
               baseURL.scheme?.lowercased() == "https",
@@ -45,7 +46,7 @@ enum PatchBundleKeyStore {
         request.httpMethod = "GET"
         request.timeoutInterval = 20
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("Bearer \(licenseKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(sessionToken)", forHTTPHeaderField: "Authorization")
         request.setValue(deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
 
@@ -74,12 +75,35 @@ enum PatchBundleKeyStore {
 
         struct Response: Decodable {
             let valid: Bool
-            let key: String
+            let wrappedKey: String
+            let salt: String
         }
         guard let decoded = try? JSONDecoder().decode(Response.self, from: data),
               decoded.valid,
-              let keyData = Data(base64Encoded: decoded.key),
-              keyData.count == 32 else {
+              let wrapped = Data(base64Encoded: decoded.wrappedKey),
+              let salt = Data(base64Encoded: decoded.salt),
+              salt.count == 16 else {
+            throw PatchBundleKeyError.unavailable
+        }
+
+        // The feed seals the bundle key under HKDF(session). Deriving it here
+        // means the value on the wire only opens for this session and device.
+        let kek = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: SymmetricKey(data: Data(sessionToken.utf8)),
+            salt: salt,
+            info: Data("trystore-bundle-v1".utf8),
+            outputByteCount: 32
+        )
+        let keyData: Data
+        do {
+            keyData = try AES.GCM.open(
+                AES.GCM.SealedBox(combined: wrapped),
+                using: kek
+            )
+        } catch {
+            throw PatchBundleKeyError.unavailable
+        }
+        guard keyData.count == 32 else {
             throw PatchBundleKeyError.unavailable
         }
 

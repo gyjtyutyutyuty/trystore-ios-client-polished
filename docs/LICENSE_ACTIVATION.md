@@ -53,10 +53,23 @@ wrangler d1 execute jvztxnx-global-control --file cloudflare/migrations/0001_lic
 ## Patch packages
 
 Bundled `.TRYSTORE` packages carry their content key wrapped under
-`APP_BUNDLE_KEY`, released by the patch feed after the same licence and device
-check. A package with `publicContentKey` set is rejected by the app and by
+`APP_BUNDLE_KEY`, released by the patch feed only after a valid session. A
+package with `publicContentKey` set is rejected by the app and by
 `scripts/verify_legacy_patch_bundle.py`; the key must not travel inside the
 IPA.
+
+Feed requests use the signed session, never the licence key:
+
+```
+Authorization: Bearer <session>
+X-TryStore-Device-ID: <device uuid>
+```
+
+`GET /api/patches/trystore/bundle-key` does not return the master key. It
+returns `wrappedKey` and `salt`; the value is sealed with AES-256-GCM under
+`HKDF-SHA256(session, salt, "trystore-bundle-v1")`, and the app derives the same
+key before opening it. A captured response is useless without the session it
+was minted for, and the session expires.
 
 Feed routes are rate limited per IP in KV: 10/min for `bundle-key`, 30/min for
 `report`, 120/min for `manifest` and blob downloads.
