@@ -305,11 +305,20 @@ enum PatchPackageCodec {
         else {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
-        let payloadData = try open(
-            envelope.encryptedPayload,
-            key: contentKey,
-            aad: payloadAAD(for: envelope.packageID, version: envelope.schemaVersion)
-        )
+        let payloadData: Data
+        let aad = payloadAAD(for: envelope.packageID, version: envelope.schemaVersion)
+        do {
+            payloadData = try open(envelope.encryptedPayload, key: contentKey, aad: aad)
+        } catch {
+            // One feed uploader wrote the UUID in lowercase inside the AAD.
+            // UUID.uuidString is uppercase, so that package only opens with the
+            // same lowercase form. Both tags are authenticated; accept either.
+            let legacyAAD = Data(
+                "3105PATCH/v\(envelope.schemaVersion)/payload/\(envelope.packageID.uuidString.lowercased())".utf8
+            )
+            guard legacyAAD != aad else { throw error }
+            payloadData = try open(envelope.encryptedPayload, key: contentKey, aad: legacyAAD)
+        }
         let decoder = PropertyListDecoder()
         let payload = try decoder.decode(Payload.self, from: payloadData)
         guard payload.project.id == envelope.packageID else {

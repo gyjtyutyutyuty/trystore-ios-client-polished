@@ -71,6 +71,17 @@ async function sha256(bytes) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// D1 returns a BLOB as an ArrayBuffer, but local bindings and older runtimes
+// have handed back views or plain byte arrays. Normalize before the Response.
+function bytesOf(value) {
+  if (value instanceof ArrayBuffer) return value;
+  if (ArrayBuffer.isView(value)) {
+    return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+  }
+  if (Array.isArray(value)) return new Uint8Array(value).buffer;
+  return value;
+}
+
 const sanitizeFile = (name) => {
   const base = String(name || "").split(/[\\/]/).pop().trim();
   const lower = base.toLowerCase();
@@ -130,6 +141,31 @@ function isFeedEntry(entry) {
   return true;
 }
 
+// A repaired package can be served from D1 while the KV write quota is
+// exhausted. The manifest still lives in KV, so overlay the hash, size and URL
+// for every file that has a D1 copy. The client verifies all three.
+async function applyFeedOverrides(env, project, manifest) {
+  if (!env.DB) return manifest;
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT name, sha256, size FROM feed_blobs WHERE project=?1",
+    ).bind(project).all();
+    const overrides = new Map((rows.results || []).map((row) => [String(row.name), row]));
+    if (overrides.size === 0) return manifest;
+    const base = String(env.PUBLIC_BASE_URL || "https://trystore-patch-feed.burgoajustin.workers.dev").replace(/\/+$/, "");
+    for (const patch of manifest.patches) {
+      const row = overrides.get(String(patch.file));
+      if (!row) continue;
+      patch.sha256 = String(row.sha256);
+      patch.size = Number(row.size);
+      patch.url = `${base}/patches/${project}/${encodeURIComponent(patch.file)}?v=${encodeURIComponent(String(row.sha256))}`;
+    }
+  } catch {
+    // A D1 hiccup must not take the manifest away; KV still has the last copy.
+  }
+  return manifest;
+}
+
 async function readManifest(env, project) {
   const text = await env.PATCHES.get(`patches/${project}/manifest.json`);
   if (!text) return { schemaVersion: MANIFEST_SCHEMA, project, updatedAt: null, patches: [] };
@@ -143,7 +179,7 @@ async function readManifest(env, project) {
     return { schemaVersion: MANIFEST_SCHEMA, project, updatedAt: null, patches: [] };
   }
   parsed.patches = parsed.patches.filter(isFeedEntry);
-  return parsed;
+  return applyFeedOverrides(env, project, parsed);
 }
 
 async function writeManifest(env, project, manifest) {
@@ -893,10 +929,15 @@ async function tryStoreLicenseIsActive(request, env) {
   // One patch is dozens of blob requests. Each one would otherwise validate the
   // key again and burn the licence worker's per-IP budget halfway through the
   // download. A short positive cache keeps the whole package on one check.
-  const cacheKey = "feed-auth/" + await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
-  try {
-    if ((await env.PATCHES.get(cacheKey)) === "1") return true;
-  } catch {}
+  const cacheKey = await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
+  if (env.DB) {
+    try {
+      const cached = await env.DB.prepare(
+        "SELECT expires_at FROM feed_auth_cache WHERE subject=?1",
+      ).bind(cacheKey).first();
+      if (Number(cached?.expires_at || 0) > nowSeconds()) return true;
+    } catch {}
+  }
   try {
     const response = await env.RESELLER.fetch(
       new Request("https://reseller.internal/api/v1/keys/validate", {
@@ -916,9 +957,12 @@ async function tryStoreLicenseIsActive(request, env) {
     const valid = result.valid === true
       && String(result.outcome || "").toLowerCase() === "active"
       && (!result.expiresAt || Date.parse(result.expiresAt) > Date.now());
-    if (valid) {
+    if (valid && env.DB) {
       try {
-        await env.PATCHES.put(cacheKey, "1", { expirationTtl: 120 });
+        await env.DB.prepare(
+          "INSERT INTO feed_auth_cache(subject,expires_at) VALUES(?1,?2) " +
+          "ON CONFLICT(subject) DO UPDATE SET expires_at=excluded.expires_at",
+        ).bind(cacheKey, nowSeconds() + 120).run();
       } catch {}
     }
     return valid;
@@ -936,16 +980,20 @@ async function requireTryStoreLicense(request, env, project) {
 /* ------------------------------------------------------------------ */
 
 async function allowFeed(env, bucket, ip, limit, windowSeconds) {
+  if (!env.DB) return true;
   const window = Math.floor(Date.now() / 1000 / windowSeconds);
-  const key = `rl:${bucket}:${ip}:${window}`;
   try {
-    const current = Number((await env.PATCHES.get(key)) || 0);
-    if (current >= limit) return false;
-    await env.PATCHES.put(key, String(current + 1), { expirationTtl: windowSeconds * 2 });
-    return true;
+    await env.DB.prepare(
+      "INSERT INTO feed_rate_limits(bucket,subject,window_start,count) VALUES(?1,?2,?3,1) " +
+      "ON CONFLICT(bucket,subject,window_start) DO UPDATE SET count=count+1",
+    ).bind(bucket, ip, window).run();
+    const row = await env.DB.prepare(
+      "SELECT count FROM feed_rate_limits WHERE bucket=?1 AND subject=?2 AND window_start=?3",
+    ).bind(bucket, ip, window).first();
+    return Number(row?.count || 1) <= limit;
   } catch {
-    // Rate-limit counters are best-effort. If KV quota/storage is unavailable,
-    // continue to the mandatory license and device authorization checks below.
+    // Rate-limit counters are best-effort. If D1 is unavailable, continue to the
+    // mandatory license and device authorization checks below.
     return true;
   }
 }
@@ -1025,7 +1073,18 @@ export default {
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);
-      const blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");
+      let blob = null;
+      if (env.DB) {
+        try {
+          const row = await env.DB.prepare(
+            "SELECT bytes FROM feed_blobs WHERE project=?1 AND name=?2",
+          ).bind(project, file).first();
+          if (row?.bytes != null) blob = bytesOf(row.bytes);
+        } catch {}
+      }
+      if (!blob) {
+        blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");
+      }
       if (!blob) return bad("not_found", 404);
       return new Response(blob, {
         headers: {

@@ -10,6 +10,14 @@ workers_dev = true
 binding = "PATCHES"
 id = "a7f21b4f1ae54d0bbbf2773bd3f850fd"
 
+# Rate counters, the licence-validation cache and emergency package overrides
+# live in D1. KV writes have a small daily free quota and a counter write per
+# request exhausted it, which took the whole feed down with 500s.
+[[d1_databases]]
+binding = "DB"
+database_name = "jvztxnx-global-control"
+database_id = "206d4900-6e0f-476e-9f3c-aaf85fde952e"
+
 # Keep the original reseller/licence bot online. A Worker cannot reliably fetch
 # another Worker on the same workers.dev zone, so use a service binding.
 [[services]]

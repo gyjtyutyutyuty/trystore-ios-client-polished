@@ -82,12 +82,23 @@ X-TryStore-Device-ID: <device uuid>
 
 `GET /api/patches/trystore/bundle-key` validates that key through the licence
 worker and returns `APP_BUNDLE_KEY` in the legacy `key` field. Feed routes are
-rate limited per IP in KV: 10/min bundle key, 30/min report, 120/min manifest
-and blob downloads.
+rate limited per IP in D1 `feed_rate_limits`: 10/min bundle key, 30/min report,
+120/min manifest and blob downloads.
 
-A successful validation is cached in KV for two minutes under a hash of the key
-and device id. One patch is dozens of blob requests; without the cache each one
-would revalidate and exhaust the licence worker's 30/min per-IP budget midway
-through a download. If the KV rate counter itself fails, the feed continues to
-the licence check instead of returning 500 — the auth gate is mandatory, the
+A successful validation is cached in D1 `feed_auth_cache` for two minutes under
+a hash of the key and device id. One patch is dozens of blob requests; without
+the cache each one would revalidate and exhaust the licence worker's 30/min
+per-IP budget midway through a download. If D1 itself fails, the feed continues
+to the licence check instead of returning 500 — the auth gate is mandatory, the
 counter is best effort.
+
+KV is only used for package storage now. Its free tier allows 1,000 writes per
+day, and the old per-request counter writes exhausted that, which returned 500
+to every client. Repaired packages can be served from D1 `feed_blobs`; the
+manifest route overlays their hash, size and URL so the client's digest check
+still matches.
+
+```sh
+npx wrangler d1 execute jvztxnx-global-control --remote \
+  --file cloudflare/migrations/0003_feed_state.sql -c wrangler.toml
+```
