@@ -895,7 +895,13 @@ async function tryStoreLicenseIsActive(request, env) {
       new Request("https://reseller.internal/api/v1/keys/validate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key: match[1], deviceId: deviceID, projectId: "trystore" }),
+        // Match ipa-348's public validation payload for legacy license backends.
+        body: JSON.stringify({
+          key: match[1],
+          deviceId: deviceID,
+          projectId: "trystore",
+          appVersion: "1.1.1",
+        }),
       }),
     );
     if (!response.ok) return false;

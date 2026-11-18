@@ -21,7 +21,8 @@ function feedEnv({ licenseValid = false, values = new Map() } = {}) {
         const valid = licenseValid
           && body.key === licenseKey
           && body.deviceId === device
-          && body.projectId === "trystore";
+          && body.projectId === "trystore"
+          && body.appVersion === "1.1.1";
         return new Response(JSON.stringify({
           valid,
           outcome: valid ? "active" : "invalid",
