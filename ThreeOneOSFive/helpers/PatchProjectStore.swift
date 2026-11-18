@@ -93,7 +93,7 @@ final class PatchProjectStore: ObservableObject {
                 // cached licence would still leave every package unreadable.
                 if PatchBundleKeyStore.cachedKey() == nil {
                     try await PatchBundleKeyStore.refresh(
-                        sessionToken: credentials.sessionToken,
+                        licenseKey: credentials.licenseKey,
                         deviceID: credentials.deviceID
                     )
                 }
@@ -299,7 +299,7 @@ final class PatchProjectStore: ObservableObject {
                 var request = URLRequest(url: remoteURL)
                 if requiresFeedAuth {
                     guard let credentials else { throw PatchPackageError.remoteImportFailed }
-                    request.setValue("Bearer \(credentials.sessionToken)", forHTTPHeaderField: "Authorization")
+                    request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
                     request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
                     request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
                 }

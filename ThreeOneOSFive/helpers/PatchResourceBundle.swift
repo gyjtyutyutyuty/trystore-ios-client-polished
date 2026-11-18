@@ -2,9 +2,7 @@ import CryptoKit
 import Foundation
 
 struct PatchFeedCredentials: Sendable {
-    /// Short-lived Ed25519 session minted by the licence worker. The licence
-    /// key itself never leaves the activation call.
-    let sessionToken: String
+    let licenseKey: String
     let deviceID: String
 }
 
@@ -144,7 +142,7 @@ enum PatchResourceBundle {
         request.httpMethod = "GET"
         request.timeoutInterval = 25
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("Bearer \(credentials.sessionToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
         request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         request.setValue("application/octet-stream, application/json", forHTTPHeaderField: "Accept")
