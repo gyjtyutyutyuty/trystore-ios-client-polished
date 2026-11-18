@@ -43,13 +43,14 @@ const isRecord = (value) => value !== null && typeof value === 'object' && !Arra
 
 const upstreamAuth = (env) => `Key ${env.HIGGSFIELD_API_KEY_ID}:${env.HIGGSFIELD_API_KEY_SECRET}`;
 
-function authorised(request, env, url) {
+function authorised(request, env) {
   const expected = String(env.ASSET_API_TOKEN || '');
   if (!expected) return false;
   const header = request.headers.get('authorization') || '';
-  const supplied = header.toLowerCase().startsWith('bearer ')
-    ? header.slice(7)
-    : String(url.searchParams.get('token') || '');
+  // The token stays in the header. A ?token= form ends up in access logs,
+  // browser history and Referer headers, so it is no longer accepted.
+  if (!header.toLowerCase().startsWith('bearer ')) return false;
+  const supplied = header.slice(7).trim();
   if (supplied.length !== expected.length) return false;
   let diff = 0;
   for (let i = 0; i < expected.length; i += 1) {
@@ -194,7 +195,7 @@ export default {
     if (!env.HIGGSFIELD_API_KEY_ID || !env.HIGGSFIELD_API_KEY_SECRET) {
       return json({ error: 'credentials_not_configured' }, 503);
     }
-    if (!authorised(request, env, url)) return json({ error: 'unauthorized' }, 401);
+    if (!authorised(request, env)) return json({ error: 'unauthorized' }, 401);
 
     try {
       if (url.pathname === '/api/assets/image' && request.method === 'POST') {
