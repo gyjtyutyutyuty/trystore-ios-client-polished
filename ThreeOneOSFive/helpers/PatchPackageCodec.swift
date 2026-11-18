@@ -127,25 +127,24 @@ enum PatchPackageCodec {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
         let contentKey: Data
-        if envelope.wrappingScheme == "bundle" {
-            guard let wrapped = envelope.wrappedContentKey,
-                  let bundleKey = PatchBundleKeyStore.cachedKey() else {
-                throw PatchPackageError.bundleKeyUnavailable
-            }
-            contentKey = try open(
-                wrapped,
-                key: bundleKey,
-                aad: keyAAD(
-                    for: envelope.packageID,
-                    version: envelope.keyAADVersion ?? envelope.schemaVersion
-                )
-            )
-        } else {
-            guard let storedKey = envelope.publicContentKey else {
-                throw PatchPackageError.invalidPasswordOrCorruptedPackage
-            }
-            contentKey = storedKey
+        // Bundled resources may not carry their own content key. A package whose
+        // key travels inside the IPA decrypts without a licence, so a
+        // plaintext-keyed bundle is a packaging failure, not a fallback.
+        guard envelope.wrappingScheme == "bundle" else {
+            throw PatchPackageError.unsupportedFormat
         }
+        guard let wrapped = envelope.wrappedContentKey,
+              let bundleKey = PatchBundleKeyStore.cachedKey() else {
+            throw PatchPackageError.bundleKeyUnavailable
+        }
+        contentKey = try open(
+            wrapped,
+            key: bundleKey,
+            aad: keyAAD(
+                for: envelope.packageID,
+                version: envelope.keyAADVersion ?? envelope.schemaVersion
+            )
+        )
         let summary = PatchPackageSummary(
             packageID: envelope.packageID,
             schemaVersion: envelope.schemaVersion,
