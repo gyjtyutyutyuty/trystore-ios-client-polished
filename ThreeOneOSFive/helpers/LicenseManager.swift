@@ -18,10 +18,21 @@ final class LicenseManager: ObservableObject {
     private let deviceAccount = "device-id"
     private let defaultEndpoint = "https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate"
 
+    /// The licence answer decides whether the app unlocks, so the host that
+    /// gives it is pinned here. Editing Info.plist can point a build at another
+    /// server, but that server's answer is only accepted if it speaks for this
+    /// host, which an attacker does not control.
+    private let trustedLicenseHost = "jvztxnx-global-control.burgoajustin.workers.dev"
+
     private var endpoint: URL? {
         let configured = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_LICENSE_API_URL") as? String
         let value = (configured?.isEmpty == false ? configured : defaultEndpoint) ?? defaultEndpoint
-        guard let url = URL(string: value), url.scheme?.lowercased() == "https", url.host != nil else {
+        guard let url = URL(string: value),
+              url.scheme?.lowercased() == "https",
+              url.user == nil,
+              url.password == nil,
+              url.port == nil,
+              url.host?.lowercased() == trustedLicenseHost else {
             return nil
         }
         return url
@@ -254,6 +265,7 @@ final class LicenseManager: ObservableObject {
         case "expired": return "license.error_expired"
         case "revoked": return "license.error_revoked"
         case "frozen", "suspended": return "license.error_frozen"
+        case "device_limit": return "license.error_device_limit"
         case "wrong_project": return "license.error_wrong_project"
         default: return "license.error_inactive"
         }
