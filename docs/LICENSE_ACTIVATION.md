@@ -50,6 +50,19 @@ Apply the schema before deploying the worker:
 wrangler d1 execute jvztxnx-global-control --file cloudflare/migrations/0001_license_devices.sql
 ```
 
+## Abuse detection
+
+One key is meant for one customer. The worker counts distinct networks per key
+per hour, storing a salted SHA-256 of the IP — never the address itself. Past
+`MAX_DISTINCT_IPS` (default 8) the key is set to `frozen`, the call returns
+`outcome: "frozen"`, and the owner chat gets a Telegram message. Unfreeze from
+the bot.
+
+```
+wrangler d1 execute jvztxnx-global-control --remote \
+  --file cloudflare/migrations/0002_license_signals.sql -c wrangler.license.toml
+```
+
 ## Patch packages
 
 Bundled `.TRYSTORE` packages carry their content key wrapped under
