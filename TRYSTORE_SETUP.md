@@ -6,15 +6,18 @@ The application target is **SupportPatch**, using the shared scheme at `ThreeOne
 
 - The signature-blue TryStore home screen, original character art, and social links.
 - The classic **Loadout / Visuals** patch switcher. Tapping a module applies it; tapping the active module again restores its backup.
-- Eight bundled `.TRYSTORE` packages, verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, BALAS, ARMAS, HOLOGRAMA EXCLUSIVO VERDE, and HOLOGRAMA EXCLUSIVO ROSADO. BALAS appears in AIM as **Balas Magicas**; ARMAS appears in Visuals as **Azul Exclusivo**. The retired HOLOGRAMA ARMAS and HOLOGRAMA PERSONAJE packages are removed. Existing `.3105` files remain supported for legacy imports.
+- The patch catalog and UI mappings for authenticated remote delivery. Patch payload source files remain in the repository for feed maintenance and CI validation, but are not Xcode resources and must not be included in the app or IPA. All eleven feed patches are retrieved only after license/device authorization. Existing `.3105` files remain supported for legacy imports.
 - Airlift’s `DevicePatchService` integration for patch apply/restore operations.
-- Bundled `.TRYSTORE` files are copied locally into the IPA under the `Patches` folder; no Cloudflare patch-key service or patch-encryption secret is needed.
+
+Downloaded feed packages are saved with iOS complete file protection. Their content keys are kept in the device-only Keychain rather than inside the cached package files; the app migrates trusted legacy feed caches to this format. This raises the bar against copying files from the app container, but cannot guarantee secrecy on a jailbroken or otherwise fully compromised device while the app is running.
+
+The shared feed-wrapping key is no longer returned as plaintext: the app requests it with a POST and the Worker encrypts it to a P-256 public key supplied by the client using ECDH, HKDF-SHA256, and AES-GCM. The official app keeps the corresponding private key in Secure Enclave and the unwrapped shared key in memory only. The Worker does not attest that a submitted public key is actually Secure Enclave-backed; a licensed modified client can supply its own key, and a compromised live process can capture plaintext/key material. The legacy GET is intentionally rejected, so deploy the matching Worker code before distributing this app build.
 
 ## Build on macOS or Codemagic
 
 Install a stable Rust toolchain (`rustup` and `cargo`) on the macOS build machine. The unsigned build script rebuilds both Airlift iOS archives before Xcode links the app:
 
-Run `python3 scripts/verify_legacy_patch_bundle.py` before building to verify that each local package is present and mapped into the app catalog.
+Run `python3 scripts/verify_legacy_patch_bundle.py` before building to verify source package mappings and authenticated remote-delivery wiring. The build script also checks the archived app and final IPA to fail the build if any `.TRYSTORE`/`.3105` package or `Patches` directory is present.
 
 ```bash
 chmod +x ./ThreeOneOSFive/build-airlift-ffi.sh ./build_supportpatch_unsigned.sh

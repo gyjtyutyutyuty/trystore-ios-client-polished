@@ -8,7 +8,7 @@
  * Routes
  *   GET  /health
  *   GET  /api/patches/:project/manifest.json
- *   GET  /api/patches/:project/bundle-key
+ *   POST /api/patches/:project/bundle-key (per-installation encrypted envelope)
  *   GET  /patches/:project/:file
  *   POST /api/telegram/webhook
  *
@@ -226,6 +226,69 @@ async function wrapTrystorePackage(env, bytes) {
   envelope.keyAADVersion = Number(envelope.schemaVersion);
   delete envelope.publicContentKey;
   return Buffer.concat([MAGIC, bplist(envelope)]);
+}
+
+async function encryptBundleKeyForDevice(env, encodedPublicKey, deviceID) {
+  const encodedMasterKey = String(env.APP_BUNDLE_KEY || "");
+  const masterKey = Buffer.from(encodedMasterKey, "base64");
+  if (masterKey.length !== 32 || masterKey.toString("base64") !== encodedMasterKey) {
+    throw new Error("bundle key unavailable");
+  }
+  if (typeof encodedPublicKey !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encodedPublicKey)) {
+    throw new Error("invalid device public key");
+  }
+  const clientKeyBytes = Buffer.from(encodedPublicKey, "base64");
+  if (clientKeyBytes.toString("base64") !== encodedPublicKey
+      || clientKeyBytes.length !== 65 || clientKeyBytes[0] !== 4) {
+    throw new Error("invalid device public key");
+  }
+  const clientPublicKey = await crypto.subtle.importKey(
+    "raw",
+    clientKeyBytes,
+    { name: "ECDH", namedCurve: "P-256" },
+    false,
+    [],
+  );
+  const ephemeral = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true,
+    ["deriveBits"],
+  );
+  const sharedBits = await crypto.subtle.deriveBits(
+    { name: "ECDH", public: clientPublicKey },
+    ephemeral.privateKey,
+    256,
+  );
+  const deviceIDLower = String(deviceID).toLowerCase();
+  const info = new TextEncoder().encode(
+    `trystore-patch-feed|bundle-key|v2|trystore|${deviceIDLower}`,
+  );
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const hkdfKey = await crypto.subtle.importKey("raw", sharedBits, "HKDF", false, ["deriveKey"]);
+  const wrappingKey = await crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt, info },
+    hkdfKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: info, tagLength: 128 },
+    wrappingKey,
+    masterKey,
+  );
+  const ephemeralPublicKey = await crypto.subtle.exportKey("raw", ephemeral.publicKey);
+  const base64 = (value) => Buffer.from(value).toString("base64");
+  return {
+    valid: true,
+    scheme: "p256-hkdf-sha256-aesgcm-v2",
+    keyVersion: 2,
+    ephemeralPublicKey: base64(ephemeralPublicKey),
+    salt: base64(salt),
+    nonce: base64(nonce),
+    ciphertext: base64(ciphertext),
+  };
 }
 
 async function publishPatch(env, project, file, rawBytes) {
@@ -1022,26 +1085,48 @@ export default {
       return json(manifest, 200, { "cache-control": "no-store" });
     }
 
-    // Bundled and feed packages carry their content key wrapped under this
-    // app key. It is only released after the same licence and device check the
-    // blobs use, so an extracted IPA has no usable key material.
+    // The shared wrapping key is never returned in plaintext. It is wrapped
+    // for the caller's per-installation P-256 public key and bound to its
+    // device identifier; legacy GET clients are deliberately rejected.
     const bundleKeyMatch = path.match(/^\/api\/patches\/([a-z0-9-]+)\/bundle-key$/);
-    if (bundleKeyMatch && request.method === "GET") {
+    if (bundleKeyMatch) {
+      if (request.method !== "POST") return bad("device_key_exchange_required", 405);
       const project = projectKey(bundleKeyMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (project !== "trystore") return bad("unknown_project", 404);
       if (!(await allowFeed(env, "bundle-key", feedIP(request), 10, 60))) return bad("rate_limited", 429);
       if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
-      const encoded = String(env.APP_BUNDLE_KEY || "");
-      let bytes;
+      const contentLength = Number(request.headers.get("content-length") || 0);
+      if (contentLength > 4096) return bad("request_too_large", 413);
+      let bodyText;
       try {
-        bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+        bodyText = await request.text();
       } catch {
+        return bad("invalid_request", 400);
+      }
+      if (bodyText.length > 4096) return bad("request_too_large", 413);
+      let body;
+      try {
+        body = JSON.parse(bodyText);
+      } catch {
+        return bad("invalid_request", 400);
+      }
+      const deviceID = request.headers.get("x-trystore-device-id") || "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceID)) {
+        return bad("invalid_device", 400);
+      }
+      let envelope;
+      try {
+        envelope = await encryptBundleKeyForDevice(env, body?.publicKey, deviceID);
+      } catch (error) {
+        if (String(error?.message || "").includes("device public key")) {
+          return bad("invalid_device_key", 400);
+        }
         return bad("key_unavailable", 503);
       }
-      if (bytes.length !== 32) return bad("key_unavailable", 503);
-      return json({ valid: true, key: encoded, keyVersion: "1" }, 200, {
+      return json(envelope, 200, {
         "cache-control": "no-store",
-        vary: "authorization, x-trystore-device-id",
+        vary: "authorization, x-trystore-device-id, content-type",
       });
     }
 

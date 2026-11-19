@@ -1,5 +1,8 @@
 {
   "type": "module",
+  "scripts": {
+    "test:feed-security": "node --test test/device-key-envelope.test.mjs test/feed-legacy-compat.test.mjs"
+  },
   "dependencies": {
     "bplist-creator": "^0.1.1",
     "bplist-parser": "^0.3.2"

@@ -394,6 +394,7 @@ enum PatchProjectLibrary {
                let existingSummary = try? PatchPackageCodec.inspect(existingData),
                existingSummary.packageID == expectedID,
                !existingSummary.isPasswordProtected,
+               PatchPackageCodec.usesDeviceKeychainProtection(existingData),
                let existingPackage = try? PatchPackageCodec.decode(existingData, password: nil),
                projectPayloadFingerprint(existingPackage.project) == feedFingerprint {
                 UserDefaults.standard.set(
@@ -409,20 +410,29 @@ enum PatchProjectLibrary {
                 return true
             }
 
-            let encoded = try PatchPackageCodec.encodeNew(project: normalizedProject, password: nil)
+            let encoded = try PatchPackageCodec.encodeDeviceProtected(project: normalizedProject)
             let summary = try PatchPackageCodec.inspect(encoded.data)
             guard summary.packageID == expectedID, !summary.isPasswordProtected else { return false }
-            if let existingSummary = try? PatchPackageCodec.inspect(readPackage(at: destination)) {
-                try? PatchKeyStore.delete(for: existingSummary)
+            let previousSummary = try? PatchPackageCodec.inspect(readPackage(at: destination))
+            try PatchKeyStore.store(encoded.contentKey, for: summary)
+            do {
+                try installImportedPackage(
+                    data: encoded.data,
+                    decoded: DecodedPatchPackage(project: normalizedProject, contentKey: encoded.contentKey),
+                    summary: summary,
+                    existingURL: destination,
+                    createWorkspace: false,
+                    fileManager: fileManager
+                )
+            } catch {
+                try? PatchKeyStore.delete(for: summary)
+                throw error
             }
-            try installImportedPackage(
-                data: encoded.data,
-                decoded: DecodedPatchPackage(project: normalizedProject, contentKey: encoded.contentKey),
-                summary: summary,
-                existingURL: destination,
-                createWorkspace: false,
-                fileManager: fileManager
-            )
+            if let previousSummary,
+               previousSummary.packageID == summary.packageID,
+               previousSummary.keyFingerprint != summary.keyFingerprint {
+                try? PatchKeyStore.delete(for: previousSummary)
+            }
             UserDefaults.standard.set(
                 hexString(projectPayloadFingerprint(normalizedProject)),
                 forKey: trustedPayloadKey(expectedID)
@@ -474,14 +484,48 @@ enum PatchProjectLibrary {
         for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
             do {
                 let data = try readPackage(at: url)
-                let summary = try PatchPackageCodec.inspect(data)
-                let decoded: DecodedPatchPackage?
+                var summary = try PatchPackageCodec.inspect(data)
+                var decoded: DecodedPatchPackage?
                 if let contentKey = try PatchKeyStore.load(for: summary) {
                     decoded = try PatchPackageCodec.decode(data, contentKey: contentKey)
                 } else if summary.isPasswordProtected {
                     decoded = nil
                 } else {
                     decoded = try PatchPackageCodec.decode(data, password: nil)
+                }
+                if let project = decoded?.project,
+                   let canonicalFilename = canonicalBundledPackageFilenames[summary.packageID],
+                   canonicalFilename.caseInsensitiveCompare(url.lastPathComponent) == .orderedSame,
+                   !PatchPackageCodec.usesDeviceKeychainProtection(data) {
+                    guard trustedPayloadFingerprint(for: summary.packageID) == projectPayloadFingerprint(project) else {
+                        try? fileManager.removeItem(at: url)
+                        try? PatchKeyStore.delete(for: summary)
+                        log("patch: removed untrusted legacy feed cache \(url.lastPathComponent)")
+                        continue
+                    }
+                    var protectedSummary: PatchPackageSummary?
+                    do {
+                        let protected = try PatchPackageCodec.encodeDeviceProtected(project: project)
+                        let newSummary = try PatchPackageCodec.inspect(protected.data)
+                        protectedSummary = newSummary
+                        try PatchKeyStore.store(protected.contentKey, for: newSummary)
+                        try save(
+                            data: protected.data,
+                            projectName: project.name,
+                            existingURL: url,
+                            fileManager: fileManager
+                        )
+                        try? PatchKeyStore.delete(for: summary)
+                        summary = newSummary
+                        decoded = DecodedPatchPackage(project: project, contentKey: protected.contentKey)
+                        log("patch: migrated legacy feed cache to device-only key storage: \(url.lastPathComponent)")
+                    } catch {
+                        if let protectedSummary { try? PatchKeyStore.delete(for: protectedSummary) }
+                        try? fileManager.removeItem(at: url)
+                        try? PatchKeyStore.delete(for: summary)
+                        log("patch: removed feed cache that could not be securely migrated: \(url.lastPathComponent)")
+                        continue
+                    }
                 }
                 var item = PatchLibraryItem(
                     summary: summary,

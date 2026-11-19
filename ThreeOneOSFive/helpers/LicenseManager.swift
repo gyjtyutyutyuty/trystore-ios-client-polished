@@ -58,6 +58,7 @@ final class LicenseManager: ObservableObject {
     func beginLaunchSession() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            PatchBundleKeyStore.clear()
             isActive = false
             expirationDate = nil
             maskedKey = nil
@@ -123,6 +124,7 @@ final class LicenseManager: ObservableObject {
                 lastCheckedAt = Date()
                 isOffline = false
                 guard active else {
+                    PatchBundleKeyStore.clear()
                     isActive = false
                     messageKey = Self.messageKey(for: response.outcome)
                     return
@@ -144,19 +146,22 @@ final class LicenseManager: ObservableObject {
                 let identifier = try deviceID()
                 guard let token = response.session,
                       SessionVerifier.claims(in: token, deviceID: identifier, project: projectID) != nil else {
+                    PatchBundleKeyStore.clear()
                     isActive = false
                     messageKey = "license.error_server"
                     return
                 }
-                // The patch feed releases its bundle key only after this same
-                // licence check, and only sealed under this session. Caching
-                // the unwrapped key here means bundled patches are never
-                // decryptable from the IPA alone.
+                // The feed encrypts its shared wrapping key to this installation's
+                // Secure Enclave key. The unwrapped value is memory-only; it is
+                // still recoverable by an attacker controlling a live process.
                 do {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: key,
                         deviceID: identifier
                     )
+                } catch PatchBundleKeyError.unauthorized {
+                    PatchBundleKeyStore.clear()
+                    log("patches: bundle key exchange rejected")
                 } catch {
                     log("patches: bundle key unavailable — \(error)")
                 }

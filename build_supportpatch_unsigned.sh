@@ -49,5 +49,7 @@ cp -R "$APP" "$BUILD_DIR/Payload/"
   rm -rf Payload
 )
 
+python3 "$ROOT/scripts/verify_legacy_patch_bundle.py" --ipa "$IPA"
+
 printf 'Unsigned archive: %s\n' "$ARCHIVE"
 printf 'Unsigned IPA:     %s\n' "$IPA"

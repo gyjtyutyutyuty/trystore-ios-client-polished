@@ -8,6 +8,7 @@ import os
 import plistlib
 import re
 import subprocess
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -299,12 +300,33 @@ def check_source() -> None:
             "feed worker does not reject a package whose project does not match its slot")
     codec = (ROOT / "ThreeOneOSFive/helpers/PatchPackageCodec.swift").read_text(encoding="utf-8")
     key_store = (ROOT / "ThreeOneOSFive/helpers/PatchBundleKeyStore.swift").read_text(encoding="utf-8")
+    package_key_store = (ROOT / "ThreeOneOSFive/helpers/PatchKeyStore.swift").read_text(encoding="utf-8")
     require('wrappingScheme == "bundle"' in codec
             and "PatchBundleKeyStore.cachedKey()" in codec,
             "client does not unwrap bundle-key packages")
     require("api/patches/trystore/bundle-key" in key_store
-            and "X-TryStore-Device-ID" in key_store,
+            and "X-TryStore-Device-ID" in key_store
+            and 'request.httpMethod = "POST"' in key_store
+            and "SecureEnclave.P256.KeyAgreement.PrivateKey" in key_store
+            and "p256-hkdf-sha256-aesgcm-v2" in key_store
+            and "trystore-patch-feed|bundle-key|v2|trystore|" in key_store
+            and "deleteLegacyStoredKey()" in key_store,
             "client bundle-key endpoint or device binding missing")
+    require("encryptBundleKeyForDevice" in worker
+            and 'scheme: "p256-hkdf-sha256-aesgcm-v2"' in worker
+            and "trystore-patch-feed|bundle-key|v2|trystore|${deviceIDLower}" in worker
+            and "device_key_exchange_required" in worker
+            and 'return json({ valid: true, key: encoded' not in worker,
+            "Worker still releases the shared bundle key in plaintext")
+    require("encodeDeviceProtected(project: normalizedProject)" in library
+            and "usesDeviceKeychainProtection(existingData)" in library
+            and "PatchKeyStore.store(encoded.contentKey, for: summary)" in library
+            and 'wrappingScheme: "keychain"' in codec
+            and 'wrappingScheme == "keychain"' in codec
+            and "PatchKeyStore.load(for: summary)" in codec,
+            "downloaded package cache can expose its content key in the app container")
+    require("kSecAttrAccessibleWhenUnlockedThisDeviceOnly" in package_key_store,
+            "cached patch content keys are not device-only and locked-device protected")
     require('project !== "trystore"' in worker
             and 'project === "trystore" ? "no-store"' in worker,
             "Worker does not preserve other project behavior and disable TryStore cacheability")
@@ -357,16 +379,57 @@ def check_app(app: Path) -> None:
         info = plistlib.load(stream)
     require(info.get("TRYSTORE_PATCH_FEED_URL") == "https://trystore-patch-feed.burgoajustin.workers.dev",
             "remote patch feed URL missing or unexpected in app")
-    forbidden = [path for path in app.rglob("*") if path.is_file()
-                 and path.suffix.lower() in {".trystore", ".3105"}]
+    paths = list(app.rglob("*"))
+    forbidden = []
+    for path in paths:
+        if not path.is_file():
+            continue
+        if path.suffix.lower() in {".trystore", ".3105"}:
+            forbidden.append(path)
+            continue
+        with path.open("rb") as stream:
+            if stream.read(len(b"3105PATCH\0")) == b"3105PATCH\0":
+                forbidden.append(path)
     require(not forbidden, f"patch package files found in IPA: {forbidden[:3]}")
-    require(not (app / "Patches").exists(), "Patches folder still exists in the app bundle")
+    patch_directories = [path for path in paths if path.is_dir() and path.name.casefold() == "patches"]
+    require(not patch_directories, f"Patches folder still exists in the app bundle: {patch_directories[:3]}")
     print(f"PASS: IPA contains no local patch packages; all {len(BUNDLED)} packages are fetched remotely")
+
+
+def check_ipa(ipa: Path) -> None:
+    require(ipa.is_file(), f"IPA archive missing: {ipa}")
+    try:
+        with zipfile.ZipFile(ipa) as archive:
+            names = archive.namelist()
+            forbidden_packages = []
+            for name in names:
+                if name.endswith("/"):
+                    continue
+                if Path(name).suffix.lower() in {".trystore", ".3105"}:
+                    forbidden_packages.append(name)
+                    continue
+                with archive.open(name) as stream:
+                    if stream.read(len(b"3105PATCH\0")) == b"3105PATCH\0":
+                        forbidden_packages.append(name)
+            forbidden_directories = [
+                name for name in names
+                if any(part.lower() == "patches" for part in Path(name).parts)
+            ]
+    except (OSError, zipfile.BadZipFile) as error:
+        fail(f"cannot inspect IPA archive {ipa}: {error}")
+    require(not forbidden_packages,
+            f"patch package files found in IPA archive: {forbidden_packages[:3]}")
+    require(not forbidden_directories,
+            f"Patches directory found in IPA archive: {forbidden_directories[:3]}")
+    print("PASS: final IPA archive contains no patch files or Patches directory")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", type=Path)
+    parser.add_argument("--ipa", type=Path)
     args = parser.parse_args()
     check_source()
     if args.app:
         check_app(args.app)
+    if args.ipa:
+        check_ipa(args.ipa)

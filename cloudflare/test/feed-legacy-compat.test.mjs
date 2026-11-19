@@ -51,37 +51,57 @@ function feedEnv({ licenseValid = false, values = new Map(), rateLimitUnavailabl
   };
 }
 
-function request(path, authorization = `Bearer ${licenseKey}`) {
+function request(path, authorization = `Bearer ${licenseKey}`, { method = "GET", body } = {}) {
   const headers = {
     "x-trystore-device-id": device,
     "cf-connecting-ip": "203.0.113.40",
   };
   if (authorization) headers.authorization = authorization;
-  return new Request(`https://feed.test${path}`, { headers });
+  if (body) headers["content-type"] = "application/json";
+  return new Request(`https://feed.test${path}`, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
 }
 
 const authorizedEnv = () => feedEnv({ licenseValid: true });
 
+const clientKeys = await crypto.subtle.generateKey(
+  { name: "ECDH", namedCurve: "P-256" },
+  true,
+  ["deriveBits"],
+);
+const clientPublicKey = Buffer.from(await crypto.subtle.exportKey("raw", clientKeys.publicKey)).toString("base64");
 const keyResponse = await feedWorker.fetch(
-  request("/api/patches/trystore/bundle-key"),
+  request("/api/patches/trystore/bundle-key", `Bearer ${licenseKey}`, {
+    method: "POST",
+    body: { publicKey: clientPublicKey },
+  }),
   authorizedEnv(),
 );
 assert.equal(keyResponse.status, 200);
 const keyBody = await keyResponse.json();
 assert.equal(keyBody.valid, true);
-assert.equal(keyBody.key, bundleKeyB64);
-assert.equal(keyBody.keyVersion, "1");
-assert.equal(keyBody.wrappedKey, undefined);
-console.log("ok: legacy IPA receives the expected bundle-key response");
+assert.equal(keyBody.scheme, "p256-hkdf-sha256-aesgcm-v2");
+assert.equal(keyBody.keyVersion, 2);
+assert.equal(keyBody.key, undefined);
+console.log("ok: licensed device receives an encrypted bundle-key envelope, never a plaintext key");
 
 const invalidKeyResponse = await feedWorker.fetch(
-  request("/api/patches/trystore/bundle-key"),
+  request("/api/patches/trystore/bundle-key", `Bearer ${licenseKey}`, {
+    method: "POST",
+    body: { publicKey: clientPublicKey },
+  }),
   feedEnv({ licenseValid: false }),
 );
 assert.equal(invalidKeyResponse.status, 401);
 
 const anonymousKeyResponse = await feedWorker.fetch(
-  request("/api/patches/trystore/bundle-key", null),
+  request("/api/patches/trystore/bundle-key", null, {
+    method: "POST",
+    body: { publicKey: clientPublicKey },
+  }),
   authorizedEnv(),
 );
 assert.equal(anonymousKeyResponse.status, 401);
@@ -127,7 +147,7 @@ const anonymousBlobResponse = await feedWorker.fetch(
   authorizedEnv(),
 );
 assert.equal(anonymousBlobResponse.status, 401);
-console.log("ok: legacy licensed IPA can download manifest and patch bytes; anonymous access stays blocked");
+console.log("ok: licensed clients can download manifest and patch bytes; anonymous access stays blocked");
 console.log("ok: KV rate-counter failures do not block licensed downloads or authorize anonymous requests");
 
-console.log("\nall legacy IPA compatibility checks passed");
+console.log("\nall licensed feed compatibility checks passed");

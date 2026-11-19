@@ -40,6 +40,26 @@ enum PatchPackageCodec {
         )
     }
 
+    /// Encodes a locally cached feed package without embedding its content key
+    /// in the file. The key is kept in this device's Keychain instead.
+    static func encodeDeviceProtected(project: PatchProject) throws -> EncodedPatchPackage {
+        try validate(project)
+        let contentKey = try randomData(count: 32)
+        let envelope = try makeEnvelope(
+            project: project,
+            schemaVersion: latestSchemaVersion,
+            keyAADVersion: nil,
+            contentKey: contentKey,
+            isPasswordProtected: false,
+            kdfSalt: nil,
+            kdfIterations: nil,
+            wrappedContentKey: nil,
+            publicContentKey: nil,
+            wrappingScheme: "keychain"
+        )
+        return EncodedPatchPackage(data: try serialize(envelope), contentKey: contentKey)
+    }
+
     static func encodeLegacyV1(
         project: PatchProject,
         password: String?,
@@ -118,6 +138,11 @@ enum PatchPackageCodec {
         )
     }
 
+    static func usesDeviceKeychainProtection(_ data: Data) -> Bool {
+        guard let envelope = try? parseEnvelope(data) else { return false }
+        return envelope.wrappingScheme == "keychain" && envelope.publicContentKey == nil
+    }
+
     // A pair of historical bundled visual patches were packaged as schema 9,
     // before the app's current schema-2 format. Accept that version only on
     // this bundled-resource migration path; normal imports remain strict.
@@ -177,6 +202,17 @@ enum PatchPackageCodec {
                         version: envelope.keyAADVersion ?? envelope.schemaVersion
                     )
                 )
+            } else if envelope.wrappingScheme == "keychain" {
+                let summary = PatchPackageSummary(
+                    packageID: envelope.packageID,
+                    schemaVersion: envelope.schemaVersion,
+                    isPasswordProtected: envelope.isPasswordProtected,
+                    keyFingerprint: envelope.keyFingerprint
+                )
+                guard let storedKey = try PatchKeyStore.load(for: summary) else {
+                    throw PatchPackageError.keychainFailed
+                }
+                contentKey = storedKey
             } else if envelope.wrappingScheme == "bundle" {
                 guard let bundleKey = PatchBundleKeyStore.cachedKey(),
                       let wrapped = envelope.wrappedContentKey else {
@@ -430,6 +466,14 @@ enum PatchPackageCodec {
                   iterations >= PatchPackageLimits.minimumKDFIterations,
                   iterations <= PatchPackageLimits.maximumKDFIterations,
                   envelope.wrappedContentKey != nil
+            else {
+                throw PatchPackageError.invalidPasswordOrCorruptedPackage
+            }
+        } else if envelope.wrappingScheme == "keychain" {
+            guard envelope.kdfSalt == nil,
+                  envelope.kdfIterations == nil,
+                  envelope.publicContentKey == nil,
+                  envelope.wrappedContentKey == nil
             else {
                 throw PatchPackageError.invalidPasswordOrCorruptedPackage
             }

@@ -41,6 +41,24 @@ jobs:
         working-directory: ThreeOneOSFive/airlift-rust-core
         run: cargo check --locked
 
+  worker-key-envelope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - name: Test device-bound key exchange and feed authorization
+        working-directory: cloudflare
+        run: npm ci && npm run test:feed-security
+
   swift-build:
     # A compile, not an archive: the Swift changes in this repo were only ever
     # checked by eye before, and a typo should fail the push, not the release.
@@ -141,7 +159,7 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Verify local bundled patches
+      - name: Verify remote patch source mappings
         env:
           TRYSTORE_BUNDLE_KEY: ${{ secrets.TRYSTORE_BUNDLE_KEY }}
         run: python3 scripts/verify_legacy_patch_bundle.py
@@ -161,7 +179,9 @@ jobs:
           rm -rf /tmp/ipa-check && mkdir -p /tmp/ipa-check
           unzip -q build/SupportPatch-unsigned.ipa -d /tmp/ipa-check
           test -x /tmp/ipa-check/Payload/SupportPatch.app/SupportPatch
-          python3 scripts/verify_legacy_patch_bundle.py --app /tmp/ipa-check/Payload/SupportPatch.app
+          python3 scripts/verify_legacy_patch_bundle.py \
+            --app /tmp/ipa-check/Payload/SupportPatch.app \
+            --ipa build/SupportPatch-unsigned.ipa
           shasum -a 256 build/SupportPatch-unsigned.ipa | tee build/SupportPatch-unsigned.ipa.sha256
 
       - name: Upload IPA artifact
