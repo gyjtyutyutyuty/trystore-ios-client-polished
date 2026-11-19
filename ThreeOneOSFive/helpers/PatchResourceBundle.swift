@@ -4,6 +4,7 @@ import Foundation
 struct PatchFeedCredentials: Sendable {
     let licenseKey: String
     let deviceID: String
+    let sessionToken: String
 }
 
 enum PatchFeedError: Error {
@@ -148,6 +149,7 @@ enum PatchResourceBundle {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
         request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+        request.setValue(credentials.sessionToken, forHTTPHeaderField: "X-TryStore-Session")
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         request.setValue("application/octet-stream, application/json", forHTTPHeaderField: "Accept")
         return request

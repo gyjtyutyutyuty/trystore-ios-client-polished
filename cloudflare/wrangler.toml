@@ -28,6 +28,9 @@ service = "jvztxnx-global-control"
 PUBLIC_BASE_URL = "https://trystore-patch-feed.burgoajustin.workers.dev"
 RESELLER_ORIGIN = "https://jvztxnx-global-control.burgoajustin.workers.dev"
 PATCH_ADMIN_IDS = "7551063281,5869209007"
+# Every TryStore manifest, key, report, and blob request must carry the
+# Ed25519-signed session minted by the license worker and bound to the device ID.
+REQUIRE_SIGNED_SESSION = "1"
 
 # Secrets (set with `wrangler secret put ...`):
 #   TELEGRAM_BOT_TOKEN

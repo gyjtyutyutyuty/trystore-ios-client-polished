@@ -30,7 +30,7 @@ enum PatchBundleKeyStore {
         return cached
     }
 
-    static func refresh(licenseKey: String, deviceID: String) async throws {
+    static func refresh(licenseKey: String, deviceID: String, sessionToken: String) async throws {
         guard let configured = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_FEED_URL") as? String,
               let baseURL = URL(string: configured),
               baseURL.scheme?.lowercased() == "https",
@@ -50,6 +50,7 @@ enum PatchBundleKeyStore {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(licenseKey)", forHTTPHeaderField: "Authorization")
         request.setValue(deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+        request.setValue(sessionToken, forHTTPHeaderField: "X-TryStore-Session")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         request.httpBody = try JSONSerialization.data(withJSONObject: [

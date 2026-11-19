@@ -34,6 +34,15 @@ function request(method, body) {
   });
 }
 
+test("signed-session gate rejects a missing session header", async () => {
+  const env = bindings();
+  env.REQUIRE_SIGNED_SESSION = "1";
+  const response = await worker.fetch(request("POST", {
+    publicKey: b64(new Uint8Array(65)),
+  }), env);
+  assert.equal(response.status, 401);
+});
+
 test("bundle key is returned only as an envelope decryptable by the requesting P-256 private key", async () => {
   const pair = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },

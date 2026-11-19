@@ -1035,7 +1035,9 @@ async function tryStoreLicenseIsActive(request, env) {
 }
 
 async function requireTryStoreLicense(request, env, project) {
-  return project !== "trystore" || await tryStoreLicenseIsActive(request, env);
+  return project !== "trystore"
+    || (await hasValidFeedSession(request, env, project)
+      && await tryStoreLicenseIsActive(request, env));
 }
 
 /* ------------------------------------------------------------------ */
@@ -1061,6 +1063,51 @@ async function allowFeed(env, bucket, ip, limit, windowSeconds) {
   }
 }
 const feedIP = (request) => String(request.headers.get("cf-connecting-ip") || "unknown");
+const FEED_SESSION_PUBLIC_KEY = "R3pdNCNDvN23ofwX8d262L8kc446tjhhE0hayw8d7Fg=";
+const FEED_SESSION_ISSUER = "trystore-license";
+const FEED_SESSION_AUDIENCE = "trystore-feed";
+const FEED_SESSION_KEY_ID = "trystore-ed25519-v1";
+function decodeBase64Url(value) {
+  const text = String(value || "");
+  const normalized = text.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((text.length + 3) % 4);
+  try {
+    return Uint8Array.from(atob(normalized), (character) => character.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+async function hasValidFeedSession(request, env, project) {
+  if (String(env.REQUIRE_SIGNED_SESSION || "") !== "1") return true;
+  const token = request.headers.get("x-trystore-session") || "";
+  const deviceID = request.headers.get("x-trystore-device-id") || "";
+  const parts = token.split(".");
+  if (parts.length !== 2 || token.length > 4096 || !deviceID) return false;
+  const payloadBytes = decodeBase64Url(parts[0]);
+  const signature = decodeBase64Url(parts[1]);
+  const publicKeyBytes = decodeBase64Url(FEED_SESSION_PUBLIC_KEY);
+  if (!payloadBytes || !signature || !publicKeyBytes || publicKeyBytes.length !== 32) return false;
+  try {
+    const publicKey = await crypto.subtle.importKey(
+      "raw", publicKeyBytes, { name: "Ed25519" }, false, ["verify"],
+    );
+    const validSignature = await crypto.subtle.verify(
+      "Ed25519", publicKey, signature, new TextEncoder().encode(parts[0]),
+    );
+    if (!validSignature) return false;
+    const claims = JSON.parse(new TextDecoder().decode(payloadBytes));
+    return claims?.v === 1
+      && claims.iss === FEED_SESSION_ISSUER
+      && claims.aud === FEED_SESSION_AUDIENCE
+      && claims.kid === FEED_SESSION_KEY_ID
+      && claims.project === project
+      && typeof claims.device === "string"
+      && claims.device.toLowerCase() === deviceID.toLowerCase()
+      && Number.isInteger(claims.exp)
+      && claims.exp > nowSeconds();
+  } catch {
+    return false;
+  }
+}
 
 export default {
   async fetch(request, env) {

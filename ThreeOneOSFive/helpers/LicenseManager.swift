@@ -18,6 +18,7 @@ final class LicenseManager: ObservableObject {
     private let keyAccount = "license-key"
     private let deviceAccount = "device-id"
     private let defaultEndpoint = "https://jvztxnx-global-control.burgoajustin.workers.dev/api/v1/keys/validate"
+    private var activeSessionToken: String?
 
     /// The licence answer decides whether the app unlocks, so the host that
     /// gives it is pinned here. Editing Info.plist can point a build at another
@@ -49,10 +50,11 @@ final class LicenseManager: ObservableObject {
     func patchFeedCredentials() -> PatchFeedCredentials? {
         guard isActive,
               let key = keychainString(for: keyAccount), !key.isEmpty,
-              let identifier = try? deviceID(), !identifier.isEmpty else {
+              let identifier = try? deviceID(), !identifier.isEmpty,
+              let sessionToken = activeSessionToken, !sessionToken.isEmpty else {
             return nil
         }
-        return PatchFeedCredentials(licenseKey: key, deviceID: identifier)
+        return PatchFeedCredentials(licenseKey: key, deviceID: identifier, sessionToken: sessionToken)
     }
 
     func beginLaunchSession() {
@@ -95,6 +97,7 @@ final class LicenseManager: ObservableObject {
         deleteKeychainValue(for: keyAccount)
         PatchBundleKeyStore.clear()
         PatchProjectLibrary.clearAuthenticatedFeedCache()
+        activeSessionToken = nil
         isActive = false
         expirationDate = nil
         lastCheckedAt = nil
@@ -129,6 +132,7 @@ final class LicenseManager: ObservableObject {
                 guard active else {
                     PatchBundleKeyStore.clear()
                     PatchProjectLibrary.clearAuthenticatedFeedCache()
+                    activeSessionToken = nil
                     isActive = false
                     messageKey = Self.messageKey(for: response.outcome)
                     return
@@ -152,6 +156,7 @@ final class LicenseManager: ObservableObject {
                       SessionVerifier.claims(in: token, deviceID: identifier, project: projectID) != nil else {
                     PatchBundleKeyStore.clear()
                     PatchProjectLibrary.clearAuthenticatedFeedCache()
+                    activeSessionToken = nil
                     isActive = false
                     messageKey = "license.error_server"
                     return
@@ -160,9 +165,11 @@ final class LicenseManager: ObservableObject {
                 // Secure Enclave key. The unwrapped value is memory-only; it is
                 // still recoverable by an attacker controlling a live process.
                 do {
+                    activeSessionToken = token
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: key,
-                        deviceID: identifier
+                        deviceID: identifier,
+                        sessionToken: token
                     )
                 } catch PatchBundleKeyError.unauthorized {
                     PatchBundleKeyStore.clear()

@@ -100,7 +100,8 @@ final class PatchProjectStore: ObservableObject {
                 if PatchBundleKeyStore.cachedKey() == nil {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: credentials.licenseKey,
-                        deviceID: credentials.deviceID
+                        deviceID: credentials.deviceID,
+                        sessionToken: credentials.sessionToken
                     )
                 }
                 let resources = try await PatchResourceBundle.load(
@@ -307,6 +308,7 @@ final class PatchProjectStore: ObservableObject {
                     guard let credentials else { throw PatchPackageError.remoteImportFailed }
                     request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
                     request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+                    request.setValue(credentials.sessionToken, forHTTPHeaderField: "X-TryStore-Session")
                     request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
                 }
                 let configuration = URLSessionConfiguration.ephemeral

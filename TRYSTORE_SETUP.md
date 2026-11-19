@@ -13,6 +13,8 @@ Downloaded feed packages are saved with iOS complete file protection. Their cont
 
 The shared feed-wrapping key is no longer returned as plaintext: the app requests it with a POST and the Worker encrypts it to a P-256 public key supplied by the client using ECDH, HKDF-SHA256, and AES-GCM. The official app keeps the corresponding private key in Secure Enclave and the unwrapped shared key in memory only. The Worker does not attest that a submitted public key is actually Secure Enclave-backed; a licensed modified client can supply its own key, and a compromised live process can capture plaintext/key material. The legacy GET is intentionally rejected, so deploy the matching Worker code before distributing this app build.
 
+The patch Worker can require the Ed25519 session returned by the license Worker on every TryStore manifest, bundle-key, report, and blob request. The session is short-lived and bound to the project and device ID; it prevents direct URL scraping, forged sessions, replay after expiry, and cross-device reuse. The production rollout order is: build and test this client, distribute the updated client, confirm all supported clients send `X-TryStore-Session`, then deploy the Worker with `REQUIRE_SIGNED_SESSION = "1"`. Enabling the gate before client rollout will intentionally reject older clients. This protects server authorization but does not make a valid licensed client on a user-controlled or jailbroken device unmodifiable; App Attest is the next stronger defense for modified IPA rejection.
+
 ## Build on macOS or Codemagic
 
 Install a stable Rust toolchain (`rustup` and `cargo`) on the macOS build machine. The unsigned build script rebuilds both Airlift iOS archives before Xcode links the app:
