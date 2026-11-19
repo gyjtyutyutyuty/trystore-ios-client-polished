@@ -87,6 +87,12 @@ final class PatchProjectStore: ObservableObject {
         isBusy = true
         Task { [weak self] in
             guard let self else { return }
+            defer {
+                // Installed packages keep their own content keys in the
+                // device-only Keychain; the shared feed unwrap key is not
+                // needed after this import and must not remain in memory.
+                PatchBundleKeyStore.clearMemoryOnly()
+            }
             do {
                 // Packages are wrapped under a key the feed releases only to an
                 // authenticated device. Fetch it before decoding, otherwise a

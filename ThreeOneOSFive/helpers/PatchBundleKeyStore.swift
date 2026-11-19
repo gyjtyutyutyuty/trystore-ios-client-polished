@@ -137,6 +137,14 @@ enum PatchBundleKeyStore {
         deleteDevicePrivateKey()
     }
 
+    /// Drop only the in-memory shared key after a feed import. Keep the
+    /// installation key so the server-side device identity remains stable.
+    static func clearMemoryOnly() {
+        lock.lock()
+        cached = nil
+        lock.unlock()
+    }
+
     private static func cacheKey(_ key: Data) {
         lock.lock()
         defer { lock.unlock() }

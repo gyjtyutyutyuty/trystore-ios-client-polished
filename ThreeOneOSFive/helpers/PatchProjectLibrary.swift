@@ -190,6 +190,26 @@ enum PatchProjectLibrary {
         }
     }
 
+    /// Remove feed-delivered canonical packages and their per-package keys.
+    /// User-imported packages are intentionally left alone after revocation.
+    static func clearAuthenticatedFeedCache(fileManager: FileManager = .default) {
+        guard let root = try? packageRootURL(fileManager: fileManager),
+              let urls = try? fileManager.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+              ) else { return }
+        let canonicalIDs = Set(canonicalBundledPackageFilenames.keys)
+        for url in urls where supportedPackageExtensions.contains(url.pathExtension.lowercased()) {
+            guard let data = try? readPackage(at: url),
+                  let summary = try? PatchPackageCodec.inspect(data),
+                  canonicalIDs.contains(summary.packageID) else { continue }
+            try? PatchKeyStore.delete(for: summary)
+            try? PatchWorkspaceService.deleteWorkspace(projectID: summary.packageID, fileManager: fileManager)
+            try? fileManager.removeItem(at: url)
+        }
+    }
+
     static func installBundledPackageIfNeeded(
         resourceName: String,
         projectName: String? = nil,
@@ -460,6 +480,13 @@ enum PatchProjectLibrary {
         )
         let root = base.appendingPathComponent("PatchProjects", isDirectory: true)
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+        try? fileManager.setAttributes(
+            [.protectionKey: FileProtectionType.complete],
+            ofItemAtPath: root.path
+        )
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? root.setResourceValues(values)
         return root
     }
 

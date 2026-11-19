@@ -59,6 +59,7 @@ final class LicenseManager: ObservableObject {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
             PatchBundleKeyStore.clear()
+            PatchProjectLibrary.clearAuthenticatedFeedCache()
             isActive = false
             expirationDate = nil
             maskedKey = nil
@@ -81,6 +82,7 @@ final class LicenseManager: ObservableObject {
     func refresh() {
         guard !isBusy else { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            PatchProjectLibrary.clearAuthenticatedFeedCache()
             isActive = false
             messageKey = "license.error_required"
             return
@@ -92,6 +94,7 @@ final class LicenseManager: ObservableObject {
     func clear() {
         deleteKeychainValue(for: keyAccount)
         PatchBundleKeyStore.clear()
+        PatchProjectLibrary.clearAuthenticatedFeedCache()
         isActive = false
         expirationDate = nil
         lastCheckedAt = nil
@@ -125,6 +128,7 @@ final class LicenseManager: ObservableObject {
                 isOffline = false
                 guard active else {
                     PatchBundleKeyStore.clear()
+                    PatchProjectLibrary.clearAuthenticatedFeedCache()
                     isActive = false
                     messageKey = Self.messageKey(for: response.outcome)
                     return
@@ -147,6 +151,7 @@ final class LicenseManager: ObservableObject {
                 guard let token = response.session,
                       SessionVerifier.claims(in: token, deviceID: identifier, project: projectID) != nil else {
                     PatchBundleKeyStore.clear()
+                    PatchProjectLibrary.clearAuthenticatedFeedCache()
                     isActive = false
                     messageKey = "license.error_server"
                     return
