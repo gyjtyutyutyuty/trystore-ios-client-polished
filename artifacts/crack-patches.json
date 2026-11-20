@@ -1,0 +1,27 @@
+{
+  "input": "C:\\Users\\hesju\\Downloads\\SupportPatch-unsigned 7.ipa",
+  "input_sha256": "973ea4d7dc02ca1a3826fc55a9de77275a74824e1c727e69fe3c4f862e68902b",
+  "output": "build\\release\\SupportPatch-1.1.1-16-cracked.ipa",
+  "output_sha256": "789d47dd051ac37109af7a4dee08cd33a16465f28dbeeac9f05ccc57bfd108aa",
+  "output_bytes": 11257738,
+  "bundle": "cc.forcequit.worse-query",
+  "version": "1.1.1",
+  "build": "16",
+  "patches": [
+    {
+      "address": "0x1000118ac",
+      "file_offset": "0x118ac",
+      "before": "410d0054",
+      "after": "1f2003d5",
+      "description": "ContentView gate: `b.ne` after licenseManager.isActive -> NOP; the active branch always runs"
+    },
+    {
+      "address": "0x10007a67c",
+      "file_offset": "0x7a67c",
+      "before": "ff4301d1f85f01a9",
+      "after": "80008052c0035fd6",
+      "description": "RuntimeProbe.currentState -> `mov w0, #4; ret` (.ok); debugger, simulator, jailbreak, injection and Frida-port probes are skipped"
+    }
+  ],
+  "limits": "Feed bundle keys stay server-side; this set unlocks the client gate only."
+}

@@ -1,0 +1,237 @@
+{
+  "ipa": "C:\\Users\\hesju\\Downloads\\SupportPatch-unsigned 7.ipa",
+  "bytes": 11260915,
+  "sha256": "973ea4d7dc02ca1a3826fc55a9de77275a74824e1c727e69fe3c4f862e68902b",
+  "app": "SupportPatch.app",
+  "binary": "Payload/SupportPatch.app/SupportPatch",
+  "info": {
+    "CFBundleIdentifier": "cc.forcequit.worse-query",
+    "CFBundleShortVersionString": "1.1.1",
+    "CFBundleVersion": "16",
+    "MinimumOSVersion": "16.0",
+    "UIFileSharingEnabled": true,
+    "LSSupportsOpeningDocumentsInPlace": true,
+    "UIBackgroundModes": [
+      "audio"
+    ],
+    "CFBundleURLSchemes": [
+      "threeoneosfive"
+    ],
+    "NSAppTransportSecurity": null,
+    "custom_url_keys": [
+      "TRYSTORE_LICENSE_API_URL",
+      "TRYSTORE_PATCH_FEED_URL",
+      "TRYSTORE_PROJECT_ID"
+    ],
+    "binary": "SupportPatch"
+  },
+  "plist_findings": [
+    {
+      "key": "UIFileSharingEnabled",
+      "severity": "medium",
+      "detail": "Documents is exposed in Files.app"
+    },
+    {
+      "key": "LSSupportsOpeningDocumentsInPlace",
+      "severity": "medium",
+      "detail": "Documents can be opened in place"
+    },
+    {
+      "key": "UIBackgroundModes",
+      "severity": "info",
+      "detail": "audio"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "medium",
+      "check": "signature",
+      "detail": "no LC_CODE_SIGNATURE; bundle will be re-signed by the loader"
+    },
+    {
+      "severity": "high",
+      "check": "dyld",
+      "detail": "missing __RESTRICT,__restrict; DYLD_INSERT_LIBRARIES can attach"
+    },
+    {
+      "severity": "medium",
+      "check": "plist",
+      "detail": "UIFileSharingEnabled: Documents is exposed in Files.app"
+    },
+    {
+      "severity": "medium",
+      "check": "plist",
+      "detail": "LSSupportsOpeningDocumentsInPlace: Documents can be opened in place"
+    }
+  ],
+  "macho": {
+    "label": "Payload/SupportPatch.app/SupportPatch",
+    "size": 8315928,
+    "arch": "arm64",
+    "filetype": 2,
+    "flags": 10485893,
+    "pie": true,
+    "no_heap_execution": false,
+    "segments": [
+      {
+        "name": "__PAGEZERO",
+        "vmaddr": 0,
+        "vmsize": 4294967296,
+        "fileoff": 0,
+        "filesize": 0
+      },
+      {
+        "name": "__TEXT",
+        "vmaddr": 4294967296,
+        "vmsize": 7487488,
+        "fileoff": 0,
+        "filesize": 7487488
+      },
+      {
+        "name": "__DATA_CONST",
+        "vmaddr": 4302454784,
+        "vmsize": 409600,
+        "fileoff": 7487488,
+        "filesize": 409600
+      },
+      {
+        "name": "__DATA",
+        "vmaddr": 4302864384,
+        "vmsize": 131072,
+        "fileoff": 7897088,
+        "filesize": 65536
+      },
+      {
+        "name": "__LINKEDIT",
+        "vmaddr": 4302995456,
+        "vmsize": 360448,
+        "fileoff": 7962624,
+        "filesize": 353304
+      }
+    ],
+    "sections": [
+      "__TEXT,__text",
+      "__TEXT,__stubs",
+      "__TEXT,__objc_stubs",
+      "__TEXT,__init_offsets",
+      "__TEXT,__objc_methlist",
+      "__TEXT,__gcc_except_tab",
+      "__TEXT,__cstring",
+      "__TEXT,__const",
+      "__TEXT,__objc_methname",
+      "__TEXT,__objc_classname",
+      "__TEXT,__objc_methtype",
+      "__TEXT,__ustring",
+      "__TEXT,__constg_swiftt",
+      "__TEXT,__swift5_typeref",
+      "__TEXT,__swift5_entry",
+      "__TEXT,__swift5_reflstr",
+      "__TEXT,__swift5_fieldmd",
+      "__TEXT,__swift5_assocty",
+      "__TEXT,__swift5_capture",
+      "__TEXT,__swift5_builtin",
+      "__TEXT,__swift5_proto",
+      "__TEXT,__swift5_types",
+      "__TEXT,__swift_as_entry",
+      "__TEXT,__swift_as_ret",
+      "__TEXT,__swift5_mpenum",
+      "__TEXT,__unwind_info",
+      "__TEXT,__eh_frame",
+      "__TEXT,__oslogstring",
+      "__DATA_CONST,__got",
+      "__DATA_CONST,__const",
+      "__DATA_CONST,__cfstring",
+      "__DATA_CONST,__objc_classlist",
+      "__DATA_CONST,__objc_protolist",
+      "__DATA_CONST,__objc_imageinfo",
+      "__DATA_CONST,__objc_intobj",
+      "__DATA_CONST,__objc_arraydata",
+      "__DATA_CONST,__objc_dictobj",
+      "__DATA_CONST,__objc_arrayobj",
+      "__DATA,__objc_const",
+      "__DATA,__objc_selrefs",
+      "__DATA,__objc_protorefs",
+      "__DATA,__objc_classrefs",
+      "__DATA,__objc_superrefs",
+      "__DATA,__objc_ivar",
+      "__DATA,__objc_data",
+      "__DATA,__data",
+      "__DATA,__thread_vars",
+      "__DATA,__thread_data",
+      "__DATA,__thread_bss",
+      "__DATA,__bss",
+      "__DATA,__common"
+    ],
+    "dylibs": [
+      "/usr/lib/libz.1.dylib",
+      "/usr/lib/libc++.1.dylib",
+      "/System/Library/Frameworks/Foundation.framework/Foundation",
+      "/usr/lib/libobjc.A.dylib",
+      "/usr/lib/libSystem.B.dylib",
+      "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+      "/System/Library/Frameworks/ActivityKit.framework/ActivityKit",
+      "/System/Library/Frameworks/Combine.framework/Combine",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+      "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+      "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+      "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+      "/System/Library/Frameworks/QuickLook.framework/QuickLook",
+      "/System/Library/Frameworks/SceneKit.framework/SceneKit",
+      "/System/Library/Frameworks/Security.framework/Security",
+      "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+      "/System/Library/Frameworks/UIKit.framework/UIKit",
+      "/System/Library/Frameworks/UserNotifications.framework/UserNotifications",
+      "/usr/lib/swift/libswiftAVFoundation.dylib",
+      "/usr/lib/swift/libswiftCore.dylib",
+      "/usr/lib/swift/libswiftCoreAudio.dylib",
+      "/usr/lib/swift/libswiftCoreFoundation.dylib",
+      "/usr/lib/swift/libswiftCoreImage.dylib",
+      "/usr/lib/swift/libswiftCoreLocation.dylib",
+      "/usr/lib/swift/libswiftCoreMIDI.dylib",
+      "/usr/lib/swift/libswiftCoreMedia.dylib",
+      "/usr/lib/swift/libswiftDarwin.dylib",
+      "/usr/lib/swift/libswiftDispatch.dylib",
+      "/usr/lib/swift/libswiftGLKit.dylib",
+      "/usr/lib/swift/libswiftMetal.dylib",
+      "/usr/lib/swift/libswiftModelIO.dylib",
+      "/usr/lib/swift/libswiftOSLog.dylib",
+      "/usr/lib/swift/libswiftObjectiveC.dylib",
+      "/usr/lib/swift/libswiftQuartzCore.dylib",
+      "/usr/lib/swift/libswiftSceneKit.dylib",
+      "/usr/lib/swift/libswiftSpatial.dylib",
+      "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+      "/usr/lib/swift/libswiftXPC.dylib",
+      "/usr/lib/swift/libswift_Concurrency.dylib",
+      "/usr/lib/swift/libswiftos.dylib",
+      "/usr/lib/swift/libswiftsimd.dylib",
+      "/usr/lib/swift/libswiftNetwork.dylib",
+      "/usr/lib/swift/libswiftUIKit.dylib"
+    ],
+    "rpaths": [
+      "/usr/lib/swift",
+      "@executable_path/Frameworks"
+    ],
+    "encrypted": false,
+    "code_signature": false,
+    "build_version": "iOS"
+  },
+  "scan": {
+    "secrets": [],
+    "http_urls": [],
+    "symbols": [
+      {
+        "name": "ptrace",
+        "severity": "info",
+        "description": "anti-debug ptrace usage"
+      },
+      {
+        "name": "sysctl",
+        "severity": "info",
+        "description": "process inspection usage"
+      }
+    ]
+  },
+  "embedded_libraries": 0
+}

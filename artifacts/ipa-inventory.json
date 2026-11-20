@@ -1,0 +1,113 @@
+{
+  "ipa": "C:\\Users\\hesju\\Downloads\\SupportPatch-unsigned 7.ipa",
+  "entries": {
+    "Payload/SupportPatch.app/zh-Hans.lproj/Localizable.strings": {
+      "bytes": 41191,
+      "sha256": "6a92cf305f5f55ffb2ec93a66a372a45f0a720d16006387d2fed1bde8180620e"
+    },
+    "Payload/SupportPatch.app/en.lproj/Localizable.strings": {
+      "bytes": 47328,
+      "sha256": "f81127d5339249f2b09ae737fe91d5ab7f8a339b9b747c8fd3fbec80cb3daea6"
+    },
+    "Payload/SupportPatch.app/es.lproj/Localizable.strings": {
+      "bytes": 61748,
+      "sha256": "c60315fac66013165c568d379f1120a6694ebc88367a7dd8371b2fb370c99164"
+    },
+    "Payload/SupportPatch.app/AppIcon60x60@2x.png": {
+      "bytes": 38678,
+      "sha256": "1fd7f9f76cfc779db89ae90735b01fcfb3da6e2a38081398e75b309adcafc0fc"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/tex_0060_0out.png.tsc": {
+      "bytes": 62881,
+      "sha256": "ecdcc9d06fc35d832e5c0f923d8dc81da2cffd7217242423536fe5597f5237dc"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/sakura.obj.tsc": {
+      "bytes": 889598,
+      "sha256": "cbf50309e05307bfea317d9b9500ef66bcc9a30ac9c50c50e2674a02c83061f1"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/tex_0050_0out.png.tsc": {
+      "bytes": 418295,
+      "sha256": "ffa47616fb977c38527f240ddb7ab1f8ae6780a13031f0a22a0791568786e2ca"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/tex_0230_0out.png.tsc": {
+      "bytes": 49134,
+      "sha256": "cd35b9d2284f74b06738cbc21aaac7127e842c3600e7c3c40b1c2c64a5377312"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/tex_0055_0out.png.tsc": {
+      "bytes": 38783,
+      "sha256": "4327cd0945c2624a397cbd4b981f338df85ef03b5b2d05af1a005b7d0524c7e9"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/sakura.mtl.tsc": {
+      "bytes": 648,
+      "sha256": "83f1a5f39c9bc4367882a65f674c60d81f26ab0028e319913c763a1e9f21ec0b"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/tex_0065_0out.png.tsc": {
+      "bytes": 235454,
+      "sha256": "f2ab1cf93e417e2c3206e8585f653c81168522e49467ef0ff31f9a0d94c662db"
+    },
+    "Payload/SupportPatch.app/CharacterVault/sakura/tex_0070_0out.png.tsc": {
+      "bytes": 68779,
+      "sha256": "b48dbeb1e8f1220155df8d81674a99f50c1c8c068073580f94dd22398ca27f6b"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/tex_0145_0out.png.tsc": {
+      "bytes": 426895,
+      "sha256": "1d64b1701adb2309e1570818e04da127477c26282f17c7332ba5b1e582d26b88"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/rouk.obj.tsc": {
+      "bytes": 572567,
+      "sha256": "0ccc3e8626624bda19056c609c6a7bec693fb89f4c6e099ffb9d072b28247e18"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/tex_0150_0out.png.tsc": {
+      "bytes": 74511,
+      "sha256": "34972477bf8576abe574699400ae3c08824a749e5d44e8d7cda742ceffcecc67"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/tex_0160_0out.png.tsc": {
+      "bytes": 252568,
+      "sha256": "b1ff08322b5552947edcbd4e140749f1fc2fd6949717d1bc5efc4ce9f9432b8d"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/rouk.mtl.tsc": {
+      "bytes": 602,
+      "sha256": "6f6916f99872fce86e8a8f1000c2fad84fd1ce485986a4de40de822217aab398"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/tex_0170_0out.png.tsc": {
+      "bytes": 73046,
+      "sha256": "ee7f2a01238520bb8a9211a151c66a8b466af813b1bef4ffbb9f2f60bee8135f"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/tex_0165_0out.png.tsc": {
+      "bytes": 48740,
+      "sha256": "2f6da229f21a9ad4e34c04923dae7ba915c6ccdfaf72e22a0c8725422d4c69d1"
+    },
+    "Payload/SupportPatch.app/CharacterVault/rouk/tex_0155_0out.png.tsc": {
+      "bytes": 178883,
+      "sha256": "ecde612ebeb6414b5502779575f41a2a2615b607e52e7d63e2fcdb734e139724"
+    },
+    "Payload/SupportPatch.app/Assets.car": {
+      "bytes": 3913608,
+      "sha256": "efa3061ec6cd5ba6c51b5b3a277f5b89449e6b2e268963f707d25a763ae9df79"
+    },
+    "Payload/SupportPatch.app/AppIcon76x76@2x~ipad.png": {
+      "bytes": 61059,
+      "sha256": "c70f26c5a2a5e052d2f3c543a63b655a878c06228e05aa424c67040e9cb689d7"
+    },
+    "Payload/SupportPatch.app/pt-BR.lproj/Localizable.strings": {
+      "bytes": 64872,
+      "sha256": "d8a9b28d03e017cbe02e4bbae572b8ebe47794d3cfd6a9748000ca9a3dbc3667"
+    },
+    "Payload/SupportPatch.app/vi.lproj/Localizable.strings": {
+      "bytes": 64724,
+      "sha256": "bd4c9b26aab25569f37bc6530bb357e60a82c8dd9e0b6141d5fdae219e6a77f6"
+    },
+    "Payload/SupportPatch.app/SupportPatch": {
+      "bytes": 8315928,
+      "sha256": "fa259083f738a343e6f657a6b075b4e0e350678565d616b2990c468b23bdbdd9"
+    },
+    "Payload/SupportPatch.app/Info.plist": {
+      "bytes": 3061,
+      "sha256": "64fdadd8a599e36babee8f90dfe6324ff86bffb0a4f9eae86b248fc0ef061b76"
+    },
+    "Payload/SupportPatch.app/PkgInfo": {
+      "bytes": 8,
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    }
+  }
+}
