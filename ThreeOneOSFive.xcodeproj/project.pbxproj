@@ -80,6 +80,7 @@
 		C71500000000000000000002 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000005; };
 		C71500000000000000000007 /* PairingTunnelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000008; };
 		C71600000000000000000001 /* Hardening.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71600000000000000000002; };
+		C71E00000000000000000001 /* TamperMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71E00000000000000000002; };
 		C71700000000000000000001 /* PatchBundleKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71700000000000000000002; };
 		C71800000000000000000001 /* PatchBodyStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71800000000000000000002; };
 		C71900000000000000000001 /* CharacterVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71900000000000000000002; };
@@ -186,6 +187,7 @@
 		C71500000000000000000008 /* PairingTunnelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingTunnelService.swift; sourceTree = "<group>"; };
 		C71500000000000000000006 /* ThreeOneOSFive.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ThreeOneOSFive.entitlements; sourceTree = "<group>"; };
 		C71600000000000000000002 /* Hardening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hardening.swift; sourceTree = "<group>"; };
+		C71E00000000000000000002 /* TamperMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TamperMonitor.swift; sourceTree = "<group>"; };
 		C71700000000000000000002 /* PatchBundleKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchBundleKeyStore.swift; sourceTree = "<group>"; };
 		C71800000000000000000002 /* PatchBodyStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchBodyStageView.swift; sourceTree = "<group>"; };
 		C71900000000000000000002 /* CharacterVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterVault.swift; sourceTree = "<group>"; };
@@ -328,6 +330,7 @@
 				C71500000000000000000005 /* SandboxAccess.swift */,
 				C71500000000000000000008 /* PairingTunnelService.swift */,
 				C71600000000000000000002 /* Hardening.swift */,
+				C71E00000000000000000002 /* TamperMonitor.swift */,
 				C71700000000000000000002 /* PatchBundleKeyStore.swift */,
 				3105J202 /* DisplayIdentity.h */,
 				3105J203 /* DisplayIdentity.m */,
@@ -442,6 +445,7 @@
 				C71500000000000000000002,
 				C71500000000000000000007,
 				C71600000000000000000001,
+				C71E00000000000000000001,
 				C71700000000000000000001,
 				C71800000000000000000001,
 				C71900000000000000000001,
@@ -543,6 +547,7 @@
 				    OTHER_LDFLAGS = (
 					    "-lz",
 					    "-lc++",
+					    "-Wl,-sectcreate,__RESTRICT,__restrict,$(SRCROOT)/ThreeOneOSFive/restrict.txt",
 				    );
 				PRODUCT_BUNDLE_IDENTIFIER = "cc.forcequit.worse-query";
 				PRODUCT_NAME = SupportPatch;
@@ -585,6 +590,7 @@
 				    OTHER_LDFLAGS = (
 					    "-lz",
 					    "-lc++",
+					    "-Wl,-sectcreate,__RESTRICT,__restrict,$(SRCROOT)/ThreeOneOSFive/restrict.txt",
 				    );
 				PRODUCT_BUNDLE_IDENTIFIER = "cc.forcequit.worse-query";
 				PRODUCT_NAME = SupportPatch;

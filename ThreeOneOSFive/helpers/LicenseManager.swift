@@ -102,6 +102,18 @@ final class LicenseManager: ObservableObject {
         isOffline = false
     }
 
+    /// Called by the launch, foreground and interval probes. It drops the
+    /// licence, the wrapped bundle key and every decoded workspace, then leaves
+    /// the gate on its server-error state so a patched-in `isActive` has
+    /// nothing to unlock with.
+    func handleRuntimeTamper() {
+        log("license: runtime tamper — revoking licence and bundle key")
+        clear()
+        PatchWorkspaceService.purgeWorkspaces()
+        isOffline = false
+        messageKey = "license.error_server"
+    }
+
     /// A tampered process keeps no privileged material: the cached licence and
     /// the wrapped patch key are dropped so a patched-in bypass has nothing to
     /// replay, and the gate falls back to the activation screen. Returns true

@@ -31,6 +31,7 @@ struct ThreeOneOSFiveApp: App {
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
     @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
     @StateObject private var deviceTiltMotion = DeviceTiltMotion()
+    @StateObject private var tamperMonitor = TamperMonitor()
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @State private var showOnboarding = OnboardingStore.shouldShow()
     @State private var showAttribution = false
@@ -75,6 +76,16 @@ struct ThreeOneOSFiveApp: App {
 
     private var effectiveReduceMotion: Bool {
         reduceMotion || appReduceMotionEnabled
+    }
+
+    /// A monitor hit is not a warning: the gate closes and the keychain,
+    /// wrapped patch key and decoded workspaces are dropped before the view
+    /// system gets a chance to re-render.
+    private func handleRuntimeTamper(_ issue: HardeningIssue) {
+        log("security: blocking — \(issue.logDescription)")
+        appState.securityBlocked = true
+        appState.securityMessage = "Thiết bị hoặc tiến trình đã bị can thiệp. Gỡ công cụ gỡ lỗi và mở lại ứng dụng."
+        licenseManager.handleRuntimeTamper()
     }
 
     var body: some Scene {
@@ -124,6 +135,12 @@ struct ThreeOneOSFiveApp: App {
                 appState.recordLaunch()
                 appState.refreshThermalState()
                 appState.evaluateRuntimeSecurity()
+                if appState.securityBlocked {
+                    licenseManager.handleRuntimeTamper()
+                }
+                tamperMonitor.start { issue in
+                    self.handleRuntimeTamper(issue)
+                }
                 if scenePhase == .active && !effectiveReduceMotion && !performanceMode {
                     deviceTiltMotion.start()
                 }
@@ -153,6 +170,9 @@ struct ThreeOneOSFiveApp: App {
                 guard phase == .active else { return }
                 appState.evaluateRuntimeSecurity()
                 appState.refreshThermalState()
+                if appState.securityBlocked {
+                    licenseManager.handleRuntimeTamper()
+                }
                 guard !showOnboarding else { return }
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()

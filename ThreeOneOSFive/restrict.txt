@@ -1,0 +1,2 @@
+TryStore integrity guard. The __RESTRICT segment makes dyld ignore
+DYLD_INSERT_LIBRARIES; its contents are never read at runtime.
