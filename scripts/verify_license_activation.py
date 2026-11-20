@@ -67,7 +67,7 @@ def main() -> None:
     require(parsed_endpoint.scheme == "https" and parsed_endpoint.path == "/api/v1/keys/validate",
             "license validation endpoint must use HTTPS and the expected validation route")
 
-    pbx = PROJECT.read_text()
+    pbx = PROJECT.read_text(encoding="utf-8")
     source_phase = re.search(r"3105A700 /\* Sources \*/ = \{.*?files = \((.*?)\);", pbx, re.S)
     require(source_phase is not None, "SupportPatch Sources phase was not found")
     source_ids = set(re.findall(r"\bB713[0-9A-F]{20}\b", source_phase.group(1)))
@@ -77,12 +77,12 @@ def main() -> None:
         require((APP / ("helpers" if filename == "LicenseManager.swift" else "views") / filename).is_file(),
                 f"source file not found: {filename}")
 
-    app_source = APP_SOURCE.read_text()
-    manager = MANAGER.read_text()
-    worker = WORKER.read_text()
-    activation_gate = ACTIVATION_GATE.read_text()
-    gate = GATE.read_text()
-    settings = SETTINGS.read_text()
+    app_source = APP_SOURCE.read_text(encoding="utf-8")
+    manager = MANAGER.read_text(encoding="utf-8")
+    worker = WORKER.read_text(encoding="utf-8")
+    activation_gate = ACTIVATION_GATE.read_text(encoding="utf-8")
+    gate = GATE.read_text(encoding="utf-8")
+    settings = SETTINGS.read_text(encoding="utf-8")
     require("@StateObject private var licenseManager = LicenseManager()" in app_source
             and "else if licenseManager.isActive" in app_source
             and "LicenseGateView()" in app_source
@@ -120,12 +120,12 @@ def main() -> None:
     require("licenseManager.refresh()" in settings and "licenseManager.clear()" in settings,
             "Settings does not expose verification and key removal")
     for secret_name in ("LICENSE_ADMIN_TOKEN", "LICENSE_SIGNING_SECRET", "TELEGRAM_BOT_TOKEN"):
-        require(secret_name not in manager and secret_name not in gate and secret_name not in PLIST.read_text(),
+        require(secret_name not in manager and secret_name not in gate and secret_name not in PLIST.read_text(encoding="utf-8"),
                 f"server-side secret name leaked into the iOS client: {secret_name}")
 
     for language in LOCALIZATIONS:
         path = APP / f"{language}.lproj/Localizable.strings"
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for key in LOCALIZATION_KEYS:
             matches = re.findall(r'^"' + re.escape(key) + r'"\s*=', text, re.M)
             require(len(matches) == 1, f"{language}: expected one translation for {key}, found {len(matches)}")
