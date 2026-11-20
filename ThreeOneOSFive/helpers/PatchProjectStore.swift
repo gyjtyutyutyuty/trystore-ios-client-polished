@@ -43,10 +43,8 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "NECK.TRYSTORE", projectName: "NECK", password: nil),
             BundledPatch(resourceName: "HSPESSCOSO.TRYSTORE", projectName: "HS PESSCOSO", password: nil),
             BundledPatch(resourceName: "HS SLA PECHO.TRYSTORE", projectName: "HS SLA PECHO", password: nil),
-            BundledPatch(resourceName: "EXCLUSIVO AZUL.TRYSTORE", projectName: "EXCLUSIVO AZUL", password: nil),
             BundledPatch(resourceName: "TryStore.TRYSTORE", projectName: "TryStore", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
-            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO.3105", projectName: "HOLOGRAMA EXCLUSIVO", password: nil),
             BundledPatch(resourceName: "Cuello y Drag.TRYSTORE", projectName: "Drag con Cuello", password: nil),
             BundledPatch(resourceName: "Pecho3105.TRYSTORE", projectName: "Pecho3105", password: nil),
             BundledPatch(resourceName: "CUELLO3105.TRYSTORE", projectName: "CUELLO3105", password: nil)
@@ -101,7 +99,10 @@ final class PatchProjectStore: ObservableObject {
                     credentials: credentials,
                     expected: self.game.bundledPatches
                 )
-                for obsolete in ["HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "Balas Magicas"] {
+                for obsolete in [
+                    "HOLOGRAMA ARMAS", "HOLOGRAMA PERSONAJE", "Balas Magicas",
+                    "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "EXCLUSIVO AZUL"
+                ] {
                     PatchProjectLibrary.removeBundledPackage(named: obsolete)
                 }
                 var failures: [String] = []
@@ -110,11 +111,14 @@ final class PatchProjectStore: ObservableObject {
                         failures.append(patch.resourceName)
                         continue
                     }
+                    let manifestName = URL(fileURLWithPath: patch.resourceName)
+                        .deletingPathExtension()
+                        .lastPathComponent
                     let installed = PatchProjectLibrary.installRemoteFeedPackageIfNeeded(
                         data,
                         resourceName: patch.resourceName,
                         projectName: patch.projectName,
-                        manifestName: patch.resourceName.replacingOccurrences(of: ".TRYSTORE", with: "")
+                        manifestName: manifestName
                     )
                     if !installed {
                         failures.append(patch.resourceName)
@@ -464,15 +468,32 @@ final class PatchProjectStore: ObservableObject {
                         )
                     }.sorted { $0.2 > $1.2 }
                     for (candidate, receipt, _) in conflictingReceipts {
-                        log("patch: restoring conflicting project=\(candidate.project?.name ?? candidate.packageURL.lastPathComponent) packageID=\(candidate.id.uuidString) group=\(Self.groupName(resolvedGroup))")
-                        try DevicePatchService.restore(receipt: receipt, progress: reporter)
+                        let candidateName = candidate.project?.name
+                            ?? candidate.packageURL.lastPathComponent
+                        log("patch: restoring conflicting project=\(candidateName) packageID=\(candidate.id.uuidString) group=\(Self.groupName(resolvedGroup))")
+                        do {
+                            try DevicePatchService.restore(receipt: receipt, progress: reporter)
+                        } catch {
+                            // A receipt left behind by an older game build can no
+                            // longer verify its container or original digest. It
+                            // must not stop the new activation: the package we
+                            // are about to write replaces the same target file.
+                            log("patch: abandoning stale conflicting project=\(candidateName) packageID=\(candidate.id.uuidString): \(error.localizedDescription)")
+                            try? PatchTransaction.abandon(receipt: receipt)
+                            DevicePatchService.invalidateReceiptCache()
+                        }
                     }
                 }
 
                 let project = item.summary.schemaVersion >= 2
                     ? try PatchProjectLibrary.synchronizeWorkspace(item: item)
                     : baseProject
+                log("patch: activating project=\(project.name) targets=\(project.allBundleIdentifiers.joined(separator: ",")) rules=\(project.rules.count)")
                 _ = try DevicePatchService.apply(project: project, progress: reporter)
+                guard DevicePatchService.latestReceipt(projectID: item.id) != nil else {
+                    log("patch: apply completed without a receipt for packageID=\(item.id.uuidString)")
+                    throw PatchPackageError.applyFailed
+                }
             }
         } else if let receipt = DevicePatchService.latestReceipt(projectID: item.id) {
             runOperation(
@@ -493,7 +514,7 @@ final class PatchProjectStore: ObservableObject {
             return .aim
         case "TryStore", "Balas Magicas", "Drag con Cuello", "Aimbot Pecho", "Pecho3105", "CUELLO3105":
             return .antena
-        case "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL":
+        case "HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL":
             return .location
         default:
             return nil

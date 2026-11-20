@@ -18,10 +18,11 @@ const env = {
     async get(key, type) {
       if (key === 'patches/trystore/manifest.json') return JSON.stringify(manifest);
       if (key === 'patches/trystore/HEAD.TRYSTORE' && type === 'arrayBuffer') return blob.buffer;
-      if (key === 'patches/apple-music/track.apple' && type === 'arrayBuffer') return blob.buffer;
       if (key === 'patches/apple-music/manifest.json') {
         return JSON.stringify({ schemaVersion: 1, project: 'apple-music', patches: [] });
       }
+      if (key === 'patches/apple-music/HS SLA PECHO.APPLE' && type === 'arrayBuffer') return blob.buffer;
+      if (key === 'patches/hyper-regedit/track.3105' && type === 'arrayBuffer') return blob.buffer;
       return null;
     },
   },
@@ -30,6 +31,13 @@ const env = {
       validationCalls += 1;
       const body = await request.json();
       if (body.key === 'ACTIVE-KEY-001' && body.projectId === 'trystore') {
+        return new Response(JSON.stringify({
+          valid: true,
+          outcome: 'active',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (body.key === 'APPLE-KEY-001' && body.projectId === 'apple-music') {
         return new Response(JSON.stringify({
           valid: true,
           outcome: 'active',
@@ -52,6 +60,10 @@ const check = (name, condition) => {
 const deviceID = '550e8400-e29b-41d4-a716-446655440000';
 const authorizedHeaders = {
   authorization: 'Bearer ACTIVE-KEY-001',
+  'x-trystore-device-id': deviceID,
+};
+const appleHeaders = {
+  authorization: 'Bearer APPLE-KEY-001',
   'x-trystore-device-id': deviceID,
 };
 const request = (route, headers = {}) => new Request(`https://feed.test${route}`, { headers });
@@ -78,9 +90,22 @@ try {
   check('TryStore response varies on authorization headers', /authorization/i.test(response.headers.get('vary') || ''));
 
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json'), env);
-  check('other-project manifest behavior remains public', response.status === 200);
-  response = await worker.fetch(request('/patches/apple-music/track.apple'), env);
-  check('other-project blob behavior remains public and cacheable', response.status === 200
+  check('Apple Music manifest denies requests without a license', response.status === 401);
+  check('Apple Music denial does not call license validation', validationCalls === 3);
+
+  response = await worker.fetch(request('/api/patches/apple-music/manifest.json', appleHeaders), env);
+  check('active Apple Music license receives its manifest', response.status === 200);
+  check('Apple Music license validation uses its own project scope', validationCalls === 4);
+
+  response = await worker.fetch(request('/patches/apple-music/HS%20SLA%20PECHO.APPLE', appleHeaders), env);
+  check('active Apple Music license receives its package', response.status === 200);
+  check('Apple Music package responses are not cacheable', response.headers.get('cache-control') === 'no-store');
+  check('Apple Music response varies on authorization headers', /authorization/i.test(response.headers.get('vary') || ''));
+
+  response = await worker.fetch(request('/api/patches/hyper-regedit/manifest.json'), env);
+  check('unlicensed project manifest remains public', response.status === 200);
+  response = await worker.fetch(request('/patches/hyper-regedit/track.3105'), env);
+  check('unlicensed project blob remains public and cacheable', response.status === 200
     && response.headers.get('cache-control')?.startsWith('public'));
 } finally {
   await rm(scratch, { recursive: true, force: true });

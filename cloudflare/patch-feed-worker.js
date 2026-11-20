@@ -354,6 +354,7 @@ const TRYSTORE_SLOT_IDENTITIES = {
   "HS SLA PECHO": ["HS SLA PECHO"],
   "EXCLUSIVO AZUL": ["EXCLUSIVO AZUL", "HOLOGRAMA ARMAS"],
   "TryStore": ["TryStore", "Balas Magicas"],
+  "HOLOGRAMAEXCLUSIVO": ["HOLOGRAMA EXCLUSIVO"],
   "HOLOGRAMAEXCLUSIVO(4)": ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE"],
   "HOLOGRAMAEXCLUSIVO(5)": ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO ROSADO"],
   "Cuello y Drag": ["Drag con Cuello", "Cuello y Drag"],
@@ -918,7 +919,7 @@ async function telegramWebhook(request, env) {
   return forwardUpdate(env, rawBody);
 }
 
-async function tryStoreLicenseIsActive(request, env) {
+async function tryStoreLicenseIsActive(request, env, project) {
   const authorization = request.headers.get("authorization") || "";
   const match = authorization.match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
   const deviceID = request.headers.get("x-trystore-device-id") || "";
@@ -929,7 +930,7 @@ async function tryStoreLicenseIsActive(request, env) {
   // One patch is dozens of blob requests. Each one would otherwise validate the
   // key again and burn the licence worker's per-IP budget halfway through the
   // download. A short positive cache keeps the whole package on one check.
-  const cacheKey = await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
+  const cacheKey = await sha256(new TextEncoder().encode(project + "|" + match[1] + "|" + deviceID));
   if (env.DB) {
     try {
       const cached = await env.DB.prepare(
@@ -947,7 +948,7 @@ async function tryStoreLicenseIsActive(request, env) {
         body: JSON.stringify({
           key: match[1],
           deviceId: deviceID,
-          projectId: "trystore",
+          projectId: project,
           appVersion: "1.1.1",
         }),
       }),
@@ -971,8 +972,13 @@ async function tryStoreLicenseIsActive(request, env) {
   }
 }
 
+// Licensed projects never serve key material or packages without a live key.
+// Public projects (hyper-regedit) keep their open feed.
+const LICENSED_PATCH_PROJECTS = new Set(["trystore", "apple-music"]);
+
 async function requireTryStoreLicense(request, env, project) {
-  return project !== "trystore" || await tryStoreLicenseIsActive(request, env);
+  return !LICENSED_PATCH_PROJECTS.has(project)
+    || await tryStoreLicenseIsActive(request, env, project);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1086,12 +1092,13 @@ export default {
         blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");
       }
       if (!blob) return bad("not_found", 404);
+      const licensed = LICENSED_PATCH_PROJECTS.has(project);
       return new Response(blob, {
         headers: {
           "content-type": "application/octet-stream",
           "content-length": String(blob.byteLength),
-          "cache-control": project === "trystore" ? "no-store" : "public, max-age=31536000, immutable",
-          ...(project === "trystore" ? { vary: "authorization, x-trystore-device-id" } : {}),
+          "cache-control": licensed ? "no-store" : "public, max-age=31536000, immutable",
+          ...(licensed ? { vary: "authorization, x-trystore-device-id" } : {}),
         },
       });
     }

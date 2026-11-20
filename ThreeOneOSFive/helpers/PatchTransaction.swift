@@ -17,6 +17,7 @@ enum PatchTransaction {
         case applied
         case rolledBack
         case restored
+        case abandoned
     }
 
     private struct Record: Codable {
@@ -400,6 +401,30 @@ enum PatchTransaction {
             log("patch: restore failed: \(error)")
             throw PatchPackageError.restoreFailed
         }
+    }
+
+    /// Drops a receipt whose originals can no longer be trusted, so a stale
+    /// conflict does not block the next activation. The transaction bytes stay
+    /// on disk for inspection; they just stop counting as an active patch.
+    static func abandon(
+        receipt: PatchTransactionReceipt,
+        fileManager: FileManager = .default
+    ) throws {
+        var journal: Journal
+        do {
+            journal = try readJournal(receipt.journalURL)
+        } catch {
+            throw PatchPackageError.restoreFailed
+        }
+        guard journal.schemaVersion == schemaVersion,
+              journal.transactionID == receipt.id,
+              journal.projectID == receipt.projectID,
+              journal.status == .applied || journal.status == .prepared
+        else {
+            throw PatchPackageError.restoreFailed
+        }
+        journal.status = .abandoned
+        try writeJournal(journal, to: receipt.journalURL)
     }
 
     static func latestReceipt(

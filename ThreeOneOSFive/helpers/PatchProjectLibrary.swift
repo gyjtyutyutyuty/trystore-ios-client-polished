@@ -27,8 +27,8 @@ enum PatchProjectLibrary {
     private static let supportedPackageExtensions: Set<String> = ["trystore", "3105"]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "EXCLUSIVO AZUL", "TryStore", "Balas Magicas",
-        "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "Drag con Cuello",
-        "Pecho3105", "CUELLO3105"
+        "HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO",
+        "Drag con Cuello", "Pecho3105", "CUELLO3105"
     ]
     /// Payload fingerprints for the canonical packages. They are not secret:
     /// they let a device refuse a local package whose rules were swapped or
@@ -41,6 +41,7 @@ enum PatchProjectLibrary {
         UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!: "89fb8543ed57a68e3ef3985d0fb7769de572e7b2fb8066e0d8391732683a4ef4",
         UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!: "3639ef703b2a87685ebb5283eb41c4464d7c018b2534748383ecd13cca398563",
         UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!: "8e7468115ee151bda82c24f4985ccfe85252da923e43ff1945703392c59cea21",
+        UUID(uuidString: "238F5D33-18AB-448C-9687-9C43D52EB047")!: "50f1331ad5f4bf24d7668437ef9cef276582f9febac64c80cbdde3d28c0b928a",
         UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!: "98e854db4cbb76daba25dbf868de35c2ae30151ae64a49f3ef7ab5b2856ab362",
         UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!: "9a3692209ec509547dff9f642416fd329ad46478ed47f54f2b9d91b484c0dead",
         UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!: "326b4f3c99fdcb8968aef964db942ef557a3ac070c26fe91111416c524754291",
@@ -55,6 +56,7 @@ enum PatchProjectLibrary {
         UUID(uuidString: "6A510E8A-A467-48D3-B81D-7B6E482FEFCB")!: "HS SLA PECHO.TRYSTORE",
         UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!: "EXCLUSIVO AZUL.TRYSTORE",
         UUID(uuidString: "42CE925C-05DF-4D95-8DE0-E229BE02E599")!: "TryStore.TRYSTORE",
+        UUID(uuidString: "238F5D33-18AB-448C-9687-9C43D52EB047")!: "HOLOGRAMAEXCLUSIVO.3105",
         UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!: "HOLOGRAMA EXCLUSIVO VERDE.TRYSTORE",
         UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!: "HOLOGRAMA EXCLUSIVO ROSADO.TRYSTORE",
         UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!: "Drag con Cuello.TRYSTORE",
@@ -69,6 +71,7 @@ enum PatchProjectLibrary {
 
     private static let remoteFeedProjectNames: [String: String] = [
         "HSPESSCOSO.TRYSTORE": "HS PESSCOSO",
+        "HOLOGRAMAEXCLUSIVO.3105": "HOLOGRAMA EXCLUSIVO",
         "Cuello y Drag.TRYSTORE": "Drag con Cuello",
         "Pecho3105.TRYSTORE": "Aimbot Pecho",
         "CUELLO3105.TRYSTORE": "Aimbot Pecho"
@@ -364,8 +367,10 @@ enum PatchProjectLibrary {
     ) -> Bool {
         do {
             let expectedID = canonicalBundledPackageFilenames.first {
-                URL(fileURLWithPath: $0.value).deletingPathExtension().lastPathComponent
-                    .caseInsensitiveCompare(projectName) == .orderedSame
+                let stem = URL(fileURLWithPath: $0.value)
+                    .deletingPathExtension()
+                    .lastPathComponent
+                return normalizedProjectName(stem) == normalizedProjectName(projectName)
             }?.key
             guard let expectedID else { return false }
 
