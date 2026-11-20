@@ -285,11 +285,12 @@ def check_source() -> None:
         "if let existingURL, fileManager.fileExists(atPath: existingURL.path)" in library,
         "first remote install attempts to read a package before its destination exists",
     )
-    require("async function tryStoreLicenseIsActive" in worker
+    require("async function tryStoreLicenseState" in worker
             and "env.RESELLER.fetch" in worker
             and "/api/v1/keys/validate" in worker
-            and worker.count("await requireTryStoreLicense(request, env, project)") >= 3,
-            "TryStore Worker manifest, report, and blob routes do not all require license validation")
+            and worker.count("await requireTryStoreLicense(request, env, project)") >= 4,
+            "TryStore Worker manifest, report, bundle-key and blob routes do not all require "
+            "license validation")
     require("wrapTrystorePackage" in worker
             and "APP_BUNDLE_KEY" in worker
             and "/bundle-key" in worker,

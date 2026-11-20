@@ -35,7 +35,16 @@ const MANIFEST_SCHEMA = 1;
 const MAGIC = Buffer.from("3105PATCH\0", "latin1");
 const RESELLER_FALLBACK = "https://jvztxnx-global-control.burgoajustin.workers.dev";
 const LEGACY_ADMIN_IDS = ["5869209007"];
-const PATCH_COMMANDS = new Set(["/patches", "/projects", "/upload", "/list", "/remove", "/cancel"]);
+const PATCH_COMMANDS = new Set([
+  "/patches",
+  "/projects",
+  "/upload",
+  "/list",
+  "/remove",
+  "/cancel",
+  "/keyversion",
+  "/rotate",
+]);
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data, null, 2), {
@@ -43,9 +52,25 @@ const json = (data, status = 200, headers = {}) =>
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
       ...headers,
     },
   });
+
+// Constant-time compare so a wrong webhook token cannot be recovered by timing,
+// and an unset secret rejects everything instead of matching an empty header.
+const secretMatches = (supplied, expected) => {
+  if (!expected) return false;
+  const left = String(supplied ?? "");
+  if (left.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i += 1) {
+    diff |= left.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+};
 
 const bad = (message, status = 400) => json({ error: message }, status);
 
@@ -189,8 +214,88 @@ async function writeManifest(env, project, manifest) {
   await env.PATCHES.put(`patches/${project}/manifest.json`, JSON.stringify(manifest, null, 2));
 }
 
-async function wrapTrystorePackage(env, bytes) {
-  if (!env.APP_BUNDLE_KEY) return bytes;
+/* ------------------------------------------------------------------ */
+/* Bundle key versions                                                 */
+/* ------------------------------------------------------------------ */
+
+// Key material never lives in KV or D1. Each version maps to a Worker secret,
+// so retiring a leaked key is: set the next secret, rotate, delete the old one.
+const BUNDLE_KEY_VERSIONS = new Set(["1", "2"]);
+
+function bundleKeySecret(env, version) {
+  const name = String(version) === "2" ? "APP_BUNDLE_KEY_V2" : "APP_BUNDLE_KEY";
+  const encoded = String(env[name] || "");
+  if (!encoded) return null;
+  let bytes;
+  try {
+    bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+  } catch {
+    return null;
+  }
+  return bytes.length === 32 ? { encoded, bytes } : null;
+}
+
+// D1 owns the served version so a rotation is a data change; the env var only
+// seeds a deployment that has no row yet.
+async function currentBundleKeyVersion(env, project) {
+  const fallback = String(env.PATCH_BUNDLE_KEY_VERSION || "1");
+  const seeded = BUNDLE_KEY_VERSIONS.has(fallback) ? fallback : "1";
+  if (!env.DB) return seeded;
+  try {
+    const row = await env.DB.prepare(
+      "SELECT key_version FROM feed_key_state WHERE project=?1",
+    ).bind(project).first();
+    const stored = String(row?.key_version ?? "");
+    if (BUNDLE_KEY_VERSIONS.has(stored)) return stored;
+  } catch {}
+  return seeded;
+}
+
+async function setBundleKeyVersion(env, project, version) {
+  if (!env.DB) return false;
+  try {
+    await env.DB.prepare(
+      "INSERT INTO feed_key_state(project,key_version,rotated_at) VALUES(?1,?2,?3) " +
+        "ON CONFLICT(project) DO UPDATE SET key_version=excluded.key_version, rotated_at=excluded.rotated_at",
+    ).bind(project, String(version), nowSeconds()).run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The AAD stays keyed on the package, not the key version, so a package wrapped
+// under v1 keeps the AAD an already-shipped client computes.
+function contentKeyAAD(envelope) {
+  return new TextEncoder().encode(
+    `3105PATCH/v${envelope.schemaVersion}/key/${envelope.packageID}`,
+  );
+}
+
+async function sealContentKey(envelope, contentKey, keyBytes) {
+  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const sealed = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: contentKeyAAD(envelope) },
+    key,
+    contentKey,
+  );
+  return Buffer.concat([Buffer.from(nonce), Buffer.from(sealed)]);
+}
+
+async function openContentKey(envelope, wrapped, keyBytes) {
+  const raw = Buffer.from(wrapped);
+  if (raw.length <= 12) throw new Error("bad_wrapped_key");
+  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+  const opened = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: raw.subarray(0, 12), additionalData: contentKeyAAD(envelope) },
+    key,
+    raw.subarray(12),
+  );
+  return new Uint8Array(opened);
+}
+
+async function wrapTrystorePackage(env, bytes, version = "1") {
   let envelope;
   try {
     envelope = parsePackage(bytes);
@@ -202,35 +307,87 @@ async function wrapTrystorePackage(env, bytes) {
   const contentKey = envelope.publicContentKey;
   if (!contentKey) return bytes;
 
-  let keyBytes;
-  try {
-    keyBytes = Uint8Array.from(atob(String(env.APP_BUNDLE_KEY)), (c) => c.charCodeAt(0));
-  } catch {
-    return bytes;
-  }
-  if (keyBytes.length !== 32) return bytes;
+  const secret = bundleKeySecret(env, version);
+  // Publishing in the clear because a rotation is half configured would hand
+  // out the payload, so fail the upload instead of storing it unwrapped.
+  if (!secret) throw new Error("bundle_key_unavailable");
 
-  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
-  const aad = new TextEncoder().encode(
-    `3105PATCH/v${envelope.schemaVersion}/key/${envelope.packageID}`,
-  );
-  const nonce = crypto.getRandomValues(new Uint8Array(12));
-  const sealed = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: nonce, additionalData: aad },
-    key,
-    contentKey,
-  );
-
-  envelope.wrappedContentKey = Buffer.concat([Buffer.from(nonce), Buffer.from(sealed)]);
+  envelope.wrappedContentKey = await sealContentKey(envelope, contentKey, secret.bytes);
   envelope.wrappingScheme = "bundle";
   envelope.keyAADVersion = Number(envelope.schemaVersion);
+  envelope.bundleKeyVersion = Number(version);
   delete envelope.publicContentKey;
   return Buffer.concat([MAGIC, bplist(envelope)]);
 }
 
+// Re-wraps every stored package of a project under `target`, then flips the
+// served version. Each blob is rewritten before the pointer moves, so a device
+// never receives a key that cannot open the package it is handed.
+async function rotateProjectBundles(env, project, target) {
+  const version = String(target);
+  if (!BUNDLE_KEY_VERSIONS.has(version)) return { ok: false, error: "unsupported_key_version" };
+  const targetSecret = bundleKeySecret(env, version);
+  if (!targetSecret) return { ok: false, error: "key_unavailable" };
+
+  const manifest = await readManifest(env, project);
+  const base = String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+  const rotated = [];
+
+  for (const patch of manifest.patches) {
+    const objectKey = `patches/${project}/${patch.file}`;
+    const stored = await env.PATCHES.get(objectKey, "arrayBuffer");
+    if (!stored) continue;
+    let envelope;
+    try {
+      envelope = parsePackage(stored);
+    } catch {
+      continue;
+    }
+    if (envelope.wrappingScheme !== "bundle" || !envelope.wrappedContentKey) continue;
+
+    const declared = String(envelope.bundleKeyVersion ?? "");
+    const fromVersion = BUNDLE_KEY_VERSIONS.has(declared)
+      ? declared
+      : version === "2"
+        ? "1"
+        : "2";
+    if (fromVersion === version && String(patch.keyVersion ?? "") === version) continue;
+    const fromSecret = bundleKeySecret(env, fromVersion);
+    if (!fromSecret) return { ok: false, error: "key_unavailable", file: patch.file };
+
+    let contentKey;
+    try {
+      contentKey = await openContentKey(envelope, envelope.wrappedContentKey, fromSecret.bytes);
+    } catch {
+      return { ok: false, error: "unwrap_failed", file: patch.file };
+    }
+
+    envelope.wrappedContentKey = await sealContentKey(envelope, contentKey, targetSecret.bytes);
+    envelope.bundleKeyVersion = Number(version);
+    const bytes = Buffer.concat([MAGIC, bplist(envelope)]);
+    await env.PATCHES.put(objectKey, bytes);
+
+    const digest = await sha256(bytes);
+    patch.sha256 = digest;
+    patch.size = bytes.byteLength;
+    patch.keyVersion = Number(version);
+    patch.url = `${base}/patches/${project}/${encodeURIComponent(patch.file)}?v=${digest}`;
+    rotated.push(patch.file);
+  }
+
+  await writeManifest(env, project, manifest);
+  if (!(await setBundleKeyVersion(env, project, version))) {
+    return { ok: false, error: "state_unavailable", rotated };
+  }
+  return { ok: true, rotated };
+}
+
 async function publishPatch(env, project, file, rawBytes) {
+  const keyVersion = project === "trystore"
+    ? await currentBundleKeyVersion(env, project)
+    : null;
   const bytes = project === "trystore"
-    ? await wrapTrystorePackage(env, rawBytes)
+    ? await wrapTrystorePackage(env, rawBytes, keyVersion)
     : rawBytes;
   const digest = await sha256(bytes);
   await env.PATCHES.put(`patches/${project}/${file}`, bytes);
@@ -255,6 +412,7 @@ async function publishPatch(env, project, file, rawBytes) {
     url: `${String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "")}/patches/${project}/${encodeURIComponent(file)}?v=${digest}`,
     schemaVersion,
     isPasswordProtected,
+    ...(keyVersion ? { keyVersion: Number(keyVersion) } : {}),
   };
   const index = manifest.patches.findIndex((item) => item.file.toLowerCase() === file.toLowerCase());
   if (index >= 0) manifest.patches[index] = entry;
@@ -768,6 +926,32 @@ async function handleCommand(env, message, chatId, command, args) {
       await deleteSession(env, chatId);
       return sendMessage(env, chatId, "Cancelled.", [[{ text: "🏠 Patch Manager", callback_data: "pm:home" }]]);
     }
+    case "/keyversion": {
+      const project = projectKey(args[0]) || "trystore";
+      const version = await currentBundleKeyVersion(env, project);
+      const secret = bundleKeySecret(env, version);
+      return sendMessage(
+        env,
+        chatId,
+        `🔑 <b>${esc(project)}</b>\nServing key version <b>${esc(version)}</b> ${secret ? "(configured)" : "(secret missing)"}`,
+        [[{ text: "🏠 Patch Manager", callback_data: "pm:home" }]],
+      );
+    }
+    case "/rotate": {
+      const project = projectKey(args[0]);
+      const target = String(args[1] || "");
+      if (!project || !BUNDLE_KEY_VERSIONS.has(target)) {
+        return sendMessage(env, chatId, "Usage: /rotate &lt;project&gt; &lt;1|2&gt;");
+      }
+      const result = await rotateProjectBundles(env, project, target);
+      return sendMessage(
+        env,
+        chatId,
+        result.ok
+          ? `✅ ${esc(project)} now serves key v${esc(target)}\nRewrapped: ${result.rotated.length}`
+          : `❌ ${esc(project)}: ${esc(result.error)}${result.file ? ` (${esc(result.file)})` : ""}`,
+      );
+    }
     default:
       return false;
   }
@@ -861,7 +1045,7 @@ async function sendPatchHint(env, chatId) {
 }
 
 async function telegramWebhook(request, env) {
-  if (request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.TELEGRAM_WEBHOOK_SECRET) {
+  if (!secretMatches(request.headers.get("X-Telegram-Bot-Api-Secret-Token"), env.TELEGRAM_WEBHOOK_SECRET)) {
     return bad("unauthorized", 401);
   }
   const rawBody = await request.text();
@@ -918,32 +1102,67 @@ async function telegramWebhook(request, env) {
   return forwardUpdate(env, rawBody);
 }
 
-async function tryStoreLicenseIsActive(request, env) {
-  const authorization = request.headers.get("authorization") || "";
-  const match = authorization.match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
-  const deviceID = request.headers.get("x-trystore-device-id") || "";
-  if (!match || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceID)) {
+const DEVICE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// One package is dozens of blob requests. Validating each one would burn the
+// licence worker's budget mid-download, so a positive check is cached for two
+// minutes. Denials are never cached: a revoked key must stop immediately.
+const GRANTED = Object.freeze({ allowed: true, reason: "active" });
+
+function denial(reason) {
+  return { allowed: false, reason };
+}
+
+async function readCachedLicence(env, cacheKey) {
+  if (!env.DB) return false;
+  try {
+    const row = await env.DB.prepare(
+      "SELECT expires_at FROM feed_auth_cache WHERE subject=?1",
+    ).bind(cacheKey).first();
+    return Number(row?.expires_at || 0) > nowSeconds();
+  } catch {
     return false;
   }
-  if (!env.RESELLER || typeof env.RESELLER.fetch !== "function") return false;
-  // One patch is dozens of blob requests. Each one would otherwise validate the
-  // key again and burn the licence worker's per-IP budget halfway through the
-  // download. A short positive cache keeps the whole package on one check.
-  const cacheKey = await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
-  if (env.DB) {
-    try {
-      const cached = await env.DB.prepare(
-        "SELECT expires_at FROM feed_auth_cache WHERE subject=?1",
-      ).bind(cacheKey).first();
-      if (Number(cached?.expires_at || 0) > nowSeconds()) return true;
-    } catch {}
+}
+
+async function writeCachedLicence(env, cacheKey) {
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare(
+      "INSERT INTO feed_auth_cache(subject,expires_at) VALUES(?1,?2) " +
+      "ON CONFLICT(subject) DO UPDATE SET expires_at=excluded.expires_at",
+    ).bind(cacheKey, nowSeconds() + 120).run();
+  } catch {}
+}
+
+// A boolean here turned "the licence service did not answer" into "licence
+// invalid", which reached the app as an unauthorized sync no retry could clear.
+// The reason travels back so the client and the operator can tell them apart.
+async function tryStoreLicenseState(request, env) {
+  const match = (request.headers.get("authorization") || "")
+    .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+  const deviceID = request.headers.get("x-trystore-device-id") || "";
+  if (!match || !DEVICE_ID_PATTERN.test(deviceID)) {
+    return denial("credentials_missing");
   }
+
+  // Service binding only: a Worker cannot reliably fetch another Worker on the
+  // same workers.dev zone, so an origin fallback would fail anyway and hide a
+  // missing binding behind a generic denial.
+  if (!env.RESELLER || typeof env.RESELLER.fetch !== "function") {
+    return denial("license_service_unbound");
+  }
+
+  const cacheKey = await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
+  if (await readCachedLicence(env, cacheKey)) return GRANTED;
+
+  let result;
   try {
     const response = await env.RESELLER.fetch(
       new Request("https://reseller.internal/api/v1/keys/validate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // Match ipa-348's public validation payload for legacy license backends.
+        // Same payload the app posts, including the version legacy backends want.
         body: JSON.stringify({
           key: match[1],
           deviceId: deviceID,
@@ -952,27 +1171,39 @@ async function tryStoreLicenseIsActive(request, env) {
         }),
       }),
     );
-    if (!response.ok) return false;
-    const result = await response.json();
-    const valid = result.valid === true
-      && String(result.outcome || "").toLowerCase() === "active"
-      && (!result.expiresAt || Date.parse(result.expiresAt) > Date.now());
-    if (valid && env.DB) {
-      try {
-        await env.DB.prepare(
-          "INSERT INTO feed_auth_cache(subject,expires_at) VALUES(?1,?2) " +
-          "ON CONFLICT(subject) DO UPDATE SET expires_at=excluded.expires_at",
-        ).bind(cacheKey, nowSeconds() + 120).run();
-      } catch {}
-    }
-    return valid;
+    if (!response.ok) return denial(`license_http_${response.status}`);
+    result = await response.json().catch(() => null);
   } catch {
-    return false;
+    return denial("license_service_unreachable");
   }
+
+  if (!result) return denial("license_service_unreachable");
+  const active = result.valid === true
+    && String(result.outcome || "").toLowerCase() === "active"
+    && (!result.expiresAt || Date.parse(result.expiresAt) > Date.now());
+  if (!active) {
+    return denial(`license_${String(result.outcome || "invalid").toLowerCase()}`);
+  }
+  await writeCachedLicence(env, cacheKey);
+  return GRANTED;
+}
+// 401 means the licence was rejected; 503 means the service is down and a retry
+// is reasonable. Both used to be 401, which is why a cold Worker start looked
+// exactly like a revoked key on the device.
+function licenceFailure(state) {
+  const transient = state.reason === "license_service_unreachable"
+    || state.reason === "license_service_unbound"
+    || /^license_http_5\d\d$/.test(state.reason);
+  return json(
+    { valid: false, outcome: state.reason, error: state.reason },
+    transient ? 503 : 401,
+    { "cache-control": "no-store", vary: "authorization, x-trystore-device-id" },
+  );
 }
 
 async function requireTryStoreLicense(request, env, project) {
-  return project !== "trystore" || await tryStoreLicenseIsActive(request, env);
+  if (project !== "trystore") return { allowed: true, reason: "public_project" };
+  return tryStoreLicenseState(request, env);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1017,7 +1248,8 @@ export default {
       const project = projectKey(manifestMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "manifest", feedIP(request), 120, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      const licence = await requireTryStoreLicense(request, env, project);
+      if (!licence.allowed) return licenceFailure(licence);
       const manifest = await readManifest(env, project);
       return json(manifest, 200, { "cache-control": "no-store" });
     }
@@ -1030,16 +1262,14 @@ export default {
       const project = projectKey(bundleKeyMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "bundle-key", feedIP(request), 10, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
-      const encoded = String(env.APP_BUNDLE_KEY || "");
-      let bytes;
-      try {
-        bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
-      } catch {
-        return bad("key_unavailable", 503);
-      }
-      if (bytes.length !== 32) return bad("key_unavailable", 503);
-      return json({ valid: true, key: encoded, keyVersion: "1" }, 200, {
+      const licence = await requireTryStoreLicense(request, env, project);
+      if (!licence.allowed) return licenceFailure(licence);
+      // Fail closed on a version whose secret is missing: falling back to the
+      // previous key would keep a retired key usable after a rotation.
+      const version = await currentBundleKeyVersion(env, project);
+      const secret = bundleKeySecret(env, version);
+      if (!secret) return bad("key_unavailable", 503);
+      return json({ valid: true, key: secret.encoded, keyVersion: version }, 200, {
         "cache-control": "no-store",
         vary: "authorization, x-trystore-device-id",
       });
@@ -1052,9 +1282,16 @@ export default {
       const project = projectKey(reportMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "report", feedIP(request), 30, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      const licence = await requireTryStoreLicense(request, env, project);
+      if (!licence.allowed) return licenceFailure(licence);
       const body = await request.text();
       if (!body || body.length > 32768) return bad("invalid_report", 400);
+      // Stored verbatim for the operator view, so it must at least be JSON.
+      try {
+        JSON.parse(body);
+      } catch {
+        return bad("invalid_report", 400);
+      }
       const stamp = new Date().toISOString();
       await env.PATCHES.put(`reports/${project}/latest.json`, body, {
         expirationTtl: 60 * 60 * 24 * 7,
@@ -1070,7 +1307,8 @@ export default {
       const project = projectKey(blobMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (!(await allowFeed(env, "blob", feedIP(request), 120, 60))) return bad("rate_limited", 429);
-      if (!(await requireTryStoreLicense(request, env, project))) return bad("license_required", 401);
+      const licence = await requireTryStoreLicense(request, env, project);
+      if (!licence.allowed) return licenceFailure(licence);
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);
       let blob = null;

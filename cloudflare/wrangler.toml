@@ -33,3 +33,10 @@ PATCH_ADMIN_IDS = "7551063281,5869209007"
 #   TELEGRAM_BOT_TOKEN
 #   TELEGRAM_WEBHOOK_SECRET   must match the reseller worker's secret
 #   TELEGRAM_OWNER_ID
+#   APP_BUNDLE_KEY            32-byte base64 key version 1
+#   APP_BUNDLE_KEY_V2         32-byte base64 key version 2, used after /rotate
+#
+# Bundle-key rotation is a data change, not a deploy: set the next secret, run
+# `/rotate trystore 2` in the admin bot, and only then delete the retired key.
+# PATCH_BUNDLE_KEY_VERSION (a var) seeds the version for a project with no
+# feed_key_state row yet.

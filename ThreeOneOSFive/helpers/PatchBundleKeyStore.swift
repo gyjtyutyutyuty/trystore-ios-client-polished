@@ -56,6 +56,36 @@ enum PatchBundleKeyStore {
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
 
+        // A dropped connection or a cold Worker start used to end the whole
+        // sync. Retry the transport, but surface a rejected licence at once
+        // and never retry a keychain write: those answers do not change.
+        var lastError = PatchBundleKeyError.unavailable
+        for attempt in 0..<3 {
+            do {
+                try await fetchAndCacheBundleKey(request: request, session: session)
+                return
+            } catch let error as PatchBundleKeyError {
+                lastError = error
+                switch error {
+                case .unauthorized, .configuration, .secureStorage:
+                    throw error
+                case .unavailable:
+                    break
+                }
+            } catch {
+                lastError = .unavailable
+            }
+            if attempt < 2 {
+                try? await Task.sleep(nanoseconds: UInt64(400_000_000) << attempt)
+            }
+        }
+        throw lastError
+    }
+
+    private static func fetchAndCacheBundleKey(
+        request: URLRequest,
+        session: URLSession
+    ) async throws {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
