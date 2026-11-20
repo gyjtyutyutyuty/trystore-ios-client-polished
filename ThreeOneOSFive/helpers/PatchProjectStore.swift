@@ -91,11 +91,17 @@ final class PatchProjectStore: ObservableObject {
                 // Packages are wrapped under a key the feed releases only to an
                 // authenticated device. Fetch it before decoding, otherwise a
                 // cached licence would still leave every package unreadable.
-                if PatchBundleKeyStore.cachedKey() == nil {
+                // Ask on every sync. The feed owns the served key version, so a
+                // rotation is otherwise invisible to an install that already
+                // holds a key. A transport failure still falls back to the
+                // cached key; a rejected licence does not.
+                do {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: credentials.licenseKey,
                         deviceID: credentials.deviceID
                     )
+                } catch PatchBundleKeyError.unavailable where PatchBundleKeyStore.cachedKey() != nil {
+                    log("patch: bundle key refresh unavailable, using the cached key")
                 }
                 let resources = try await PatchResourceBundle.load(
                     credentials: credentials,
@@ -228,126 +234,6 @@ final class PatchProjectStore: ObservableObject {
         }
     }
 
-    func importPackage(
-        at sourceURL: URL,
-        reportsSuccess: Bool = true,
-        completion: (@MainActor @Sendable (String?) -> Void)? = nil
-    ) {
-        guard !isBusy else {
-            completion?("Another patch operation is already running.")
-            return
-        }
-        isBusy = true
-        let hasAccess = sourceURL.startAccessingSecurityScopedResource()
-        Task.detached(priority: .userInitiated) { [weak self] in
-            defer {
-                if hasAccess { sourceURL.stopAccessingSecurityScopedResource() }
-            }
-            do {
-                let data = try PatchProjectLibrary.readPackage(at: sourceURL)
-                let summary = try PatchPackageCodec.inspect(data)
-                let existingURL = await self?.existingPackageURL(for: summary.packageID)
-                if let pending = try Self.persistImportedPackage(
-                    data: data,
-                    summary: summary,
-                    existingURL: existingURL
-                ) {
-                    await self?.requestPassword(pending: pending)
-                    await completion?("The remote package requires a password.")
-                } else {
-                    await self?.finishOperation(
-                        successMessageKey: "patch.imported_message",
-                        reportsSuccess: reportsSuccess
-                    )
-                    await completion?(nil)
-                }
-            } catch let error as PatchPackageError {
-                log("patch: import failed: \(error.localizedDescription)")
-                await self?.failOperation(error)
-                await completion?(error.localizedDescription)
-            } catch {
-                log("patch: import failed: \(error.localizedDescription)")
-                await self?.failOperation(.unsupportedFormat)
-                await completion?(error.localizedDescription)
-            }
-        }
-    }
-
-    func importPackage(from source: PatchImportSource, credentials: PatchFeedCredentials? = nil) {
-        switch source {
-        case .file(let url):
-            importPackage(at: url)
-        case .remote(let url):
-            importPackage(fromRemoteURL: url, credentials: credentials)
-        case .invalid:
-            present(.invalidImportLink)
-        }
-    }
-
-
-    private func importPackage(fromRemoteURL remoteURL: URL, credentials: PatchFeedCredentials?) {
-        guard !isBusy,
-              PatchImportRoute.validatedRemoteURL(remoteURL) != nil else {
-            if !isBusy { present(.invalidImportLink) }
-            return
-        }
-        isBusy = true
-        Task.detached(priority: .userInitiated) { [weak self] in
-            do {
-                let requiresFeedAuth = remoteURL.host?.lowercased() == "trystore-patch-feed.burgoajustin.workers.dev"
-                    && remoteURL.path.hasPrefix("/patches/trystore/")
-                var request = URLRequest(url: remoteURL)
-                if requiresFeedAuth {
-                    guard let credentials else { throw PatchPackageError.remoteImportFailed }
-                    request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
-                    request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
-                    request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
-                }
-                let configuration = URLSessionConfiguration.ephemeral
-                configuration.timeoutIntervalForRequest = 60
-                configuration.timeoutIntervalForResource = 600
-                let session = URLSession(configuration: configuration)
-                defer { session.invalidateAndCancel() }
-
-                let (temporaryURL, response) = try await session.download(for: request)
-                defer { try? FileManager.default.removeItem(at: temporaryURL) }
-                guard let response = response as? HTTPURLResponse,
-                      (200..<300).contains(response.statusCode),
-                      let finalURL = response.url,
-                      (!requiresFeedAuth || finalURL.host?.lowercased() == remoteURL.host?.lowercased()),
-                      PatchImportRoute.validatedRemoteURL(finalURL) != nil else {
-                    throw PatchPackageError.remoteImportFailed
-                }
-
-                let data = try PatchProjectLibrary.readPackage(at: temporaryURL)
-                if requiresFeedAuth {
-                    let expectedDigest = URLComponents(url: remoteURL, resolvingAgainstBaseURL: false)?
-                        .queryItems?.first(where: { $0.name == "v" })?.value
-                    let actualDigest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-                    guard let expectedDigest, expectedDigest.count == 64,
-                          actualDigest.caseInsensitiveCompare(expectedDigest) == .orderedSame else {
-                        throw PatchPackageError.remoteImportFailed
-                    }
-                }
-                let summary = try PatchPackageCodec.inspect(data)
-                let existingURL = await self?.existingPackageURL(for: summary.packageID)
-                if let pending = try Self.persistImportedPackage(
-                    data: data,
-                    summary: summary,
-                    existingURL: existingURL
-                ) {
-                    await self?.requestPassword(pending: pending)
-                } else {
-                    await self?.finishOperation(successMessageKey: "patch.imported_message")
-                }
-            } catch let error as PatchPackageError {
-                await self?.failOperation(error)
-            } catch {
-                await self?.failOperation(.remoteImportFailed)
-            }
-        }
-    }
-
     func requestUnlock(for item: PatchLibraryItem) {
         guard item.isLocked, !isBusy else { return }
         do {
@@ -370,7 +256,7 @@ final class PatchProjectStore: ObservableObject {
                 let decoded = try PatchPackageCodec.decode(pending.data, password: password)
                 try PatchKeyStore.store(decoded.contentKey, for: pending.summary)
                 do {
-                    try PatchProjectLibrary.installImportedPackage(
+                    try PatchProjectLibrary.installDeliveredPackage(
                         data: pending.data,
                         decoded: decoded,
                         summary: pending.summary,
@@ -399,6 +285,9 @@ final class PatchProjectStore: ObservableObject {
         unlockErrorKey = nil
     }
 
+    /// Synchronises a workspace project into its package and returns the URL the
+    /// share sheet should present. The library and the detail screen both call
+    /// this, so the export path exists once instead of twice.
     func delete(_ item: PatchLibraryItem) {
         do {
             try PatchProjectLibrary.delete(item)
@@ -575,44 +464,6 @@ final class PatchProjectStore: ObservableObject {
                 await self?.failOperation(.invalidProject)
             }
         }
-    }
-
-    private func requestPassword(pending: PendingUnlock) {
-        pendingUnlock = pending
-        passwordRequest = PatchPasswordRequest(summary: pending.summary)
-        isBusy = false
-    }
-
-    private func existingPackageURL(for packageID: UUID) -> URL? {
-        items.first(where: { $0.id == packageID })?.packageURL
-    }
-
-    private nonisolated static func persistImportedPackage(
-        data: Data,
-        summary: PatchPackageSummary,
-        existingURL: URL?
-    ) throws -> PendingUnlock? {
-        if let key = try PatchKeyStore.load(for: summary) {
-            let decoded = try PatchPackageCodec.decode(data, contentKey: key)
-            try PatchProjectLibrary.installImportedPackage(
-                data: data,
-                decoded: decoded,
-                summary: summary,
-                existingURL: existingURL
-            )
-            return nil
-        }
-        if summary.isPasswordProtected {
-            return PendingUnlock(data: data, summary: summary, existingURL: existingURL)
-        }
-        let decoded = try PatchPackageCodec.decode(data, password: nil)
-        try PatchProjectLibrary.installImportedPackage(
-            data: data,
-            decoded: decoded,
-            summary: summary,
-            existingURL: existingURL
-        )
-        return nil
     }
 
     private func clearPendingUnlock() {

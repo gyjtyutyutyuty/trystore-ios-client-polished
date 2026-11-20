@@ -148,7 +148,6 @@ enum PatchPackageError: Error, Equatable {
     case symbolicLinkUnsupported
     case applyFailed
     case restoreFailed
-    case invalidImportLink
     case remoteImportFailed
     case bundleKeyUnavailable
     case pairingTunnelRequired
@@ -176,7 +175,6 @@ extension PatchPackageError: LocalizedError {
         case .symbolicLinkUnsupported: return "patch.error.symlink"
         case .applyFailed: return "patch.error.apply"
         case .restoreFailed: return "patch.error.restore"
-        case .invalidImportLink: return "patch.error.invalid_import_link"
         case .remoteImportFailed: return "patch.error.remote_import"
         case .bundleKeyUnavailable: return "patch.error.remote_import"
         case .pairingTunnelRequired: return "patch.error.pairing_tunnel_required"

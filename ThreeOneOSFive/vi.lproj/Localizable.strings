@@ -131,8 +131,6 @@
 "patch.title" = "Patch";
 "patch.add" = "Thêm dự án patch";
 "patch.new" = "Tạo patch";
-"patch.import" = "Nhập .Support Patch";
-"patch.export" = "Xuất .Support Patch";
 "patch.edit" = "Sửa";
 "patch.empty_title" = "Chưa có dự án patch";
 "patch.empty_message" = "Tạo dự án mới hoặc nhập một gói .Support Patch.";
@@ -198,7 +196,6 @@
 "patch.restore_confirm_title" = "Khôi phục các file gốc?";
 "patch.created_message" = "Đã tạo dự án patch.";
 "patch.updated_message" = "Đã cập nhật dự án mà không thay đổi mật khẩu.";
-"patch.imported_message" = "Đã nhập gói .Support Patch.";
 "patch.unlocked_message" = "Đã mở khóa. Thiết bị này sẽ không hỏi lại mật khẩu của gói này.";
 "patch.workspace_synced_message" = "Đã đồng bộ workspace của patch.";
 "patch.applied_message" = "Đã áp dụng mọi quy tắc và sao lưu các file gốc.";
@@ -229,7 +226,6 @@
 "patch.error.remote_replacement_failed" = "Không thể thay file qua pairing: %@";
 "patch.error.restore" = "Không thể khôi phục file gốc an toàn. App không ghi đè đích chưa được xác minh.";
 "patch.error.remote_import" = "Không thể tải bản vá một cách an toàn. Kiểm tra liên kết và thử lại.";
-"patch.error.invalid_import_link" = "Liên kết nhập patch không hợp lệ. Hãy dùng liên kết HTTPS an toàn tới gói .Support Patch.";
 
 "accessibility.open_logs" = "Mở nhật ký";
 "accessibility.open_settings" = "Mở cài đặt";

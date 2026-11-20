@@ -363,8 +363,6 @@
 "patch.title" = "Parches";
 "patch.add" = "Añadir proyecto de parche";
 "patch.new" = "Nuevo parche";
-"patch.import" = "Importar .Support Patch";
-"patch.export" = "Exportar .Support Patch";
 "patch.edit" = "Editar";
 "patch.empty_title" = "Sin proyectos de parche";
 "patch.empty_message" = "Crea un proyecto o importa un paquete .Support Patch.";
@@ -430,7 +428,6 @@
 "patch.restore_confirm_title" = "¿Restaurar los archivos originales?";
 "patch.created_message" = "Se creó el proyecto de parche.";
 "patch.updated_message" = "Se actualizó el proyecto de parche sin cambiar su contraseña.";
-"patch.imported_message" = "Se importó el paquete .Support Patch.";
 "patch.unlocked_message" = "Desbloqueado. Este dispositivo no volverá a pedir la contraseña de este paquete.";
 "patch.workspace_synced_message" = "Se sincronizó el espacio de trabajo del parche.";
 "patch.applied_message" = "Se aplicaron todas las reglas del parche y se guardaron los originales.";
@@ -455,7 +452,6 @@
 "deactivate_all_patches" = "Desactivar todo";
 "patch.error.restore" = "No se pudieron restaurar los originales de forma segura. No se sobrescribió ningún destino sin verificar.";
 "patch.error.remote_import" = "El parche no se pudo descargar de forma segura. Comprueba el enlace e inténtalo de nuevo.";
-"patch.error.invalid_import_link" = "Este enlace de importación no es válido. Usa un enlace HTTPS seguro a un paquete .Support Patch.";
 "accessibility.open_logs" = "Abrir registros";
 "accessibility.open_settings" = "Abrir ajustes";
 "accessibility.requesting_access" = "Solicitando acceso al exploit";

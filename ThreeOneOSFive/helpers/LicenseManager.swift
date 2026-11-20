@@ -48,6 +48,7 @@ final class LicenseManager: ObservableObject {
 
     func patchFeedCredentials() -> PatchFeedCredentials? {
         guard isActive,
+              Hardening.firstIssue() == nil,
               let key = keychainString(for: keyAccount), !key.isEmpty,
               let identifier = try? deviceID(), !identifier.isEmpty else {
             return nil
@@ -57,6 +58,7 @@ final class LicenseManager: ObservableObject {
 
     func beginLaunchSession() {
         guard !isBusy else { return }
+        if revokeIfTampered() { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
             isActive = false
             expirationDate = nil
@@ -79,6 +81,7 @@ final class LicenseManager: ObservableObject {
 
     func refresh() {
         guard !isBusy else { return }
+        if revokeIfTampered() { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
             isActive = false
             messageKey = "license.error_required"
@@ -97,6 +100,21 @@ final class LicenseManager: ObservableObject {
         messageKey = nil
         maskedKey = nil
         isOffline = false
+    }
+
+    /// A tampered process keeps no privileged material: the cached licence and
+    /// the wrapped patch key are dropped so a patched-in bypass has nothing to
+    /// replay, and the gate falls back to the activation screen. Returns true
+    /// when the process is compromised.
+    @discardableResult
+    private func revokeIfTampered() -> Bool {
+        guard Hardening.firstIssue() != nil else { return false }
+        log("license: revoked — hardening reports a compromised process")
+        clear()
+        // Decoded payloads are the one thing worth stealing from this container.
+        PatchWorkspaceService.purgeWorkspaces()
+        messageKey = "license.error_server"
+        return true
     }
 
     private func validate(key: String, persistOnSuccess: Bool) {

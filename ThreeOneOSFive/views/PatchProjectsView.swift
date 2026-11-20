@@ -1,12 +1,5 @@
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
-
-private enum PatchPackagePickerPolicy {
-    static let packageType = UTType(filenameExtension: "3105") ?? .data
-    static let allowedContentTypes: [UTType] = [packageType, .data]
-    static let copiesSelectedDocument = true
-}
 
 struct PatchProjectsView: View {
     @Environment(\.appLanguage) private var language
@@ -15,7 +8,6 @@ struct PatchProjectsView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @StateObject private var store = PatchProjectStore()
     @State private var showCreate = false
-    @State private var showImporter = false
     @State private var selectedID: UUID?
     @State private var openID: UUID?
     @State private var zoneFilter: PatchAimZone?
@@ -60,17 +52,8 @@ struct PatchProjectsView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            showCreate = true
-                        } label: {
-                            Label(language.text("patch.new"), systemImage: "doc.badge.plus")
-                        }
-                        Button {
-                            showImporter = true
-                        } label: {
-                            Label(language.text("patch.import"), systemImage: "square.and.arrow.down")
-                        }
+                    Button {
+                        showCreate = true
                     } label: {
                         if store.isBusy {
                             ProgressView()
@@ -81,23 +64,6 @@ struct PatchProjectsView: View {
                     .disabled(store.isBusy)
                     .accessibilityLabel(language.text("patch.add"))
                 }
-            }
-            .sheet(isPresented: $showImporter) {
-                FileDocumentPicker(
-                    allowedContentTypes: PatchPackagePickerPolicy.allowedContentTypes,
-                    copiesSelectedDocument: PatchPackagePickerPolicy.copiesSelectedDocument,
-                    allowsMultipleSelection: false,
-                    onSelection: { result in
-                        showImporter = false
-                        if case .success(let urls) = result, let url = urls.first {
-                            store.importPackage(at: url)
-                        }
-                    },
-                    onCancel: {
-                        showImporter = false
-                    }
-                )
-                .ignoresSafeArea()
             }
             .sheet(isPresented: $showCreate) {
                 PatchProjectEditorView(
@@ -127,12 +93,8 @@ struct PatchProjectsView: View {
                     dismissButton: .default(Text(language.text("common.ok")))
                 )
             }
-            .onAppear(perform: consumeExternalImport)
             .task {
                 store.installBundledResources(credentials: licenseManager.patchFeedCredentials())
-            }
-            .onChange(of: draftCoordinator.importRequest?.id) { _ in
-                consumeExternalImport()
             }
         }
     }
@@ -387,12 +349,6 @@ struct PatchProjectsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func consumeExternalImport() {
-        guard let request = draftCoordinator.importRequest else { return }
-        draftCoordinator.clearImport()
-        store.importPackage(from: request.source, credentials: licenseManager.patchFeedCredentials())
-    }
-
     @ViewBuilder
     private func itemTile(_ item: PatchLibraryItem) -> some View {
         if item.isLocked {
@@ -624,7 +580,6 @@ struct PatchProjectDetailView: View {
     @State private var showRestoreConfirmation = false
     @State private var isWorking = false
     @State private var actionAlert: PatchStoreAlert?
-    @State private var shareRequest: PatchShareRequest?
     @State private var transaction: PatchTransactionProgress?
     @State private var showPreview = false
     @State private var previewLeading: PatchPayloadImage?
@@ -768,11 +723,6 @@ struct PatchProjectDetailView: View {
                         }
                         .disabled(isWorking)
                     }
-
-                    Button(action: prepareExport) {
-                        actionLabel("patch.export", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(isWorking)
                 } footer: {
                     Text(language.text("patch.apply_footer"))
                 }
@@ -866,10 +816,6 @@ struct PatchProjectDetailView: View {
                 message: Text(alert.message(language: language)),
                 dismissButton: .default(Text(language.text("common.ok")))
             )
-        }
-        .sheet(item: $shareRequest) { request in
-            PatchActivityView(items: [request.url])
-                .ignoresSafeArea()
         }
     }
 
@@ -969,40 +915,6 @@ struct PatchProjectDetailView: View {
         }
     }
 
-    private func prepareExport() {
-        guard let item else { return }
-        isWorking = true
-        Task.detached(priority: .userInitiated) {
-            do {
-                if item.summary.schemaVersion >= 2 {
-                    _ = try PatchProjectLibrary.synchronizeWorkspace(item: item)
-                }
-                await MainActor.run {
-                    store.reload()
-                    isWorking = false
-                    shareRequest = PatchShareRequest(url: item.packageURL)
-                }
-            } catch let error as PatchPackageError {
-                await MainActor.run {
-                    isWorking = false
-                    actionAlert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: error.localizationKey,
-                        messageArgument: error.localizationArgument
-                    )
-                }
-            } catch {
-                await MainActor.run {
-                    isWorking = false
-                    actionAlert = PatchStoreAlert(
-                        titleKey: "common.failed",
-                        messageKey: "patch.error.invalid_project"
-                    )
-                }
-            }
-        }
-    }
-
     private func restore() {
         guard let receipt, let item else { return }
         isWorking = true
@@ -1049,22 +961,4 @@ struct PatchProjectDetailView: View {
             }
         }
     }
-}
-
-private struct PatchShareRequest: Identifiable {
-    let id = UUID()
-    let url: URL
-}
-
-private struct PatchActivityView: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(
-        _ uiViewController: UIActivityViewController,
-        context: Context
-    ) {}
 }

@@ -363,8 +363,6 @@
 "patch.title" = "Patches";
 "patch.add" = "Adicionar projeto de patch";
 "patch.new" = "Novo patch";
-"patch.import" = "Importar .Support Patch";
-"patch.export" = "Exportar .Support Patch";
 "patch.edit" = "Editar";
 "patch.empty_title" = "Sem projetos de patch";
 "patch.empty_message" = "Crie um projeto ou importe um pacote .Support Patch.";
@@ -430,7 +428,6 @@
 "patch.restore_confirm_title" = "Restaurar os arquivos originais?";
 "patch.created_message" = "O projeto de patch foi criado.";
 "patch.updated_message" = "O projeto de patch foi atualizado sem alterar a senha.";
-"patch.imported_message" = "O pacote .Support Patch foi importado.";
 "patch.unlocked_message" = "Desbloqueado. Este dispositivo não pedirá a senha deste pacote novamente.";
 "patch.workspace_synced_message" = "O espaço de trabalho do patch foi sincronizado.";
 "patch.applied_message" = "Todas as regras do patch foram aplicadas e os originais foram salvos.";
@@ -453,7 +450,6 @@
 "patch.error.apply" = "O patch não pôde ser aplicado. As gravações anteriores foram revertidas.";
 "patch.error.restore" = "Os originais não puderam ser restaurados com segurança. Nenhum destino não verificado foi sobrescrito.";
 "patch.error.remote_import" = "Não foi possível baixar o patch com segurança. Verifique o link e tente novamente.";
-"patch.error.invalid_import_link" = "Este link de importação é inválido. Use um link HTTPS seguro para um pacote .Support Patch.";
 "accessibility.open_logs" = "Abrir registros";
 "accessibility.open_settings" = "Abrir ajustes";
 "accessibility.requesting_access" = "Solicitando acesso ao exploit";

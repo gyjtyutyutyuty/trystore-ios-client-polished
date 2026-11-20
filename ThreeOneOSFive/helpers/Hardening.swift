@@ -48,6 +48,9 @@ enum Hardening {
         let keys = [
             "DYLD_INSERT_LIBRARIES",
             "DYLD_FORCE_FLAT_NAMESPACE",
+            "DYLD_LIBRARY_PATH",
+            "DYLD_FRAMEWORK_PATH",
+            "DYLD_PRINT_LIBRARIES",
             "_MSSafeMode",
             "FRIDA_AGENT",
             "FRIDA_GADGET"
@@ -113,6 +116,8 @@ enum Hardening {
     private static let jailbreakPaths = [
         "/Applications/Cydia.app",
         "/Applications/Sileo.app",
+        "/Applications/TrollStore.app",
+        "/Library/MobileSubstrate/DynamicLibraries",
         "/Applications/Zebra.app",
         "/usr/sbin/sshd",
         "/usr/bin/ssh",
@@ -121,6 +126,9 @@ enum Hardening {
         "/var/lib/dpkg/status",
         "/var/jb",
         "/private/preboot/jb",
+        "/var/jb/usr/bin",
+        "/var/jb/usr/lib",
+        "/var/containers/Bundle/Application/.jbroot",
         "/usr/lib/libsubstrate.dylib",
         "/usr/lib/libsubstitute.dylib",
         "/usr/lib/libellekit.dylib",

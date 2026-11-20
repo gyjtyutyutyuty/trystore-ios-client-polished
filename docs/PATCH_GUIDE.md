@@ -57,13 +57,12 @@ Keep the target app closed while applying or restoring a patch. Do not rename th
 
 On supported iOS 27 version/build pairs, patch apply and restore use the Airlift pairing tunnel rather than the local app-container browser. Complete pairing in SupportPatch or import a valid pairing file, and activate the supported loopback tunnel before applying or restoring. Apple Books must be installed and opened at least once because Airlift uses its Books sync service for temporary staging and recovery. If the tunnel is interrupted, reconnect and check the recorded transaction/receipt before retrying; do not rerun an operation while the previous transaction's state is unknown.
 
-## Export, import, and passwords
+## Passwords
 
-- **Export** synchronizes the latest workspace contents before sharing the `.3105` file.
-- Import from Files by opening or sharing a `.3105` package to 3105.
-- A website may open the app with `threeoneosfive://import?url=<percent-encoded HTTPS URL>`. Only HTTPS package URLs without embedded credentials are accepted.
-- On a new device or installation, a protected package asks for its password once. 3105 stores the unlocked content key in Keychain; the exported package remains encrypted and tied to its original password.
-- Legacy v1 packages remain supported. Opening an existing v1 package does not silently rewrite it as v2.
+The app does not import or export packages. Patch packages reach the library as bundled resources or through the authenticated feed sync.
+
+- On a new device or installation, a protected patch asks for its password once. 3105 stores the unlocked content key in Keychain, so it is not requested again for that package.
+- Legacy v1 packages remain supported. An existing v1 package is not silently rewritten as v2.
 
 ## Safety rules
 

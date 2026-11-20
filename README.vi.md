@@ -31,7 +31,7 @@
 
 ## Có gì mới trong TryStore 1.1.1
 
-- **Patch workspace v2** — tạo patch bằng cây thư mục theo bundle trong `Trên iPhone của tôi/3105/Patches`; khi Áp dụng hoặc Xuất, app tự đồng bộ toàn bộ workspace.
+- **Patch workspace v2** — tạo patch bằng cây thư mục theo bundle trong `Trên iPhone của tôi/3105/Patches`; khi Áp dụng, app tự đồng bộ toàn bộ workspace.
 - **Khôi phục an toàn hơn** — file gốc được ghi nhật ký và sao lưu trước khi thay; Khôi phục sẽ trả lại file cũ, xóa file do patch thêm và dọn các thư mục mới nếu đã rỗng.
 - **Tab Tệp đầy đủ hơn** — nhiều tab độc lập, giữ nguyên vị trí thư mục, chọn nhiều file, nén/giải nén ZIP và giao diện nhóm cân đối hơn.
 - **Giao diện thích ứng** — hỗ trợ iPad dạng split view/landscape, cho phép ẩn Dọn dẹp hoặc Hình nền, giữ ổn định ô tìm kiếm và cân lại kích thước icon/hàng.
@@ -43,7 +43,7 @@ Xem [hướng dẫn Patch workspace đầy đủ](docs/PATCH_GUIDE.vi.md).
 
 - Duyệt dữ liệu ứng dụng theo **bundle identifier**, không phụ thuộc UUID container của từng máy.
 - Trình quản lý tệp có tìm kiếm, xem trước, chia sẻ, nhập nhiều tệp, sao chép, di chuyển, dán, đổi tên, xóa, tạo tệp/thư mục, nén ZIP và xử lý trùng tên.
-- Tạo và nhập dự án patch `.3105` theo bundle, hỗ trợ nhiều quy tắc, tệp/thư mục, mật khẩu tùy chọn và nhập từ Files hoặc liên kết website bảo mật.
+- Tạo dự án patch `.TRYSTORE` theo bundle, hỗ trợ nhiều quy tắc, tệp/thư mục và mật khẩu tùy chọn.
 - Dọn dẹp giới hạn trong `Library/Caches` và `tmp`, hỗ trợ sắp xếp dung lượng và chọn nhiều ứng dụng, luôn hiển thị cảnh báo trước khi xóa.
 - Nhập gói hình nền `.tendies`, xác thực payload và chỉ reset nội dung do 3105 cài đặt.
 - Hỗ trợ tiếng Anh, tiếng Việt và tiếng Trung giản thể.

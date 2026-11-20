@@ -120,9 +120,6 @@ struct ThreeOneOSFiveApp: App {
             .sheet(isPresented: $showAttribution) {
                 DisplayAttributionSheet()
             }
-            .onOpenURL { url in
-                patchDraftCoordinator.presentImport(url)
-            }
             .onAppear {
                 appState.recordLaunch()
                 appState.refreshThermalState()

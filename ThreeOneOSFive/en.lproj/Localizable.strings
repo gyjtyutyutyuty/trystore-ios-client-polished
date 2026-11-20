@@ -137,8 +137,6 @@
 "patch.title" = "Patches";
 "patch.add" = "Add patch project";
 "patch.new" = "New Patch";
-"patch.import" = "Import .Support Patch";
-"patch.export" = "Export .Support Patch";
 "patch.edit" = "Edit";
 "patch.empty_title" = "No Patch Projects";
 "patch.empty_message" = "Create a project or import a .Support Patch package.";
@@ -204,7 +202,6 @@
 "patch.restore_confirm_title" = "Restore original files?";
 "patch.created_message" = "The patch project was created.";
 "patch.updated_message" = "The patch project was updated without changing its password.";
-"patch.imported_message" = "The .Support Patch package was imported.";
 "patch.unlocked_message" = "Unlocked. This device will not ask for this package password again.";
 "patch.workspace_synced_message" = "The patch workspace was synchronized.";
 "patch.applied_message" = "All patch rules were applied and the originals were backed up.";
@@ -234,7 +231,6 @@
 "patch.error.remote_target_missing" = "The target file or parent directory was not found. Remote patches only replace existing files.";
 "patch.error.remote_replacement_failed" = "Could not replace the file over pairing: %@";
 "patch.error.restore" = "The originals could not be restored safely. No unverified target was overwritten.";
-"patch.error.invalid_import_link" = "This patch import link is invalid. Use a secure HTTPS link to a .Support Patch package.";
 "patch.error.remote_import" = "The patch could not be downloaded securely. Check the link and try again.";
 
 "accessibility.open_logs" = "Open logs";

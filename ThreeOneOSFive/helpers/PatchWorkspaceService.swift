@@ -10,20 +10,73 @@ enum PatchWorkspaceService {
     private static let manifestFilename = ".3105-project.plist"
     private static let manifestSchemaVersion = 1
 
-    static func documentsRootURL(fileManager: FileManager = .default) throws -> URL {
-        try fileManager.url(
-            for: .documentDirectory,
+    /// Workspaces hold decoded replacement payloads, so they are kept in
+    /// application support instead of `Documents`. `Documents` is what the Files
+    /// app and any container reader can open, and a decoded payload there is the
+    /// patch in the clear. Complete protection also keeps the tree unreadable
+    /// while the device is locked, and it is excluded from backups.
+    static func patchesRootURL(fileManager: FileManager = .default) throws -> URL {
+        let base = try fileManager.url(
+            for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
         )
+        let root = base.appendingPathComponent("Patches", isDirectory: true)
+        try fileManager.createDirectory(
+            at: root,
+            withIntermediateDirectories: true,
+            attributes: [.protectionKey: FileProtectionType.complete]
+        )
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        var mutableRoot = root
+        try? mutableRoot.setResourceValues(values)
+        migrateLegacyDocumentsWorkspace(into: root, fileManager: fileManager)
+        return root
     }
 
-    static func patchesRootURL(fileManager: FileManager = .default) throws -> URL {
-        let documents = try documentsRootURL(fileManager: fileManager)
-        let root = documents.appendingPathComponent("Patches", isDirectory: true)
-        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
-        return root
+    /// Removes every workspace. Payloads are derived from the sealed package and
+    /// can be rebuilt, so a process that looks compromised is not left holding
+    /// them in the clear.
+    static func purgeWorkspaces(fileManager: FileManager = .default) {
+        guard let root = try? patchesRootURL(fileManager: fileManager),
+              let entries = try? fileManager.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: nil
+              ) else { return }
+        for entry in entries {
+            try? fileManager.removeItem(at: entry)
+        }
+    }
+
+    /// Moves the old `Documents/Patches` tree into the protected root and deletes
+    /// the exposed copy. Runs once: the legacy directory is gone afterwards.
+    private static func migrateLegacyDocumentsWorkspace(
+        into root: URL,
+        fileManager: FileManager
+    ) {
+        guard let documents = try? fileManager.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false
+        ) else { return }
+        let legacy = documents.appendingPathComponent("Patches", isDirectory: true)
+        guard fileManager.fileExists(atPath: legacy.path) else { return }
+        let entries = (try? fileManager.contentsOfDirectory(
+            at: legacy,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        for entry in entries {
+            let destination = root.appendingPathComponent(entry.lastPathComponent, isDirectory: true)
+            if fileManager.fileExists(atPath: destination.path) {
+                try? fileManager.removeItem(at: entry)
+            } else {
+                try? fileManager.moveItem(at: entry, to: destination)
+            }
+        }
+        try? fileManager.removeItem(at: legacy)
     }
 
     static func createWorkspace(

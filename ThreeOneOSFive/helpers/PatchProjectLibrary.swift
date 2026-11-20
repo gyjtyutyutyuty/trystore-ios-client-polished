@@ -262,7 +262,7 @@ enum PatchProjectLibrary {
                 projectName: packageName,
                 fileManager: fileManager
             )
-            try installImportedPackage(
+            try installDeliveredPackage(
                 data: encoded.data,
                 decoded: DecodedPatchPackage(project: normalizedProject, contentKey: encoded.contentKey),
                 summary: summary,
@@ -337,7 +337,7 @@ enum PatchProjectLibrary {
             )
             let normalizedSummary = try PatchPackageCodec.inspect(normalizedData.data)
             try PatchKeyStore.store(normalizedData.contentKey, for: normalizedSummary)
-            try installImportedPackage(
+            try installDeliveredPackage(
                 data: normalizedData.data,
                 decoded: DecodedPatchPackage(project: normalizedProject, contentKey: normalizedData.contentKey),
                 summary: normalizedSummary,
@@ -415,7 +415,7 @@ enum PatchProjectLibrary {
             if let existingSummary = try? PatchPackageCodec.inspect(readPackage(at: destination)) {
                 try? PatchKeyStore.delete(for: existingSummary)
             }
-            try installImportedPackage(
+            try installDeliveredPackage(
                 data: encoded.data,
                 decoded: DecodedPatchPackage(project: normalizedProject, contentKey: encoded.contentKey),
                 summary: summary,
@@ -584,7 +584,7 @@ enum PatchProjectLibrary {
         return destination
     }
 
-    static func installImportedPackage(
+    static func installDeliveredPackage(
         data: Data,
         decoded: DecodedPatchPackage,
         summary: PatchPackageSummary,

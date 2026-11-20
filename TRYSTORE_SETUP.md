@@ -6,7 +6,7 @@ The application target is **SupportPatch**, using the shared scheme at `ThreeOne
 
 - The signature-blue TryStore home screen, original character art, and social links.
 - The classic **Loadout / Visuals** patch switcher. Tapping a module applies it; tapping the active module again restores its backup.
-- Eight bundled `.TRYSTORE` packages, verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, BALAS, ARMAS, HOLOGRAMA EXCLUSIVO VERDE, and HOLOGRAMA EXCLUSIVO ROSADO. BALAS appears in AIM as **Balas Magicas**; ARMAS appears in Visuals as **Azul Exclusivo**. The retired HOLOGRAMA ARMAS and HOLOGRAMA PERSONAJE packages are removed. Existing `.3105` files remain supported for legacy imports.
+- Eight bundled `.TRYSTORE` packages, verified to target **Free Fire MAX** only: HEAD, NECK, HS PESSCOSO, HS SLA PECHO, BALAS, ARMAS, HOLOGRAMA EXCLUSIVO VERDE, and HOLOGRAMA EXCLUSIVO ROSADO. BALAS appears in AIM as **Balas Magicas**; ARMAS appears in Visuals as **Azul Exclusivo**. The retired HOLOGRAMA ARMAS and HOLOGRAMA PERSONAJE packages are removed. Legacy `.3105` packages already in the library keep working.
 - Airlift’s `DevicePatchService` integration for patch apply/restore operations.
 - Bundled `.TRYSTORE` files are copied locally into the IPA under the `Patches` folder; no Cloudflare patch-key service or patch-encryption secret is needed.
 

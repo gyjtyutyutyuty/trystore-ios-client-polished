@@ -21,7 +21,7 @@ This index covers the documentation reviewed from the supplied archive and the e
 
 | Document | Purpose |
 | --- | --- |
-| [Patch workspace guide](PATCH_GUIDE.md) | Bundle-based workspace layout, apply/restore, import/export, passwords, and path-safety rules. |
+| [Patch workspace guide](PATCH_GUIDE.md) | Bundle-based workspace layout, apply/restore, passwords, and path-safety rules. |
 | [Vietnamese patch workspace guide](PATCH_GUIDE.vi.md) | Vietnamese version of the patch workspace guide. |
 | [Generated assets](HIGGSFIELD_ASSETS.md) | Higgsfield Worker, CLI script, model allowlist, cost table and security posture for art assets. |
 | [eSign setup](ESIGN_SETUP.md) | Owner-controlled signing inputs, unsigned IPA validation, and installation workflow. |

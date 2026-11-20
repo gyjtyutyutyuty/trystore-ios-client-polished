@@ -55,13 +55,12 @@ Nên đóng ứng dụng đích trong lúc áp dụng hoặc khôi phục patch.
 
 Trên các build iOS 27 đã được xác minh, áp dụng và khôi phục patch dùng pairing tunnel của Airlift thay vì trình duyệt container cục bộ. Hãy pairing thiết bị trong SupportPatch hoặc nhập pairing file hợp lệ, rồi bật loopback tunnel được hỗ trợ trước khi thao tác. Cần cài Apple Books và mở ứng dụng này ít nhất một lần vì Airlift dùng dịch vụ đồng bộ Books để staging và khôi phục tạm thời. Nếu tunnel bị ngắt, hãy kết nối lại rồi kiểm tra trạng thái giao dịch/receipt trước khi thử lại; không chạy lại khi chưa xác định giao dịch trước đó đã hoàn tất hay chưa.
 
-## Xuất, nhập và mật khẩu
+## Mật khẩu
 
-- **Xuất** luôn đồng bộ nội dung mới nhất trong workspace trước khi chia sẻ file `.3105`.
-- Có thể nhập từ ứng dụng Tệp bằng cách mở hoặc chia sẻ gói `.3105` sang 3105.
-- Website có thể mở app bằng `threeoneosfive://import?url=<URL HTTPS đã percent-encode>`. App chỉ nhận URL HTTPS không chứa tài khoản hoặc mật khẩu nhúng.
-- Trên máy hoặc lần cài mới, gói có bảo vệ sẽ hỏi mật khẩu một lần. 3105 lưu content key đã mở khóa trong Keychain; file xuất ra vẫn được mã hóa và luôn gắn với mật khẩu ban đầu.
-- Patch v1 cũ vẫn sử dụng được. App không âm thầm ghi lại gói v1 thành v2 chỉ vì người dùng mở nó.
+App không nhập hay xuất gói patch. Gói patch vào thư viện dưới dạng tài nguyên đi kèm app hoặc qua đồng bộ có xác thực từ feed.
+
+- Trên máy hoặc lần cài mới, patch có bảo vệ sẽ hỏi mật khẩu một lần. 3105 lưu content key đã mở khóa trong Keychain nên không hỏi lại cho gói đó.
+- Patch v1 cũ vẫn sử dụng được. App không âm thầm ghi lại gói v1 thành v2.
 
 ## Quy tắc an toàn
 
