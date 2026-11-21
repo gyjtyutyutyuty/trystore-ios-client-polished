@@ -140,9 +140,13 @@ enum PatchBundleKeyStore {
             deleteKeychainItem(account: feedTokenAccount)
             deleteKeychainItem(account: feedTokenExpiryAccount)
         }
+        cacheKey(keyData)
+    }
+
+    private static func cacheKey(_ data: Data) {
         lock.lock()
-        cached = keyData
-        lock.unlock()
+        defer { lock.unlock() }
+        cached = data
     }
 
     static func clear() {
@@ -277,12 +281,12 @@ enum PatchBundleKeyStore {
         var lastError = PatchBundleKeyError.unavailable
         for attempt in 0..<3 {
             do {
-                try await fetchAndCacheBundleKey(request: request, session: session)
-                return
+                return try await fetchAndCacheBundleKey(request: request, session: session)
             } catch let error as PatchBundleKeyError {
                 lastError = error
                 switch error {
-                case .unauthorized, .configuration, .secureStorage:
+                case .unauthorized, .configuration, .secureStorage,
+                     .attestationUnavailable, .attestationRejected:
                     throw error
                 case .unavailable:
                     break
@@ -300,7 +304,7 @@ enum PatchBundleKeyStore {
     private static func fetchAndCacheBundleKey(
         request: URLRequest,
         session: URLSession
-    ) async throws {
+    ) async throws -> Data {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
