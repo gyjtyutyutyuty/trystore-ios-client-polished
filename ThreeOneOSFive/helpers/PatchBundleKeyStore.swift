@@ -30,6 +30,7 @@ enum PatchBundleKeyStore {
     private static let appAttestAccount = "app-attest-key-id-v1"
     private static let expectedHost = "trystore-patch-feed.burgoajustin.workers.dev"
     private static let bundleKeyPath = "/api/patches/trystore/bundle-key"
+    private static let deviceChallengePath = "/api/patches/trystore/device-challenge"
     private static let challengePath = "/api/patches/trystore/app-attest/challenge"
     private static let registrationPath = "/api/patches/trystore/app-attest/register"
     private static let appAttestService = DCAppAttestService.shared
@@ -188,21 +189,90 @@ enum PatchBundleKeyStore {
 
     /// Release for builds that cannot produce an App Attest assertion. The feed
     /// still validates the licence and device binding before it hands out the
-    /// key, so a stolen or expired licence gets nothing.
+    /// key, so a stolen or expired licence gets nothing. When the device can
+    /// sign a challenge with its P-256 key the proof travels too, so a copied
+    /// device UUID does not pass for the original phone.
     private static func refreshWithLicence(
         baseURL: URL,
         licenseKey: String,
         deviceID: String
     ) async throws {
+        var headers: [String: String] = ["X-TryStore-Attestation-Mode": "licence"]
+        if let proof = try? await deviceProof(
+            baseURL: baseURL,
+            licenseKey: licenseKey,
+            deviceID: deviceID
+        ) {
+            headers.merge(proof) { _, new in new }
+        }
         let data = try await postJSON(
             baseURL: baseURL,
             path: bundleKeyPath,
             payload: [:],
             licenseKey: licenseKey,
             deviceID: deviceID,
-            extraHeaders: ["X-TryStore-Attestation-Mode": "licence"]
+            extraHeaders: headers
         )
         try acceptKeyResponse(data)
+    }
+
+    private static func deviceProof(
+        baseURL: URL,
+        licenseKey: String,
+        deviceID: String
+    ) async throws -> [String: String] {
+        let publicKey = try DeviceKey.publicKeyBase64()
+        let challenge = try await requestDeviceChallenge(
+            baseURL: baseURL,
+            licenseKey: licenseKey,
+            deviceID: deviceID
+        )
+        let message = DeviceKey.message(
+            challenge: challenge,
+            project: "trystore",
+            deviceID: deviceID
+        )
+        let signature = try DeviceKey.signature(message: message)
+        return [
+            "X-TryStore-Device-Public-Key": publicKey,
+            "X-TryStore-Device-Signature": signature,
+            "X-TryStore-Challenge": challenge
+        ]
+    }
+
+    private static func requestDeviceChallenge(
+        baseURL: URL,
+        licenseKey: String,
+        deviceID: String
+    ) async throws -> String {
+        guard let url = URL(string: deviceChallengePath, relativeTo: baseURL)?.absoluteURL,
+              url.host?.lowercased() == expectedHost else {
+            throw PatchBundleKeyError.configuration
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("Bearer \(licenseKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+        request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              http.statusCode == 200,
+              let raw = try? JSONSerialization.jsonObject(with: data),
+              let object = raw as? [String: Any],
+              let challenge = object["challenge"] as? String,
+              !challenge.isEmpty,
+              challenge.count <= 256 else {
+            throw PatchBundleKeyError.unavailable
+        }
+        return challenge
     }
 
     private static func acceptKeyResponse(_ data: Data) throws {
