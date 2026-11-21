@@ -36,7 +36,8 @@ public half is pinned in `PatchResourceBundle.swift`; the private half is the
 Worker refuses to serve a manifest:
 
 ```
-npx wrangler secret put MANIFEST_SIGNING_KEY -c wrangler.toml < cloudflare/.manifest-signing-key
+cd cloudflare
+npx wrangler secret put MANIFEST_SIGNING_KEY -c wrangler.toml < .manifest-signing-key
 npx wrangler secret put FEED_TOKEN_SECRET -c wrangler.toml
 ```
 
@@ -45,6 +46,20 @@ feed mints a ten-minute token after a valid App Attest assertion; the client
 sends it as `X-TryStore-Feed-Token` and the feed skips the per-request licence
 lookup while it is fresh. The bundle key response expires after 24 hours and
 the client drops both the key and the token when they lapse.
+
+The license Worker is deployed from its bundled entry point. `wrangler.license.toml`
+runs `npm run build:license` and then uploads `dist/license-worker.js`:
+
+```
+cd cloudflare
+npm ci
+npx wrangler d1 execute jvztxnx-global-control --remote -c wrangler.license.toml --file migrations/0004_feed_key_state.sql
+npx wrangler deploy -c wrangler.license.toml
+npx wrangler deploy -c wrangler.toml
+```
+
+Deploy the feed after the license Worker. The feed's App Attest routes fail
+closed with `503` until `APP_ATTEST_INTERNAL_TOKEN` is present on both Workers.
 
 Rotating `MANIFEST_SIGNING_KEY` requires a new client build because the public
 half is pinned. Keep the old key available until every installed build has

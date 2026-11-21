@@ -1,0 +1,16 @@
+name = "jvztxnx-global-control"
+main = "dist/license-worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[build]
+command = "npm run build:license"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jvztxnx-global-control"
+database_id = "206d4900-6e0f-476e-9f3c-aaf85fde952e"
+
+[vars]
+APP_ATTEST_APP_ID = "K976G5HK7K.cc.forcequit.worse-query"
+APP_ATTEST_ENVIRONMENT = "production"

@@ -118,6 +118,18 @@ try {
   response = await worker.fetch(request('/api/patches/trystore/manifest.json', authorizedHeaders), env);
   check('active license receives the TryStore manifest', response.status === 200);
   check('manifest carries a detached signature', (response.headers.get('x-trystore-signature') || '').length > 40);
+  const manifestSignature = response.headers.get('x-trystore-signature') || '';
+  const manifestBytes = new Uint8Array(await response.arrayBuffer());
+  const manifestSignatureBytes = Uint8Array.from(Buffer.from(
+    manifestSignature.replaceAll('-', '+').replaceAll('_', '/'),
+    'base64',
+  ));
+  check('manifest signature verifies against the pinned public key', await crypto.subtle.verify(
+    { name: 'Ed25519' },
+    manifestSigning.publicKey,
+    manifestSignatureBytes,
+    manifestBytes,
+  ));
   check('license validation uses the TryStore project scope', validationCalls === 2);
 
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', authorizedHeaders), env);
@@ -162,6 +174,19 @@ try {
   }), env);
   check('feed token authorizes the manifest without another licence lookup', response.status === 200
     && validationCalls === validationsBeforeToken);
+
+  response = await worker.fetch(request('/api/patches/trystore/manifest.json', {
+    'x-trystore-device-id': '11111111-2222-4333-8444-555555555555',
+    'x-trystore-feed-token': keyResponse.feedToken,
+  }), env);
+  check('feed token is bound to its device', response.status === 401);
+
+  const unsignedEnv = { ...env, MANIFEST_SIGNING_KEY: '' };
+  response = await worker.fetch(request('/api/patches/trystore/manifest.json', {
+    'x-trystore-device-id': deviceID,
+    'x-trystore-feed-token': keyResponse.feedToken,
+  }), unsignedEnv);
+  check('missing signing key refuses to serve a manifest', response.status === 503);
 
   const missingSecretEnv = { ...env, APP_ATTEST_INTERNAL_TOKEN: '' };
   response = await worker.fetch(request('/api/patches/trystore/bundle-key', authorizedHeaders, 'POST', {
