@@ -16,7 +16,7 @@ async function rateLimit(e,r,bucket,limit){
     await e.DB.prepare("INSERT INTO api_rate_limits(bucket,subject,window_start,hits) VALUES (?1,?2,?3,1) ON CONFLICT(bucket,subject,window_start) DO UPDATE SET hits=hits+1").bind(bucket,subject,windowStart).run();
     const row=await e.DB.prepare("SELECT hits FROM api_rate_limits WHERE bucket=?1 AND subject=?2 AND window_start=?3").bind(bucket,subject,windowStart).first();
     return Number(row?.hits||0)<=limit;
-  }catch{return false}
+  }catch{return true}
 }
 async function guardJSON(r,e,bucket,limit){
   if(r.method!=='POST')return J({error:'method_not_allowed'},405);
