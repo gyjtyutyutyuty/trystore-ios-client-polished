@@ -250,3 +250,22 @@ Keep the old secret until installed builds have rolled forward.
 - Deployed feed `a8639d3b-d929-4be7-a4a0-757637f58867`. The local verifier
   generates a real P-256 key and covers success, replay, key substitution and
   strict mode.
+
+### Vault token gate and v1 retirement (2026-11-21)
+
+- The character vault now requires the short-lived feed token in addition to
+  the licence. The token only exists after a bundle-key release, so pulling the
+  sealed art means clearing the release checks first; a copied licence string
+  alone gets `401 feed_token_required` and no bytes. The check is
+  `requireVaultAccess` in `cloudflare/patch-feed-worker.js`; `0` in
+  `REQUIRE_VAULT_FEED_TOKEN` re-opens the licence-only path.
+- `APP_BUNDLE_KEY` (version 1) was deleted from the Worker. Every project row
+  in `feed_key_state` is on version 2, so no release can fall back to the
+  burned key. `PATCH_BUNDLE_KEY_VERSION="2"` seeds the version when D1 has no
+  row, so a D1 hiccup cannot revive v1 either.
+- A malformed device public key is refused as `device_signature_invalid`
+  instead of throwing out of `verifyDeviceProof`.
+- Deployed feed `b21e4897-e0bb-41d1-a6f4-a79b4b76b6f9`. Command gates:
+  `scripts/verify_patch_feed_worker.mjs` covers the bare-licence refusal,
+  wrong-device token, expired token, the switch-off fallback, strict vault
+  mode and the fetch budgets.

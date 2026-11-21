@@ -36,6 +36,9 @@ REQUIRE_VAULT_ATTESTATION = "0"
 # that does not carry a valid P-256 challenge signature. Keep "0" until the
 # build with DeviceKey.swift is installed on the devices that need the vault.
 REQUIRE_DEVICE_SIGNATURE = "0"
+# Seeded version for a project with no feed_key_state row. D1 owns the served
+# version, but a D1 blip must not fall back to the retired v1 secret.
+PATCH_BUNDLE_KEY_VERSION = "2"
 # Per-licence hourly fetch budgets. The subject is a hash of licence+device, so
 # changing IP does not reset the count.
 VAULT_MANIFEST_LIMIT_PER_HOUR = "24"

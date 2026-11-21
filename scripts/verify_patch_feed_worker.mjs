@@ -2,7 +2,7 @@
 // Mock-only access-control smoke test for cloudflare/patch-feed-worker.js.
 // Run after `npm ci --prefix cloudflare` with `node scripts/verify_patch_feed_worker.mjs`.
 import { Buffer } from 'node:buffer';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { mkdtemp, copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -111,6 +111,18 @@ const appleHeaders = {
   authorization: 'Bearer APPLE-KEY-001',
   'x-trystore-device-id': deviceID,
 };
+const b64url = (value) => Buffer.from(value).toString('base64url');
+const mintFeedToken = ({
+  project = 'trystore', device = deviceID, mode = 'licence', ttl = 600,
+} = {}) => {
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const body = b64url(JSON.stringify({
+    v: 1, project, device, keyVersion: '1', mode, iat: issuedAt, exp: issuedAt + ttl,
+  }));
+  const signature = createHmac('sha256', env.FEED_TOKEN_SECRET).update(body).digest('base64url');
+  return `${body}.${signature}`;
+};
+const vaultHeaders = { ...authorizedHeaders, 'x-trystore-feed-token': mintFeedToken() };
 const request = (route, headers = {}, method = 'GET', body = undefined) => new Request(`https://feed.test${route}`, {
   method,
   headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
@@ -143,7 +155,29 @@ try {
   response = await worker.fetch(request('/api/patches/trystore/character-vault/manifest.json'), env);
   check('vault manifest requires a licence', response.status === 401);
 
-  response = await worker.fetch(request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders), env);
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders), env);
+  check('vault manifest refuses a bare licence without a feed token',
+    response.status === 401 && (await response.json()).error === 'feed_token_required');
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json',
+      { ...vaultHeaders, 'x-trystore-feed-token': mintFeedToken({ device: '550e8400-e29b-41d4-a716-446655440001' }) }),
+    env);
+  check('vault manifest refuses a token minted for another device', response.status === 401);
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json',
+      { ...vaultHeaders, 'x-trystore-feed-token': mintFeedToken({ ttl: -60 }) }),
+    env);
+  check('vault manifest refuses an expired feed token', response.status === 401);
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders),
+    { ...env, REQUIRE_VAULT_FEED_TOKEN: '0' });
+  check('licence-only vault access still works when the switch is off', response.status === 200);
+
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/manifest.json', vaultHeaders), env);
   const vaultSignature = response.headers.get('x-trystore-signature') || '';
   const vaultBytes = new Uint8Array(await response.arrayBuffer());
   check('licensed vault manifest is signed', response.status === 200 && vaultSignature.length > 40);
@@ -159,11 +193,14 @@ try {
 
   response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc'), env);
   check('vault blob requires a licence', response.status === 401);
-  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', authorizedHeaders), env);
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', authorizedHeaders), env);
+  check('vault blob refuses a bare licence without a feed token', response.status === 401);
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', vaultHeaders), env);
   check('licensed vault blob is served uncached', response.status === 200
     && (await response.arrayBuffer()).byteLength === 6
     && response.headers.get('cache-control') === 'no-store');
-  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/..%2Fmanifest.json', authorizedHeaders), env);
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/..%2Fmanifest.json', vaultHeaders), env);
   check('vault path traversal is rejected', response.status === 404);
 
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', {
@@ -172,6 +209,7 @@ try {
   }), env);
   check('inactive license is denied for package blobs', response.status === 401);
 
+  const beforeManifest = validationCalls;
   response = await worker.fetch(request('/api/patches/trystore/manifest.json', authorizedHeaders), env);
   check('active license receives the TryStore manifest', response.status === 200);
   check('manifest carries a detached signature', (response.headers.get('x-trystore-signature') || '').length > 40);
@@ -187,7 +225,7 @@ try {
     manifestSignatureBytes,
     manifestBytes,
   ));
-  check('license validation uses the TryStore project scope', validationCalls === 4);
+  check('license validation uses the TryStore project scope', validationCalls === beforeManifest + 1);
 
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', authorizedHeaders), env);
   check('active license receives a TryStore package', response.status === 200);
@@ -281,13 +319,14 @@ try {
   }), missingSecretEnv);
   check('missing internal Worker secret fails closed', response.status === 503);
 
+  const beforeApple = validationCalls;
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json'), env);
   check('Apple Music manifest denies requests without a license', response.status === 401);
-  check('Apple Music denial does not call license validation', validationCalls === 7);
+  check('Apple Music denial does not call license validation', validationCalls === beforeApple);
 
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json', appleHeaders), env);
   check('active Apple Music license receives its manifest', response.status === 200);
-  check('Apple Music license validation uses its own project scope', validationCalls === 8);
+  check('Apple Music license validation uses its own project scope', validationCalls === beforeApple + 1);
 
   response = await worker.fetch(request('/patches/apple-music/HS%20SLA%20PECHO.APPLE', appleHeaders), env);
   check('active Apple Music license receives its package', response.status === 200);
@@ -325,20 +364,20 @@ try {
   });
 
   response = await worker.fetch(
-    request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders),
+    request('/api/patches/trystore/character-vault/manifest.json', vaultHeaders),
     { ...env, REQUIRE_VAULT_ATTESTATION: '1', DB: licenceCacheDb({ attested: false }) },
   );
   check('strict vault mode rejects a licence-only device',
     response.status === 403 && (await response.json()).error === 'attestation_required');
 
   response = await worker.fetch(
-    request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders),
+    request('/api/patches/trystore/character-vault/manifest.json', vaultHeaders),
     { ...env, REQUIRE_VAULT_ATTESTATION: '1', DB: licenceCacheDb({ attested: true }) },
   );
   check('strict vault mode serves an attested device', response.status === 200);
 
   response = await worker.fetch(
-    request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', authorizedHeaders),
+    request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', vaultHeaders),
     {
       ...env,
       VAULT_FETCH_LIMIT_PER_HOUR: '8',

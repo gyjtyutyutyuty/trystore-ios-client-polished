@@ -1360,6 +1360,27 @@ async function requireTryStoreLicense(request, env, project) {
   return state.allowed ? { ...state, mode: "licence" } : state;
 }
 
+// The vault is the payload worth scraping. A bare licence string used to be
+// enough to pull every sealed blob; now the request must also carry the feed
+// token that the bundle-key release mints, so the licence has to clear the
+// release checks (device binding, budgets, and the challenge signature once
+// REQUIRE_DEVICE_SIGNATURE is on) before any art moves. Set
+// REQUIRE_VAULT_FEED_TOKEN="0" only to re-open the licence-only path.
+async function requireVaultAccess(request, env, project) {
+  const token = request.headers.get("x-trystore-feed-token") || "";
+  const device = request.headers.get("x-trystore-device-id") || "";
+  if (token) {
+    const claims = await verifyFeedToken(env, token, project, device);
+    if (claims) {
+      return { allowed: true, reason: "feed_token", mode: claims.mode === "attest" ? "attest" : "licence" };
+    }
+  }
+  if (String(env.REQUIRE_VAULT_FEED_TOKEN ?? "1") === "0") {
+    return requireTryStoreLicense(request, env, project);
+  }
+  return denial("feed_token_required");
+}
+
 // Vault strict mode. Flipped with REQUIRE_VAULT_ATTESTATION="1" once installed
 // devices have registered with App Attest; sideloaded devices keep working
 // while the flag is off. The marker is written when an attested bundle-key
@@ -1638,7 +1659,7 @@ export default {
       if (!(await allowFeed(env, "vault-manifest", feedIP(request), 60, 60))) {
         return bad("rate_limited", 429);
       }
-      const licence = await requireTryStoreLicense(request, env, "trystore");
+      const licence = await requireVaultAccess(request, env, "trystore");
       if (!licence.allowed) return licenceFailure(licence);
       if (!(await vaultAttestationAllowed(request, env, "trystore"))) {
         return bad("attestation_required", 403);
@@ -1679,7 +1700,7 @@ export default {
       if (!(await allowFeed(env, "vault-blob", feedIP(request), 240, 60))) {
         return bad("rate_limited", 429);
       }
-      const licence = await requireTryStoreLicense(request, env, "trystore");
+      const licence = await requireVaultAccess(request, env, "trystore");
       if (!licence.allowed) return licenceFailure(licence);
       if (!(await vaultAttestationAllowed(request, env, "trystore"))) {
         return bad("attestation_required", 403);
