@@ -155,16 +155,19 @@ def main() -> None:
     require("attestation_required" in worker
             and "proxyAppAttest" in patch_feed_worker
             and "method_not_allowed" in patch_feed_worker
-            and "APP_ATTEST_INTERNAL_TOKEN" in patch_feed_worker,
-            "TryStore bundle key has a GET or service-binding bypass around App Attest")
+            and "APP_ATTEST_INTERNAL_TOKEN" in patch_feed_worker
+            and "x-trystore-attestation-mode" in patch_feed_worker
+            and "requireTryStoreLicense(request, env, project)" in patch_feed_worker,
+            "TryStore bundle key lost App Attest or its licence-bound fallback check")
     require("DCAppAttestService.shared" in key_store
             and "attestKey(" in key_store
             and "generateAssertion(" in key_store
             and "X-TryStore-Device-ID" in key_store
-            and "license.error_attestation" in manager
+            and "refreshWithLicence" in key_store
+            and "X-TryStore-Attestation-Mode" in key_store
             and "com.apple.developer.devicecheck.appattest-environment" in entitlements
             and "APP_ATTEST_ENVIRONMENT = production;" in PROJECT.read_text(),
-            "iOS App Attest implementation, entitlement, production environment, or fail-closed gate is missing")
+            "iOS App Attest implementation, entitlement, production environment, or licence-bound fallback is missing")
     require("u.pathname==='/__sendmenu'" not in worker
             and "u.pathname==='/__chatcheck'" not in worker
             and "u.pathname==='/__tgcheck'" not in worker

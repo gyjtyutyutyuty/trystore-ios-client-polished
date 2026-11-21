@@ -98,7 +98,11 @@ final class PatchProjectStore: ObservableObject {
                         licenseKey: credentials.licenseKey,
                         deviceID: credentials.deviceID
                     )
-                } catch PatchBundleKeyError.unavailable where PatchBundleKeyStore.cachedKey() != nil {
+                } catch {
+                    // A rejected refresh is only fatal when there is no cached
+                    // key to read the packages with. The licence itself was
+                    // already settled before this sync ran.
+                    guard PatchBundleKeyStore.cachedKey() != nil else { throw error }
                     log("patch: bundle key refresh unavailable, using the cached key")
                 }
                 let refreshed = PatchFeedCredentials(

@@ -180,6 +180,29 @@ try {
   check('bundle key carries a short-lived feed token', typeof keyResponse.feedToken === 'string'
     && keyResponse.feedToken.includes('.') && typeof keyResponse.expiresAt === 'string');
 
+  const attestCallsBeforeLicenceRelease = attestCalls;
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', {
+    ...authorizedHeaders,
+    'x-trystore-attestation-mode': 'licence',
+  }, 'POST', {}), env);
+  const licenceKeyResponse = await response.json();
+  check('licence-bound release returns the key without App Attest', response.status === 200
+    && licenceKeyResponse.valid === true && licenceKeyResponse.key === env.APP_BUNDLE_KEY);
+  check('licence-bound release does not call App Attest', attestCalls === attestCallsBeforeLicenceRelease);
+  check('licence-bound release still mints a feed token', typeof licenceKeyResponse.feedToken === 'string');
+
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', {
+    'x-trystore-attestation-mode': 'licence',
+  }, 'POST', {}), env);
+  check('licence-bound release denies a missing licence', response.status === 401);
+
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key', {
+    authorization: 'Bearer REVOKED-KEY-001',
+    'x-trystore-device-id': deviceID,
+    'x-trystore-attestation-mode': 'licence',
+  }, 'POST', {}), env);
+  check('licence-bound release denies a revoked licence', response.status === 401);
+
   const validationsBeforeToken = validationCalls;
   response = await worker.fetch(request('/api/patches/trystore/manifest.json', {
     'x-trystore-device-id': deviceID,
@@ -209,11 +232,11 @@ try {
 
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json'), env);
   check('Apple Music manifest denies requests without a license', response.status === 401);
-  check('Apple Music denial does not call license validation', validationCalls === 3);
+  check('Apple Music denial does not call license validation', validationCalls === 5);
 
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json', appleHeaders), env);
   check('active Apple Music license receives its manifest', response.status === 200);
-  check('Apple Music license validation uses its own project scope', validationCalls === 4);
+  check('Apple Music license validation uses its own project scope', validationCalls === 6);
 
   response = await worker.fetch(request('/patches/apple-music/HS%20SLA%20PECHO.APPLE', appleHeaders), env);
   check('active Apple Music license receives its package', response.status === 200);

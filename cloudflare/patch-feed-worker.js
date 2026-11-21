@@ -10,7 +10,7 @@
  *   GET  /api/patches/:project/manifest.json
  *   POST /api/patches/trystore/app-attest/challenge
  *   POST /api/patches/trystore/app-attest/register
- *   POST /api/patches/trystore/bundle-key (App Attest assertion required)
+ *   POST /api/patches/trystore/bundle-key (App Attest assertion, or licence-bound mode)
  *   GET  /patches/:project/:file
  *   POST /api/telegram/webhook
  *
@@ -1457,19 +1457,34 @@ export default {
       const project = projectKey(bundleKeyMatch[1]);
       if (!project) return bad("unknown_project", 404);
       if (project !== "trystore") return bad("method_not_allowed", 405);
-      const authorization = await proxyAppAttest(
-        request,
-        env,
-        "/api/v1/app-attest/authorize-bundle-key",
-      );
-      if (!authorization.ok) return authorization;
-      let authorizationResult;
-      try {
-        authorizationResult = await authorization.json();
-      } catch {
-        return bad("attestation_unavailable", 503);
+      // App Attest is the preferred proof, but a build signed outside the App
+      // Store cannot always produce an assertion (missing entitlement, a
+      // development profile, or a re-signed bundle). The explicit mode header
+      // selects a release bound to the live licence and device instead. It is
+      // rate limited, and a licence that is expired, revoked, or used from a
+      // different device still gets nothing.
+      const attestationMode = String(request.headers.get("x-trystore-attestation-mode") || "").toLowerCase();
+      if (attestationMode === "licence") {
+        if (!(await allowFeed(env, "bundle-key-licence", feedIP(request), 10, 60))) {
+          return bad("rate_limited", 429);
+        }
+        const licence = await requireTryStoreLicense(request, env, project);
+        if (!licence.allowed) return licenceFailure(licence);
+      } else {
+        const authorization = await proxyAppAttest(
+          request,
+          env,
+          "/api/v1/app-attest/authorize-bundle-key",
+        );
+        if (!authorization.ok) return authorization;
+        let authorizationResult;
+        try {
+          authorizationResult = await authorization.json();
+        } catch {
+          return bad("attestation_unavailable", 503);
+        }
+        if (authorizationResult.valid !== true) return bad("attestation_required", 401);
       }
-      if (authorizationResult.valid !== true) return bad("attestation_required", 401);
       const version = await currentBundleKeyVersion(env, project);
       const secret = bundleKeySecret(env, version);
       if (!secret) return bad("key_unavailable", 503);

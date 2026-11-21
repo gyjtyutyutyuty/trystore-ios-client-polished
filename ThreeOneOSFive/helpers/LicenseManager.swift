@@ -186,8 +186,9 @@ final class LicenseManager: ObservableObject {
                     messageKey = "license.error_server"
                     return
                 }
-                // The patch feed releases its bundle key only after this same
-                // licence check and a server-verified App Attest assertion.
+                // The feed prefers App Attest and falls back to the licence
+                // when a build cannot attest. Neither path is allowed to keep
+                // an otherwise valid licence out of the app.
                 do {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: key,
@@ -196,9 +197,6 @@ final class LicenseManager: ObservableObject {
                 } catch {
                     log("patches: bundle key unavailable — \(error)")
                     PatchBundleKeyStore.invalidateBundleKey()
-                    isActive = false
-                    messageKey = "license.error_attestation"
-                    return
                 }
                 isActive = true
                 messageKey = nil

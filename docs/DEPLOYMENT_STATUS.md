@@ -25,7 +25,7 @@ App Attest schema the two Workers depend on.
     Bindings: `DB`, `APP_ATTEST_APP_ID="K976G5HK7K.cc.forcequit.worse-query"`,
     `APP_ATTEST_ENVIRONMENT="production"`.
   - `trystore-patch-feed` deployed from `cloudflare/patch-feed-worker.js`,
-    version `1178a6ac-02eb-4b08-a006-877f336e366d`.
+    version `23806b1b-9a8f-4425-823b-901a82d2d2b6`.
 - `cloudflare/wrangler.license.toml` is now tracked. It builds
   `dist/license-worker.js` before upload and carries the production App Attest
   vars.
@@ -44,6 +44,7 @@ Run against the deployed Workers after upload:
 | TryStore manifest with a token signed by another secret | 401 |
 | App Attest challenge/register/bundle-key without a licence | 401 from the licence Worker through the service binding |
 | Legacy `GET /api/patches/trystore/bundle-key` | 405 |
+| Licence-bound `POST` without a licence | 401 |
 | Public package blob `hyper-regedit` | 200, immutable cache |
 | `POST /api/v1/keys/validate` with a bogus key | 200, `valid:false` |
 | Rate-limit rows | written with the new `hits` column |
@@ -52,6 +53,18 @@ The feed's App Attest routes reached the licence Worker, so the shared
 `APP_ATTEST_INTERNAL_TOKEN` is accepted; a missing or wrong value returns 404
 from the licence Worker. Device binding for the feed token and the
 missing-signing-key `503` are covered by `scripts/verify_patch_feed_worker.mjs`.
+
+## Licence-bound art release
+
+A sideloaded build cannot always produce an App Attest assertion: the signing
+team may differ, the profile may carry the development environment, or a
+re-signing tool may drop the entitlement. The feed therefore accepts
+`X-TryStore-Attestation-Mode: licence` on
+`POST /api/patches/trystore/bundle-key`, validates the live licence and device, and
+returns the same key plus feed token. The mode is rate limited and refuses
+missing, expired, revoked, or differently bound licences. Activation no longer
+depends on the art key at all, so a feed outage or an attestation refusal
+leaves the licence usable and only the sealed art pending.
 
 ## Still device-side
 

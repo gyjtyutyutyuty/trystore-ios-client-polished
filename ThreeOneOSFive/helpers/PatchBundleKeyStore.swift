@@ -77,8 +77,41 @@ enum PatchBundleKeyStore {
 
     static func refresh(licenseKey: String, deviceID: String) async throws {
         guard let baseURL = feedBaseURL() else { throw PatchBundleKeyError.configuration }
-        guard appAttestService.isSupported else { throw PatchBundleKeyError.attestationUnavailable }
 
+        // App Attest is the preferred path. A sideloaded or self-signed build
+        // cannot always attest (missing entitlement, development profile, or a
+        // re-signed bundle), and refusing to activate over that leaves the art
+        // unreadable on hardware that is otherwise licensed. Fall back to a
+        // release bound to the live licence and device instead of failing the
+        // whole activation.
+        if appAttestService.isSupported {
+            do {
+                try await refreshWithAttestation(
+                    baseURL: baseURL,
+                    licenseKey: licenseKey,
+                    deviceID: deviceID
+                )
+                return
+            } catch let error as PatchBundleKeyError {
+                switch error {
+                case .unauthorized, .configuration, .secureStorage:
+                    throw error
+                case .unavailable, .attestationUnavailable, .attestationRejected:
+                    break
+                }
+                log("patches: App Attest path failed (\(error)); trying the licence-bound release")
+            } catch {
+                log("patches: App Attest path failed (\(error)); trying the licence-bound release")
+            }
+        }
+        try await refreshWithLicence(baseURL: baseURL, licenseKey: licenseKey, deviceID: deviceID)
+    }
+
+    private static func refreshWithAttestation(
+        baseURL: URL,
+        licenseKey: String,
+        deviceID: String
+    ) async throws {
         var keyID = readStringKeychain(account: appAttestAccount)
         var challenge = try await requestChallenge(baseURL: baseURL, licenseKey: licenseKey, deviceID: deviceID, keyID: keyID)
         if challenge.mode == "attest" {
@@ -127,6 +160,29 @@ enum PatchBundleKeyStore {
             licenseKey: licenseKey,
             deviceID: deviceID
         )
+        try acceptKeyResponse(data)
+    }
+
+    /// Release for builds that cannot produce an App Attest assertion. The feed
+    /// still validates the licence and device binding before it hands out the
+    /// key, so a stolen or expired licence gets nothing.
+    private static func refreshWithLicence(
+        baseURL: URL,
+        licenseKey: String,
+        deviceID: String
+    ) async throws {
+        let data = try await postJSON(
+            baseURL: baseURL,
+            path: bundleKeyPath,
+            payload: [:],
+            licenseKey: licenseKey,
+            deviceID: deviceID,
+            extraHeaders: ["X-TryStore-Attestation-Mode": "licence"]
+        )
+        try acceptKeyResponse(data)
+    }
+
+    private static func acceptKeyResponse(_ data: Data) throws {
         let response: KeyResponse
         do {
             response = try JSONDecoder().decode(KeyResponse.self, from: data)
@@ -263,7 +319,8 @@ enum PatchBundleKeyStore {
         path: String,
         payload: [String: Any],
         licenseKey: String,
-        deviceID: String
+        deviceID: String,
+        extraHeaders: [String: String] = [:]
     ) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL,
               url.host?.lowercased() == expectedHost else {
@@ -277,6 +334,9 @@ enum PatchBundleKeyStore {
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         request.setValue("Bearer \(licenseKey)", forHTTPHeaderField: "Authorization")
         request.setValue(deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+        for (name, value) in extraHeaders {
+            request.setValue(value, forHTTPHeaderField: name)
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let configuration = URLSessionConfiguration.ephemeral
