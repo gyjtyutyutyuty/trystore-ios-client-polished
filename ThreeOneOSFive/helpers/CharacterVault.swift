@@ -577,10 +577,18 @@ enum CharacterVault {
         guard let walker = fileManager.enumerator(at: sourceRoot, includingPropertiesForKeys: nil) else {
             throw VaultError.missingAssets
         }
-        let prefix = sourceRoot.path + "/"
+        let sourceComponents = sourceRoot.standardizedFileURL.pathComponents
+        var decryptedCount = 0
         while let source = walker.nextObject() as? URL {
             guard source.pathExtension == "tsc" else { continue }
-            let relative = source.path.replacingOccurrences(of: prefix, with: "")
+            let normalizedSource = source.standardizedFileURL.pathComponents
+            guard normalizedSource.count > sourceComponents.count,
+                  Array(normalizedSource.prefix(sourceComponents.count)) == sourceComponents else {
+                continue
+            }
+            let relative = normalizedSource
+                .dropFirst(sourceComponents.count)
+                .joined(separator: "/")
             guard relative.hasSuffix(".tsc") else { continue }
             let target = cacheRoot.appendingPathComponent(String(relative.dropLast(4)))
             try fileManager.createDirectory(
@@ -589,6 +597,7 @@ enum CharacterVault {
             )
             let sealed = try Data(contentsOf: source)
             try decrypt(sealed, key: key).write(to: target, options: [.atomic, .completeFileProtection])
+            decryptedCount += 1
         }
 
         let rebuiltModelsPresent = HeroCharacterModel.allCases.allSatisfy { model in
@@ -598,6 +607,13 @@ enum CharacterVault {
             return fileManager.fileExists(atPath: url.path)
         }
         guard rebuiltModelsPresent else {
+            let modelState = HeroCharacterModel.allCases.map { model in
+                let url = cacheRoot
+                    .appendingPathComponent(model.rawValue, isDirectory: true)
+                    .appendingPathComponent(model.objectFile)
+                return "\(model.rawValue)=\(fileManager.fileExists(atPath: url.path))"
+            }.joined(separator: ",")
+            log("vault: decrypted \(decryptedCount) sealed files; model state \(modelState)")
             try? fileManager.removeItem(at: cacheRoot)
             throw VaultError.missingAssets
         }
