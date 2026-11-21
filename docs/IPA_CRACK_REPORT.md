@@ -136,11 +136,39 @@ Both replacements fit in place: no load command, segment or offset changes.
    error text are reachable from the app. It is unrelated to licence
    enforcement, but it is the largest native attack surface in the bundle.
 
+## Post-App Attest posture
+
+The source build now requires a server-verified App Attest registration and a
+fresh assertion before the TryStore bundle key is released:
+
+- The feed denies the legacy TryStore bundle-key `GET` with `405` and only
+  accepts `POST` through the App Attest proxy.
+- The licence Worker verifies the Apple attestation, binds the key to the
+  licence and device, stores the assertion counter, and rejects replayed or
+  expired challenges.
+- A re-signed or patched IPA cannot mint a valid attestation for the registered
+  App ID, so it cannot obtain the bundle key even with a stolen licence key.
+- Activation fails closed on devices without App Attest support.
+
+Crackability after a rebuild from this source:
+
+| Surface | Score | Why |
+| --- | --- | --- |
+| Licence gate | 9/10 | Still a client-side branch; four bytes. |
+| Runtime anti-tamper | 8/10 | Friction only; patchable. |
+| Bundled CharacterVault art | 10/10 | Static key still ships in the binary and the blobs are in the IPA. |
+| Feed packages / paid content | 2/10 | Genuine App Attest assertion required; no client patch manufactures one. |
+| Overall | 5/10 | UI opens, paid content does not. |
+
+The remaining gap is bundled art: it has to decrypt offline, so the key shipped
+in the app can always be recovered. Treat it as public or move it behind the
+feed.
+
 ## What the crack does not do
 
 - It does not decrypt `TSC1` assets or feed packages.
-- It does not mint a feed session; `PatchBundleKeyStore` still needs a real,
-  server-signed session before the feed releases the bundle key.
+- It does not mint a feed session or an App Attest assertion;
+  `PatchBundleKeyStore` needs both before the feed releases the bundle key.
 - It does not survive a rebuild: the patcher fails closed if the expected bytes
   are absent, so a new binary needs a new analysis.
 
