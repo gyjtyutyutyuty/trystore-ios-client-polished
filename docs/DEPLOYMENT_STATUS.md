@@ -6,8 +6,9 @@ App Attest schema the two Workers depend on.
 ## Applied
 
 - D1 `jvztxnx-global-control`:
-  - `migrations/0004_feed_key_state.sql` applied; `feed_key_state` now exists
-    and is empty, so the feed serves bundle-key version `1`.
+  - `migrations/0004_feed_key_state.sql` applied; `feed_key_state` seeds the
+    served key version and now holds version `2` for `trystore`, `apple-music`
+    and `hyper-regedit` after the rotation below.
   - Existing deployment predated the App Attest merge. The live
     `license_devices` and `api_rate_limits` tables were aligned in place:
     `first_seen` → `first_seen_at`, `last_seen` → `last_seen_at`,
@@ -45,7 +46,7 @@ Run against the deployed Workers after upload:
 | App Attest challenge/register/bundle-key without a licence | 401 from the licence Worker through the service binding |
 | Legacy `GET /api/patches/trystore/bundle-key` | 405 |
 | Licence-bound `POST` without a licence | 401 |
-| `GET /character-vault/version` | 200, 16 files, `keyFingerprint` `6d77…8759` |
+| `GET /character-vault/version` | 200, 16 files, `keyFingerprint` `ed05…6b50` |
 | `GET /character-vault/manifest.json` without credentials | 401 |
 | `GET /character-vault/rouk/rouk.obj.tsc` without credentials | 401 |
 | Public package blob `hyper-regedit` | 200, immutable cache |
@@ -69,6 +70,58 @@ missing, expired, revoked, or differently bound licences. Activation no longer
 depends on the art key at all, so a feed outage or an attestation refusal
 leaves the licence usable and only the sealed art pending.
 
+## Bundle-key rotation (2026-11-21)
+
+The version-1 bundle key had been recovered from a project secret, so it was
+treated as burned. Rotation is a data change, not a deploy
+(`scripts/rotate_bundle_key.py`):
+
+- `APP_BUNDLE_KEY_V2` set on `trystore-patch-feed`; `feed_key_state` moved to
+  version `2` for `trystore`, `apple-music` and `hyper-regedit`.
+- 25 of 25 packages re-wrapped: the ten already carrying `wrappingScheme=bundle`
+  were unwrapped with v1 and sealed with v2; the fifteen carrying an in-band
+  `publicContentKey` were wrapped for the first time. Manifests were rewritten
+  with the new SHA-256, size, `keyVersion` and `?v=` URL, then the D1
+  `feed_blobs` override for `trystore` was deleted so KV is authoritative.
+- The 16 committed `TSC2` blobs were re-sealed with
+  `HKDF-SHA256(v2, salt="trystore-character-vault-v1", info="TSC2/key")` and
+  republished. Old fingerprint `6d77…8759`, new fingerprint
+  `ed05f733621ace3b4665336ab7b11dee2adfb7c047cf7afc0300082095f26b50`;
+  vault version is now `42604b0e0445c649b5a7f9d57a89cefd2d75502cb58ce99be2858d259c9b677d`.
+- Verification pulled every rotated package and vault blob back from KV,
+  decrypted with v2 and compared the plaintext with the pre-rotation copy: 25
+  package payloads and 16 vault blobs matched exactly.
+
+`APP_BUNDLE_KEY` (v1) is still installed so an in-flight device can finish with
+a cached key. Delete it once the 24-hour client cache has expired.
+
+## 3105 adapter hardening (2026-11-21)
+
+The `3105api` adapter wrote the licence key verbatim into
+`access_logs.key_value` and logged the full query string, so one D1 read or log
+export handed out working credentials. Deployed as version
+`0562dfc6-e121-4f22-b786-8c8295af6360`:
+
+- `access_logs` now stores `k1:<HMAC-SHA-256(pepper, key)[:16]>`; the pepper is
+  the `ACCESS_LOG_PEPPER` secret. All 1,198 existing rows were overwritten with
+  `purged` (`cloudflare/3105-security-scrub.sql`); a live insert was confirmed
+  to store `k1:…`, not the key.
+- `/rest/v1/*`, `/realtime/*` and `/patches/*` require the Supabase `apikey`
+  (header or `?apikey=`); anonymous calls return 401.
+- The device table returns a truncated hash instead of `device_hash`, and a
+  device can only be bound to an active, unexpired key. Both routes are rate
+  limited through `api_rate_limits`.
+- `console.log` redacts `key_value`, `apikey`, `authorization` and `token`.
+- The adapter forwards `cf-connecting-ip` to the licence Worker. Without it,
+  every resolve bucketed under `unknown` and one script could exhaust the
+  shared 30/min limit for all users.
+
+The trust boundary is still a live licence: App Attest is the only proof that a
+release runs on genuine hardware, and `app_attest_keys` is empty because no
+sideloaded build completed registration. The exposed D1 dump contains the
+licence values that were in `access_logs`; revoking and reissuing those keys is
+the only way to cut off a copy that already left the database.
+
 ## Character vault feed
 
 The IPA used to carry 16 sealed `TSC2` blobs. They now live in the feed's KV
@@ -76,7 +129,7 @@ namespace under `vault/trystore/<path>`, with a signed manifest at
 `vault/trystore/manifest.json`. Its `version` is a digest of the file list, so
 a re-sealed vault with the same key still invalidates installed copies, and
 `keyFingerprint` carries the bundle-key fingerprint
-(`6d77a77f5c738a5e036b34c4e4c1f4e9627c6c2426e2ddbc5fc4f47d6adb8759`).
+(`ed05f733621ace3b4665336ab7b11dee2adfb7c047cf7afc0300082095f26b50`).
 
 | Route | Access |
 | --- | --- |
@@ -113,12 +166,13 @@ is bundled.
 Codemagic workflow `supportpatch_unsigned_ipa` archived commit `7c109ec` on
 build `6b01125f799fbd143cf99e9b` (2026-11-21). The archive carries no
 `CharacterVault` and no `Patches`; the verify step confirmed both are absent,
-`__RESTRICT` is present, and document sharing is off. The sealed vault is
-published to KV (`vault/trystore/manifest.json`, 16 blobs, version
-`c2041d6c563e265cc7a59b5977e8d247267176e9f8e1025ab1e32af5b0c7e329`) and its
-`keyFingerprint` matches the feed's `6d77…8759`. Earlier builds fixed the
-`csops` lookup and the attested-key optional; the temporary build-log relay is
-gone from both the Worker and the archive script.
+`__RESTRICT` is present, and document sharing is off. At archive time the
+sealed vault in KV was version
+`c2041d6c563e265cc7a59b5977e8d247267176e9f8e1025ab1e32af5b0c7e329` with
+fingerprint `6d77…8759`; the rotation above replaced both. The build fetches
+whatever version the feed serves, so no re-archive is needed for the new key.
+Earlier builds fixed the `csops` lookup and the attested-key optional; the
+temporary build-log relay is gone from both the Worker and the archive script.
 
 ## Manifest signing key
 
