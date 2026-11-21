@@ -6,6 +6,7 @@ Checked:
   * LSSupportsOpeningDocumentsInPlace is false
   * CharacterVault and Patches are absent (the feed serves them)
   * the main executable carries LC_SEGMENT_64 __RESTRICT with __restrict
+  * TRYSTORE_CODE_SHA256 matches the executable's __TEXT sections
 
 Usage:
     python tools/verify_ipa_hardening.py build/SupportPatch-unsigned.ipa
@@ -19,6 +20,8 @@ import struct
 import sys
 import zipfile
 from pathlib import Path
+
+from macho_code_digest import code_digest
 
 LC_SEGMENT_64 = 0x19
 
@@ -76,6 +79,18 @@ def verify(ipa: Path) -> list[str]:
         failures.append("__RESTRICT segment is missing (OTHER_LDFLAGS not applied)")
     if not has_section:
         failures.append("__restrict section is missing")
+
+    digest = ""
+    try:
+        digest = code_digest(binary)
+    except ValueError as error:
+        failures.append(f"executable is not a valid Mach-O ({error})")
+
+    expected = str(info.get("TRYSTORE_CODE_SHA256") or "").strip().lower()
+    if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+        failures.append("TRYSTORE_CODE_SHA256 is missing from Info.plist")
+    elif digest and digest != expected:
+        failures.append("TRYSTORE_CODE_SHA256 does not match the executable")
     return failures
 
 

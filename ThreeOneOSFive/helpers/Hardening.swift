@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 
@@ -13,6 +14,7 @@ enum HardeningIssue: String {
     case missingRestrictedSegment
     case debugServicePort
     case weakenedCodeSignature
+    case modifiedBinary
 
     var logDescription: String {
         switch self {
@@ -32,6 +34,8 @@ enum HardeningIssue: String {
             return "local debug/instrumentation service reachable"
         case .weakenedCodeSignature:
             return "code signature state is not enforced"
+        case .modifiedBinary:
+            return "executable text differs from the archived build"
         }
     }
 }
@@ -50,6 +54,7 @@ enum Hardening {
         if !hasRestrictedSegment() { return .missingRestrictedSegment }
         if hasLocalDebugService() { return .debugServicePort }
         if codeSignatureIsWeakened() { return .weakenedCodeSignature }
+        if modifiedBinary() { return .modifiedBinary }
         return nil
     }
 
@@ -243,6 +248,101 @@ enum Hardening {
             return false
         }
         return socketError == 0
+    }
+
+    // MARK: - Binary integrity
+
+    /// SHA-256 of every `__TEXT` section, computed in the same order as
+    /// `tools/macho_code_digest.py`. The archive step stores the expected value
+    /// in `Info.plist`; a patcher that rewrites code or constants no longer
+    /// matches, while ad-hoc signing (which only appends `__LINKEDIT` and
+    /// rewrites the Mach header) does.
+    private static let expectedCodeDigest: String? = {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_CODE_SHA256") as? String else {
+            return nil
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed.count == 64 ? trimmed : nil
+    }()
+
+    /// Hashing six megabytes on every probe would burn battery. The executable
+    /// on disk cannot change while the process is running, so one answer holds
+    /// for the whole session.
+    private static let archivedCodeDigest: String? = {
+        guard let url = Bundle.main.executableURL,
+              let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else {
+            return nil
+        }
+        return codeDigest(data)
+    }()
+
+    private static func modifiedBinary() -> Bool {
+        guard let expected = expectedCodeDigest else { return false }
+        guard let actual = archivedCodeDigest else { return true }
+        return actual != expected
+    }
+
+    static func codeDigest(_ data: Data) -> String? {
+        data.withUnsafeBytes { raw -> String? in
+            guard raw.count > 32,
+                  raw.load(fromByteOffset: 0, as: UInt32.self) == 0xfeedfacf else {
+                return nil
+            }
+            let commandCount = Int(raw.load(fromByteOffset: 16, as: UInt32.self))
+            guard commandCount > 0, commandCount < 4_096 else { return nil }
+
+            var ranges: [(offset: Int, length: Int)] = []
+            var cursor = 32
+            for _ in 0..<commandCount {
+                guard cursor + 8 <= raw.count else { return nil }
+                let command = raw.load(fromByteOffset: cursor, as: UInt32.self)
+                let size = Int(raw.load(fromByteOffset: cursor + 4, as: UInt32.self))
+                guard size >= 8, cursor + size <= raw.count else { return nil }
+
+                if command == 0x19 { // LC_SEGMENT_64
+                    let segment = sectionName(raw, at: cursor + 8)
+                    if segment == "__TEXT" {
+                        let sections = Int(raw.load(fromByteOffset: cursor + 64, as: UInt32.self))
+                        guard sections <= 4_096,
+                              cursor + 72 + sections * 80 <= cursor + size else {
+                            return nil
+                        }
+                        for index in 0..<sections {
+                            let base = cursor + 72 + index * 80
+                            let flags = raw.load(fromByteOffset: base + 64, as: UInt32.self)
+                            let type = flags & 0xff
+                            // Zero-fill sections carry no bytes in the file.
+                            if type == 1 || type == 12 || type == 18 { continue }
+                            let offset = Int(raw.load(fromByteOffset: base + 48, as: UInt32.self))
+                            let length = Int(raw.load(fromByteOffset: base + 40, as: UInt64.self))
+                            guard length > 0, offset >= 0, offset + length <= raw.count else { continue }
+                            ranges.append((offset, length))
+                        }
+                    }
+                }
+                cursor += size
+            }
+
+            guard !ranges.isEmpty else { return nil }
+            ranges.sort { $0.offset < $1.offset }
+            var hasher = SHA256()
+            for range in ranges {
+                hasher.update(bufferPointer: UnsafeRawBufferPointer(
+                    rebasing: raw[range.offset..<range.offset + range.length]
+                ))
+            }
+            return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        }
+    }
+
+    private static func sectionName(_ raw: UnsafeRawBufferPointer, at offset: Int) -> String {
+        var bytes: [UInt8] = []
+        for index in 0..<16 {
+            let value = raw.load(fromByteOffset: offset + index, as: UInt8.self)
+            if value == 0 { break }
+            bytes.append(value)
+        }
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     // MARK: - Code signature

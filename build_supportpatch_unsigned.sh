@@ -53,6 +53,17 @@ if [[ -e "$APP/Patches" ]]; then
 fi
 
 python3 "$ROOT/scripts/verify_legacy_patch_bundle.py" --app "$APP"
+
+# Pin the executable's code sections. The device recomputes this digest on
+# launch; a patched build that rewrites code or constants no longer matches and
+# the hardening gate clears the licence and the bundle key.
+CODE_DIGEST="$(python3 "$ROOT/tools/macho_code_digest.py" "$APP/SupportPatch")"
+if [[ -z "$CODE_DIGEST" ]]; then
+  echo "Error: could not compute the executable code digest." >&2
+  exit 1
+fi
+plutil -replace TRYSTORE_CODE_SHA256 -string "$CODE_DIGEST" "$APP/Info.plist"
+
 plutil -replace CFBundleExecutable -string SupportPatch "$APP/Info.plist"
 plutil -replace CFBundlePackageType -string APPL "$APP/Info.plist"
 mkdir -p "$BUILD_DIR/Payload"
