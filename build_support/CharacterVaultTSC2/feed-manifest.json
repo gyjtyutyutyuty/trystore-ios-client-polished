@@ -1,87 +1,87 @@
 {
   "schemaVersion": 1,
   "project": "trystore",
-  "version": "c2041d6c563e265cc7a59b5977e8d247267176e9f8e1025ab1e32af5b0c7e329",
-  "keyFingerprint": "6d77a77f5c738a5e036b34c4e4c1f4e9627c6c2426e2ddbc5fc4f47d6adb8759",
+  "version": "42604b0e0445c649b5a7f9d57a89cefd2d75502cb58ce99be2858d259c9b677d",
+  "keyFingerprint": "ed05f733621ace3b4665336ab7b11dee2adfb7c047cf7afc0300082095f26b50",
   "files": [
     {
       "path": "rouk/rouk.mtl.tsc",
-      "sha256": "75d4c47725e3a6c990338c77f3d879ae9b8c78618ae7556782a4c22625eced60",
+      "sha256": "3e8fd696c3a3206c8072be571cd5214e56108d0a365beab74bd93cc0d29e53e0",
       "size": 602
     },
     {
       "path": "rouk/rouk.obj.tsc",
-      "sha256": "7abd597651c975a19fb58824b275ee9e0e25bee1d54539d0efe5cc8e8d47a3eb",
+      "sha256": "b8bf7564cedbf5933f74f8ab0eed7f23a836bfa3c45ef84f6a64c73698193e6b",
       "size": 572567
     },
     {
       "path": "rouk/tex_0145_0out.png.tsc",
-      "sha256": "1b28c8300dab06b975bfd22c00bad6cbb2bbddb29b38514d832deaaf5d7eb2e2",
+      "sha256": "c6de87e909205da8875fbb90af8fd7e3dcf908f04bb38dfa37d50990cf17d21c",
       "size": 426895
     },
     {
       "path": "rouk/tex_0150_0out.png.tsc",
-      "sha256": "c1a2771914541e5470902c4a20b24c37af669240aa48cd847a4e41bd7bc8cad0",
+      "sha256": "562d13074dde83571bbef1d569669c3b8781531193b83e046f5957b5648860d8",
       "size": 74511
     },
     {
       "path": "rouk/tex_0155_0out.png.tsc",
-      "sha256": "b51ce2f7be774f929ef1991e373e6ffbc342d851bdd72270c34959faad5a489c",
+      "sha256": "acf2848fe3ac355270ec53dbcfbbfbec4fa779e37bf4baffa44850b1c5957e85",
       "size": 178883
     },
     {
       "path": "rouk/tex_0160_0out.png.tsc",
-      "sha256": "e4681b6c0310089eb4a5f9ab9b94550c35872f7fe8d7dba6528eb5ad0845a507",
+      "sha256": "16072c6d6300a758db200d8a229fe636f8e9c5b938a1ae3c84e42363e1132a75",
       "size": 252568
     },
     {
       "path": "rouk/tex_0165_0out.png.tsc",
-      "sha256": "69253b16455ef37ffe6505d1932586305ccae0045cd8e2fefe590c91823c4bda",
+      "sha256": "8835a84895955b6ea157322253d06913a91ce5827c033102a3a7391f268b2b46",
       "size": 48740
     },
     {
       "path": "rouk/tex_0170_0out.png.tsc",
-      "sha256": "2ece11a0f44e10b928ece587293d41ea868d22b5a102871ae099824bdfc05883",
+      "sha256": "6db87eb390febe301717dd10e65b5881f65c09b1a8ad3021c3cdad1bf18efb57",
       "size": 73046
     },
     {
       "path": "sakura/sakura.mtl.tsc",
-      "sha256": "de081c1b261c64687e932d0f8deb40f33aaa3b1541366f9596c7a1ad960ab3fe",
+      "sha256": "74f310bd868ec68be4fac7c3c110c8b6f1b730cbdbeeba4df17dc88e103bef32",
       "size": 648
     },
     {
       "path": "sakura/sakura.obj.tsc",
-      "sha256": "0c4bdc871ca12d0b45ce3328fb0e4e0306924afd7e9b1ee6ec0b164750a9278f",
+      "sha256": "3a8bac78d1f492b71fcbbac367488b2a0f0c4cba8c63a03996c32467a99ef63d",
       "size": 889598
     },
     {
       "path": "sakura/tex_0050_0out.png.tsc",
-      "sha256": "eb1113afaf84ee02f9eb139e23e6abff43d5df32f8875a58abd7360750aa7610",
+      "sha256": "428a702a4541cfd5434eb7a5fe0cf62b8e52290f0fb8082cc33b85f95cacac44",
       "size": 418295
     },
     {
       "path": "sakura/tex_0055_0out.png.tsc",
-      "sha256": "a13439052f0bf2c4274abe47df221df11cf9a0b80719c7d91e98da09ef36bc63",
+      "sha256": "e283d97bce9c4229396503b319a1bd91152c3b9f7810ac286434777891a1956e",
       "size": 38783
     },
     {
       "path": "sakura/tex_0060_0out.png.tsc",
-      "sha256": "eb0cb6f692220a804ac18e35184f4e060513177597b11628ba4477db6c83ded5",
+      "sha256": "eba2c32828c2c4316fb105d26425e2ca3c1cb2861eeffe483b4775b11b541b24",
       "size": 62881
     },
     {
       "path": "sakura/tex_0065_0out.png.tsc",
-      "sha256": "aac5048f554cc20962410397c6e6d363cdb61e5b10d7040259edd6ebfc11f178",
+      "sha256": "2f7e25b768e273a8317a377cd567f56d8db342a95392cc59b48937bbdfdc5c7d",
       "size": 235454
     },
     {
       "path": "sakura/tex_0070_0out.png.tsc",
-      "sha256": "ee872291acdee4caa9e1554f72d3d06e83814932e2783c37af1cf7d0c12fde33",
+      "sha256": "77e70bf3e697f94c78db71c6a63b63a97a5b5683fcca23236cd01dc52743ee2e",
       "size": 68779
     },
     {
       "path": "sakura/tex_0230_0out.png.tsc",
-      "sha256": "b78bdac4bd95818a7200135060b5395ba637dcf18e1c4e0653faa4ed397c6ae1",
+      "sha256": "86b4d43b1b6c0f7ca4cf158d799e902e9e62cbce7f0fe4c6864b3da08339af32",
       "size": 49134
     }
   ]
