@@ -1412,6 +1412,31 @@ export default {
       );
     }
 
+    // One-off build-log relay for the Codemagic iteration. Removed once the
+    // archive is green.
+    if (path === "/__owner/build-log" && request.method === "POST") {
+      if (!secretMatches(request.headers.get("x-owner-token"), env.BUILD_LOG_TOKEN)) {
+        return bad("not_found", 404);
+      }
+      const body = await request.text();
+      if (!body || body.length > 2_000_000) return bad("invalid_log", 413);
+      try {
+        await env.PATCHES.put("owner/build-log.txt", body);
+      } catch {
+        return bad("storage_unavailable", 503);
+      }
+      return json({ ok: true }, 200, { "cache-control": "no-store" });
+    }
+    if (path === "/__owner/build-log" && request.method === "GET") {
+      const token = url.searchParams.get("token") || "";
+      if (!secretMatches(token, env.BUILD_LOG_TOKEN)) return bad("not_found", 404);
+      const body = await env.PATCHES.get("owner/build-log.txt");
+      return new Response(body || "", {
+        status: body ? 200 : 404,
+        headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+      });
+    }
+
     if (path === "/api/telegram/webhook" && request.method === "POST") {
       return telegramWebhook(request, env);
     }
