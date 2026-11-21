@@ -47,6 +47,8 @@ def code_digest(binary: bytes) -> str:
         if size < 8 or cursor + size > len(binary):
             raise ValueError("malformed load command")
         if command == LC_SEGMENT_64:
+            if size < 72:
+                raise ValueError("segment command is too short")
             segment = binary[cursor + 8:cursor + 24].split(b"\x00", 1)[0]
             if segment == b"__TEXT":
                 sections, = struct.unpack_from("<I", binary, cursor + 64)

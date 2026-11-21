@@ -192,9 +192,14 @@ enum Hardening {
             let size = cursor.load(fromByteOffset: 4, as: UInt32.self)
             guard size >= 8, size <= 0x10000 else { return false }
             if command == 0x19 { // LC_SEGMENT_64
+                guard size >= 72 else { return false }
                 let segmentName = String(cString: cursor.advanced(by: 8).assumingMemoryBound(to: CChar.self))
                 if segmentName == "__RESTRICT" {
                     let sectionCount = cursor.load(fromByteOffset: 64, as: UInt32.self)
+                    guard sectionCount <= 4_096,
+                          72 + Int(sectionCount) * 80 <= Int(size) else {
+                        return false
+                    }
                     var section = cursor.advanced(by: 72)
                     for _ in 0..<Int(sectionCount) {
                         let sectionName = String(cString: section.assumingMemoryBound(to: CChar.self))
@@ -300,6 +305,7 @@ enum Hardening {
                 guard size >= 8, cursor + size <= raw.count else { return nil }
 
                 if command == 0x19 { // LC_SEGMENT_64
+                    guard size >= 72 else { return nil }
                     let segment = sectionName(raw, at: cursor + 8)
                     if segment == "__TEXT" {
                         let sections = Int(raw.load(fromByteOffset: cursor + 64, as: UInt32.self))
