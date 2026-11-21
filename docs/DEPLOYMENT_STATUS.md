@@ -86,14 +86,16 @@ leaves the licence usable and only the sealed art pending.
 
 ## Archive
 
-Codemagic workflow `supportpatch_unsigned_ipa` archived commit `7329a82` on
-build `6b01080d799fbd143cf97363` (2026-11-21). The build compiled with Xcode
+Codemagic workflow `supportpatch_unsigned_ipa` archived commit `8c855a3` on
+build `6b010e0f799fbd143cf98ccc` (2026-11-21). The build compiled with Xcode
 26 after two source fixes: `csops` now resolves through `dlsym` instead of the
 unavailable variadic `syscall`, and the attested key identifier is kept in a
 local so `register` and the Keychain write see a non-optional value. The
 temporary build-log relay used to diagnose the earlier failure has been
 removed from both the Worker and the archive script; its secret and KV entry
-are deleted.
+are deleted. The verify step passed on the archived IPA, including
+`tools/verify_ipa_hardening.py`: the vault is entirely `TSC2`, `__RESTRICT` is
+present, and document sharing is off.
 
 ## Manifest signing key
 
