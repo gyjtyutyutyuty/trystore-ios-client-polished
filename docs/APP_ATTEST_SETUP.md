@@ -1,13 +1,13 @@
 # App Attest rollout and configuration
 
-This implementation is deliberately fail-closed. Until both Workers have their shared internal secret, the license Worker has its verified App ID/environment, and the database migration is applied, TryStore activation cannot open the licensed app session or release the bundle key. No Worker deployment was performed as part of this source change.
+The attested path is deliberately fail-closed: until both Workers have their shared internal secret, the license Worker has its verified App ID/environment, and the database migration is applied, App Attest registration returns nothing and no key leaves the feed on that path. Activation itself is no longer held hostage by attestation: a build that cannot attest requests a rate-limited, licence-bound release instead, which still requires a live licence bound to the same device.
 
 ## Apple Developer and iOS signing
 
 1. In Certificates, Identifiers & Profiles, confirm the App ID for Bundle ID `cc.forcequit.worse-query`, with App Attest enabled. Do not assume that the Team ID is the App ID prefix; the exact identifier must be `APP_ATTEST_APP_ID` in `prefix.cc.forcequit.worse-query` form.
 2. Ensure the provisioning profile includes `com.apple.developer.devicecheck.appattest-environment`. The Xcode target now requests `development` for Debug and `production` for Release. Signing must use matching profiles; production builds must use a production App Attest entitlement.
 3. Test development builds only against a development-configured license Worker/database. Production Workers must set `APP_ATTEST_ENVIRONMENT=production`; production rejects keys registered with a development environment.
-4. App Attest is device-supported only. A simulator or unsupported device will fail closed; there is no legacy key-download fallback.
+4. App Attest is device-supported only. A simulator or a self-signed/unsupported build cannot attest; the client then uses the licence-bound release, which still requires a live licence bound to the device. Attestation tests need physical supported hardware and a matching signing profile.
 
 ## Cloudflare license Worker
 
@@ -24,7 +24,7 @@ The license Worker must be deployed as a bundled ES module that includes `cloudf
 
 ## Verification and rollout
 
-Run the repository’s static and Worker smoke tests listed in `docs/CLIENT_SECURITY.md`. Then test on physical supported iOS hardware with a production-signed build. Confirm: a genuine app can register and request its bundle key; missing/expired licenses fail; an invalid attestation/assertion fails; a challenge cannot be replayed; the assertion counter must advance; production rejects development attestations; the old TryStore GET route returns HTTP 405; and the key is never returned when the internal service or configuration is missing.
+Run the repository’s static and Worker smoke tests listed in `docs/CLIENT_SECURITY.md`. Then test on physical supported iOS hardware with a production-signed build. Confirm: a genuine app can register and request its bundle key; missing/expired licenses fail on both the attested and licence-bound paths; an invalid attestation/assertion fails; a challenge cannot be replayed; the assertion counter must advance; production rejects development attestations; the licence-bound release refuses a different device identifier; the old TryStore GET route returns HTTP 405; and the key is never returned when the internal service or configuration is missing.
 
 App Attest raises the cost of unauthorized API access; it does not make an installable app impossible to inspect, patch, or instrument. Any data or keys delivered to an authorized app remain accessible to a device owner controlling that app.
 
