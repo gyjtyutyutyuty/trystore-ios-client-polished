@@ -1258,25 +1258,45 @@ async function tryStoreLicenseState(request, env, project) {
   const cacheKey = await sha256(new TextEncoder().encode(project + "|" + match[1] + "|" + deviceID));
   if (await readCachedLicence(env, cacheKey)) return GRANTED;
 
+  // The licence Worker rate-limits by caller address. Without this header the
+  // service binding counts every feed request as "unknown", so one busy client
+  // exhausts the 30/min bucket for every other licence check.
+  const headers = { "content-type": "application/json" };
+  const callerIP = request.headers.get("cf-connecting-ip") || "";
+  if (callerIP) headers["cf-connecting-ip"] = callerIP;
+  const payload = JSON.stringify({
+    key: match[1],
+    deviceId: deviceID,
+    projectId: project,
+    appVersion: "1.1.1",
+  });
+
   let result;
-  try {
-    const response = await env.RESELLER.fetch(
-      new Request("https://reseller.internal/api/v1/keys/validate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        // Same payload the app posts, including the version legacy backends want.
-        body: JSON.stringify({
-          key: match[1],
-          deviceId: deviceID,
-          projectId: project,
-          appVersion: "1.1.1",
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await env.RESELLER.fetch(
+        new Request("https://reseller.internal/api/v1/keys/validate", {
+          method: "POST",
+          headers,
+          body: payload,
         }),
-      }),
-    );
-    if (!response.ok) return denial(`license_http_${response.status}`);
-    result = await response.json().catch(() => null);
-  } catch {
-    return denial("license_service_unreachable");
+      );
+      // A rate-limited or cold licence service is transient. Turning it into a
+      // 401 made the client erase a perfectly good cached bundle key, which is
+      // exactly how the downloaded character vault ended up unreadable.
+      if (response.status === 429 || response.status >= 500) {
+        if (attempt === 0) continue;
+        return denial(
+          response.status === 429 ? "license_rate_limited" : `license_http_${response.status}`,
+        );
+      }
+      if (!response.ok) return denial(`license_http_${response.status}`);
+      result = await response.json().catch(() => null);
+      break;
+    } catch {
+      if (attempt === 0) continue;
+      return denial("license_service_unreachable");
+    }
   }
 
   if (!result) return denial("license_service_unreachable");
@@ -1295,7 +1315,8 @@ async function tryStoreLicenseState(request, env, project) {
 function licenceFailure(state) {
   const transient = state.reason === "license_service_unreachable"
     || state.reason === "license_service_unbound"
-    || /^license_http_5\d\d$/.test(state.reason);
+    || state.reason === "license_rate_limited"
+    || /^license_http_(429|5\d\d)$/.test(state.reason);
   return json(
     { valid: false, outcome: state.reason, error: state.reason },
     transient ? 503 : 401,
@@ -1421,6 +1442,9 @@ export default {
     // like every other feed document. The version route is public because the
     // archive step uses it to confirm the published vault matches the feed key.
     if (path === "/api/patches/trystore/character-vault/version" && request.method === "GET") {
+      if (!(await allowFeed(env, "vault-version", feedIP(request), 120, 60))) {
+        return bad("rate_limited", 429);
+      }
       const raw = await env.PATCHES.get(VAULT_MANIFEST_KEY);
       if (!raw) return bad("vault_unavailable", 404);
       try {
@@ -1586,7 +1610,7 @@ export default {
     if (reportMatch && request.method === "POST") {
       const project = projectKey(reportMatch[1]);
       if (!project) return bad("unknown_project", 404);
-      if (!(await allowFeed(env, "report", feedIP(request), 30, 60))) return bad("rate_limited", 429);
+      if (!(await allowFeed(env, "report", feedIP(request), 10, 60))) return bad("rate_limited", 429);
       const licence = await requireTryStoreLicense(request, env, project);
       if (!licence.allowed) return licenceFailure(licence);
       const body = await request.text();
@@ -1598,10 +1622,10 @@ export default {
         return bad("invalid_report", 400);
       }
       const stamp = new Date().toISOString();
+      // One key per project. A timestamped copy turned a free licence into a
+      // KV write amplifier: the daily write quota is 1,000 and the old route
+      // wrote two values per report.
       await env.PATCHES.put(`reports/${project}/latest.json`, body, {
-        expirationTtl: 60 * 60 * 24 * 7,
-      });
-      await env.PATCHES.put(`reports/${project}/${stamp}.json`, body, {
         expirationTtl: 60 * 60 * 24 * 7,
       });
       return json({ ok: true, at: stamp });
