@@ -1429,7 +1429,12 @@ async function verifyDeviceProof(env, request, project) {
     return { ok: false, reason: "device_signature_invalid" };
   }
   if (!env.DB) return { ok: false, reason: "device_signature_unavailable" };
-  const pub = fromB64url(publicKey);
+  let pub;
+  try {
+    pub = fromB64url(publicKey);
+  } catch {
+    return { ok: false, reason: "device_signature_invalid" };
+  }
   if (pub.length !== 65 || pub[0] !== 4) {
     return { ok: false, reason: "device_signature_invalid" };
   }
