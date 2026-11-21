@@ -30,6 +30,7 @@ fi
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
+exec > >(tee "$BUILD_DIR/build.log") 2>&1
 
 # The checked-in XCFramework may lag behind the Rust FFI surface. Rebuild it
 # before Xcode links the app; set REBUILD_AIRLIFT=0 to only validate the archive.
