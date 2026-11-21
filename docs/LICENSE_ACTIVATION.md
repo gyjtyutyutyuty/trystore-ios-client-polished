@@ -38,20 +38,23 @@ installed builds authenticate with their licence key.
 
 ## Device binding and limits
 
-Rate limits are always on: 30/min validate and 10/min bundle key, per IP, in D1
-`api_rate_limits`. Device binding is built but off by default so installed
-builds keep activating. Enable it when you ship a build that can handle
-`device_limit`:
+Rate limits are always on, per IP, in D1 `api_rate_limits`: 30/min validate,
+60/min bundle-key and App Attest assertions. Device binding is enforced by
+default: `/api/v1/keys/validate` records each device against `license_devices`
+and refuses a key once its `max_devices` (default 1) is reached. A deployment
+can opt out with `ENFORCE_DEVICE_BINDING=0`, which is not recommended; it makes
+one key usable on any number of devices. The TryStore bundle key additionally
+requires a registered App Attest key and a fresh assertion.
 
-```
-npx wrangler secret put ENFORCE_DEVICE_BINDING -c wrangler.license.toml   # value 1
-```
-
-Apply the schema either way:
+Apply the schema:
 
 ```
 npx wrangler d1 execute jvztxnx-global-control --remote \
   --file cloudflare/migrations/0001_license_devices.sql -c wrangler.license.toml
+npx wrangler d1 execute jvztxnx-global-control --remote \
+  --file cloudflare/migrations/0002_api_rate_limits.sql -c wrangler.license.toml
+npx wrangler d1 execute jvztxnx-global-control --remote \
+  --file cloudflare/migrations/0003_app_attest.sql -c wrangler.license.toml
 ```
 
 ## Abuse detection
@@ -103,8 +106,9 @@ still matches.
 npx wrangler d1 execute jvztxnx-global-control --remote \
   --file cloudflare/migrations/0003_feed_state.sql -c wrangler.toml
 ```
+
 TryStore downloads approved `.TRYSTORE` packages from the patch feed; the iOS target does not package the patch directory. The bundle key is not returned by the legacy GET route. The client first requests a short-lived challenge, registers a Secure Enclave-backed App Attest key when needed, then sends a fresh assertion bound to the POST bundle-key request. Only a valid license/device record and a valid App Attest assertion release the key. The app fails closed if App Attest is unsupported or the server cannot verify it. See `docs/APP_ATTEST_SETUP.md` for the required server and Apple Developer configuration.
 
-## Device binding
+## App Attest binding
 
 The global-control Worker validates the submitted UUID-form `deviceId` against the D1 `license_devices` table and enforces each key's `max_devices` value. The App Attest key registration is bound to the same license/device row; challenges are one-use and assertion counters are persisted with compare-and-swap updates. Do not embed an admin, internal Worker, or signing secret in the iOS client.
