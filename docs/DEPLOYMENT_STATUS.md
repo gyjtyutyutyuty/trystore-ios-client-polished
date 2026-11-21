@@ -228,3 +228,25 @@ Keep the old secret until installed builds have rolled forward.
 - Still open by design: the device identifier is a client-generated UUID, so a
   jailbroken device can copy it and look like the original. Only App Attest
   closes that; the strict flag is the switch for when every build can attest.
+
+### Device-bound release (2026-11-21)
+
+- `DeviceKey.swift` keeps a P-256 key in the Secure Enclave (software keychain
+  fallback when the SEP is unavailable). The private half never leaves the
+  phone; only the 65-byte public point is sent.
+- `GET /api/patches/trystore/device-challenge` issues a 32-byte, 180-second,
+  single-use challenge to a live licence. The client signs
+  `TryStore device v1\n<challenge>\n<project>\n<device>` with
+  `ecdsaSignatureMessageX962SHA256` and sends the raw 64-byte r||s signature
+  on the licence-bound bundle-key request.
+- `feed_device_keys` (migration `0005`) stores the public half on first use.
+  A later release that presents a different key is rejected with
+  `device_key_mismatch`; a reused challenge with `device_challenge_expired`;
+  a bad signature with `device_signature_invalid`.
+- `REQUIRE_DEVICE_SIGNATURE="1"` rejects a licence-bound release with no proof
+  (`device_signature_required`). Default is `"0"` so the currently installed
+  builds keep working; flip it after the new IPA is on the devices, because
+  an unsigned client then gets no bundle key at all (patches included).
+- Deployed feed `a8639d3b-d929-4be7-a4a0-757637f58867`. The local verifier
+  generates a real P-256 key and covers success, replay, key substitution and
+  strict mode.
