@@ -45,6 +45,8 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "HS SLA PECHO.TRYSTORE", projectName: "HS SLA PECHO", password: nil),
             BundledPatch(resourceName: "TryStore.TRYSTORE", projectName: "TryStore", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO.3105", projectName: "HOLOGRAMA EXCLUSIVO", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil),
             BundledPatch(resourceName: "Cuello y Drag.TRYSTORE", projectName: "Drag con Cuello", password: nil),
             BundledPatch(resourceName: "Pecho3105.TRYSTORE", projectName: "Pecho3105", password: nil),
             BundledPatch(resourceName: "CUELLO3105.TRYSTORE", projectName: "CUELLO3105", password: nil)

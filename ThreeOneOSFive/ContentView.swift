@@ -1033,7 +1033,9 @@ private struct DashboardPatchOption: Identifiable {
     ]
 
     static let visuals = [
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO", title: "HOLOGRAMA EXCLUSIVO", icon: "sparkles", color: .purple, group: .location, packageID: UUID(uuidString: "238F5D33-18AB-448C-9687-9C43D52EB047")!)
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO", title: "HOLOGRAMA EXCLUSIVO", icon: "sparkles", color: .purple, group: .location, packageID: UUID(uuidString: "238F5D33-18AB-448C-9687-9C43D52EB047")!),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "sparkles", color: .green, group: .location, packageID: UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!),
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "sparkles", color: .pink, group: .location, packageID: UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!)
     ]
 
     static let antena = [
@@ -2075,7 +2077,7 @@ private extension FreeFireGame {
     }
 
     var locationProjectNames: [String] {
-        ["HOLOGRAMA EXCLUSIVO"]
+        ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"]
     }
 
     var openGameKey: String {

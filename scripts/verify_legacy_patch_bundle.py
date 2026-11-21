@@ -33,6 +33,17 @@ BUNDLED = {
     "CUELLO3105.TRYSTORE": "CUELLO3105",
 }
 
+LEGACY_VARIANTS = {
+    "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": (
+        "HOLOGRAMA EXCLUSIVO VERDE",
+        "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10",
+    ),
+    "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": (
+        "HOLOGRAMA EXCLUSIVO ROSADO",
+        "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20",
+    ),
+}
+
 
 def fail(message: str) -> None:
     raise SystemExit(f"FAIL: {message}")
@@ -180,11 +191,46 @@ def check_source() -> None:
                 f"package ID missing from envelope: {filename}")
         canonical_ids[project_name] = metadata["packageID"].upper()
 
-    # The location slot is one package now. Legacy Verde/Rosado identities stay
-    # in the app map only so an already-installed copy can still be recognized;
-    # they are not part of the shipped catalog.
-    require(len(set(canonical_ids.values())) == len(BUNDLED),
-            "bundled packages do not have unique installed package IDs")
+    for filename, (project_name, package_id) in LEGACY_VARIANTS.items():
+        require(
+            f'BundledPatch(resourceName: "{filename}", projectName: "{project_name}"' in store,
+            f"remote catalog is missing {filename}",
+        )
+        source = PATCH_DIR / filename
+        require(source.is_file() and source.stat().st_size > 0,
+                f"missing source patch: {filename}")
+        metadata = package_metadata(filename)
+        require(metadata.get("schemaVersion") == 9,
+                f"legacy exclusive package schema changed unexpectedly: {filename}")
+        require(metadata.get("isPasswordProtected") is False
+                and metadata.get("wrappingScheme") == "bundle"
+                and metadata.get("publicContentKey") is None,
+                f"legacy exclusive package envelope is not safely wrapped: {filename}")
+        require(f'"{filename}": "{project_name}"' in library,
+                f"legacy feed identity mapping is missing for {filename}")
+        require(
+            f'"{project_name}": UUID(uuidString: "{package_id}")!' in library
+            and f'UUID(uuidString: "{package_id}")!: "{project_name}.TRYSTORE"' in library,
+            f"canonical project identity is missing for {project_name}",
+        )
+        canonical_ids[project_name] = package_id
+
+    catalog = dict(BUNDLED)
+    catalog.update({filename: project_name for filename, (project_name, _) in LEGACY_VARIANTS.items()})
+    location_names = re.search(
+        r"var locationProjectNames: \[String\] \{\s*\[(.*?)\]\s*\}",
+        app,
+        re.S,
+    )
+    require(location_names is not None, "location patch catalog is missing")
+    for project_name, _ in LEGACY_VARIANTS.values():
+        require(f'"{project_name}"' in location_names.group(1),
+                f"location patch list is missing {project_name}")
+
+    require(len({canonical_ids[name] for name in BUNDLED.values()}) == len(BUNDLED),
+            "canonical source packages do not have unique installed package IDs")
+    require(len(set(canonical_ids.values())) == len(catalog),
+            "catalog packages do not have unique installed package IDs")
 
     normal_path = (
         "Documents/contentcache/Compulsory/ios/gameassetbundles/avatar/"
@@ -238,7 +284,7 @@ def check_source() -> None:
             require(package_id in all_expected_ids,
                     f"button {option_name} points to an unknown package ID {package_id}")
 
-    for filename, canonical_name in BUNDLED.items():
+    for filename, canonical_name in catalog.items():
         expected_id = canonical_ids[canonical_name]
         name_targets = [name for name, package_id in options
                         if package_id is None and name == canonical_name]
@@ -339,7 +385,10 @@ def check_source() -> None:
             require(expected == payload_fingerprint(normalized),
                     f"payload fingerprint seed is stale for {filename}")
 
-    print(f"PASS: {len(BUNDLED)} source packages have unique mappings, aligned paths, and authenticated remote delivery wiring")
+    print(
+        f"PASS: {len(BUNDLED)} canonical and {len(LEGACY_VARIANTS)} legacy visual packages "
+        "have unique app mappings and authenticated remote delivery wiring"
+    )
 
 
 def check_app(app: Path) -> None:
@@ -354,7 +403,8 @@ def check_app(app: Path) -> None:
                  and path.suffix.lower() in {".trystore", ".3105"}]
     require(not forbidden, f"patch package files found in IPA: {forbidden[:3]}")
     require(not (app / "Patches").exists(), "Patches folder still exists in the app bundle")
-    print(f"PASS: IPA contains no local patch packages; all {len(BUNDLED)} packages are fetched remotely")
+    catalog_count = len(BUNDLED) + len(LEGACY_VARIANTS)
+    print(f"PASS: IPA contains no local patch packages; all {catalog_count} packages are fetched remotely")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
