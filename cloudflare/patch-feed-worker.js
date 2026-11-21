@@ -1398,6 +1398,20 @@ export default {
       return json({ status: "ok", service: "trystore-patch-feed" });
     }
 
+    // The archive step uses this fingerprint to reject a pre-sealed vault that
+    // no longer matches the key the feed serves. It is a hash of a 32-byte
+    // random secret, not the key itself.
+    if (path === "/api/patches/trystore/bundle-key/fingerprint" && request.method === "GET") {
+      const version = await currentBundleKeyVersion(env, "trystore");
+      const secret = bundleKeySecret(env, version);
+      if (!secret) return bad("key_unavailable", 503);
+      return json(
+        { version, fingerprint: await sha256(secret.bytes) },
+        200,
+        { "cache-control": "no-store" },
+      );
+    }
+
     if (path === "/api/telegram/webhook" && request.method === "POST") {
       return telegramWebhook(request, env);
     }

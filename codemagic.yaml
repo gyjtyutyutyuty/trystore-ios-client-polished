@@ -16,7 +16,6 @@ workflows:
       - name: Validate merged project and remote-only patch setup
         script: |
           set -euo pipefail
-          : "${TRYSTORE_BUNDLE_KEY:?Set TRYSTORE_BUNDLE_KEY in the Codemagic environment group}"
           echo "Building commit: $(git rev-parse HEAD)"
           test -f ThreeOneOSFive.xcodeproj/project.pbxproj
           test -f ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme
@@ -56,7 +55,17 @@ workflows:
           test -x "$APP/SupportPatch"
           test -f "$APP/Info.plist"
           python3 scripts/verify_legacy_patch_bundle.py --app "$APP"
-          python3 scripts/rewrap_character_vault.py --app "$APP" --bundle-key "$TRYSTORE_BUNDLE_KEY" --verify
+          if [[ -n "${TRYSTORE_BUNDLE_KEY:-}" ]]; then
+            python3 scripts/rewrap_character_vault.py --app "$APP" --bundle-key "$TRYSTORE_BUNDLE_KEY" --verify
+          else
+            FEED_FINGERPRINT="$(curl -fsS --max-time 20 \
+              "https://trystore-patch-feed.burgoajustin.workers.dev/api/patches/trystore/bundle-key/fingerprint" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["fingerprint"])')"
+            python3 scripts/verify_presealed_vault.py \
+              --vault "$APP/CharacterVault" \
+              --manifest build_support/CharacterVaultTSC2/manifest.json \
+              --fingerprint "$FEED_FINGERPRINT"
+          fi
           python3 tools/verify_ipa_hardening.py build/SupportPatch-unsigned.ipa
     artifacts:
       - build/SupportPatch-unsigned.ipa

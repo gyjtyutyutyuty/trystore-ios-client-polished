@@ -2,6 +2,7 @@
 // Mock-only access-control smoke test for cloudflare/patch-feed-worker.js.
 // Run after `npm ci --prefix cloudflare` with `node scripts/verify_patch_feed_worker.mjs`.
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { mkdtemp, copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -108,6 +109,18 @@ try {
   let response = await worker.fetch(request('/api/patches/trystore/manifest.json'), env);
   check('TryStore manifest denies requests without a license', response.status === 401);
   check('missing credentials do not call license validation', validationCalls === 0);
+
+  const expectedFingerprint = createHash('sha256').update(Buffer.alloc(32, 0xab)).digest('hex');
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key/fingerprint'), env);
+  const fingerprintBody = await response.json();
+  check('key fingerprint route publishes the served key hash', response.status === 200
+    && fingerprintBody.version === '1'
+    && fingerprintBody.fingerprint === expectedFingerprint);
+  response = await worker.fetch(request('/api/patches/trystore/bundle-key/fingerprint'), {
+    ...env,
+    APP_BUNDLE_KEY: '',
+  });
+  check('fingerprint route fails closed without a key', response.status === 503);
 
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', {
     authorization: 'Bearer REVOKED-KEY-001',
