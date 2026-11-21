@@ -32,6 +32,10 @@ PATCH_ADMIN_IDS = "7551063281,5869209007"
 # completed App Attest. Keep "0" while sideloaded installs are in use; flip it
 # once every customer build attests.
 REQUIRE_VAULT_ATTESTATION = "0"
+# Device-signed key release. "1" rejects a licence-bound bundle-key request
+# that does not carry a valid P-256 challenge signature. Keep "0" until the
+# build with DeviceKey.swift is installed on the devices that need the vault.
+REQUIRE_DEVICE_SIGNATURE = "0"
 # Per-licence hourly fetch budgets. The subject is a hash of licence+device, so
 # changing IP does not reset the count.
 VAULT_MANIFEST_LIMIT_PER_HOUR = "24"

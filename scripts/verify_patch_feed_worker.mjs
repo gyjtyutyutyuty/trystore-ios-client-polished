@@ -348,6 +348,119 @@ try {
   check('per-licence vault budget rejects a scraper',
     response.status === 429 && (await response.json()).error === 'fetch_quota_exceeded');
 
+  // Device proof: a licence-bound release can be tied to a P-256 key that
+  // never leaves the phone. The challenge is single-use and the stored public
+  // half must match on every later release.
+  const deviceRows = new Map();
+  const deviceDb = {
+    prepare(sql) {
+      let args = [];
+      return {
+        bind(...values) { args = values; return this; },
+        async first() {
+          if (sql.includes('feed_key_state')) return { key_version: '2' };
+          if (sql.includes('feed_auth_cache')) return { expires_at: 9_999_999_999 };
+          if (sql.includes('feed_rate_limits')) return { count: 0 };
+          if (sql.includes('feed_device_keys')) {
+            const row = deviceRows.get(args[0]);
+            return row ? { ...row } : null;
+          }
+          return null;
+        },
+        async run() {
+          if (sql.includes('INSERT INTO feed_device_keys')) {
+            const [subject, challenge, expiresAt, createdAt] = args;
+            const row = deviceRows.get(subject) || { public_key: null, created_at: createdAt };
+            row.challenge = challenge;
+            row.challenge_expires_at = expiresAt;
+            deviceRows.set(subject, row);
+          } else if (sql.includes('UPDATE feed_device_keys SET public_key')) {
+            const [publicKey, subject] = args;
+            const row = deviceRows.get(subject);
+            if (row) {
+              row.public_key = publicKey;
+              row.challenge = null;
+              row.challenge_expires_at = 0;
+            }
+          }
+          return { success: true };
+        },
+        async all() { return { results: [] }; },
+      };
+    },
+  };
+  const deviceEnv = { ...env, DB: deviceDb, APP_BUNDLE_KEY_V2: Buffer.alloc(32, 2).toString('base64') };
+  const deviceKey = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
+  );
+  const devicePublicKey = Buffer.from(
+    await crypto.subtle.exportKey('raw', deviceKey.publicKey),
+  ).toString('base64');
+  const deviceMessage = (challenge) =>
+    Buffer.from(`TryStore device v1\n${challenge}\ntrystore\n${deviceID}`);
+  const signChallenge = async (challenge, key = deviceKey.privateKey) => Buffer.from(
+    await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, deviceMessage(challenge)),
+  ).toString('base64');
+  const signedHeaders = async (challenge, publicKey = devicePublicKey, key = deviceKey.privateKey) => ({
+    ...authorizedHeaders,
+    'x-trystore-attestation-mode': 'licence',
+    'x-trystore-device-public-key': publicKey,
+    'x-trystore-device-signature': await signChallenge(challenge, key),
+    'x-trystore-challenge': challenge,
+  });
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/device-challenge', authorizedHeaders),
+    deviceEnv,
+  );
+  const challengeBody = await response.json();
+  check('device challenge is issued to a live licence', response.status === 200
+    && typeof challengeBody.challenge === 'string' && challengeBody.challenge.length > 20);
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/bundle-key', await signedHeaders(challengeBody.challenge), 'POST', {}),
+    deviceEnv,
+  );
+  check('signed release binds the licence to the device key', response.status === 200);
+  check('device public key is stored on first signed release',
+    [...deviceRows.values()][0]?.public_key === devicePublicKey);
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/bundle-key', await signedHeaders(challengeBody.challenge), 'POST', {}),
+    deviceEnv,
+  );
+  check('replayed device challenge is refused',
+    response.status === 401 && (await response.json()).error === 'device_challenge_expired');
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/device-challenge', authorizedHeaders),
+    deviceEnv,
+  );
+  const secondChallenge = (await response.json()).challenge;
+  const otherKey = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
+  );
+  const otherPublicKey = Buffer.from(
+    await crypto.subtle.exportKey('raw', otherKey.publicKey),
+  ).toString('base64');
+  response = await worker.fetch(
+    request('/api/patches/trystore/bundle-key',
+      await signedHeaders(secondChallenge, otherPublicKey, otherKey.privateKey), 'POST', {}),
+    deviceEnv,
+  );
+  check('a different device key cannot inherit the licence',
+    response.status === 401 && (await response.json()).error === 'device_key_mismatch');
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/bundle-key', {
+      ...authorizedHeaders,
+      'x-trystore-attestation-mode': 'licence',
+    }, 'POST', {}),
+    { ...deviceEnv, REQUIRE_DEVICE_SIGNATURE: '1' },
+  );
+  check('strict device mode rejects an unsigned release',
+    response.status === 401 && (await response.json()).error === 'device_signature_required');
+
   // Bundle-key rotation: the served version lives in D1, so retiring a key does
   // not need a deploy, and a missing secret must fail closed instead of falling
   // back to the retired one.

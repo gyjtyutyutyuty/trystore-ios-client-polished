@@ -1389,6 +1389,95 @@ async function withinLicenceFetchBudget(env, bucket, request, project, limit) {
   const subject = await licenceSubject("fetch|" + bucket, match[1], device);
   return allowFeed(env, "licence-" + bucket, subject, limit, 3_600);
 }
+
+async function deviceSubject(project, key, device) {
+  return licenceSubject("device|" + project, key, device);
+}
+
+async function issueDeviceChallenge(env, subject) {
+  if (!env.DB) return null;
+  const challenge = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  try {
+    await env.DB.prepare(
+      "INSERT INTO feed_device_keys(subject,public_key,challenge,challenge_expires_at,created_at) " +
+      "VALUES(?1,NULL,?2,?3,?4) ON CONFLICT(subject) DO UPDATE SET " +
+      "challenge=excluded.challenge, challenge_expires_at=excluded.challenge_expires_at",
+    ).bind(subject, challenge, nowSeconds() + 180, nowSeconds()).run();
+    return challenge;
+  } catch {
+    return null;
+  }
+}
+
+// A request with no proof headers passes only while the strict flag is off; a
+// request that carries them is always verified, so a new client never trades
+// the hardware binding away by accident.
+async function verifyDeviceProof(env, request, project) {
+  const required = String(env.REQUIRE_DEVICE_SIGNATURE || "") === "1";
+  const keyMatch = (request.headers.get("authorization") || "")
+    .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+  const device = String(request.headers.get("x-trystore-device-id") || "");
+  const publicKey = String(request.headers.get("x-trystore-device-public-key") || "").trim();
+  const signature = String(request.headers.get("x-trystore-device-signature") || "").trim();
+  const challenge = String(request.headers.get("x-trystore-challenge") || "").trim();
+  if (!publicKey && !signature && !challenge) {
+    return required
+      ? { ok: false, reason: "device_signature_required" }
+      : { ok: true, skipped: true };
+  }
+  if (!keyMatch || !DEVICE_ID_PATTERN.test(device) || !publicKey || !signature || !challenge) {
+    return { ok: false, reason: "device_signature_invalid" };
+  }
+  if (!env.DB) return { ok: false, reason: "device_signature_unavailable" };
+  const pub = fromB64url(publicKey);
+  if (pub.length !== 65 || pub[0] !== 4) {
+    return { ok: false, reason: "device_signature_invalid" };
+  }
+  const subject = await deviceSubject(project, keyMatch[1], device);
+  let row = null;
+  try {
+    row = await env.DB.prepare(
+      "SELECT public_key, challenge, challenge_expires_at FROM feed_device_keys WHERE subject=?1",
+    ).bind(subject).first();
+  } catch {
+    return { ok: false, reason: "device_signature_unavailable" };
+  }
+  if (!row || !row.challenge || row.challenge !== challenge
+      || Number(row.challenge_expires_at || 0) <= nowSeconds()) {
+    return { ok: false, reason: "device_challenge_expired" };
+  }
+  if (row.public_key && row.public_key !== publicKey) {
+    return { ok: false, reason: "device_key_mismatch" };
+  }
+  const message = new TextEncoder().encode(
+    `TryStore device v1\n${challenge}\n${project}\n${device}`,
+  );
+  let valid = false;
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      pub,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["verify"],
+    );
+    valid = await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      fromB64url(signature),
+      message,
+    );
+  } catch {
+    valid = false;
+  }
+  if (!valid) return { ok: false, reason: "device_signature_invalid" };
+  try {
+    await env.DB.prepare(
+      "UPDATE feed_device_keys SET public_key=?1, challenge=NULL, challenge_expires_at=0 WHERE subject=?2",
+    ).bind(publicKey, subject).run();
+  } catch {}
+  return { ok: true };
+}
 const TRY_STORE_DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 async function proxyAppAttest(request, env, endpoint) {
   if (request.method !== "POST") return bad("method_not_allowed", 405);
@@ -1487,6 +1576,31 @@ export default {
         200,
         { "cache-control": "no-store" },
       );
+    }
+
+    // Device proof challenge. Only a live licence can ask for one, and the
+    // signed answer is what the licence-bound bundle-key release verifies.
+    if (path === "/api/patches/trystore/device-challenge" && request.method === "GET") {
+      if (!(await allowFeed(env, "device-challenge", feedIP(request), 30, 60))) {
+        return bad("rate_limited", 429);
+      }
+      const licence = await requireTryStoreLicense(request, env, "trystore");
+      if (!licence.allowed) return licenceFailure(licence);
+      const keyMatch = (request.headers.get("authorization") || "")
+        .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+      const device = String(request.headers.get("x-trystore-device-id") || "");
+      if (!keyMatch || !DEVICE_ID_PATTERN.test(device)) {
+        return bad("credentials_missing", 401);
+      }
+      const challenge = await issueDeviceChallenge(
+        env,
+        await deviceSubject("trystore", keyMatch[1], device),
+      );
+      if (!challenge) return bad("device_challenge_unavailable", 503);
+      return json({ challenge }, 200, {
+        "cache-control": "no-store",
+        vary: "authorization, x-trystore-device-id",
+      });
     }
 
     // The character vault is no longer inside the IPA. Its sealed blobs live
@@ -1646,6 +1760,13 @@ export default {
         }
         const licence = await requireTryStoreLicense(request, env, project);
         if (!licence.allowed) return licenceFailure(licence);
+        const proof = await verifyDeviceProof(env, request, project);
+        if (!proof.ok) {
+          return json({ valid: false, outcome: proof.reason, error: proof.reason }, 401, {
+            "cache-control": "no-store",
+            vary: "authorization, x-trystore-device-id",
+          });
+        }
       } else {
         const authorization = await proxyAppAttest(
           request,
