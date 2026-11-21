@@ -38,6 +38,19 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
+# Release art must not carry the historical static TSC1 key. Re-seal every
+# CharacterVault blob under the server-released bundle key. Local debug builds
+# can opt out with ALLOW_TSC1_VAULT=1; CI and release archives cannot.
+if [[ -n "${TRYSTORE_BUNDLE_KEY:-}" ]]; then
+  python3 "$ROOT/scripts/rewrap_character_vault.py" \
+    --app "$APP" --bundle-key "$TRYSTORE_BUNDLE_KEY"
+elif [[ "${ALLOW_TSC1_VAULT:-0}" == "1" ]]; then
+  echo "Warning: shipping TSC1 CharacterVault (ALLOW_TSC1_VAULT=1)" >&2
+else
+  echo "Error: TRYSTORE_BUNDLE_KEY is required to seal CharacterVault for release." >&2
+  exit 1
+fi
+
 python3 "$ROOT/scripts/verify_legacy_patch_bundle.py" --app "$APP"
 plutil -replace CFBundleExecutable -string SupportPatch "$APP/Info.plist"
 plutil -replace CFBundlePackageType -string APPL "$APP/Info.plist"

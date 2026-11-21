@@ -78,6 +78,12 @@ const env = {
   },
 };
 
+const manifestSigning = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+env.MANIFEST_SIGNING_KEY = Buffer.from(
+  await crypto.subtle.exportKey('pkcs8', manifestSigning.privateKey),
+).toString('base64');
+env.FEED_TOKEN_SECRET = 'feed-token-secret-'.padEnd(48, 'x');
+
 let failures = 0;
 const check = (name, condition) => {
   console.log(`${condition ? 'ok  ' : 'FAIL'} ${name}`);
@@ -111,6 +117,7 @@ try {
 
   response = await worker.fetch(request('/api/patches/trystore/manifest.json', authorizedHeaders), env);
   check('active license receives the TryStore manifest', response.status === 200);
+  check('manifest carries a detached signature', (response.headers.get('x-trystore-signature') || '').length > 40);
   check('license validation uses the TryStore project scope', validationCalls === 2);
 
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', authorizedHeaders), env);
@@ -145,6 +152,16 @@ try {
   check('valid authorization returns the wrapped key without caching', response.status === 200
     && keyResponse.valid === true && keyResponse.key === env.APP_BUNDLE_KEY
     && response.headers.get('cache-control') === 'no-store');
+  check('bundle key carries a short-lived feed token', typeof keyResponse.feedToken === 'string'
+    && keyResponse.feedToken.includes('.') && typeof keyResponse.expiresAt === 'string');
+
+  const validationsBeforeToken = validationCalls;
+  response = await worker.fetch(request('/api/patches/trystore/manifest.json', {
+    'x-trystore-device-id': deviceID,
+    'x-trystore-feed-token': keyResponse.feedToken,
+  }), env);
+  check('feed token authorizes the manifest without another licence lookup', response.status === 200
+    && validationCalls === validationsBeforeToken);
 
   const missingSecretEnv = { ...env, APP_ATTEST_INTERNAL_TOKEN: '' };
   response = await worker.fetch(request('/api/patches/trystore/bundle-key', authorizedHeaders, 'POST', {

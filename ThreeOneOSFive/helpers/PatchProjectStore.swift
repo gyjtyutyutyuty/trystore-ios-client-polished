@@ -101,8 +101,13 @@ final class PatchProjectStore: ObservableObject {
                 } catch PatchBundleKeyError.unavailable where PatchBundleKeyStore.cachedKey() != nil {
                     log("patch: bundle key refresh unavailable, using the cached key")
                 }
+                let refreshed = PatchFeedCredentials(
+                    licenseKey: credentials.licenseKey,
+                    deviceID: credentials.deviceID,
+                    feedToken: PatchBundleKeyStore.cachedFeedToken()
+                )
                 let resources = try await PatchResourceBundle.load(
-                    credentials: credentials,
+                    credentials: refreshed,
                     expected: self.game.bundledPatches
                 )
                 for obsolete in [

@@ -36,6 +36,8 @@ PATCH_ADMIN_IDS = "7551063281,5869209007"
 #   APP_BUNDLE_KEY            32-byte base64 key version 1
 #   APP_BUNDLE_KEY_V2         32-byte base64 key version 2, used after /rotate
 #   APP_ATTEST_INTERNAL_TOKEN must be the same random 32+ character secret on both Workers
+#   FEED_TOKEN_SECRET        32+ random characters; signs the short-lived feed token
+#   MANIFEST_SIGNING_KEY     base64 PKCS#8 Ed25519 key; public half is pinned in the app
 #
 # Bundle-key rotation is a data change, not a deploy: set the next secret, run
 # `/rotate trystore 2` in the admin bot, and only then delete the retired key.

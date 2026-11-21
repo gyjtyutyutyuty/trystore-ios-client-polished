@@ -17,6 +17,9 @@ enum PatchBundleKeyError: Error {
 enum PatchBundleKeyStore {
     private static let service = "cc.forcequit.worse-query.patch-bundle"
     private static let account = "bundle-key-v1"
+    private static let expiryAccount = "bundle-key-expiry-v1"
+    private static let feedTokenAccount = "feed-token-v1"
+    private static let feedTokenExpiryAccount = "feed-token-expiry-v1"
     private static let appAttestAccount = "app-attest-key-id-v1"
     private static let expectedHost = "trystore-patch-feed.burgoajustin.workers.dev"
     private static let bundleKeyPath = "/api/patches/trystore/bundle-key"
@@ -37,15 +40,33 @@ enum PatchBundleKeyStore {
         let valid: Bool
         let key: String
         let keyVersion: String?
+        let expiresAt: String?
+        let feedToken: String?
+        let tokenExpiresAt: String?
     }
 
     static func cachedKey() -> Data? {
         lock.lock()
         defer { lock.unlock() }
+        guard validUntil(account: expiryAccount) else {
+            cached = nil
+            deleteKeychainItem(account: account)
+            return nil
+        }
         if let cached, cached.count == 32 { return cached }
         guard let stored = readKeychain(account: account), stored.count == 32 else { return nil }
         cached = stored
         return stored
+    }
+
+    /// Short-lived token issued with the bundle key. The feed accepts it for
+    /// manifests and blobs without re-running the licence check per request.
+    static func cachedFeedToken() -> String? {
+        guard validUntil(account: feedTokenExpiryAccount) else {
+            deleteKeychainItem(account: feedTokenAccount)
+            return nil
+        }
+        return readStringKeychain(account: feedTokenAccount)
     }
 
     static func refresh(licenseKey: String, deviceID: String) async throws {
@@ -109,6 +130,16 @@ enum PatchBundleKeyStore {
             throw PatchBundleKeyError.attestationRejected
         }
         try store(keyData)
+        let keyExpiry = epoch(from: response.expiresAt) ?? (Date().timeIntervalSince1970 + 86_400)
+        try storeString(String(Int(keyExpiry)), account: expiryAccount)
+        if let token = response.feedToken, !token.isEmpty,
+           let tokenExpiry = epoch(from: response.tokenExpiresAt) {
+            try storeString(token, account: feedTokenAccount)
+            try storeString(String(Int(tokenExpiry)), account: feedTokenExpiryAccount)
+        } else {
+            deleteKeychainItem(account: feedTokenAccount)
+            deleteKeychainItem(account: feedTokenExpiryAccount)
+        }
         lock.lock()
         cached = keyData
         lock.unlock()
@@ -124,6 +155,24 @@ enum PatchBundleKeyStore {
         cached = nil
         lock.unlock()
         deleteKeychainItem(account: account)
+        deleteKeychainItem(account: expiryAccount)
+        deleteKeychainItem(account: feedTokenAccount)
+        deleteKeychainItem(account: feedTokenExpiryAccount)
+    }
+
+    private static func validUntil(account: String) -> Bool {
+        guard let raw = readStringKeychain(account: account), let expiry = Double(raw) else {
+            return false
+        }
+        return expiry > Date().timeIntervalSince1970
+    }
+
+    private static func epoch(from value: String?) -> TimeInterval? {
+        guard let value, !value.isEmpty else { return nil }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) { return date.timeIntervalSince1970 }
+        return ISO8601DateFormatter().date(from: value)?.timeIntervalSince1970
     }
 
     private static func feedBaseURL() -> URL? {

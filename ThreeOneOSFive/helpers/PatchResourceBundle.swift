@@ -4,6 +4,7 @@ import Foundation
 struct PatchFeedCredentials: Sendable {
     let licenseKey: String
     let deviceID: String
+    let feedToken: String?
 }
 
 enum PatchFeedError: Error {
@@ -17,6 +18,8 @@ enum PatchFeedError: Error {
 enum PatchResourceBundle {
     private static let expectedHost = "trystore-patch-feed.burgoajustin.workers.dev"
     private static let maximumPackageSize = 8 * 1024 * 1024
+    private static let signatureHeader = "x-trystore-signature"
+    private static let manifestPublicKeyBase64 = "RrxJgZTY9C41WTQyO6+XNHmXp4jI7p6H2ppKwj2qC2o="
 
     private struct Manifest: Decodable {
         let project: String
@@ -62,8 +65,10 @@ enum PatchResourceBundle {
                 )
                 guard let manifestHTTP = manifestResponse as? HTTPURLResponse,
                       manifestHTTP.statusCode == 200,
-                      manifestHTTP.url?.host?.lowercased() == expectedHost else {
-                    throw PatchFeedError.unavailable
+                      manifestHTTP.url?.host?.lowercased() == expectedHost,
+                      let signature = manifestHTTP.value(forHTTPHeaderField: signatureHeader),
+                      verifyManifest(data: data, signature: signature) else {
+                    throw PatchFeedError.invalidManifest
                 }
                 manifestData = data
                 break
@@ -139,6 +144,23 @@ enum PatchResourceBundle {
         return resources
     }
 
+    private static func verifyManifest(data: Data, signature: String) -> Bool {
+        guard let keyData = Data(base64Encoded: manifestPublicKeyBase64),
+              let key = try? Curve25519.Signing.PublicKey(rawRepresentation: keyData),
+              let signatureData = decodeBase64URL(signature),
+              signatureData.count == 64 else {
+            return false
+        }
+        return key.isValidSignature(signatureData, for: data)
+    }
+
+    private static func decodeBase64URL(_ value: String) -> Data? {
+        var normalized = value.replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while normalized.count % 4 != 0 { normalized.append("=") }
+        return Data(base64Encoded: normalized)
+    }
+
     private static func authenticatedRequest(
         url: URL,
         credentials: PatchFeedCredentials
@@ -149,6 +171,9 @@ enum PatchResourceBundle {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(credentials.licenseKey)", forHTTPHeaderField: "Authorization")
         request.setValue(credentials.deviceID, forHTTPHeaderField: "X-TryStore-Device-ID")
+        if let token = credentials.feedToken, !token.isEmpty {
+            request.setValue(token, forHTTPHeaderField: "X-TryStore-Feed-Token")
+        }
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         request.setValue("application/octet-stream, application/json", forHTTPHeaderField: "Accept")
         return request

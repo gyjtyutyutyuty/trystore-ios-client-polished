@@ -53,7 +53,11 @@ final class LicenseManager: ObservableObject {
               let identifier = try? deviceID(), !identifier.isEmpty else {
             return nil
         }
-        return PatchFeedCredentials(licenseKey: key, deviceID: identifier)
+        return PatchFeedCredentials(
+            licenseKey: key,
+            deviceID: identifier,
+            feedToken: PatchBundleKeyStore.cachedFeedToken()
+        )
     }
 
     func beginLaunchSession() {

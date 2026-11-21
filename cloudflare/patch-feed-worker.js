@@ -76,6 +76,33 @@ const secretMatches = (supplied, expected) => {
 
 const bad = (message, status = 400) => json({ error: message }, status);
 
+async function signManifest(env, bytes) {
+  const raw = String(env.MANIFEST_SIGNING_KEY || "").trim();
+  if (!raw) return null;
+  try {
+    const der = Uint8Array.from(atob(raw), (character) => character.charCodeAt(0));
+    const key = await crypto.subtle.importKey("pkcs8", der, { name: "Ed25519" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign({ name: "Ed25519" }, key, bytes);
+    return b64url(signature);
+  } catch {
+    return null;
+  }
+}
+
+async function signedJson(env, value, status = 200, headers = {}) {
+  const body = JSON.stringify(value);
+  const signature = await signManifest(env, new TextEncoder().encode(body));
+  if (!signature) return bad("manifest_signing_unavailable", 503);
+  return new Response(body, {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "x-trystore-signature": signature,
+      ...headers,
+    },
+  });
+}
+
 const esc = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -1112,6 +1139,74 @@ const DEVICE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a
 // minutes. Denials are never cached: a revoked key must stop immediately.
 const GRANTED = Object.freeze({ allowed: true, reason: "active" });
 
+const FEED_TOKEN_TTL = 600;
+const FEED_KEY_TTL = 86_400;
+
+function b64url(bytes) {
+  let binary = "";
+  for (const byte of new Uint8Array(bytes)) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function fromB64url(value) {
+  const normalized = String(value || "").replaceAll("-", "+").replaceAll("_", "/");
+  const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+}
+
+async function feedTokenMaterial(env) {
+  const secret = String(env.FEED_TOKEN_SECRET || "");
+  if (secret.length < 32) return null;
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+async function mintFeedToken(env, project, device, keyVersion) {
+  const key = await feedTokenMaterial(env);
+  if (!key) return null;
+  const issuedAt = nowSeconds();
+  const payload = JSON.stringify({
+    v: 1,
+    project,
+    device,
+    keyVersion: String(keyVersion),
+    iat: issuedAt,
+    exp: issuedAt + FEED_TOKEN_TTL,
+  });
+  const body = b64url(new TextEncoder().encode(payload));
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  return { token: `${body}.${b64url(signature)}`, expiresAt: issuedAt + FEED_TOKEN_TTL };
+}
+
+async function verifyFeedToken(env, token, project, device) {
+  const [body, signature] = String(token || "").split(".");
+  if (!body || !signature) return false;
+  const key = await feedTokenMaterial(env);
+  if (!key) return false;
+  const raw = fromB64url(signature);
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    raw,
+    new TextEncoder().encode(body),
+  );
+  if (!valid) return false;
+  try {
+    const claims = JSON.parse(new TextDecoder().decode(fromB64url(body)));
+    return claims.v === 1
+      && claims.project === project
+      && claims.device === device
+      && Number(claims.exp) > nowSeconds();
+  } catch {
+    return false;
+  }
+}
+
 function denial(reason) {
   return { allowed: false, reason };
 }
@@ -1210,6 +1305,11 @@ const LICENSED_PATCH_PROJECTS = new Set(["trystore", "apple-music"]);
 
 async function requireTryStoreLicense(request, env, project) {
   if (!LICENSED_PATCH_PROJECTS.has(project)) return { allowed: true, reason: "public_project" };
+  const token = request.headers.get("x-trystore-feed-token") || "";
+  const device = request.headers.get("x-trystore-device-id") || "";
+  if (token && await verifyFeedToken(env, token, project, device)) {
+    return { allowed: true, reason: "feed_token" };
+  }
   return tryStoreLicenseState(request, env, project);
 }
 const TRY_STORE_DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1317,7 +1417,7 @@ export default {
       const licence = await requireTryStoreLicense(request, env, project);
       if (!licence.allowed) return licenceFailure(licence);
       const manifest = await readManifest(env, project);
-      return json(manifest, 200, { "cache-control": "no-store" });
+      return signedJson(env, manifest, 200, { "cache-control": "no-store" });
     }
 
     // App Attest is mandatory before TryStore's wrapped content key is released.
@@ -1359,7 +1459,18 @@ export default {
       const version = await currentBundleKeyVersion(env, project);
       const secret = bundleKeySecret(env, version);
       if (!secret) return bad("key_unavailable", 503);
-      return json({ valid: true, key: secret.encoded, keyVersion: version }, 200, {
+      const device = String(request.headers.get("x-trystore-device-id") || "");
+      const minted = await mintFeedToken(env, project, device, version);
+      const expiresAt = new Date((nowSeconds() + FEED_KEY_TTL) * 1000).toISOString();
+      return json({
+        valid: true,
+        key: secret.encoded,
+        keyVersion: version,
+        expiresAt,
+        ...(minted
+          ? { feedToken: minted.token, tokenExpiresAt: new Date(minted.expiresAt * 1000).toISOString() }
+          : {}),
+      }, 200, {
         "cache-control": "no-store",
         vary: "authorization, x-trystore-device-id",
       });

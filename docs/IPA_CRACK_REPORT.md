@@ -156,13 +156,14 @@ Crackability after a rebuild from this source:
 | --- | --- | --- |
 | Licence gate | 9/10 | Still a client-side branch; four bytes. |
 | Runtime anti-tamper | 8/10 | Friction only; patchable. |
-| Bundled CharacterVault art | 10/10 | Static key still ships in the binary and the blobs are in the IPA. |
+| Bundled CharacterVault art | 3/10 | Release builds re-seal the blobs as `TSC2` under the bundle key; the static `TSC1` key is compiled out. |
 | Feed packages / paid content | 2/10 | Genuine App Attest assertion required; no client patch manufactures one. |
-| Overall | 5/10 | UI opens, paid content does not. |
+| Overall | 3/10 | UI opens, paid content and bundled art do not. |
 
-The remaining gap is bundled art: it has to decrypt offline, so the key shipped
-in the app can always be recovered. Treat it as public or move it behind the
-feed.
+The release step rewraps `CharacterVault` with
+`HKDF-SHA256(bundleKey, "trystore-character-vault-v1", "TSC2/key")`, and the
+app derives the same key from the cached bundle key. A checkout without the
+production secret still reads legacy `TSC1` in Debug only.
 
 ## What the crack does not do
 

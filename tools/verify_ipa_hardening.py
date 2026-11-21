@@ -61,6 +61,13 @@ def verify(ipa: Path) -> list[str]:
             failures.append("LSSupportsOpeningDocumentsInPlace is not false")
         executable = info.get("CFBundleExecutable") or "SupportPatch"
         binary = archive.read(app_root + executable)
+        vault = [name for name in archive.namelist()
+                 if name.startswith(app_root + "CharacterVault/") and name.endswith(".tsc")]
+        if not vault:
+            failures.append("CharacterVault assets are missing")
+        for name in vault:
+            if not archive.read(name).startswith(b"TSC2"):
+                failures.append(f"release vault carries a non-TSC2 blob: {name.split('/')[-1]}")
 
     has_segment, has_section = inspect(binary)
     if not has_segment:

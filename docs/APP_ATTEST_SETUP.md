@@ -27,3 +27,26 @@ The license Worker must be deployed as a bundled ES module that includes `cloudf
 Run the repository’s static and Worker smoke tests listed in `docs/CLIENT_SECURITY.md`. Then test on physical supported iOS hardware with a production-signed build. Confirm: a genuine app can register and request its bundle key; missing/expired licenses fail; an invalid attestation/assertion fails; a challenge cannot be replayed; the assertion counter must advance; production rejects development attestations; the old TryStore GET route returns HTTP 405; and the key is never returned when the internal service or configuration is missing.
 
 App Attest raises the cost of unauthorized API access; it does not make an installable app impossible to inspect, patch, or instrument. Any data or keys delivered to an authorized app remain accessible to a device owner controlling that app.
+
+## Signed manifests and feed tokens
+
+The patch-feed Worker signs the exact manifest bytes with an Ed25519 key. The
+public half is pinned in `PatchResourceBundle.swift`; the private half is the
+`MANIFEST_SIGNING_KEY` secret (base64 PKCS#8). Set it before deploying, or the
+Worker refuses to serve a manifest:
+
+```
+npx wrangler secret put MANIFEST_SIGNING_KEY -c wrangler.toml < cloudflare/.manifest-signing-key
+npx wrangler secret put FEED_TOKEN_SECRET -c wrangler.toml
+```
+
+`FEED_TOKEN_SECRET` is a separate random value of at least 32 characters. The
+feed mints a ten-minute token after a valid App Attest assertion; the client
+sends it as `X-TryStore-Feed-Token` and the feed skips the per-request licence
+lookup while it is fresh. The bundle key response expires after 24 hours and
+the client drops both the key and the token when they lapse.
+
+Rotating `MANIFEST_SIGNING_KEY` requires a new client build because the public
+half is pinned. Keep the old key available until every installed build has
+rolled forward. The generated private key is local and gitignored; move it into
+the Worker secret and delete the file.
