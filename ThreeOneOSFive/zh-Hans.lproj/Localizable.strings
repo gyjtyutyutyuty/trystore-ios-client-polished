@@ -583,6 +583,7 @@
 "license.error_secure_storage" = "iOS 无法安全保存密钥。";
 "license.error_offline" = "无法连接许可证服务。请检查网络后重试。";
 "license.error_server" = "许可证服务返回了无法读取的响应，请稍后重试。";
+"license.error_attestation" = "无法验证应用完整性。请更新 TryStore 或联系支持。";
 "license.error_invalid" = "无法识别此密钥。";
 "license.error_expired" = "此密钥已过期。";
 "license.error_revoked" = "此密钥已被撤销。";

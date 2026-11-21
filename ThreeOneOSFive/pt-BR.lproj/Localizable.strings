@@ -181,6 +181,7 @@
 "license.error_secure_storage" = "O iOS não conseguiu salvar sua chave com segurança.";
 "license.error_offline" = "O serviço de licenças está indisponível. Verifique a conexão e tente novamente.";
 "license.error_server" = "O serviço de licenças retornou uma resposta ilegível. Tente novamente mais tarde.";
+"license.error_attestation" = "Não foi possível verificar a integridade do app. Atualize o TryStore ou fale com o suporte.";
 "license.error_invalid" = "Esta chave não foi reconhecida.";
 "license.error_expired" = "Esta chave expirou.";
 "license.error_revoked" = "Esta chave foi revogada.";

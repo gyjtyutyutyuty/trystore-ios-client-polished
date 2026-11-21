@@ -60,6 +60,7 @@ final class LicenseManager: ObservableObject {
         guard !isBusy else { return }
         if revokeIfTampered() { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            PatchBundleKeyStore.invalidateBundleKey()
             isActive = false
             expirationDate = nil
             maskedKey = nil
@@ -83,6 +84,7 @@ final class LicenseManager: ObservableObject {
         guard !isBusy else { return }
         if revokeIfTampered() { return }
         guard let key = keychainString(for: keyAccount), !key.isEmpty else {
+            PatchBundleKeyStore.invalidateBundleKey()
             isActive = false
             messageKey = "license.error_required"
             return
@@ -132,6 +134,7 @@ final class LicenseManager: ObservableObject {
     private func validate(key: String, persistOnSuccess: Bool) {
         isActive = false
         guard let endpoint else {
+            PatchBundleKeyStore.invalidateBundleKey()
             isActive = false
             messageKey = "license.error_configuration"
             return
@@ -153,6 +156,7 @@ final class LicenseManager: ObservableObject {
                 lastCheckedAt = Date()
                 isOffline = false
                 guard active else {
+                    PatchBundleKeyStore.invalidateBundleKey()
                     isActive = false
                     messageKey = Self.messageKey(for: response.outcome)
                     return
@@ -162,12 +166,12 @@ final class LicenseManager: ObservableObject {
                     do {
                         try saveKeychainString(key, for: keyAccount)
                     } catch {
+                        PatchBundleKeyStore.invalidateBundleKey()
                         isActive = false
                         messageKey = "license.error_secure_storage"
                         return
                     }
                 }
-
                 // An active answer is not enough: the server must prove it came
                 // from us. The session is Ed25519-signed with a key whose public
                 // half is pinned below, so a repointed endpoint cannot mint one.
@@ -179,9 +183,7 @@ final class LicenseManager: ObservableObject {
                     return
                 }
                 // The patch feed releases its bundle key only after this same
-                // licence check, and only sealed under this session. Caching
-                // the unwrapped key here means bundled patches are never
-                // decryptable from the IPA alone.
+                // licence check and a server-verified App Attest assertion.
                 do {
                     try await PatchBundleKeyStore.refresh(
                         licenseKey: key,
@@ -189,18 +191,25 @@ final class LicenseManager: ObservableObject {
                     )
                 } catch {
                     log("patches: bundle key unavailable — \(error)")
+                    PatchBundleKeyStore.invalidateBundleKey()
+                    isActive = false
+                    messageKey = "license.error_attestation"
+                    return
                 }
                 isActive = true
                 messageKey = nil
                 maskedKey = Self.mask(key)
             } catch LicenseRequestError.network {
+                PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
                 isOffline = true
                 messageKey = "license.error_offline"
             } catch LicenseRequestError.secureStorage {
+                PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
                 messageKey = "license.error_secure_storage"
             } catch {
+                PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
                 isOffline = false
                 messageKey = "license.error_server"
@@ -312,6 +321,7 @@ final class LicenseManager: ObservableObject {
         case "invalid_device": return "license.error_device"
         case "rate_limited": return "license.error_rate_limited"
         case "wrong_project": return "license.error_wrong_project"
+        case "device_limit": return "license.error_device_limit"
         default: return "license.error_inactive"
         }
     }

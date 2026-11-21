@@ -35,6 +35,7 @@ PATCH_ADMIN_IDS = "7551063281,5869209007"
 #   TELEGRAM_OWNER_ID
 #   APP_BUNDLE_KEY            32-byte base64 key version 1
 #   APP_BUNDLE_KEY_V2         32-byte base64 key version 2, used after /rotate
+#   APP_ATTEST_INTERNAL_TOKEN must be the same random 32+ character secret on both Workers
 #
 # Bundle-key rotation is a data change, not a deploy: set the next secret, run
 # `/rotate trystore 2` in the admin bot, and only then delete the retired key.

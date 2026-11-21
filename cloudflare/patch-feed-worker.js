@@ -8,7 +8,9 @@
  * Routes
  *   GET  /health
  *   GET  /api/patches/:project/manifest.json
- *   GET  /api/patches/:project/bundle-key
+ *   POST /api/patches/trystore/app-attest/challenge
+ *   POST /api/patches/trystore/app-attest/register
+ *   POST /api/patches/trystore/bundle-key (App Attest assertion required)
  *   GET  /patches/:project/:file
  *   POST /api/telegram/webhook
  *
@@ -1210,7 +1212,59 @@ async function requireTryStoreLicense(request, env, project) {
   if (!LICENSED_PATCH_PROJECTS.has(project)) return { allowed: true, reason: "public_project" };
   return tryStoreLicenseState(request, env, project);
 }
-
+const TRY_STORE_DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+async function proxyAppAttest(request, env, endpoint) {
+  if (request.method !== "POST") return bad("method_not_allowed", 405);
+  if (!env.RESELLER || typeof env.RESELLER.fetch !== "function" || String(env.APP_ATTEST_INTERNAL_TOKEN || "").length < 32) {
+    return bad("attestation_unavailable", 503);
+  }
+  const contentType = String(request.headers.get("content-type") || "").toLowerCase();
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (!contentType.startsWith("application/json") || contentLength > 16 * 1024) return bad("invalid_request", 400);
+  let input;
+  try {
+    const raw = await request.text();
+    if (!raw || raw.length > 16 * 1024) return bad("invalid_request", 400);
+    input = JSON.parse(raw);
+  } catch {
+    return bad("invalid_request", 400);
+  }
+  const authorization = String(request.headers.get("authorization") || "");
+  const match = authorization.match(/^Bearer\s+([^\s]{1,256})$/i);
+  const deviceId = String(request.headers.get("x-trystore-device-id") || "");
+  if (!match || !TRY_STORE_DEVICE_ID.test(deviceId)) return bad("license_required", 401);
+  let fields;
+  if (endpoint.endsWith("/challenge")) {
+    fields = { keyId: String(input.keyId || "") };
+  } else if (endpoint.endsWith("/register")) {
+    fields = { challengeID: input.challengeID, challenge: input.challenge, keyId: input.keyId, attestation: input.attestation };
+  } else {
+    fields = { challengeID: input.challengeID, challenge: input.challenge, keyId: input.keyId, assertion: input.assertion };
+  }
+  const payload = JSON.stringify({ key: match[1], deviceId, projectId: "trystore", ...fields });
+  try {
+    const result = await env.RESELLER.fetch(new Request(`https://reseller.internal${endpoint}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-app-attest-internal-token": String(env.APP_ATTEST_INTERNAL_TOKEN),
+        ...(request.headers.get("cf-connecting-ip")
+          ? { "cf-connecting-ip": request.headers.get("cf-connecting-ip") }
+          : {}),
+      },
+      body: payload,
+    }));
+    return new Response(await result.text(), {
+      status: result.status,
+      headers: {
+        "content-type": result.headers.get("content-type") || "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      },
+    });
+  } catch {
+    return bad("attestation_unavailable", 503);
+  }
+}
 /* ------------------------------------------------------------------ */
 /* HTTP routes                                                         */
 /* ------------------------------------------------------------------ */
@@ -1248,6 +1302,13 @@ export default {
       return telegramWebhook(request, env);
     }
 
+    if (path === "/api/patches/trystore/app-attest/challenge") {
+      return proxyAppAttest(request, env, "/api/v1/app-attest/challenge");
+    }
+    if (path === "/api/patches/trystore/app-attest/register") {
+      return proxyAppAttest(request, env, "/api/v1/app-attest/register");
+    }
+
     const manifestMatch = path.match(/^\/api\/patches\/([a-z0-9-]+)\/manifest\.json$/);
     if (manifestMatch && request.method === "GET") {
       const project = projectKey(manifestMatch[1]);
@@ -1259,18 +1320,42 @@ export default {
       return json(manifest, 200, { "cache-control": "no-store" });
     }
 
-    // Bundled and feed packages carry their content key wrapped under this
-    // app key. It is only released after the same licence and device check the
-    // blobs use, so an extracted IPA has no usable key material.
+    // App Attest is mandatory before TryStore's wrapped content key is released.
     const bundleKeyMatch = path.match(/^\/api\/patches\/([a-z0-9-]+)\/bundle-key$/);
     if (bundleKeyMatch && request.method === "GET") {
       const project = projectKey(bundleKeyMatch[1]);
       if (!project) return bad("unknown_project", 404);
+      if (project === "trystore") return bad("attestation_required", 405);
       if (!(await allowFeed(env, "bundle-key", feedIP(request), 10, 60))) return bad("rate_limited", 429);
       const licence = await requireTryStoreLicense(request, env, project);
       if (!licence.allowed) return licenceFailure(licence);
       // Fail closed on a version whose secret is missing: falling back to the
       // previous key would keep a retired key usable after a rotation.
+      const version = await currentBundleKeyVersion(env, project);
+      const secret = bundleKeySecret(env, version);
+      if (!secret) return bad("key_unavailable", 503);
+      return json({ valid: true, key: secret.encoded, keyVersion: version }, 200, {
+        "cache-control": "no-store",
+        vary: "authorization, x-trystore-device-id",
+      });
+    }
+    if (bundleKeyMatch && request.method === "POST") {
+      const project = projectKey(bundleKeyMatch[1]);
+      if (!project) return bad("unknown_project", 404);
+      if (project !== "trystore") return bad("method_not_allowed", 405);
+      const authorization = await proxyAppAttest(
+        request,
+        env,
+        "/api/v1/app-attest/authorize-bundle-key",
+      );
+      if (!authorization.ok) return authorization;
+      let authorizationResult;
+      try {
+        authorizationResult = await authorization.json();
+      } catch {
+        return bad("attestation_unavailable", 503);
+      }
+      if (authorizationResult.valid !== true) return bad("attestation_required", 401);
       const version = await currentBundleKeyVersion(env, project);
       const secret = bundleKeySecret(env, version);
       if (!secret) return bad("key_unavailable", 503);

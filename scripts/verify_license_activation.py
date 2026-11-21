@@ -16,6 +16,9 @@ PROJECT = ROOT / "ThreeOneOSFive.xcodeproj/project.pbxproj"
 APP_SOURCE = APP / "App.swift"
 MANAGER = APP / "helpers/LicenseManager.swift"
 WORKER = ROOT / "cloudflare/license-worker.js"
+DEVICE_MIGRATION = ROOT / "cloudflare/migrations/0001_license_devices.sql"
+RATE_LIMIT_MIGRATION = ROOT / "cloudflare/migrations/0002_api_rate_limits.sql"
+APP_ATTEST_MIGRATION = ROOT / "cloudflare/migrations/0003_app_attest.sql"
 ACTIVATION_GATE = APP / "helpers/ActivationGate.swift"
 GATE = APP / "views/LicenseGateView.swift"
 SETTINGS = APP / "views/SettingsView.swift"
@@ -33,9 +36,9 @@ LOCALIZATION_KEYS = (
     "license.verifying", "license.activate", "license.checking",
     "license.keychain_note", "license.retry", "license.error_required",
     "license.error_configuration", "license.error_secure_storage",
-    "license.error_offline", "license.error_server", "license.error_invalid",
+    "license.error_offline", "license.error_server", "license.error_attestation", "license.error_invalid",
     "license.error_expired", "license.error_revoked", "license.error_frozen",
-    "license.error_wrong_project", "license.error_inactive",
+    "license.error_wrong_project", "license.error_device_limit", "license.error_inactive",
     "license.settings_section", "license.settings_status", "license.settings_active",
     "license.settings_required", "license.settings_expiration", "license.settings_key",
     "license.settings_verify", "license.settings_forget", "license.forget_title",
@@ -76,10 +79,23 @@ def main() -> None:
         require(build_id in source_ids, f"{filename} is not compiled into the SupportPatch target")
         require((APP / ("helpers" if filename == "LicenseManager.swift" else "views") / filename).is_file(),
                 f"source file not found: {filename}")
+    release_block = re.search(r"3105AA02 /\* Release \*/ = \{.*?name = Release;", pbx, re.S)
+    require(release_block is not None
+            and "COPY_PHASE_STRIP = YES;" in release_block.group(0)
+            and "DEBUG_INFORMATION_FORMAT = dwarf-with-dsym;" in release_block.group(0)
+            and "GCC_GENERATE_DEBUGGING_SYMBOLS = NO;" in release_block.group(0),
+            "Release build must strip the app while keeping debug symbols outside the product")
 
     app_source = APP_SOURCE.read_text(encoding="utf-8")
     manager = MANAGER.read_text(encoding="utf-8")
     worker = WORKER.read_text(encoding="utf-8")
+    migration = DEVICE_MIGRATION.read_text(encoding="utf-8")
+    rate_limit_migration = RATE_LIMIT_MIGRATION.read_text(encoding="utf-8")
+    app_attest_migration = APP_ATTEST_MIGRATION.read_text(encoding="utf-8")
+    app_attest_worker = (ROOT / "cloudflare/app-attest.js").read_text(encoding="utf-8")
+    patch_feed_worker = (ROOT / "cloudflare/patch-feed-worker.js").read_text(encoding="utf-8")
+    key_store = (APP / "helpers/PatchBundleKeyStore.swift").read_text(encoding="utf-8")
+    entitlements = (APP / "ThreeOneOSFive.entitlements").read_text(encoding="utf-8")
     activation_gate = ACTIVATION_GATE.read_text(encoding="utf-8")
     gate = GATE.read_text(encoding="utf-8")
     settings = SETTINGS.read_text(encoding="utf-8")
@@ -114,6 +130,60 @@ def main() -> None:
             and "if(g.slug!==project)" in worker
             and "g.slug!==requestedProject" in worker,
             "Worker must retain live project-scoped checks and Apple Music v1 compatibility")
+    require(DEVICE_MIGRATION.is_file()
+            and "CREATE TABLE IF NOT EXISTS license_devices" in migration
+            and "PRIMARY KEY (key_id, device_id)" in migration,
+            "D1 device-binding migration is missing or incomplete")
+    require("const DEVICE_ID=" in worker
+            and "async function claimDevice" in worker
+            and "max_devices" in worker
+            and "device_limit" in worker
+            and "claimDevice(e,g,b.deviceId)" in worker
+            and "claimDevice(e,g,device)" in worker,
+            "Worker does not enforce device binding on validation and bundle-key routes")
+    require(APP_ATTEST_MIGRATION.is_file()
+            and "CREATE TABLE IF NOT EXISTS app_attest_keys" in app_attest_migration
+            and "CREATE TABLE IF NOT EXISTS app_attest_challenges" in app_attest_migration
+            and "UNIQUE (license_key_id, device_id)" in app_attest_migration,
+            "App Attest D1 registration/challenge migration is missing or incomplete")
+    require("handleAppAttestRoute" in worker
+            and "verifyAttestation(" in app_attest_worker
+            and "verifyAssertion(" in app_attest_worker
+            and "consumed_at IS NULL" in app_attest_worker
+            and "sign_count=?6" in app_attest_worker,
+            "license Worker does not verify Apple attestation/assertions with one-use challenges and atomic counters")
+    require("attestation_required" in worker
+            and "proxyAppAttest" in patch_feed_worker
+            and "method_not_allowed" in patch_feed_worker
+            and "APP_ATTEST_INTERNAL_TOKEN" in patch_feed_worker,
+            "TryStore bundle key has a GET or service-binding bypass around App Attest")
+    require("DCAppAttestService.shared" in key_store
+            and "attestKey(" in key_store
+            and "generateAssertion(" in key_store
+            and "X-TryStore-Device-ID" in key_store
+            and "license.error_attestation" in manager
+            and "com.apple.developer.devicecheck.appattest-environment" in entitlements
+            and "APP_ATTEST_ENVIRONMENT = production;" in PROJECT.read_text(),
+            "iOS App Attest implementation, entitlement, production environment, or fail-closed gate is missing")
+    require("u.pathname==='/__sendmenu'" not in worker
+            and "u.pathname==='/__chatcheck'" not in worker
+            and "u.pathname==='/__tgcheck'" not in worker
+            and "['/__sendmenu','/__chatcheck','/__tgcheck']" in worker,
+            "public Telegram diagnostic endpoints must remain disabled")
+    require("async function hyperActivate" in worker
+            and "const claim=await claimDevice(e,g,b.deviceId)" in worker
+            and "device_mismatch" in worker
+            and "Number(p.exp||0)<now()" in worker
+            and "String(b.deviceId)!==String(p.device)" in worker,
+            "secondary activation and heartbeat routes are missing device binding or token expiry")
+    require(RATE_LIMIT_MIGRATION.is_file()
+            and "CREATE TABLE IF NOT EXISTS api_rate_limits" in rate_limit_migration
+            and "PRIMARY KEY (bucket, subject, window_start)" in rate_limit_migration
+            and "async function rateLimit" in worker
+            and "async function guardJSON" in worker
+            and "MAX_JSON_BYTES=16*1024" in worker
+            and "rate_limited" in worker,
+            "public license routes are missing request-size and rate-limit controls")
     require("licenseManager.activate(key: keyInput)" in gate
             and "licenseManager.refresh()" in gate,
             "activation gate does not support activation and retry")
