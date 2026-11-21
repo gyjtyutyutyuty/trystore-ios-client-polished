@@ -124,14 +124,20 @@ enum PatchBundleKeyStore {
             let challengeBytes = try decodeChallenge(challenge.challenge)
             let challengeHash = Data(SHA256.hash(data: challengeBytes))
             let attestation = try await attest(keyID: attestedKeyID, clientDataHash: challengeHash)
-            try await register(
-                baseURL: baseURL,
-                licenseKey: licenseKey,
-                deviceID: deviceID,
-                challenge: challenge,
-                keyID: attestedKeyID,
-                attestation: attestation
-            )
+            do {
+                try await register(
+                    baseURL: baseURL,
+                    licenseKey: licenseKey,
+                    deviceID: deviceID,
+                    challenge: challenge,
+                    keyID: attestedKeyID,
+                    attestation: attestation
+                )
+            } catch PatchBundleKeyError.unauthorized {
+                // A conflict or rejection here is the attestation flow, not a
+                // dead licence: fall back to the licence-bound release.
+                throw PatchBundleKeyError.attestationRejected
+            }
             try storeString(attestedKeyID, account: appAttestAccount)
             challenge = try await requestChallenge(
                 baseURL: baseURL,
@@ -153,13 +159,18 @@ enum PatchBundleKeyStore {
             "keyId": keyID,
             "assertion": assertion.base64EncodedString()
         ]
-        let data = try await postJSON(
-            baseURL: baseURL,
-            path: bundleKeyPath,
-            payload: payload,
-            licenseKey: licenseKey,
-            deviceID: deviceID
-        )
+        let data: Data
+        do {
+            data = try await postJSON(
+                baseURL: baseURL,
+                path: bundleKeyPath,
+                payload: payload,
+                licenseKey: licenseKey,
+                deviceID: deviceID
+            )
+        } catch PatchBundleKeyError.unauthorized {
+            throw PatchBundleKeyError.attestationRejected
+        }
         try acceptKeyResponse(data)
     }
 
