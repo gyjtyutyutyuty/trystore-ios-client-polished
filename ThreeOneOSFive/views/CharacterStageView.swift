@@ -157,6 +157,17 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         pan.delegate = self
         pan.cancelsTouchesInView = false
         addGestureRecognizer(pan)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(bundleKeyDidChange),
+            name: .patchBundleKeyDidChange,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     private func addLight(type: SCNLight.LightType, color: UIColor, intensity: CGFloat, position: SCNVector3?) {
@@ -212,6 +223,19 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         let distanceH = 0.48 / tan(fovX / 2)
         cameraNode.position = SCNVector3(0, 0, Float(max(distanceV, distanceH)))
         cameraNode.look(at: SCNVector3Zero)
+    }
+
+    /// The first launch can draw the home stage before the feed releases the
+    /// vault key. Retry the mesh once the key lands instead of leaving an
+    /// empty stage until the next app launch.
+    @objc private func bundleKeyDidChange() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let model = self.requestedModel,
+                  self.modelCache[model] == nil else { return }
+            self.requestedModel = nil
+            self.load(model)
+            self.requestedModel = model
+        }
     }
 
     private func load(_ model: HeroCharacterModel) {

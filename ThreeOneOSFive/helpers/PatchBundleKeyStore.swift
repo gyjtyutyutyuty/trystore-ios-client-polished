@@ -3,6 +3,12 @@ import DeviceCheck
 import Foundation
 import Security
 
+extension Notification.Name {
+    /// Posted after a bundle key is cached. Views that materialize sealed
+    /// bundled art listen for this instead of staying blank until relaunch.
+    static let patchBundleKeyDidChange = Notification.Name("cc.forcequit.worse-query.patch-bundle-key")
+}
+
 enum PatchBundleKeyError: Error {
     case configuration
     case unauthorized
@@ -141,6 +147,7 @@ enum PatchBundleKeyStore {
             deleteKeychainItem(account: feedTokenExpiryAccount)
         }
         cacheKey(keyData)
+        NotificationCenter.default.post(name: .patchBundleKeyDidChange, object: nil)
     }
 
     private static func cacheKey(_ data: Data) {
