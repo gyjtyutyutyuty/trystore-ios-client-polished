@@ -67,5 +67,6 @@ workflows:
               --fingerprint "$FEED_FINGERPRINT"
           fi
           python3 tools/verify_ipa_hardening.py build/SupportPatch-unsigned.ipa
+          python3 tools/verify_ipa_hardening.py build/SupportPatch-unsigned.ipa
     artifacts:
       - build/SupportPatch-unsigned.ipa

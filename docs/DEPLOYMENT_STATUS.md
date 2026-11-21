@@ -1,4 +1,4 @@
-# Deployment status — 2026-11-20
+# Deployment status — 2026-11-21
 
 Scope: TSC2 bundled art, short-lived feed tokens, signed manifests, and the
 App Attest schema the two Workers depend on.
@@ -25,7 +25,7 @@ App Attest schema the two Workers depend on.
     Bindings: `DB`, `APP_ATTEST_APP_ID="K976G5HK7K.cc.forcequit.worse-query"`,
     `APP_ATTEST_ENVIRONMENT="production"`.
   - `trystore-patch-feed` deployed from `cloudflare/patch-feed-worker.js`,
-    version `41298eba-205b-4d9f-a0fa-a4e05debaf97`.
+    version `1178a6ac-02eb-4b08-a006-877f336e366d`.
 - `cloudflare/wrangler.license.toml` is now tracked. It builds
   `dist/license-worker.js` before upload and carries the production App Attest
   vars.
@@ -67,8 +67,20 @@ missing-signing-key `503` are covered by `scripts/verify_patch_feed_worker.mjs`.
   match `/api/patches/trystore/bundle-key/fingerprint`. The key still has to
   match the feed's `APP_BUNDLE_KEY`; a stale pre-sealed vault fails the build
   instead of shipping unreadable art.
-- The Swift changes were statically checked only. No Xcode build or device
-  run was performed on this host.
+- `tools/verify_ipa_hardening.py` runs on the archived IPA in the verify step:
+  it rejects a non-TSC2 vault blob, a missing `__RESTRICT` segment, or enabled
+  document sharing. The first run against a fresh archive is the next build.
+
+## Archive
+
+Codemagic workflow `supportpatch_unsigned_ipa` archived commit `7329a82` on
+build `6b01080d799fbd143cf97363` (2026-11-21). The build compiled with Xcode
+26 after two source fixes: `csops` now resolves through `dlsym` instead of the
+unavailable variadic `syscall`, and the attested key identifier is kept in a
+local so `register` and the Keychain write see a non-optional value. The
+temporary build-log relay used to diagnose the earlier failure has been
+removed from both the Worker and the archive script; its secret and KV entry
+are deleted.
 
 ## Manifest signing key
 
