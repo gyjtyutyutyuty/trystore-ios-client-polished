@@ -66,6 +66,7 @@ enum CharacterVault {
         do {
             root = try materialize()
         } catch {
+            log("vault: model materialization failed for \(model.objectFile) — \(diagnosticSummary(error))")
             // A corrupt sealed copy would otherwise stay "current" forever: the
             // version stamp says the download is complete and every unseal
             // fails. Drop it so the next sync fetches a fresh set.
@@ -112,14 +113,23 @@ enum CharacterVault {
     /// is asked for a new one and the download starts over instead of leaving
     /// an empty stage until the next launch.
     static func sync(credentials: PatchFeedCredentials) async {
-        guard beginSync() else { return }
+        guard beginSync() else {
+            log("vault: sync skipped; another transfer is already running")
+            return
+        }
         defer { endSync() }
+        log("vault: sync started")
         var current = credentials
         var refreshedToken = false
         for attempt in 0..<3 {
             do {
                 let changed = try await downloadIfNeeded(credentials: current)
-                if changed { clearMaterializedCache() }
+                if changed {
+                    clearMaterializedCache()
+                    log("vault: download complete; rebuilding model cache")
+                } else {
+                    log("vault: download complete; sealed files already current")
+                }
                 NotificationCenter.default.post(name: .characterVaultDidChange, object: nil)
                 return
             } catch VaultError.unauthorized {
@@ -159,6 +169,20 @@ enum CharacterVault {
             return false
         case .corrupt, .missingAssets, .unavailable:
             return true
+        }
+    }
+
+    private static func diagnosticSummary(_ error: Error) -> String {
+        guard let vaultError = error as? VaultError else {
+            return error.localizedDescription
+        }
+        switch vaultError {
+        case .corrupt: return "sealed blob failed integrity or decryption"
+        case .invalidManifest: return "manifest invalid or signature rejected"
+        case .keyMismatch: return "released bundle key does not match the vault"
+        case .missingAssets: return "sealed or materialized model files are missing"
+        case .unauthorized: return "feed rejected license, device, or token"
+        case .unavailable: return "feed configuration or storage unavailable"
         }
     }
 
@@ -537,7 +561,13 @@ enum CharacterVault {
             .prefix(16)
         let stamp = cacheRoot.appendingPathComponent("v2-\(keyTag)-\(versionTag)")
         let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: stamp.path) {
+        let cachedModelsPresent = HeroCharacterModel.allCases.allSatisfy { model in
+            let url = cacheRoot
+                .appendingPathComponent(model.rawValue, isDirectory: true)
+                .appendingPathComponent(model.objectFile)
+            return fileManager.fileExists(atPath: url.path)
+        }
+        if fileManager.fileExists(atPath: stamp.path), cachedModelsPresent {
             return cacheRoot
         }
 
@@ -559,6 +589,17 @@ enum CharacterVault {
             )
             let sealed = try Data(contentsOf: source)
             try decrypt(sealed, key: key).write(to: target, options: [.atomic, .completeFileProtection])
+        }
+
+        let rebuiltModelsPresent = HeroCharacterModel.allCases.allSatisfy { model in
+            let url = cacheRoot
+                .appendingPathComponent(model.rawValue, isDirectory: true)
+                .appendingPathComponent(model.objectFile)
+            return fileManager.fileExists(atPath: url.path)
+        }
+        guard rebuiltModelsPresent else {
+            try? fileManager.removeItem(at: cacheRoot)
+            throw VaultError.missingAssets
         }
 
         try Data(String("v2-\(keyTag)-\(versionTag)").utf8).write(to: stamp)
