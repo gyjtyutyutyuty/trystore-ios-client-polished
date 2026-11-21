@@ -413,7 +413,7 @@ enum CharacterVault {
                 withIntermediateDirectories: true
             )
             let sealed = try Data(contentsOf: source)
-            try decrypt(sealed, key: key).write(to: target, options: .atomic)
+            try decrypt(sealed, key: key).write(to: target, options: [.atomic, .completeFileProtection])
         }
 
         try Data(String("v2-\(keyTag)-\(versionTag)").utf8).write(to: stamp)
