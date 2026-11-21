@@ -62,7 +62,13 @@ if [[ -z "$CODE_DIGEST" ]]; then
   echo "Error: could not compute the executable code digest." >&2
   exit 1
 fi
-plutil -replace TRYSTORE_CODE_SHA256 -string "$CODE_DIGEST" "$APP/Info.plist"
+# `plutil -replace` refuses a missing key, so insert it on the first archive
+# and replace it when an Info.plist already carries a previous pin.
+if plutil -extract TRYSTORE_CODE_SHA256 raw "$APP/Info.plist" >/dev/null 2>&1; then
+  plutil -replace TRYSTORE_CODE_SHA256 -string "$CODE_DIGEST" "$APP/Info.plist"
+else
+  plutil -insert TRYSTORE_CODE_SHA256 -string "$CODE_DIGEST" "$APP/Info.plist"
+fi
 
 plutil -replace CFBundleExecutable -string SupportPatch "$APP/Info.plist"
 plutil -replace CFBundlePackageType -string APPL "$APP/Info.plist"
