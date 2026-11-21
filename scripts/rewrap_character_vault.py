@@ -92,7 +92,7 @@ def seal_blob(plain: bytes, key: bytes) -> bytes:
 
 def bundle_key(value: str) -> bytes:
     try:
-        raw = base64.b64decode(value, validate=True)
+        raw = base64.b64decode(value.strip(), validate=True)
     except Exception as error:
         raise SystemExit(f"bundle key is not valid base64: {error}") from error
     if len(raw) != 32:
