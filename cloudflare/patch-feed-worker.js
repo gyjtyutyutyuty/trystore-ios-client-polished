@@ -512,6 +512,7 @@ const TRYSTORE_SLOT_IDENTITIES = {
   "HS SLA PECHO": ["HS SLA PECHO"],
   "EXCLUSIVO AZUL": ["EXCLUSIVO AZUL", "HOLOGRAMA ARMAS"],
   "TryStore": ["TryStore", "Balas Magicas"],
+  "HOLOGRAMAEXCLUSIVO": ["HOLOGRAMA EXCLUSIVO"],
   "HOLOGRAMAEXCLUSIVO(4)": ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE"],
   "HOLOGRAMAEXCLUSIVO(5)": ["HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO ROSADO"],
   "Cuello y Drag": ["Drag con Cuello", "Cuello y Drag"],
@@ -1138,7 +1139,7 @@ async function writeCachedLicence(env, cacheKey) {
 // A boolean here turned "the licence service did not answer" into "licence
 // invalid", which reached the app as an unauthorized sync no retry could clear.
 // The reason travels back so the client and the operator can tell them apart.
-async function tryStoreLicenseState(request, env) {
+async function tryStoreLicenseState(request, env, project) {
   const match = (request.headers.get("authorization") || "")
     .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
   const deviceID = request.headers.get("x-trystore-device-id") || "";
@@ -1153,7 +1154,7 @@ async function tryStoreLicenseState(request, env) {
     return denial("license_service_unbound");
   }
 
-  const cacheKey = await sha256(new TextEncoder().encode(match[1] + "|" + deviceID));
+  const cacheKey = await sha256(new TextEncoder().encode(project + "|" + match[1] + "|" + deviceID));
   if (await readCachedLicence(env, cacheKey)) return GRANTED;
 
   let result;
@@ -1166,7 +1167,7 @@ async function tryStoreLicenseState(request, env) {
         body: JSON.stringify({
           key: match[1],
           deviceId: deviceID,
-          projectId: "trystore",
+          projectId: project,
           appVersion: "1.1.1",
         }),
       }),
@@ -1201,9 +1202,13 @@ function licenceFailure(state) {
   );
 }
 
+// Licensed projects never serve key material or packages without a live key.
+// Public projects (hyper-regedit) keep their open feed.
+const LICENSED_PATCH_PROJECTS = new Set(["trystore", "apple-music"]);
+
 async function requireTryStoreLicense(request, env, project) {
-  if (project !== "trystore") return { allowed: true, reason: "public_project" };
-  return tryStoreLicenseState(request, env);
+  if (!LICENSED_PATCH_PROJECTS.has(project)) return { allowed: true, reason: "public_project" };
+  return tryStoreLicenseState(request, env, project);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1324,12 +1329,13 @@ export default {
         blob = await env.PATCHES.get(`patches/${project}/${file}`, "arrayBuffer");
       }
       if (!blob) return bad("not_found", 404);
+      const licensed = LICENSED_PATCH_PROJECTS.has(project);
       return new Response(blob, {
         headers: {
           "content-type": "application/octet-stream",
           "content-length": String(blob.byteLength),
-          "cache-control": project === "trystore" ? "no-store" : "public, max-age=31536000, immutable",
-          ...(project === "trystore" ? { vary: "authorization, x-trystore-device-id" } : {}),
+          "cache-control": licensed ? "no-store" : "public, max-age=31536000, immutable",
+          ...(licensed ? { vary: "authorization, x-trystore-device-id" } : {}),
         },
       });
     }

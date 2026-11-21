@@ -1033,9 +1033,7 @@ private struct DashboardPatchOption: Identifiable {
     ]
 
     static let visuals = [
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "leaf.fill", color: .green, group: nil, packageID: UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!),
-        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "heart.fill", color: .pink, group: nil, packageID: UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!),
-        DashboardPatchOption(projectName: "EXCLUSIVO AZUL", title: "Azul Exclusivo", icon: "flame.fill", color: .blue, group: nil, packageID: UUID(uuidString: "1B7B4E1F-027B-4747-A933-2F545DC19DE2")!)
+        DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO", title: "HOLOGRAMA EXCLUSIVO", icon: "sparkles", color: .purple, group: .location, packageID: UUID(uuidString: "238F5D33-18AB-448C-9687-9C43D52EB047")!)
     ]
 
     static let antena = [
@@ -2077,7 +2075,7 @@ private extension FreeFireGame {
     }
 
     var locationProjectNames: [String] {
-        ["HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL"]
+        ["HOLOGRAMA EXCLUSIVO"]
     }
 
     var openGameKey: String {
@@ -2226,9 +2224,7 @@ private struct FreeFirePatchView: View {
 
     private func locationDisplayName(for item: PatchLibraryItem) -> String {
         switch item.project?.name ?? item.packageURL.deletingPathExtension().lastPathComponent {
-        case "HOLOGRAMA EXCLUSIVO VERDE": return "EXCLUSIVO VERDE"
-        case "HOLOGRAMA EXCLUSIVO ROSADO": return "EXCLUSIVO ROSADO"
-        case "ARMAS", "EXCLUSIVO AZUL": return "Azul Exclusivo"
+        case "HOLOGRAMA EXCLUSIVO": return "HOLOGRAMA EXCLUSIVO"
         default: return item.project?.name ?? language.text("freefire.location")
         }
     }

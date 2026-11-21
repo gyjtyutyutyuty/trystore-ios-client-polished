@@ -26,10 +26,8 @@ BUNDLED = {
     "NECK.TRYSTORE": "NECK",
     "HSPESSCOSO.TRYSTORE": "HS PESSCOSO",
     "HS SLA PECHO.TRYSTORE": "HS SLA PECHO",
-    "EXCLUSIVO AZUL.TRYSTORE": "EXCLUSIVO AZUL",
     "TryStore.TRYSTORE": "TryStore",
-    "HOLOGRAMAEXCLUSIVO(4).TRYSTORE": "HOLOGRAMA EXCLUSIVO VERDE",
-    "HOLOGRAMAEXCLUSIVO(5).TRYSTORE": "HOLOGRAMA EXCLUSIVO ROSADO",
+    "HOLOGRAMAEXCLUSIVO.3105": "HOLOGRAMA EXCLUSIVO",
     "Cuello y Drag.TRYSTORE": "Drag con Cuello",
     "Pecho3105.TRYSTORE": "Pecho3105",
     "CUELLO3105.TRYSTORE": "CUELLO3105",
@@ -182,15 +180,9 @@ def check_source() -> None:
                 f"package ID missing from envelope: {filename}")
         canonical_ids[project_name] = metadata["packageID"].upper()
 
-    # The two historical schema-9 visual packages are normalized to fresh,
-    # distinct IDs during remote installation; read those IDs from the app's map.
-    special_ids = dict(re.findall(
-        r'"(HOLOGRAMA EXCLUSIVO (?:VERDE|ROSADO))": UUID\(uuidString: "([^"]+)"\)!',
-        library,
-    ))
-    for name in ("HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO"):
-        require(name in special_ids, f"stable migrated package ID missing: {name}")
-        canonical_ids[name] = special_ids[name].upper()
+    # The location slot is one package now. Legacy Verde/Rosado identities stay
+    # in the app map only so an already-installed copy can still be recognized;
+    # they are not part of the shipped catalog.
     require(len(set(canonical_ids.values())) == len(BUNDLED),
             "bundled packages do not have unique installed package IDs")
 
@@ -306,9 +298,9 @@ def check_source() -> None:
     require("api/patches/trystore/bundle-key" in key_store
             and "X-TryStore-Device-ID" in key_store,
             "client bundle-key endpoint or device binding missing")
-    require('project !== "trystore"' in worker
-            and 'project === "trystore" ? "no-store"' in worker,
-            "Worker does not preserve other project behavior and disable TryStore cacheability")
+    require('LICENSED_PATCH_PROJECTS' in worker
+            and 'licensed ? "no-store"' in worker,
+            "Worker does not scope license checks and cacheability to licensed projects")
     require('if (project !== "trystore") rows.push([{ text: "⬇️ Download"' in worker,
             "Telegram patch manager still exposes public TryStore download URLs")
     require("canonicalBundledPackageFilenames" in library
@@ -335,7 +327,7 @@ def check_source() -> None:
             r'UUID\(uuidString: "([^"]+)"\)!: "([0-9a-f]{64})"',
             seed_block.group(1),
         ))
-        require(len(seeds) == len(BUNDLED), "payload fingerprint seed table is incomplete")
+        require(len(seeds) >= len(BUNDLED), "payload fingerprint seed table is incomplete")
         for filename, project_name in BUNDLED.items():
             project = package_project(filename)
             require(project is not None, f"cannot decode bundled package: {filename}")

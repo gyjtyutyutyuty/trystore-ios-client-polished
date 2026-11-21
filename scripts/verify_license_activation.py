@@ -120,7 +120,8 @@ def main() -> None:
     require("licenseManager.refresh()" in settings and "licenseManager.clear()" in settings,
             "Settings does not expose verification and key removal")
     for secret_name in ("LICENSE_ADMIN_TOKEN", "LICENSE_SIGNING_SECRET", "TELEGRAM_BOT_TOKEN"):
-        require(secret_name not in manager and secret_name not in gate and secret_name not in PLIST.read_text(encoding="utf-8"),
+        require(secret_name not in manager and secret_name not in gate
+                and secret_name not in PLIST.read_text(encoding="utf-8"),
                 f"server-side secret name leaked into the iOS client: {secret_name}")
 
     for language in LOCALIZATIONS:

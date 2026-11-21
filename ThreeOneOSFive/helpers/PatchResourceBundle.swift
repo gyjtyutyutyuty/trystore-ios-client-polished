@@ -96,7 +96,9 @@ enum PatchResourceBundle {
                   entry.sha256.count == 64,
                   entry.sha256.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "0123456789abcdefABCDEF").contains($0) }),
                   isTrustedPackageURL(entry.url, filename: patch.resourceName, digest: entry.sha256) else {
-                throw PatchFeedError.invalidManifest
+                // One absent or malformed entry must not black out the whole
+                // library. The caller reports the package that failed.
+                continue
             }
             // A dropped connection or a truncated body used to abort the whole
             // sync with one package missing. Retry the transfer and re-verify
@@ -128,7 +130,10 @@ enum PatchResourceBundle {
                     }
                 }
             }
-            guard let data = fetched else { throw lastError }
+            guard let data = fetched else {
+                log("patch: feed download failed \(patch.resourceName): \(lastError.localizedDescription)")
+                continue
+            }
             resources[patch.resourceName] = data
         }
         return resources
