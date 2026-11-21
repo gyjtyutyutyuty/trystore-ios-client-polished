@@ -34,16 +34,23 @@ enum PatchResourceBundle {
         let size: Int
     }
 
-    static func load(
-        credentials: PatchFeedCredentials,
-        expected: [BundledPatch]
-    ) async throws -> [String: Data] {
+    static func configuredBaseURL() -> URL? {
         guard let configured = Bundle.main.object(forInfoDictionaryKey: "TRYSTORE_PATCH_FEED_URL") as? String,
               let baseURL = URL(string: configured),
               baseURL.scheme?.lowercased() == "https",
               baseURL.host?.lowercased() == expectedHost,
               baseURL.path.isEmpty || baseURL.path == "/",
               baseURL.user == nil, baseURL.password == nil, baseURL.query == nil else {
+            return nil
+        }
+        return baseURL
+    }
+
+    static func load(
+        credentials: PatchFeedCredentials,
+        expected: [BundledPatch]
+    ) async throws -> [String: Data] {
+        guard let baseURL = configuredBaseURL() else {
             throw PatchFeedError.configuration
         }
 
@@ -144,7 +151,7 @@ enum PatchResourceBundle {
         return resources
     }
 
-    private static func verifyManifest(data: Data, signature: String) -> Bool {
+    static func verifyManifest(data: Data, signature: String) -> Bool {
         guard let keyData = Data(base64Encoded: manifestPublicKeyBase64),
               let key = try? Curve25519.Signing.PublicKey(rawRepresentation: keyData),
               let signatureData = decodeBase64URL(signature),
@@ -161,7 +168,7 @@ enum PatchResourceBundle {
         return Data(base64Encoded: normalized)
     }
 
-    private static func authenticatedRequest(
+    static func authenticatedRequest(
         url: URL,
         credentials: PatchFeedCredentials
     ) -> URLRequest {

@@ -29,6 +29,18 @@ const env = {
       }
       if (key === 'patches/apple-music/HS SLA PECHO.APPLE' && type === 'arrayBuffer') return blob.buffer;
       if (key === 'patches/hyper-regedit/track.3105' && type === 'arrayBuffer') return blob.buffer;
+      if (key === 'vault/trystore/manifest.json') {
+        return JSON.stringify({
+          schemaVersion: 1,
+          project: 'trystore',
+          version: 'v1',
+          keyFingerprint: 'b'.repeat(64),
+          files: [{ path: 'rouk/rouk.mtl.tsc', sha256: 'a'.repeat(64), size: 6 }],
+        });
+      }
+      if (key === 'vault/trystore/rouk/rouk.mtl.tsc' && type === 'arrayBuffer') {
+        return new Uint8Array([0x54, 0x53, 0x43, 0x32, 1, 2]).buffer;
+      }
       return null;
     },
   },
@@ -122,6 +134,38 @@ try {
   });
   check('fingerprint route fails closed without a key', response.status === 503);
 
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/version'), env);
+  const vaultVersion = await response.json();
+  check('vault version route publishes the KV manifest version', response.status === 200
+    && vaultVersion.version === 'v1' && vaultVersion.files === 1
+    && vaultVersion.keyFingerprint === 'b'.repeat(64));
+
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/manifest.json'), env);
+  check('vault manifest requires a licence', response.status === 401);
+
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders), env);
+  const vaultSignature = response.headers.get('x-trystore-signature') || '';
+  const vaultBytes = new Uint8Array(await response.arrayBuffer());
+  check('licensed vault manifest is signed', response.status === 200 && vaultSignature.length > 40);
+  check('vault manifest signature verifies against the pinned key', await crypto.subtle.verify(
+    { name: 'Ed25519' },
+    manifestSigning.publicKey,
+    Uint8Array.from(Buffer.from(vaultSignature.replaceAll('-', '+').replaceAll('_', '/'), 'base64')),
+    vaultBytes,
+  ));
+  const vaultManifest = JSON.parse(Buffer.from(vaultBytes).toString('utf8'));
+  check('vault manifest lists the sealed blob', vaultManifest.version === 'v1'
+    && vaultManifest.files[0].path === 'rouk/rouk.mtl.tsc');
+
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc'), env);
+  check('vault blob requires a licence', response.status === 401);
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', authorizedHeaders), env);
+  check('licensed vault blob is served uncached', response.status === 200
+    && (await response.arrayBuffer()).byteLength === 6
+    && response.headers.get('cache-control') === 'no-store');
+  response = await worker.fetch(request('/api/patches/trystore/character-vault/rouk/..%2Fmanifest.json', authorizedHeaders), env);
+  check('vault path traversal is rejected', response.status === 404);
+
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', {
     authorization: 'Bearer REVOKED-KEY-001',
     'x-trystore-device-id': deviceID,
@@ -143,7 +187,7 @@ try {
     manifestSignatureBytes,
     manifestBytes,
   ));
-  check('license validation uses the TryStore project scope', validationCalls === 2);
+  check('license validation uses the TryStore project scope', validationCalls === 4);
 
   response = await worker.fetch(request('/patches/trystore/HEAD.TRYSTORE', authorizedHeaders), env);
   check('active license receives a TryStore package', response.status === 200);
@@ -232,11 +276,11 @@ try {
 
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json'), env);
   check('Apple Music manifest denies requests without a license', response.status === 401);
-  check('Apple Music denial does not call license validation', validationCalls === 5);
+  check('Apple Music denial does not call license validation', validationCalls === 7);
 
   response = await worker.fetch(request('/api/patches/apple-music/manifest.json', appleHeaders), env);
   check('active Apple Music license receives its manifest', response.status === 200);
-  check('Apple Music license validation uses its own project scope', validationCalls === 6);
+  check('Apple Music license validation uses its own project scope', validationCalls === 8);
 
   response = await worker.fetch(request('/patches/apple-music/HS%20SLA%20PECHO.APPLE', appleHeaders), env);
   check('active Apple Music license receives its package', response.status === 200);

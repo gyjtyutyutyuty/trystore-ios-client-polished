@@ -27,8 +27,8 @@ enum HeroCharacterModel: String, CaseIterable, Identifiable, Hashable {
 
     var objectFile: String { "\(rawValue).obj" }
 
-    /// Folder reference in the app bundle: `CharacterVault/<rawValue>/`.
-    /// The vault holds sealed blobs and unlocks them into caches on first use.
+    /// Feed folder materialized into Caches: `CharacterVault/<rawValue>/`.
+    /// The sealed source is downloaded after the feed releases the key.
     var objectURL: URL? {
         CharacterVault.modelURL(self)
     }
@@ -164,6 +164,12 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             name: .patchBundleKeyDidChange,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(vaultDidChange),
+            name: .characterVaultDidChange,
+            object: nil
+        )
     }
 
     deinit {
@@ -236,6 +242,12 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             self.load(model)
             self.requestedModel = model
         }
+    }
+
+    /// The vault arrives after the bundle key on a fresh install. Reload the
+    /// hero once the sealed blobs have landed.
+    @objc private func vaultDidChange() {
+        bundleKeyDidChange()
     }
 
     private func load(_ model: HeroCharacterModel) {

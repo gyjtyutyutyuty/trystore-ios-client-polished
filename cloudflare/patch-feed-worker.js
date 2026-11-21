@@ -33,6 +33,10 @@ const PROJECT_META = {
 const SESSION_TTL_SECONDS = 900;
 const MAX_UPLOAD_BYTES = 24 * 1024 * 1024;
 const PATCH_EXTENSIONS = [".trystore", ".3105", ".tipa", ".apple"];
+const VAULT_MANIFEST_KEY = "vault/trystore/manifest.json";
+const VAULT_BLOB_PREFIX = "vault/trystore/";
+const VAULT_ROUTE_PREFIX = "/api/patches/trystore/character-vault/";
+const VAULT_BLOB_PATH = /^(?:rouk|sakura)\/[A-Za-z0-9._-]{1,80}\.tsc$/;
 const MANIFEST_SCHEMA = 1;
 const MAGIC = Buffer.from("3105PATCH\0", "latin1");
 const RESELLER_FALLBACK = "https://jvztxnx-global-control.burgoajustin.workers.dev";
@@ -1410,6 +1414,77 @@ export default {
         200,
         { "cache-control": "no-store" },
       );
+    }
+
+    // The character vault is no longer inside the IPA. Its sealed blobs live
+    // in KV and are served only to a licensed device; the manifest is signed
+    // like every other feed document. The version route is public because the
+    // archive step uses it to confirm the published vault matches the feed key.
+    if (path === "/api/patches/trystore/character-vault/version" && request.method === "GET") {
+      const raw = await env.PATCHES.get(VAULT_MANIFEST_KEY);
+      if (!raw) return bad("vault_unavailable", 404);
+      try {
+        const value = JSON.parse(raw);
+        return json(
+          {
+            version: String(value?.version || ""),
+            keyFingerprint: String(value?.keyFingerprint || ""),
+            files: Array.isArray(value?.files) ? value.files.length : 0,
+          },
+          200,
+          { "cache-control": "no-store" },
+        );
+      } catch {
+        return bad("vault_unavailable", 503);
+      }
+    }
+
+    if (path === "/api/patches/trystore/character-vault/manifest.json" && request.method === "GET") {
+      if (!(await allowFeed(env, "vault-manifest", feedIP(request), 60, 60))) {
+        return bad("rate_limited", 429);
+      }
+      const licence = await requireTryStoreLicense(request, env, "trystore");
+      if (!licence.allowed) return licenceFailure(licence);
+      const raw = await env.PATCHES.get(VAULT_MANIFEST_KEY);
+      if (!raw) return bad("vault_unavailable", 404);
+      let value;
+      try {
+        value = JSON.parse(raw);
+      } catch {
+        return bad("vault_unavailable", 503);
+      }
+      if (!value || typeof value !== "object"
+          || !Array.isArray(value.files) || value.files.length === 0 || value.files.length > 64
+          || typeof value.version !== "string" || !/^[A-Za-z0-9._-]{1,64}$/.test(value.version)) {
+        return bad("vault_unavailable", 503);
+      }
+      return signedJson(env, value, 200, { "cache-control": "no-store" });
+    }
+
+    if (path.startsWith(VAULT_ROUTE_PREFIX) && request.method === "GET") {
+      let relative;
+      try {
+        relative = decodeURIComponent(path.slice(VAULT_ROUTE_PREFIX.length));
+      } catch {
+        return bad("not_found", 404);
+      }
+      if (!VAULT_BLOB_PATH.test(relative)) return bad("not_found", 404);
+      if (!(await allowFeed(env, "vault-blob", feedIP(request), 240, 60))) {
+        return bad("rate_limited", 429);
+      }
+      const licence = await requireTryStoreLicense(request, env, "trystore");
+      if (!licence.allowed) return licenceFailure(licence);
+      const bytes = await env.PATCHES.get(VAULT_BLOB_PREFIX + relative, "arrayBuffer");
+      if (!bytes) return bad("not_found", 404);
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "content-type": "application/octet-stream",
+          "content-length": String(bytes.byteLength),
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+        },
+      });
     }
 
     if (path === "/api/telegram/webhook" && request.method === "POST") {

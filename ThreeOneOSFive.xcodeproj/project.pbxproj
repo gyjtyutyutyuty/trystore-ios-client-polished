@@ -74,7 +74,6 @@
 		3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
 		B71300000000000000000006 /* PatchResourceBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B71300000000000000000005; };
-		C71400000000000000000002 /* CharacterVault in Resources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000001; };
 		C71400000000000000000004 /* CharacterStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71400000000000000000003; };
 		C71500000000000000000001 /* worse_query.m in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000003; };
 		C71500000000000000000002 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71500000000000000000005; };
@@ -179,7 +178,6 @@
 		3105B124 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		3105B125 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B71300000000000000000005 /* PatchResourceBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchResourceBundle.swift; sourceTree = "<group>"; };
-		C71400000000000000000001 /* CharacterVault */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CharacterVault; sourceTree = "<group>"; };
 		C71400000000000000000003 /* CharacterStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterStageView.swift; sourceTree = "<group>"; };
 		C71500000000000000000003 /* worse_query.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = worse_query.m; sourceTree = "<group>"; };
 		C71500000000000000000004 /* worse_query.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = worse_query.h; sourceTree = "<group>"; };
@@ -231,7 +229,6 @@
 				3105A406 /* kexploit */,
 				3105A120 /* Localizable.strings */,
 					3105A031 /* Assets.xcassets */,
-					C71400000000000000000001 /* CharacterVault */,
 								3105K203 /* AirliftFFI.xcframework */,
 			);
 			path = ThreeOneOSFive;
@@ -420,7 +417,6 @@
 				files = (
 					3105A211,
 					3105A228,
-					C71400000000000000000002, /* CharacterVault in Resources */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

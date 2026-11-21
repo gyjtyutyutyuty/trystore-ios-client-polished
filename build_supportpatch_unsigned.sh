@@ -8,24 +8,10 @@ BUILD_DIR="$ROOT/build"
 ARCHIVE="$BUILD_DIR/SupportPatch.xcarchive"
 IPA="$BUILD_DIR/SupportPatch-unsigned.ipa"
 PATCH_FEED_URL="${PATCH_FEED_URL:-https://trystore-patch-feed.burgoajustin.workers.dev}"
-PRESEALED="$ROOT/build_support/CharacterVaultTSC2/CharacterVault"
-PRESEALED_MANIFEST="$ROOT/build_support/CharacterVaultTSC2/manifest.json"
 
 if ! command -v xcodebuild >/dev/null 2>&1; then
   echo "Error: xcodebuild is required. Run this script on macOS with Xcode installed." >&2
   exit 127
-fi
-
-VAULT_MODE="key"
-if [[ -z "${TRYSTORE_BUNDLE_KEY:-}" ]]; then
-  if [[ "${ALLOW_TSC1_VAULT:-0}" == "1" ]]; then
-    VAULT_MODE="tsc1"
-  elif [[ -d "$PRESEALED" && -f "$PRESEALED_MANIFEST" ]]; then
-    VAULT_MODE="presealed"
-  else
-    echo "Error: set TRYSTORE_BUNDLE_KEY or commit the pre-sealed vault." >&2
-    exit 1
-  fi
 fi
 
 rm -rf "$BUILD_DIR"
@@ -54,29 +40,16 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
-# Release art must not carry the historical static TSC1 key. Prefer the
-# server-released key when the build has it; otherwise use the checked-in
-# pre-sealed vault, but only if it matches the fingerprint the feed serves.
-if [[ "$VAULT_MODE" == "key" ]]; then
-  python3 "$ROOT/scripts/rewrap_character_vault.py" \
-    --app "$APP" --bundle-key "$TRYSTORE_BUNDLE_KEY"
-elif [[ "$VAULT_MODE" == "tsc1" ]]; then
-  echo "Warning: shipping TSC1 CharacterVault (ALLOW_TSC1_VAULT=1)" >&2
-else
-  if ! FEED_FINGERPRINT="$(
-    curl -fsS --max-time 20 \
-      "$PATCH_FEED_URL/api/patches/trystore/bundle-key/fingerprint" \
-      | python3 -c 'import json,sys; print(json.load(sys.stdin)["fingerprint"])'
-  )" || [[ -z "$FEED_FINGERPRINT" ]]; then
-    echo "Error: cannot read the feed key fingerprint from $PATCH_FEED_URL." >&2
-    exit 1
-  fi
-  rm -rf "$APP/CharacterVault"
-  cp -R "$PRESEALED" "$APP/CharacterVault"
-  python3 "$ROOT/scripts/verify_presealed_vault.py" \
-    --vault "$APP/CharacterVault" \
-    --manifest "$PRESEALED_MANIFEST" \
-    --fingerprint "$FEED_FINGERPRINT"
+# The character vault and patch payloads stay out of the archive. The feed
+# serves the sealed vault to a licensed device; anything left here is one
+# unzip away from Filza.
+if [[ -e "$APP/CharacterVault" ]]; then
+  echo "Error: CharacterVault is still bundled in the app." >&2
+  exit 1
+fi
+if [[ -e "$APP/Patches" ]]; then
+  echo "Error: Patches is still bundled in the app." >&2
+  exit 1
 fi
 
 python3 "$ROOT/scripts/verify_legacy_patch_bundle.py" --app "$APP"

@@ -25,7 +25,7 @@ App Attest schema the two Workers depend on.
     Bindings: `DB`, `APP_ATTEST_APP_ID="K976G5HK7K.cc.forcequit.worse-query"`,
     `APP_ATTEST_ENVIRONMENT="production"`.
   - `trystore-patch-feed` deployed from `cloudflare/patch-feed-worker.js`,
-    version `23806b1b-9a8f-4425-823b-901a82d2d2b6`.
+    version `f006cd49-a66a-468c-93eb-1590dc38448e`.
 - `cloudflare/wrangler.license.toml` is now tracked. It builds
   `dist/license-worker.js` before upload and carries the production App Attest
   vars.
@@ -45,6 +45,9 @@ Run against the deployed Workers after upload:
 | App Attest challenge/register/bundle-key without a licence | 401 from the licence Worker through the service binding |
 | Legacy `GET /api/patches/trystore/bundle-key` | 405 |
 | Licence-bound `POST` without a licence | 401 |
+| `GET /character-vault/version` | 200, 16 files, `keyFingerprint` `6d77…8759` |
+| `GET /character-vault/manifest.json` without credentials | 401 |
+| `GET /character-vault/rouk/rouk.obj.tsc` without credentials | 401 |
 | Public package blob `hyper-regedit` | 200, immutable cache |
 | `POST /api/v1/keys/validate` with a bogus key | 200, `valid:false` |
 | Rate-limit rows | written with the new `hits` column |
@@ -66,6 +69,28 @@ missing, expired, revoked, or differently bound licences. Activation no longer
 depends on the art key at all, so a feed outage or an attestation refusal
 leaves the licence usable and only the sealed art pending.
 
+## Character vault feed
+
+The IPA used to carry 16 sealed `TSC2` blobs. They now live in the feed's KV
+namespace under `vault/trystore/<path>`, with a signed manifest at
+`vault/trystore/manifest.json`. Its `version` is a digest of the file list, so
+a re-sealed vault with the same key still invalidates installed copies, and
+`keyFingerprint` carries the bundle-key fingerprint
+(`6d77a77f5c738a5e036b34c4e4c1f4e9627c6c2426e2ddbc5fc4f47d6adb8759`).
+
+| Route | Access |
+| --- | --- |
+| `GET /api/patches/trystore/character-vault/version` | public; version and file count |
+| `GET /api/patches/trystore/character-vault/manifest.json` | licensed; signed |
+| `GET /api/patches/trystore/character-vault/<path>` | licensed; sealed bytes |
+
+The client verifies the manifest signature, every size and SHA-256, stores the
+sealed copy in Application Support (backup-excluded), and unseals into Caches
+only after the bundle key is present. `CharacterVault.purge()` removes both
+when the licence is cleared or the runtime tamper probe fires. The archive
+script and `tools/verify_ipa_hardening.py` fail if a vault or patch directory
+is bundled.
+
 ## Still device-side
 
 - App Attest is not exercised by an emulator or CI. Attest once on a physical
@@ -74,15 +99,14 @@ leaves the licence usable and only the sealed art pending.
 - `APP_ATTEST_APP_ID` is set from the Xcode team (`K976G5HK7K`) and bundle ID
   (`cc.forcequit.worse-query`). Confirm the App ID prefix in the Apple
   Developer portal if attestation fails with a hash mismatch.
-- The archive step seals `CharacterVault` with `TRYSTORE_BUNDLE_KEY` when the
-  build has it. Codemagic has no key configured, so it uses the checked-in
-  `build_support/CharacterVaultTSC2` vault and requires its fingerprint to
-  match `/api/patches/trystore/bundle-key/fingerprint`. The key still has to
-  match the feed's `APP_BUNDLE_KEY`; a stale pre-sealed vault fails the build
-  instead of shipping unreadable art.
-- `tools/verify_ipa_hardening.py` runs on the archived IPA in the verify step:
-  it rejects a non-TSC2 vault blob, a missing `__RESTRICT` segment, or enabled
-  document sharing. The first run against a fresh archive is the next build.
+- The archive no longer carries `CharacterVault` or `Patches`; the build script
+  and `tools/verify_ipa_hardening.py` fail if either is present. The sealed
+  vault is published to KV under `vault/trystore/` and the client downloads it
+  after the licence check. Codemagic requires the published vault version to
+  equal `/api/patches/trystore/bundle-key/fingerprint`.
+- `tools/verify_ipa_hardening.py` runs on the archived IPA: it rejects a
+  bundled vault or patch directory, a missing `__RESTRICT` segment, or enabled
+  document sharing.
 
 ## Archive
 

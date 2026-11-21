@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "project": "trystore",
+  "version": "c2041d6c563e265cc7a59b5977e8d247267176e9f8e1025ab1e32af5b0c7e329",
+  "keyFingerprint": "6d77a77f5c738a5e036b34c4e4c1f4e9627c6c2426e2ddbc5fc4f47d6adb8759",
+  "files": [
+    {
+      "path": "rouk/rouk.mtl.tsc",
+      "sha256": "75d4c47725e3a6c990338c77f3d879ae9b8c78618ae7556782a4c22625eced60",
+      "size": 602
+    },
+    {
+      "path": "rouk/rouk.obj.tsc",
+      "sha256": "7abd597651c975a19fb58824b275ee9e0e25bee1d54539d0efe5cc8e8d47a3eb",
+      "size": 572567
+    },
+    {
+      "path": "rouk/tex_0145_0out.png.tsc",
+      "sha256": "1b28c8300dab06b975bfd22c00bad6cbb2bbddb29b38514d832deaaf5d7eb2e2",
+      "size": 426895
+    },
+    {
+      "path": "rouk/tex_0150_0out.png.tsc",
+      "sha256": "c1a2771914541e5470902c4a20b24c37af669240aa48cd847a4e41bd7bc8cad0",
+      "size": 74511
+    },
+    {
+      "path": "rouk/tex_0155_0out.png.tsc",
+      "sha256": "b51ce2f7be774f929ef1991e373e6ffbc342d851bdd72270c34959faad5a489c",
+      "size": 178883
+    },
+    {
+      "path": "rouk/tex_0160_0out.png.tsc",
+      "sha256": "e4681b6c0310089eb4a5f9ab9b94550c35872f7fe8d7dba6528eb5ad0845a507",
+      "size": 252568
+    },
+    {
+      "path": "rouk/tex_0165_0out.png.tsc",
+      "sha256": "69253b16455ef37ffe6505d1932586305ccae0045cd8e2fefe590c91823c4bda",
+      "size": 48740
+    },
+    {
+      "path": "rouk/tex_0170_0out.png.tsc",
+      "sha256": "2ece11a0f44e10b928ece587293d41ea868d22b5a102871ae099824bdfc05883",
+      "size": 73046
+    },
+    {
+      "path": "sakura/sakura.mtl.tsc",
+      "sha256": "de081c1b261c64687e932d0f8deb40f33aaa3b1541366f9596c7a1ad960ab3fe",
+      "size": 648
+    },
+    {
+      "path": "sakura/sakura.obj.tsc",
+      "sha256": "0c4bdc871ca12d0b45ce3328fb0e4e0306924afd7e9b1ee6ec0b164750a9278f",
+      "size": 889598
+    },
+    {
+      "path": "sakura/tex_0050_0out.png.tsc",
+      "sha256": "eb1113afaf84ee02f9eb139e23e6abff43d5df32f8875a58abd7360750aa7610",
+      "size": 418295
+    },
+    {
+      "path": "sakura/tex_0055_0out.png.tsc",
+      "sha256": "a13439052f0bf2c4274abe47df221df11cf9a0b80719c7d91e98da09ef36bc63",
+      "size": 38783
+    },
+    {
+      "path": "sakura/tex_0060_0out.png.tsc",
+      "sha256": "eb0cb6f692220a804ac18e35184f4e060513177597b11628ba4477db6c83ded5",
+      "size": 62881
+    },
+    {
+      "path": "sakura/tex_0065_0out.png.tsc",
+      "sha256": "aac5048f554cc20962410397c6e6d363cdb61e5b10d7040259edd6ebfc11f178",
+      "size": 235454
+    },
+    {
+      "path": "sakura/tex_0070_0out.png.tsc",
+      "sha256": "ee872291acdee4caa9e1554f72d3d06e83814932e2783c37af1cf7d0c12fde33",
+      "size": 68779
+    },
+    {
+      "path": "sakura/tex_0230_0out.png.tsc",
+      "sha256": "b78bdac4bd95818a7200135060b5395ba637dcf18e1c4e0653faa4ed397c6ae1",
+      "size": 49134
+    }
+  ]
+}

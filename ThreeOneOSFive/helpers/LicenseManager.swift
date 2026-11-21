@@ -100,6 +100,7 @@ final class LicenseManager: ObservableObject {
     func clear() {
         deleteKeychainValue(for: keyAccount)
         PatchBundleKeyStore.clear()
+        CharacterVault.purge()
         isActive = false
         expirationDate = nil
         lastCheckedAt = nil
@@ -201,6 +202,15 @@ final class LicenseManager: ObservableObject {
                 isActive = true
                 messageKey = nil
                 maskedKey = Self.mask(key)
+                // The character art is no longer in the IPA. Fetch the sealed
+                // vault after the key lands so the hero can draw on this
+                // launch; an offline failure retries on the next validation.
+                let vaultCredentials = PatchFeedCredentials(
+                    licenseKey: key,
+                    deviceID: identifier,
+                    feedToken: PatchBundleKeyStore.cachedFeedToken()
+                )
+                Task { await CharacterVault.sync(credentials: vaultCredentials) }
             } catch LicenseRequestError.network {
                 PatchBundleKeyStore.invalidateBundleKey()
                 isActive = false
