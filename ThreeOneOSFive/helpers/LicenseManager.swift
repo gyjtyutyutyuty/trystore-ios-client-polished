@@ -72,6 +72,12 @@ final class LicenseManager: ObservableObject {
             return
         }
         if isActive, let lastCheckedAt, Date().timeIntervalSince(lastCheckedAt) < 45 {
+            // A transient feed failure must not leave the GUI blank for the
+            // whole session. Retry the signed vault download with the existing
+            // licence whenever the app becomes active.
+            if let credentials = patchFeedCredentials() {
+                Task { await CharacterVault.sync(credentials: credentials) }
+            }
             return
         }
         isActive = false

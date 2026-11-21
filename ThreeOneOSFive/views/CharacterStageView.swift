@@ -2,7 +2,8 @@ import SwiftUI
 import SceneKit
 import UIKit
 
-/// The two real character meshes shipped in `CharacterModels/`.
+/// The two real character meshes. Debug builds may read `CharacterModels/`;
+/// Release builds materialize them from the licensed character vault.
 enum HeroCharacterModel: String, CaseIterable, Identifiable, Hashable {
     case rouk
     case sakura

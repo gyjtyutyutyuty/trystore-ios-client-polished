@@ -47,6 +47,10 @@ if [[ -e "$APP/CharacterVault" ]]; then
   echo "Error: CharacterVault is still bundled in the app." >&2
   exit 1
 fi
+if [[ -e "$APP/CharacterModels" ]]; then
+  echo "Error: unsealed CharacterModels are still bundled in the app." >&2
+  exit 1
+fi
 if [[ -e "$APP/Patches" ]]; then
   echo "Error: Patches is still bundled in the app." >&2
   exit 1

@@ -373,6 +373,7 @@
 				3105A700 /* Sources */,
 				3105A300 /* Frameworks */,
 				3105A800 /* Resources */,
+				C72000000000000000000001 /* Copy Debug Character Models */,
 			);
 			buildRules = (
 			);
@@ -411,9 +412,27 @@
 				3105A500,
 			);
 		};
-/* End PBXProject section */
+	/* End PBXProject section */
 
-/* Begin PBXResourcesBuildPhase section */
+	/* Begin PBXShellScriptBuildPhase section */
+		C72000000000000000000001 /* Copy Debug Character Models */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Debug Character Models";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "bash \"${SRCROOT}/scripts/copy_debug_character_models.sh\"\n";
+		};
+	/* End PBXShellScriptBuildPhase section */
+
+	/* Begin PBXResourcesBuildPhase section */
 		3105A800 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;

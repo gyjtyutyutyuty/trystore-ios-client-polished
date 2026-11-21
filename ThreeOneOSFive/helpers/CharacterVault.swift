@@ -72,13 +72,35 @@ enum CharacterVault {
             if let vaultError = error as? VaultError, case .corrupt = vaultError {
                 invalidateDownload()
             }
+#if DEBUG
+            return debugModelURL(model)
+#else
             return nil
+#endif
         }
         let url = root
             .appendingPathComponent(model.rawValue, isDirectory: true)
             .appendingPathComponent(model.objectFile)
+        if FileManager.default.fileExists(atPath: url.path) { return url }
+#if DEBUG
+        return debugModelURL(model)
+#else
+        return nil
+#endif
+    }
+
+#if DEBUG
+    /// The source meshes are copied into Debug app bundles only, so the GUI can
+    /// be exercised without a live licence/feed. Release builds never use them.
+    private static func debugModelURL(_ model: HeroCharacterModel) -> URL? {
+        guard let resources = Bundle.main.resourceURL else { return nil }
+        let url = resources
+            .appendingPathComponent("CharacterModels", isDirectory: true)
+            .appendingPathComponent(model.rawValue, isDirectory: true)
+            .appendingPathComponent(model.objectFile)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
+#endif
 
     // MARK: - Download
 
