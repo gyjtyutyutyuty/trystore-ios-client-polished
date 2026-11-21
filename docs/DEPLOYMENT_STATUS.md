@@ -184,3 +184,30 @@ RrxJgZTY9C41WTQyO6+XNHmXp4jI7p6H2ppKwj2qC2o=
 
 Rotating the private key requires a client build with the new public half.
 Keep the old secret until installed builds have rolled forward.
+
+## 2026-11-21 - hero fix and code pinning
+
+- Blank hero: `CharacterSceneView.install` faded from opacity 0 with an implicit
+  `SCNTransaction` animation. A fixed-pose stage keeps `isPlaying` false, so the
+  animation never advanced and the mesh stayed transparent. The mesh is visible
+  on the first frame now; the fade runs only while the display link exists.
+- Key release: an App Attest failure of any kind, including a 401 from the
+  challenge route, now falls through to the licence-bound release. Only
+  `configuration` and `secureStorage` abort. `LicenseManager` keeps a cached key
+  across transient failures and deletes it only on `.unauthorized`.
+- Vault: the manifest `keyFingerprint` is compared with the cached bundle key
+  before downloading; a mismatch aborts the sync instead of writing 16 blobs
+  that cannot be unsealed. A corrupt sealed copy is evicted so the next sync
+  re-downloads, and transport failures are retried twice.
+- Binary pinning: `build_supportpatch_unsigned.sh` stores
+  `TRYSTORE_CODE_SHA256` (SHA-256 over the `__TEXT` sections) in `Info.plist`;
+  `Hardening` recomputes it and reports `.modifiedBinary`. Signing only touches
+  `__LINKEDIT` and the Mach header, so the digest survives a re-sign.
+  `tools/macho_code_digest.py` and `tools/verify_ipa_hardening.py` enforce it.
+- Deployed: feed `7a431d40-044f-48c4-8b73-d9401975820d`, licence
+  `e0f7dc1b-7c0e-4ac7-8ad5-a5e4a8d8df18`. `MANIFEST_SIGNING_KEY` was uploaded
+  again from the local key so the pinned public half matches the signature.
+- Feed: `/report` writes one KV key per project (the timestamped copy was a
+  write amplifier) at 10/min, and `/character-vault/version` is rate limited.
+- An IPA without `TRYSTORE_CODE_SHA256` now fails `verify_ipa_hardening.py`;
+  IPA 9 predates the pin and is only useful as a pre-fix reference.
