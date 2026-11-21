@@ -211,3 +211,20 @@ Keep the old secret until installed builds have rolled forward.
   write amplifier) at 10/min, and `/character-vault/version` is rate limited.
 - An IPA without `TRYSTORE_CODE_SHA256` now fails `verify_ipa_hardening.py`;
   IPA 9 predates the pin and is only useful as a pre-fix reference.
+
+### Abuse controls (2026-11-21)
+
+- Feed tokens now carry `mode` (`attest` or `licence`) and the release route
+  records successful attestations in `feed_auth_cache` as `attest|<hash>` for
+  30 days. A 10-minute token expiring no longer erases the proof.
+- `REQUIRE_VAULT_ATTESTATION="1"` makes the vault manifest and blobs require
+  that marker. Default is `"0"` so sideloaded installs keep working; flipping
+  it locks the vault to attested devices only.
+- Hourly per-licence budgets live in `feed_rate_limits`, keyed by
+  `sha256("fetch|<bucket>|<licence>|<device>")`: 24 manifests, 64 vault blobs,
+  160 patch blobs. A scraper that rotates IPs still hits the same subject and
+  gets `429 fetch_quota_exceeded` with `retry-after`.
+- Deployed feed `c9270dad-9dc1-4e19-8eb7-89d5fee05589`.
+- Still open by design: the device identifier is a client-generated UUID, so a
+  jailbroken device can copy it and look like the original. Only App Attest
+  closes that; the strict flag is the switch for when every build can attest.
