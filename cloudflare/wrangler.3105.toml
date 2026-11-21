@@ -1,0 +1,23 @@
+name = "3105api"
+main = "3105-adapter-worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Same D1 database used by the Global Key Control worker.
+[[d1_databases]]
+binding = "DB"
+database_name = "jvztxnx-global-control"
+database_id = "206d4900-6e0f-476e-9f3c-aaf85fde952e"
+
+# Key validation stays in the existing worker so no signing secret is copied.
+[[services]]
+binding = "LICENSE"
+service = "jvztxnx-global-control"
+
+[[kv_namespaces]]
+binding = "PATCHES"
+id = "4ef903cd1cf04f298ddddd9f14462b9b"
+
+[vars]
+PROJECT_SLUG = "3105"
+LEGACY_SUPABASE_URL = "https://uckcsnvmcomxethtfqum.supabase.co"
