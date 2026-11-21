@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$ROOT/ThreeOneOSFive.xcodeproj"
@@ -11,6 +11,12 @@ IPA="$BUILD_DIR/SupportPatch-unsigned.ipa"
 if ! command -v xcodebuild >/dev/null 2>&1; then
   echo "Error: xcodebuild is required. Run this script on macOS with Xcode installed." >&2
   exit 127
+fi
+
+if [[ -z "${TRYSTORE_BUNDLE_KEY:-}" && "${ALLOW_TSC1_VAULT:-0}" != "1" ]]; then
+  echo "Error: TRYSTORE_BUNDLE_KEY is required to seal CharacterVault for release." >&2
+  echo "Set it in the build environment, or pass ALLOW_TSC1_VAULT=1 for a local Debug-only archive." >&2
+  exit 1
 fi
 
 rm -rf "$BUILD_DIR"

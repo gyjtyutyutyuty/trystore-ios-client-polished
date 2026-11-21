@@ -61,9 +61,11 @@ missing-signing-key `503` are covered by `scripts/verify_patch_feed_worker.mjs`.
 - `APP_ATTEST_APP_ID` is set from the Xcode team (`K976G5HK7K`) and bundle ID
   (`cc.forcequit.worse-query`). Confirm the App ID prefix in the Apple
   Developer portal if attestation fails with a hash mismatch.
-- The archive step seals `CharacterVault` with the GitHub Actions secret
-  `TRYSTORE_BUNDLE_KEY`. It must decode to the same 32 bytes as the feed's
-  `APP_BUNDLE_KEY`; a mismatch opens the feed but leaves the vault unreadable.
+- The archive step seals `CharacterVault` with the build environment's
+  `TRYSTORE_BUNDLE_KEY`. GitHub Actions has the secret; Codemagic needs the
+  same value in its environment group. It must decode to the same 32 bytes as
+  the feed's `APP_BUNDLE_KEY`; a mismatch opens the feed but leaves the vault
+  unreadable.
 - The Swift changes were statically checked only. No Xcode build or device
   run was performed on this host.
 

@@ -16,6 +16,7 @@ workflows:
       - name: Validate merged project and remote-only patch setup
         script: |
           set -euo pipefail
+          : "${TRYSTORE_BUNDLE_KEY:?Set TRYSTORE_BUNDLE_KEY in the Codemagic environment group}"
           echo "Building commit: $(git rev-parse HEAD)"
           test -f ThreeOneOSFive.xcodeproj/project.pbxproj
           test -f ThreeOneOSFive.xcodeproj/xcshareddata/xcschemes/SupportPatch.xcscheme
