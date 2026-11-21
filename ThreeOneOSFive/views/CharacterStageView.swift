@@ -369,13 +369,22 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         idleSpeed = 0
         idleTime = 0
         root.eulerAngles = SCNVector3Zero
-        root.opacity = 0
-        modelContainer.addChildNode(root)
 
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0.42
+        // Opacity 0 plus an implicit fade only works while the renderer is
+        // advancing scene time. A fixed-pose stage keeps `isPlaying` false, so
+        // the mesh stayed transparent forever. Be visible first, fade only when
+        // the display link is actually running.
         root.opacity = 1
-        SCNTransaction.commit()
+        modelContainer.addChildNode(root)
+        if displayLink != nil {
+            root.opacity = 0
+            SCNTransaction.begin()
+            SCNTransaction.animationDuration = 0.42
+            root.opacity = 1
+            SCNTransaction.commit()
+        }
+
+        updateDisplayLink()
         setNeedsDisplay()
     }
 
