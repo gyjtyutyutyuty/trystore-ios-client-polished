@@ -591,7 +591,7 @@ async function handleMoonAuth(env, request) {
     if (!keyValue) return deny("Introduce una licencia válida.", "LICENSE_REQUIRED");
     let resolved;
     try {
-      resolved = await resolveKey(env, keyValue);
+      resolved = await resolveKey(env, keyValue, request);
     } catch {
       return deny("No se pudo validar la licencia.", "LICENSE_UNAVAILABLE");
     }
