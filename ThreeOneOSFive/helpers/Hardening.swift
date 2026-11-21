@@ -252,9 +252,16 @@ enum Hardening {
     /// never carries it. Failure to query is treated as healthy so an OS change
     /// cannot brick the app.
     private static func codeSignatureIsWeakened() -> Bool {
+        // `syscall` is variadic and unavailable to Swift on the current SDK.
+        // Resolve `csops` directly; failure to find it means the check is
+        // skipped, which matches the "query failure is healthy" policy above.
+        let defaultHandle = UnsafeMutableRawPointer(bitPattern: -2)
+        typealias CSOps = @convention(c) (pid_t, UInt32, UnsafeMutableRawPointer?, Int) -> Int32
+        guard let symbol = dlsym(defaultHandle, "csops") else { return false }
+        let csops = unsafeBitCast(symbol, to: CSOps.self)
         var status: UInt32 = 0
         let result = withUnsafeMutablePointer(to: &status) { pointer in
-            syscall(169, getpid(), 0, pointer, MemoryLayout<UInt32>.size)
+            csops(getpid(), 0, UnsafeMutableRawPointer(pointer), MemoryLayout<UInt32>.size)
         }
         guard result == 0 else { return false }
         return (status & 0x1000_0000) != 0
