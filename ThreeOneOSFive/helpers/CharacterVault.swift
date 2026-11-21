@@ -17,6 +17,7 @@ enum CharacterVault {
         case invalidManifest
         case keyMismatch
         case missingAssets
+        case unauthorized
         case unavailable
     }
 
@@ -85,15 +86,40 @@ enum CharacterVault {
     /// every launch; an unchanged version with all files present costs one
     /// request. A transport failure is retried twice so a cold Worker start or
     /// a dropped packet does not leave the hero blank until the next launch.
+    /// The feed token lasts ten minutes; when it lapses mid-session the release
+    /// is asked for a new one and the download starts over instead of leaving
+    /// an empty stage until the next launch.
     static func sync(credentials: PatchFeedCredentials) async {
         guard beginSync() else { return }
         defer { endSync() }
+        var current = credentials
+        var refreshedToken = false
         for attempt in 0..<3 {
             do {
-                let changed = try await downloadIfNeeded(credentials: credentials)
+                let changed = try await downloadIfNeeded(credentials: current)
                 if changed { clearMaterializedCache() }
                 NotificationCenter.default.post(name: .characterVaultDidChange, object: nil)
                 return
+            } catch VaultError.unauthorized {
+                guard !refreshedToken else {
+                    log("vault: feed rejected the released token")
+                    return
+                }
+                refreshedToken = true
+                do {
+                    try await PatchBundleKeyStore.refresh(
+                        licenseKey: current.licenseKey,
+                        deviceID: current.deviceID
+                    )
+                    current = PatchFeedCredentials(
+                        licenseKey: current.licenseKey,
+                        deviceID: current.deviceID,
+                        feedToken: PatchBundleKeyStore.cachedFeedToken()
+                    )
+                } catch {
+                    log("vault: token refresh failed — \(error)")
+                    return
+                }
             } catch {
                 log("vault: sync failed — \(error)")
                 guard attempt < 2, shouldRetry(error) else { return }
@@ -107,7 +133,7 @@ enum CharacterVault {
     private static func shouldRetry(_ error: Error) -> Bool {
         guard let vaultError = error as? VaultError else { return true }
         switch vaultError {
-        case .keyMismatch, .invalidManifest:
+        case .keyMismatch, .invalidManifest, .unauthorized:
             return false
         case .corrupt, .missingAssets, .unavailable:
             return true
@@ -164,7 +190,8 @@ enum CharacterVault {
         let storedVersion = (try? String(contentsOf: versionURL, encoding: .utf8))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if storedVersion == manifest.version,
-           filesPresent(manifest.files, at: sealed, fileManager: fileManager) {
+           filesPresent(manifest.files, at: sealed, fileManager: fileManager),
+           sealedCopyOpens(manifest, at: sealed) {
             return false
         }
 
@@ -211,8 +238,13 @@ enum CharacterVault {
                     for: PatchResourceBundle.authenticatedRequest(url: url, credentials: credentials)
                 )
                 guard let http = response as? HTTPURLResponse,
-                      http.statusCode == 200,
-                      http.url?.host?.lowercased() == baseURL.host?.lowercased(),
+                      http.url?.host?.lowercased() == baseURL.host?.lowercased() else {
+                    throw VaultError.invalidManifest
+                }
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    throw VaultError.unauthorized
+                }
+                guard http.statusCode == 200,
                       let signature = http.value(forHTTPHeaderField: vaultSignatureHeader),
                       PatchResourceBundle.verifyManifest(data: data, signature: signature) else {
                     throw VaultError.invalidManifest
@@ -220,6 +252,12 @@ enum CharacterVault {
                 let manifest = try JSONDecoder().decode(VaultManifest.self, from: data)
                 try validate(manifest)
                 return manifest
+            } catch let error as VaultError {
+                if case .unauthorized = error { throw error }
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64(400_000_000) << attempt)
+                }
             } catch {
                 lastError = error
                 if attempt < 2 {
@@ -262,8 +300,13 @@ enum CharacterVault {
                     for: PatchResourceBundle.authenticatedRequest(url: url, credentials: credentials)
                 )
                 guard let http = response as? HTTPURLResponse,
-                      http.statusCode == 200,
-                      http.url?.host?.lowercased() == baseURL.host?.lowercased(),
+                      http.url?.host?.lowercased() == baseURL.host?.lowercased() else {
+                    throw VaultError.unavailable
+                }
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    throw VaultError.unauthorized
+                }
+                guard http.statusCode == 200,
                       data.count == entry.size,
                       data.count <= maximumFileSize else {
                     throw VaultError.unavailable
@@ -273,6 +316,12 @@ enum CharacterVault {
                     throw VaultError.corrupt
                 }
                 return data
+            } catch let error as VaultError {
+                if case .unauthorized = error { throw error }
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64(400_000_000) << attempt)
+                }
             } catch {
                 lastError = error
                 if attempt < 2 {
@@ -329,6 +378,22 @@ enum CharacterVault {
         guard value.count == 64 else { return false }
         let allowed = CharacterSet(charactersIn: "0123456789abcdefABCDEF")
         return value.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    /// A version stamp proves a finished download, not a usable one. A device
+    /// that kept files sealed under a retired key would otherwise skip every
+    /// re-download and stay blank forever, because the stamp still matches the
+    /// manifest. Open one blob; when that fails, drop the copy and fetch again.
+    private static func sealedCopyOpens(_ manifest: VaultManifest, at root: URL) -> Bool {
+        guard let entry = manifest.files.first else { return false }
+        guard let key = try? vaultKey() else {
+            // No key yet: the files may well be fine. Downloading again would
+            // not help and would burn the fetch budget.
+            return true
+        }
+        let url = root.appendingPathComponent(entry.path)
+        guard let data = try? Data(contentsOf: url) else { return false }
+        return (try? decrypt(data, key: key)) != nil
     }
 
     private static func filesPresent(

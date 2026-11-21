@@ -69,12 +69,14 @@ enum PatchBundleKeyStore {
 
     /// Short-lived token issued with the bundle key. The feed accepts it for
     /// manifests and blobs without re-running the licence check per request.
+    /// The expiry belongs to the server: a device clock that runs ahead used to
+    /// make the app discard a token the feed would still accept, and the vault
+    /// then refused every request while the key itself stayed valid.
     static func cachedFeedToken() -> String? {
-        guard validUntil(account: feedTokenExpiryAccount) else {
-            deleteKeychainItem(account: feedTokenAccount)
+        guard let token = readStringKeychain(account: feedTokenAccount), !token.isEmpty else {
             return nil
         }
-        return readStringKeychain(account: feedTokenAccount)
+        return token
     }
 
     /// Version the cached key was released under. Used in sync diagnostics; the

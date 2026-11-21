@@ -98,7 +98,10 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         preferredFramesPerSecond = constrained ? 30 : 60
         contentScaleFactor = constrained ? min(UIScreen.main.scale, 2) : UIScreen.main.scale
         rendersContinuously = false
-        isPlaying = false
+        // On-demand rendering: SceneKit redraws when the scene graph changes.
+        // Leaving isPlaying false meant a fixed pose (or a stage whose display
+        // link had not started yet) could keep an added mesh off screen.
+        isPlaying = true
         allowsCameraControl = false
         autoenablesDefaultLighting = false
         scene = stageScene
@@ -400,12 +403,10 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             displayLink = link
             lastTimestamp = 0
             rendersContinuously = true
-            isPlaying = true
         } else if !shouldRun, displayLink != nil {
             displayLink?.invalidate()
             displayLink = nil
             rendersContinuously = false
-            isPlaying = false
         }
     }
 
