@@ -195,6 +195,15 @@ final class LicenseManager: ObservableObject {
                         licenseKey: key,
                         deviceID: identifier
                     )
+                } catch let error as PatchBundleKeyError {
+                    log("patches: bundle key unavailable — \(error)")
+                    // A transient feed or licence-worker failure must not delete
+                    // a key that still opens the downloaded vault. Only a real
+                    // rejection drops it; the vault fingerprint check refuses a
+                    // stale key on its own.
+                    if case .unauthorized = error {
+                        PatchBundleKeyStore.invalidateBundleKey()
+                    }
                 } catch {
                     log("patches: bundle key unavailable — \(error)")
                     PatchBundleKeyStore.invalidateBundleKey()

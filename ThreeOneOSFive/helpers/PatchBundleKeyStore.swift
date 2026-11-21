@@ -26,6 +26,7 @@ enum PatchBundleKeyStore {
     private static let expiryAccount = "bundle-key-expiry-v1"
     private static let feedTokenAccount = "feed-token-v1"
     private static let feedTokenExpiryAccount = "feed-token-expiry-v1"
+    private static let keyVersionAccount = "bundle-key-version-v1"
     private static let appAttestAccount = "app-attest-key-id-v1"
     private static let expectedHost = "trystore-patch-feed.burgoajustin.workers.dev"
     private static let bundleKeyPath = "/api/patches/trystore/bundle-key"
@@ -75,6 +76,13 @@ enum PatchBundleKeyStore {
         return readStringKeychain(account: feedTokenAccount)
     }
 
+    /// Version the cached key was released under. Used in sync diagnostics; the
+    /// vault manifest's fingerprint is the authoritative check.
+    static func cachedKeyVersion() -> String? {
+        guard cachedKey() != nil else { return nil }
+        return readStringKeychain(account: keyVersionAccount)
+    }
+
     static func refresh(licenseKey: String, deviceID: String) async throws {
         guard let baseURL = feedBaseURL() else { throw PatchBundleKeyError.configuration }
 
@@ -94,9 +102,13 @@ enum PatchBundleKeyStore {
                 return
             } catch let error as PatchBundleKeyError {
                 switch error {
-                case .unauthorized, .configuration, .secureStorage:
+                case .configuration, .secureStorage:
                     throw error
-                case .unavailable, .attestationUnavailable, .attestationRejected:
+                case .unauthorized, .unavailable, .attestationUnavailable, .attestationRejected:
+                    // A rejected assertion is not a rejected licence. The
+                    // challenge and bundle-key calls below re-check the licence
+                    // and the device themselves, so attestation failures must
+                    // never short-circuit the licensed release.
                     break
                 }
                 log("patches: App Attest path failed (\(error)); trying the licence-bound release")
@@ -208,6 +220,11 @@ enum PatchBundleKeyStore {
         try store(keyData)
         let keyExpiry = epoch(from: response.expiresAt) ?? (Date().timeIntervalSince1970 + 86_400)
         try storeString(String(Int(keyExpiry)), account: expiryAccount)
+        if let version = response.keyVersion, !version.isEmpty, version.count <= 8 {
+            try storeString(version, account: keyVersionAccount)
+        } else {
+            deleteKeychainItem(account: keyVersionAccount)
+        }
         if let token = response.feedToken, !token.isEmpty,
            let tokenExpiry = epoch(from: response.tokenExpiresAt) {
             try storeString(token, account: feedTokenAccount)
@@ -237,6 +254,7 @@ enum PatchBundleKeyStore {
         lock.unlock()
         deleteKeychainItem(account: account)
         deleteKeychainItem(account: expiryAccount)
+        deleteKeychainItem(account: keyVersionAccount)
         deleteKeychainItem(account: feedTokenAccount)
         deleteKeychainItem(account: feedTokenExpiryAccount)
     }

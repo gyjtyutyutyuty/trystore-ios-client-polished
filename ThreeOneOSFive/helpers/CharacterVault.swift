@@ -15,6 +15,7 @@ enum CharacterVault {
     private enum VaultError: Error {
         case corrupt
         case invalidManifest
+        case keyMismatch
         case missingAssets
         case unavailable
     }
@@ -23,6 +24,7 @@ enum CharacterVault {
         let schemaVersion: Int
         let project: String
         let version: String
+        let keyFingerprint: String?
         let files: [VaultFile]
     }
 
@@ -59,7 +61,18 @@ enum CharacterVault {
     #endif
 
     static func modelURL(_ model: HeroCharacterModel) -> URL? {
-        guard let root = try? materialize() else { return nil }
+        let root: URL
+        do {
+            root = try materialize()
+        } catch {
+            // A corrupt sealed copy would otherwise stay "current" forever: the
+            // version stamp says the download is complete and every unseal
+            // fails. Drop it so the next sync fetches a fresh set.
+            if let vaultError = error as? VaultError, case .corrupt = vaultError {
+                invalidateDownload()
+            }
+            return nil
+        }
         let url = root
             .appendingPathComponent(model.rawValue, isDirectory: true)
             .appendingPathComponent(model.objectFile)
@@ -70,16 +83,34 @@ enum CharacterVault {
 
     /// Fetch the signed vault manifest and any missing blobs. Safe to call on
     /// every launch; an unchanged version with all files present costs one
-    /// request.
+    /// request. A transport failure is retried twice so a cold Worker start or
+    /// a dropped packet does not leave the hero blank until the next launch.
     static func sync(credentials: PatchFeedCredentials) async {
         guard beginSync() else { return }
         defer { endSync() }
-        do {
-            let changed = try await downloadIfNeeded(credentials: credentials)
-            if changed { clearMaterializedCache() }
-            NotificationCenter.default.post(name: .characterVaultDidChange, object: nil)
-        } catch {
-            log("vault: sync failed — \(error)")
+        for attempt in 0..<3 {
+            do {
+                let changed = try await downloadIfNeeded(credentials: credentials)
+                if changed { clearMaterializedCache() }
+                NotificationCenter.default.post(name: .characterVaultDidChange, object: nil)
+                return
+            } catch {
+                log("vault: sync failed — \(error)")
+                guard attempt < 2, shouldRetry(error) else { return }
+                try? await Task.sleep(nanoseconds: UInt64(4_000_000_000) << attempt)
+            }
+        }
+    }
+
+    /// A key mismatch and a bad signature need a new key or a new manifest, not
+    /// another request. Everything else is worth one more try.
+    private static func shouldRetry(_ error: Error) -> Bool {
+        guard let vaultError = error as? VaultError else { return true }
+        switch vaultError {
+        case .keyMismatch, .invalidManifest:
+            return false
+        case .corrupt, .missingAssets, .unavailable:
+            return true
         }
     }
 
@@ -124,6 +155,7 @@ enum CharacterVault {
         defer { session.invalidateAndCancel() }
 
         let manifest = try await fetchManifest(session: session, baseURL: baseURL, credentials: credentials)
+        try requireMatchingKey(manifest)
         guard let root = supportRoot, let sealed = sealedRoot else {
             throw VaultError.unavailable
         }
@@ -196,6 +228,24 @@ enum CharacterVault {
             }
         }
         throw lastError
+    }
+
+    /// Refuse to download a vault sealed under a key this device cannot open.
+    /// Without this, a stale key downloaded 16 blobs and then failed at unseal
+    /// time, leaving the stage blank with no hint why. When no key is cached the
+    /// download still runs: it is licence-authorized, and a later key release
+    /// only has to unseal the files that are already on disk.
+    private static func requireMatchingKey(_ manifest: VaultManifest) throws {
+        guard let fingerprint = manifest.keyFingerprint,
+              !fingerprint.isEmpty,
+              let material = PatchBundleKeyStore.cachedKey(),
+              material.count == 32 else {
+            return
+        }
+        let digest = SHA256.hash(data: material).map { String(format: "%02x", $0) }.joined()
+        guard digest.caseInsensitiveCompare(fingerprint) == .orderedSame else {
+            throw VaultError.keyMismatch
+        }
     }
 
     private static func fetchFile(
@@ -322,6 +372,14 @@ enum CharacterVault {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? mutable.setResourceValues(values)
+    }
+
+    /// Forget the sealed download and its version stamp. The next sync starts
+    /// from scratch instead of trusting files that no longer unseal.
+    private static func invalidateDownload() {
+        guard let root = supportRoot, let sealed = sealedRoot else { return }
+        try? FileManager.default.removeItem(at: root.appendingPathComponent(versionFileName))
+        try? FileManager.default.removeItem(at: sealed)
     }
 
     // MARK: - Unseal
