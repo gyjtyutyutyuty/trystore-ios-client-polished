@@ -223,6 +223,11 @@ try {
     && response.headers.get('cache-control') === 'no-store');
   check('bundle key carries a short-lived feed token', typeof keyResponse.feedToken === 'string'
     && keyResponse.feedToken.includes('.') && typeof keyResponse.expiresAt === 'string');
+  const tokenClaims = (value) => JSON.parse(Buffer.from(
+    value.split('.')[0].replaceAll('-', '+').replaceAll('_', '/'),
+    'base64',
+  ).toString('utf8'));
+  check('attested feed token records its mode', tokenClaims(keyResponse.feedToken).mode === 'attest');
 
   const attestCallsBeforeLicenceRelease = attestCalls;
   response = await worker.fetch(request('/api/patches/trystore/bundle-key', {
@@ -234,6 +239,8 @@ try {
     && licenceKeyResponse.valid === true && licenceKeyResponse.key === env.APP_BUNDLE_KEY);
   check('licence-bound release does not call App Attest', attestCalls === attestCallsBeforeLicenceRelease);
   check('licence-bound release still mints a feed token', typeof licenceKeyResponse.feedToken === 'string');
+  check('licence-bound feed token records its mode',
+    tokenClaims(licenceKeyResponse.feedToken).mode === 'licence');
 
   response = await worker.fetch(request('/api/patches/trystore/bundle-key', {
     'x-trystore-attestation-mode': 'licence',
@@ -292,6 +299,54 @@ try {
   response = await worker.fetch(request('/patches/hyper-regedit/track.3105'), env);
   check('unlicensed project blob remains public and cacheable', response.status === 200
     && response.headers.get('cache-control')?.startsWith('public'));
+
+  // Opt-in controls: vault strict mode and per-licence fetch budgets. Both are
+  // flipped with Worker vars, so an operator can tighten the feed without a
+  // client build.
+  const licenceCacheDb = ({ attested, rateCount = 0 }) => ({
+    prepare(sql) {
+      let args = [];
+      return {
+        bind(...values) { args = values; return this; },
+        async first() {
+          if (sql.includes('feed_key_state')) return { key_version: '2' };
+          if (sql.includes('feed_auth_cache')) {
+            const subject = String(args[0] || '');
+            if (subject.startsWith('attest|') && !attested) return null;
+            return { expires_at: 9_999_999_999 };
+          }
+          if (sql.includes('feed_rate_limits')) return { count: rateCount };
+          return null;
+        },
+        async run() { return { success: true }; },
+        async all() { return { results: [] }; },
+      };
+    },
+  });
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders),
+    { ...env, REQUIRE_VAULT_ATTESTATION: '1', DB: licenceCacheDb({ attested: false }) },
+  );
+  check('strict vault mode rejects a licence-only device',
+    response.status === 403 && (await response.json()).error === 'attestation_required');
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders),
+    { ...env, REQUIRE_VAULT_ATTESTATION: '1', DB: licenceCacheDb({ attested: true }) },
+  );
+  check('strict vault mode serves an attested device', response.status === 200);
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/rouk/rouk.mtl.tsc', authorizedHeaders),
+    {
+      ...env,
+      VAULT_FETCH_LIMIT_PER_HOUR: '8',
+      DB: licenceCacheDb({ attested: true, rateCount: 9 }),
+    },
+  );
+  check('per-licence vault budget rejects a scraper',
+    response.status === 429 && (await response.json()).error === 'fetch_quota_exceeded');
 
   // Bundle-key rotation: the served version lives in D1, so retiring a key does
   // not need a deploy, and a missing secret must fail closed instead of falling

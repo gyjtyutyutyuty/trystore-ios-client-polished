@@ -1170,7 +1170,7 @@ async function feedTokenMaterial(env) {
   );
 }
 
-async function mintFeedToken(env, project, device, keyVersion) {
+async function mintFeedToken(env, project, device, keyVersion, mode) {
   const key = await feedTokenMaterial(env);
   if (!key) return null;
   const issuedAt = nowSeconds();
@@ -1179,6 +1179,9 @@ async function mintFeedToken(env, project, device, keyVersion) {
     project,
     device,
     keyVersion: String(keyVersion),
+    // "attest" when an App Attest assertion released the key, "licence" when
+    // the device proved only a live licence. Vault strict mode reads this.
+    mode: mode === "attest" ? "attest" : "licence",
     iat: issuedAt,
     exp: issuedAt + FEED_TOKEN_TTL,
   });
@@ -1189,9 +1192,9 @@ async function mintFeedToken(env, project, device, keyVersion) {
 
 async function verifyFeedToken(env, token, project, device) {
   const [body, signature] = String(token || "").split(".");
-  if (!body || !signature) return false;
+  if (!body || !signature) return null;
   const key = await feedTokenMaterial(env);
-  if (!key) return false;
+  if (!key) return null;
   const raw = fromB64url(signature);
   const valid = await crypto.subtle.verify(
     "HMAC",
@@ -1199,16 +1202,25 @@ async function verifyFeedToken(env, token, project, device) {
     raw,
     new TextEncoder().encode(body),
   );
-  if (!valid) return false;
+  if (!valid) return null;
   try {
     const claims = JSON.parse(new TextDecoder().decode(fromB64url(body)));
-    return claims.v === 1
-      && claims.project === project
-      && claims.device === device
-      && Number(claims.exp) > nowSeconds();
+    if (claims.v !== 1
+        || claims.project !== project
+        || claims.device !== device
+        || Number(claims.exp) <= nowSeconds()) {
+      return null;
+    }
+    return claims;
   } catch {
-    return false;
+    return null;
   }
+}
+
+// Stable, non-reversible subject for a licence+device pair. The feed never
+// persists or logs the key itself.
+async function licenceSubject(project, key, device) {
+  return sha256(new TextEncoder().encode(`${project}|${key}|${device}`));
 }
 
 function denial(reason) {
@@ -1227,13 +1239,13 @@ async function readCachedLicence(env, cacheKey) {
   }
 }
 
-async function writeCachedLicence(env, cacheKey) {
+async function writeCachedLicence(env, cacheKey, ttlSeconds = 120) {
   if (!env.DB) return;
   try {
     await env.DB.prepare(
       "INSERT INTO feed_auth_cache(subject,expires_at) VALUES(?1,?2) " +
       "ON CONFLICT(subject) DO UPDATE SET expires_at=excluded.expires_at",
-    ).bind(cacheKey, nowSeconds() + 120).run();
+    ).bind(cacheKey, nowSeconds() + Math.max(1, Math.floor(ttlSeconds))).run();
   } catch {}
 }
 
@@ -1255,7 +1267,7 @@ async function tryStoreLicenseState(request, env, project) {
     return denial("license_service_unbound");
   }
 
-  const cacheKey = await sha256(new TextEncoder().encode(project + "|" + match[1] + "|" + deviceID));
+  const cacheKey = await licenceSubject(project, match[1], deviceID);
   if (await readCachedLicence(env, cacheKey)) return GRANTED;
 
   // The licence Worker rate-limits by caller address. Without this header the
@@ -1329,13 +1341,53 @@ function licenceFailure(state) {
 const LICENSED_PATCH_PROJECTS = new Set(["trystore", "apple-music"]);
 
 async function requireTryStoreLicense(request, env, project) {
-  if (!LICENSED_PATCH_PROJECTS.has(project)) return { allowed: true, reason: "public_project" };
+  if (!LICENSED_PATCH_PROJECTS.has(project)) {
+    return { allowed: true, reason: "public_project", mode: "public" };
+  }
   const token = request.headers.get("x-trystore-feed-token") || "";
   const device = request.headers.get("x-trystore-device-id") || "";
-  if (token && await verifyFeedToken(env, token, project, device)) {
-    return { allowed: true, reason: "feed_token" };
+  if (token) {
+    const claims = await verifyFeedToken(env, token, project, device);
+    if (claims) {
+      return {
+        allowed: true,
+        reason: "feed_token",
+        mode: claims.mode === "attest" ? "attest" : "licence",
+      };
+    }
   }
-  return tryStoreLicenseState(request, env, project);
+  const state = await tryStoreLicenseState(request, env, project);
+  return state.allowed ? { ...state, mode: "licence" } : state;
+}
+
+// Vault strict mode. Flipped with REQUIRE_VAULT_ATTESTATION="1" once installed
+// devices have registered with App Attest; sideloaded devices keep working
+// while the flag is off. The marker is written when an attested bundle-key
+// release succeeds, so a short-lived feed token is not the only proof.
+async function vaultAttestationAllowed(request, env, project) {
+  if (String(env.REQUIRE_VAULT_ATTESTATION || "") !== "1") return true;
+  const match = (request.headers.get("authorization") || "")
+    .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+  const device = request.headers.get("x-trystore-device-id") || "";
+  if (!match || !DEVICE_ID_PATTERN.test(device)) return false;
+  return readCachedLicence(
+    env,
+    "attest|" + await licenceSubject(project, match[1], device),
+  );
+}
+
+// One licence is meant to serve one device, not a scraper pulling the vault on
+// repeat. The per-IP bucket still applies; this one is keyed by a hash of the
+// licence+device so rotating addresses does not reset the budget.
+async function withinLicenceFetchBudget(env, bucket, request, project, limit) {
+  const match = (request.headers.get("authorization") || "")
+    .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+  const device = request.headers.get("x-trystore-device-id") || "";
+  if (!match || !DEVICE_ID_PATTERN.test(device) || !Number.isFinite(limit) || limit <= 0) {
+    return true;
+  }
+  const subject = await licenceSubject("fetch|" + bucket, match[1], device);
+  return allowFeed(env, "licence-" + bucket, subject, limit, 3_600);
 }
 const TRY_STORE_DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 async function proxyAppAttest(request, env, endpoint) {
@@ -1469,6 +1521,18 @@ export default {
       }
       const licence = await requireTryStoreLicense(request, env, "trystore");
       if (!licence.allowed) return licenceFailure(licence);
+      if (!(await vaultAttestationAllowed(request, env, "trystore"))) {
+        return bad("attestation_required", 403);
+      }
+      if (!(await withinLicenceFetchBudget(
+        env,
+        "vault-manifest",
+        request,
+        "trystore",
+        Number(env.VAULT_MANIFEST_LIMIT_PER_HOUR || 24),
+      ))) {
+        return json({ error: "fetch_quota_exceeded" }, 429, { "retry-after": "600" });
+      }
       const raw = await env.PATCHES.get(VAULT_MANIFEST_KEY);
       if (!raw) return bad("vault_unavailable", 404);
       let value;
@@ -1498,6 +1562,18 @@ export default {
       }
       const licence = await requireTryStoreLicense(request, env, "trystore");
       if (!licence.allowed) return licenceFailure(licence);
+      if (!(await vaultAttestationAllowed(request, env, "trystore"))) {
+        return bad("attestation_required", 403);
+      }
+      if (!(await withinLicenceFetchBudget(
+        env,
+        "vault-blob",
+        request,
+        "trystore",
+        Number(env.VAULT_FETCH_LIMIT_PER_HOUR || 64),
+      ))) {
+        return json({ error: "fetch_quota_exceeded" }, 429, { "retry-after": "600" });
+      }
       const bytes = await env.PATCHES.get(VAULT_BLOB_PREFIX + relative, "arrayBuffer");
       if (!bytes) return bad("not_found", 404);
       return new Response(bytes, {
@@ -1563,6 +1639,7 @@ export default {
       // rate limited, and a licence that is expired, revoked, or used from a
       // different device still gets nothing.
       const attestationMode = String(request.headers.get("x-trystore-attestation-mode") || "").toLowerCase();
+      let keyMode = "licence";
       if (attestationMode === "licence") {
         if (!(await allowFeed(env, "bundle-key-licence", feedIP(request), 10, 60))) {
           return bad("rate_limited", 429);
@@ -1583,12 +1660,26 @@ export default {
           return bad("attestation_unavailable", 503);
         }
         if (authorizationResult.valid !== true) return bad("attestation_required", 401);
+        keyMode = "attest";
       }
       const version = await currentBundleKeyVersion(env, project);
       const secret = bundleKeySecret(env, version);
       if (!secret) return bad("key_unavailable", 503);
       const device = String(request.headers.get("x-trystore-device-id") || "");
-      const minted = await mintFeedToken(env, project, device, version);
+      if (keyMode === "attest") {
+        // Remember the attestation for a month: the vault strict-mode check
+        // must hold after the 10-minute feed token expires.
+        const keyMatch = (request.headers.get("authorization") || "")
+          .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+        if (keyMatch && DEVICE_ID_PATTERN.test(device)) {
+          await writeCachedLicence(
+            env,
+            "attest|" + await licenceSubject(project, keyMatch[1], device),
+            30 * 86_400,
+          );
+        }
+      }
+      const minted = await mintFeedToken(env, project, device, version, keyMode);
       const expiresAt = new Date((nowSeconds() + FEED_KEY_TTL) * 1000).toISOString();
       return json({
         valid: true,
@@ -1638,6 +1729,16 @@ export default {
       if (!(await allowFeed(env, "blob", feedIP(request), 120, 60))) return bad("rate_limited", 429);
       const licence = await requireTryStoreLicense(request, env, project);
       if (!licence.allowed) return licenceFailure(licence);
+      if (LICENSED_PATCH_PROJECTS.has(project)
+          && !(await withinLicenceFetchBudget(
+            env,
+            "patch-blob",
+            request,
+            project,
+            Number(env.PATCH_FETCH_LIMIT_PER_HOUR || 160),
+          ))) {
+        return json({ error: "fetch_quota_exceeded" }, 429, { "retry-after": "600" });
+      }
       const file = decodeURIComponent(blobMatch[2]);
       if (sanitizeFile(file) !== file) return bad("invalid_file", 400);
       let blob = null;

@@ -28,6 +28,15 @@ service = "jvztxnx-global-control"
 PUBLIC_BASE_URL = "https://trystore-patch-feed.burgoajustin.workers.dev"
 RESELLER_ORIGIN = "https://jvztxnx-global-control.burgoajustin.workers.dev"
 PATCH_ADMIN_IDS = "7551063281,5869209007"
+# Vault strict mode: "1" serves the character vault only to a device that has
+# completed App Attest. Keep "0" while sideloaded installs are in use; flip it
+# once every customer build attests.
+REQUIRE_VAULT_ATTESTATION = "0"
+# Per-licence hourly fetch budgets. The subject is a hash of licence+device, so
+# changing IP does not reset the count.
+VAULT_MANIFEST_LIMIT_PER_HOUR = "24"
+VAULT_FETCH_LIMIT_PER_HOUR = "64"
+PATCH_FETCH_LIMIT_PER_HOUR = "160"
 
 # Secrets (set with `wrangler secret put ...`):
 #   TELEGRAM_BOT_TOKEN
