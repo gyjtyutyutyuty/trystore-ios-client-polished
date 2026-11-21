@@ -342,7 +342,6 @@ final class LicenseManager: ObservableObject {
         case "invalid_device": return "license.error_device"
         case "rate_limited": return "license.error_rate_limited"
         case "wrong_project": return "license.error_wrong_project"
-        case "device_limit": return "license.error_device_limit"
         default: return "license.error_inactive"
         }
     }

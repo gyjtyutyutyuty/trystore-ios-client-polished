@@ -74,10 +74,13 @@ enum DeviceKey {
         ]
         var item: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let key = item as? SecKey else {
+              let value = item,
+              CFGetTypeID(value) == SecKeyGetTypeID() else {
             return nil
         }
-        return key
+        // Safe after the CFTypeID check; the compiler rejects a conditional
+        // downcast to a CoreFoundation type because it can never be nil.
+        return (value as! SecKey)
     }
 
     private static func createKey() throws -> SecKey {
