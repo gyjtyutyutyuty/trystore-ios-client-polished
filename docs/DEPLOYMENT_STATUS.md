@@ -110,16 +110,15 @@ is bundled.
 
 ## Archive
 
-Codemagic workflow `supportpatch_unsigned_ipa` archived commit `8c855a3` on
-build `6b010e0f799fbd143cf98ccc` (2026-11-21). The build compiled with Xcode
-26 after two source fixes: `csops` now resolves through `dlsym` instead of the
-unavailable variadic `syscall`, and the attested key identifier is kept in a
-local so `register` and the Keychain write see a non-optional value. The
-temporary build-log relay used to diagnose the earlier failure has been
-removed from both the Worker and the archive script; its secret and KV entry
-are deleted. The verify step passed on the archived IPA, including
-`tools/verify_ipa_hardening.py`: the vault is entirely `TSC2`, `__RESTRICT` is
-present, and document sharing is off.
+Codemagic workflow `supportpatch_unsigned_ipa` archived commit `7c109ec` on
+build `6b01125f799fbd143cf99e9b` (2026-11-21). The archive carries no
+`CharacterVault` and no `Patches`; the verify step confirmed both are absent,
+`__RESTRICT` is present, and document sharing is off. The sealed vault is
+published to KV (`vault/trystore/manifest.json`, 16 blobs, version
+`c2041d6c563e265cc7a59b5977e8d247267176e9f8e1025ab1e32af5b0c7e329`) and its
+`keyFingerprint` matches the feed's `6d77…8759`. Earlier builds fixed the
+`csops` lookup and the attested-key optional; the temporary build-log relay is
+gone from both the Worker and the archive script.
 
 ## Manifest signing key
 
