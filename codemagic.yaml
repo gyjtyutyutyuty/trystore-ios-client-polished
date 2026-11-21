@@ -47,14 +47,6 @@ workflows:
       - name: Verify unsigned IPA contents
         script: |
           set -euo pipefail
-          if [[ ! -s build/SupportPatch-unsigned.ipa && -f build/build.log ]]; then
-            git config user.email "ci@users.noreply.github.com"
-            git config user.name "ci"
-            blob=$(git hash-object -w build/build.log)
-            tree=$(printf '100644 blob %s\tcodemagic-build.log\n' "$blob" | git mktree)
-            commit=$(git commit-tree "$tree" -m "codemagic build log for $(git rev-parse HEAD)")
-            git push --force origin "$commit:refs/heads/ci-logs" || true
-          fi
           test -s build/SupportPatch-unsigned.ipa
           rm -rf /tmp/supportpatch-ipa-check
           mkdir -p /tmp/supportpatch-ipa-check
