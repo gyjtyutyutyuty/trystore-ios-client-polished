@@ -84,24 +84,27 @@ enum PatchBundleKeyStore {
         if challenge.mode == "attest" {
             // A server-side reset or a reinstall can leave a stale key identifier.
             // A newly generated Secure Enclave key must be attested before use.
-            keyID = try await generateKey()
+            // Keep the generated value non-optional; assigning it to the optional
+            // variable above would not narrow the type inside this branch.
+            let attestedKeyID = try await generateKey()
+            keyID = attestedKeyID
             let challengeBytes = try decodeChallenge(challenge.challenge)
             let challengeHash = Data(SHA256.hash(data: challengeBytes))
-            let attestation = try await attest(keyID: keyID, clientDataHash: challengeHash)
+            let attestation = try await attest(keyID: attestedKeyID, clientDataHash: challengeHash)
             try await register(
                 baseURL: baseURL,
                 licenseKey: licenseKey,
                 deviceID: deviceID,
                 challenge: challenge,
-                keyID: keyID,
+                keyID: attestedKeyID,
                 attestation: attestation
             )
-            try storeString(keyID, account: appAttestAccount)
+            try storeString(attestedKeyID, account: appAttestAccount)
             challenge = try await requestChallenge(
                 baseURL: baseURL,
                 licenseKey: licenseKey,
                 deviceID: deviceID,
-                keyID: keyID
+                keyID: attestedKeyID
             )
         }
         guard challenge.mode == "assertion", let keyID else {
