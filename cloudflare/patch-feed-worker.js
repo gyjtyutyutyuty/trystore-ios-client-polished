@@ -1170,7 +1170,7 @@ async function feedTokenMaterial(env) {
   );
 }
 
-async function mintFeedToken(env, project, device, keyVersion, mode) {
+async function mintFeedToken(env, project, device, keyVersion, mode, subject) {
   const key = await feedTokenMaterial(env);
   if (!key) return null;
   const issuedAt = nowSeconds();
@@ -1182,6 +1182,10 @@ async function mintFeedToken(env, project, device, keyVersion, mode) {
     // "attest" when an App Attest assertion released the key, "licence" when
     // the device proved only a live licence. Vault strict mode reads this.
     mode: mode === "attest" ? "attest" : "licence",
+    // Hash of the licence+device that paid for this token. Vault requests must
+    // present the same licence, and the fetch budgets key on this instead of
+    // on whatever Authorization string the caller happens to send.
+    sub: String(subject || ""),
     iat: issuedAt,
     exp: issuedAt + FEED_TOKEN_TTL,
   });
@@ -1362,17 +1366,35 @@ async function requireTryStoreLicense(request, env, project) {
 
 // The vault is the payload worth scraping. A bare licence string used to be
 // enough to pull every sealed blob; now the request must also carry the feed
-// token that the bundle-key release mints, so the licence has to clear the
-// release checks (device binding, budgets, and the challenge signature once
-// REQUIRE_DEVICE_SIGNATURE is on) before any art moves. Set
-// REQUIRE_VAULT_FEED_TOKEN="0" only to re-open the licence-only path.
+// token that the bundle-key release mints, and that token names the licence
+// that paid for it. A caller cannot reuse one licence's token with a stream of
+// made-up Authorization values to reset the per-licence fetch budget.
+// REQUIRE_VAULT_FEED_TOKEN="0" re-opens the licence-only path; it is meant for
+// an emergency rollback, not for shipping.
 async function requireVaultAccess(request, env, project) {
   const token = request.headers.get("x-trystore-feed-token") || "";
   const device = request.headers.get("x-trystore-device-id") || "";
   if (token) {
     const claims = await verifyFeedToken(env, token, project, device);
     if (claims) {
-      return { allowed: true, reason: "feed_token", mode: claims.mode === "attest" ? "attest" : "licence" };
+      const mode = claims.mode === "attest" ? "attest" : "licence";
+      if (claims.sub) {
+        const match = (request.headers.get("authorization") || "")
+          .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+        if (match && DEVICE_ID_PATTERN.test(device)) {
+          const presented = await licenceSubject(project, match[1], device);
+          if (presented === claims.sub) {
+            return { allowed: true, reason: "feed_token", mode, subject: claims.sub };
+          }
+        }
+        return denial("feed_token_licence_mismatch");
+      }
+      // Token minted before the licence claim existed. Only the rollback flag
+      // lets those through, and they cannot be used for budgets.
+      if (String(env.REQUIRE_VAULT_FEED_TOKEN ?? "1") !== "0") {
+        return denial("feed_token_licence_mismatch");
+      }
+      return { allowed: true, reason: "feed_token", mode };
     }
   }
   if (String(env.REQUIRE_VAULT_FEED_TOKEN ?? "1") === "0") {
@@ -1398,16 +1420,21 @@ async function vaultAttestationAllowed(request, env, project) {
 }
 
 // One licence is meant to serve one device, not a scraper pulling the vault on
-// repeat. The per-IP bucket still applies; this one is keyed by a hash of the
-// licence+device so rotating addresses does not reset the budget.
-async function withinLicenceFetchBudget(env, bucket, request, project, limit) {
-  const match = (request.headers.get("authorization") || "")
-    .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+// repeat. The per-IP bucket still applies; this one is keyed by the licence
+// subject carried in the feed token, so neither rotating addresses nor making
+// up Authorization values resets the count.
+async function withinLicenceFetchBudget(env, bucket, request, project, limit, tokenSubject) {
   const device = request.headers.get("x-trystore-device-id") || "";
-  if (!match || !DEVICE_ID_PATTERN.test(device) || !Number.isFinite(limit) || limit <= 0) {
+  if (!DEVICE_ID_PATTERN.test(device) || !Number.isFinite(limit) || limit <= 0) {
     return true;
   }
-  const subject = await licenceSubject("fetch|" + bucket, match[1], device);
+  let subject = String(tokenSubject || "");
+  if (!subject) {
+    const match = (request.headers.get("authorization") || "")
+      .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+    if (!match) return true;
+    subject = await licenceSubject("fetch|" + bucket, match[1], device);
+  }
   return allowFeed(env, "licence-" + bucket, subject, limit, 3_600);
 }
 
@@ -1670,6 +1697,7 @@ export default {
         request,
         "trystore",
         Number(env.VAULT_MANIFEST_LIMIT_PER_HOUR || 24),
+        licence.subject,
       ))) {
         return json({ error: "fetch_quota_exceeded" }, 429, { "retry-after": "600" });
       }
@@ -1711,6 +1739,7 @@ export default {
         request,
         "trystore",
         Number(env.VAULT_FETCH_LIMIT_PER_HOUR || 64),
+        licence.subject,
       ))) {
         return json({ error: "fetch_quota_exceeded" }, 429, { "retry-after": "600" });
       }
@@ -1813,20 +1842,18 @@ export default {
       const secret = bundleKeySecret(env, version);
       if (!secret) return bad("key_unavailable", 503);
       const device = String(request.headers.get("x-trystore-device-id") || "");
-      if (keyMode === "attest") {
-        // Remember the attestation for a month: the vault strict-mode check
-        // must hold after the 10-minute feed token expires.
-        const keyMatch = (request.headers.get("authorization") || "")
-          .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
-        if (keyMatch && DEVICE_ID_PATTERN.test(device)) {
-          await writeCachedLicence(
-            env,
-            "attest|" + await licenceSubject(project, keyMatch[1], device),
-            30 * 86_400,
-          );
+      const keyMatch = (request.headers.get("authorization") || "")
+        .match(/^Bearer\s+([A-Za-z0-9._-]{8,256})$/i);
+      let subject = "";
+      if (keyMatch && DEVICE_ID_PATTERN.test(device)) {
+        subject = await licenceSubject(project, keyMatch[1], device);
+        if (keyMode === "attest") {
+          // Remember the attestation for a month: the vault strict-mode check
+          // must hold after the 10-minute feed token expires.
+          await writeCachedLicence(env, "attest|" + subject, 30 * 86_400);
         }
       }
-      const minted = await mintFeedToken(env, project, device, version, keyMode);
+      const minted = await mintFeedToken(env, project, device, version, keyMode, subject);
       const expiresAt = new Date((nowSeconds() + FEED_KEY_TTL) * 1000).toISOString();
       return json({
         valid: true,

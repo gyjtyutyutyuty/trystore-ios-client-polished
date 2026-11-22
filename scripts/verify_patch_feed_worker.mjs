@@ -112,13 +112,22 @@ const appleHeaders = {
   'x-trystore-device-id': deviceID,
 };
 const b64url = (value) => Buffer.from(value).toString('base64url');
+// Mirrors the Worker: sha256("<project>|<licence>|<device>") in hex.
+const licenceSubject = (project, licence, device) => createHash('sha256')
+  .update(`${project}|${licence}|${device}`)
+  .digest('hex');
 const mintFeedToken = ({
   project = 'trystore', device = deviceID, mode = 'licence', ttl = 600,
+  licence = 'ACTIVE-KEY-001', includeSubject = true, subject,
 } = {}) => {
   const issuedAt = Math.floor(Date.now() / 1000);
-  const body = b64url(JSON.stringify({
+  const claims = {
     v: 1, project, device, keyVersion: '1', mode, iat: issuedAt, exp: issuedAt + ttl,
-  }));
+  };
+  if (includeSubject) {
+    claims.sub = subject || licenceSubject(project, licence, device);
+  }
+  const body = b64url(JSON.stringify(claims));
   const signature = createHmac('sha256', env.FEED_TOKEN_SECRET).update(body).digest('base64url');
   return `${body}.${signature}`;
 };
@@ -171,6 +180,20 @@ try {
       { ...vaultHeaders, 'x-trystore-feed-token': mintFeedToken({ ttl: -60 }) }),
     env);
   check('vault manifest refuses an expired feed token', response.status === 401);
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json',
+      { ...vaultHeaders, 'x-trystore-feed-token': mintFeedToken({ licence: 'OTHER-KEY-002' }) }),
+    env);
+  check('vault token is bound to the licence that bought it',
+    response.status === 401 && (await response.json()).error === 'feed_token_licence_mismatch');
+
+  response = await worker.fetch(
+    request('/api/patches/trystore/character-vault/manifest.json',
+      { ...vaultHeaders, 'x-trystore-feed-token': mintFeedToken({ includeSubject: false }) }),
+    env);
+  check('vault token without a licence claim is refused',
+    response.status === 401 && (await response.json()).error === 'feed_token_licence_mismatch');
 
   response = await worker.fetch(
     request('/api/patches/trystore/character-vault/manifest.json', authorizedHeaders),
