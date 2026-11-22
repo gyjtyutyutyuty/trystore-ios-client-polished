@@ -269,3 +269,23 @@ Keep the old secret until installed builds have rolled forward.
   `scripts/verify_patch_feed_worker.mjs` covers the bare-licence refusal,
   wrong-device token, expired token, the switch-off fallback, strict vault
   mode and the fetch budgets.
+
+### Licence-bound feed tokens and IPA 8 audit (2026-11-21)
+
+- The bundle-key release now stamps the token with
+  `sub = sha256("<project>|<licence>|<device>")`. The vault accepts the token
+  only when the licence in `Authorization` hashes to the same value, so one
+  released token cannot be replayed with made-up licence strings.
+- `withinLicenceFetchBudget` keys on that claim instead of on the presented
+  `Authorization`, so rotating the header no longer resets the per-licence
+  manifest/blob budget. Tokens minted before the claim existed are refused
+  unless `REQUIRE_VAULT_FEED_TOKEN="0"`.
+- IPA 8 (`SupportPatch-unsigned (8).ipa`, build 16) carries the code pin:
+  plist `TRYSTORE_CODE_SHA256` matches the `__TEXT` digest
+  `cb06e3d7…` and no sealed art, patch packages or keys are inside. It
+  predates `2219496`, so its cached feed token still dies on the local clock
+  and the vault stays empty after ten minutes; the current `main` refreshes on
+  401 and re-checks a sealed blob before trusting the version stamp.
+- Deployed feed `0b33f82d-357a-4aa2-b36e-186e1c132150`. The local verifier
+  passes 69 checks, including token/licence mismatch and a token without the
+  licence claim.
