@@ -44,6 +44,10 @@ jobs:
   swift-build:
     # A compile, not an archive: the Swift changes in this repo were only ever
     # checked by eye before, and a typo should fail the push, not the release.
+    # Pushes only: this account gets a single concurrent macOS runner, and a
+    # second queued macOS job is cancelled rather than deferred, which killed
+    # the IPA build whenever this check held the slot.
+    if: github.event_name == 'push'
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
