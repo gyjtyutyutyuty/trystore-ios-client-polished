@@ -799,6 +799,22 @@
 "intel.models_progress" = "Cargando modelos 3D %d/%d";
 "intel.models_partial" = "%d de %d objetos 3D no se pudieron cargar";
 "intel.models_ready" = "Modelos 3D listos";
+"intel.stats.title" = "Estadísticas";
+"intel.stats.subtitle" = "Todos los datos que publica el perfil público";
+"intel.stats.level" = "Nivel";
+"intel.stats.exp" = "Experiencia";
+"intel.stats.likes" = "Me gusta";
+"intel.stats.battle_royale" = "Battle Royale";
+"intel.stats.clash_squad" = "Clash Squad";
+"intel.stats.points" = "Puntos";
+"intel.stats.stars" = "Estrellas";
+"intel.stats.best_rank" = "Mejor rango";
+"intel.stats.peak_points" = "Puntos máximos";
+"intel.stats.best_record" = "Mejor registro";
+"intel.stats.account" = "Cuenta";
+"intel.stats.indicators" = "Indicadores";
+"intel.stats.role" = "Rol";
+"intel.item_note" = "Se muestra desde el conjunto equipado del jugador.";
 
 /* Wardrobe */
 "tab.wardrobe" = "Vestuario";

@@ -810,6 +810,22 @@
 "intel.models_progress" = "Loading 3D models %d/%d";
 "intel.models_partial" = "%d of %d 3D items could not load";
 "intel.models_ready" = "3D models ready";
+"intel.stats.title" = "Game stats";
+"intel.stats.subtitle" = "Every value the public profile publishes";
+"intel.stats.level" = "Level";
+"intel.stats.exp" = "Experience";
+"intel.stats.likes" = "Likes";
+"intel.stats.battle_royale" = "Battle Royale";
+"intel.stats.clash_squad" = "Clash Squad";
+"intel.stats.points" = "Points";
+"intel.stats.stars" = "Stars";
+"intel.stats.best_rank" = "Best rank";
+"intel.stats.peak_points" = "Peak points";
+"intel.stats.best_record" = "Best record";
+"intel.stats.account" = "Account";
+"intel.stats.indicators" = "Indicators";
+"intel.stats.role" = "Role";
+"intel.item_note" = "Shown from the player's equipped set.";
 
 /* Wardrobe */
 "tab.wardrobe" = "Wardrobe";

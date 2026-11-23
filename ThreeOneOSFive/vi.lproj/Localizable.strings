@@ -804,6 +804,22 @@
 "intel.models_progress" = "Đang tải mô hình 3D %d/%d";
 "intel.models_partial" = "%d trong %d mục 3D không tải được";
 "intel.models_ready" = "Mô hình 3D đã sẵn sàng";
+"intel.stats.title" = "Chỉ số trận đấu";
+"intel.stats.subtitle" = "Mọi dữ liệu trang cá nhân công khai";
+"intel.stats.level" = "Cấp độ";
+"intel.stats.exp" = "Kinh nghiệm";
+"intel.stats.likes" = "Lượt thích";
+"intel.stats.battle_royale" = "Battle Royale";
+"intel.stats.clash_squad" = "Clash Squad";
+"intel.stats.points" = "Điểm";
+"intel.stats.stars" = "Sao";
+"intel.stats.best_rank" = "Hạng tốt nhất";
+"intel.stats.peak_points" = "Điểm cao nhất";
+"intel.stats.best_record" = "Thành tích tốt nhất";
+"intel.stats.account" = "Tài khoản";
+"intel.stats.indicators" = "Chỉ báo";
+"intel.stats.role" = "Vai trò";
+"intel.item_note" = "Hiển thị từ bộ trang bị của người chơi.";
 
 /* Wardrobe */
 "tab.wardrobe" = "Tủ đồ";

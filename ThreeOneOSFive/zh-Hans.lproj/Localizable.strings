@@ -808,6 +808,22 @@
 "intel.models_progress" = "正在加载 3D 模型 %d/%d";
 "intel.models_partial" = "%d 个（共 %d 个）3D 物品加载失败";
 "intel.models_ready" = "3D 模型已就绪";
+"intel.stats.title" = "对局数据";
+"intel.stats.subtitle" = "公开资料页提供的全部数据";
+"intel.stats.level" = "等级";
+"intel.stats.exp" = "经验";
+"intel.stats.likes" = "点赞";
+"intel.stats.battle_royale" = "Battle Royale";
+"intel.stats.clash_squad" = "Clash Squad";
+"intel.stats.points" = "积分";
+"intel.stats.stars" = "星数";
+"intel.stats.best_rank" = "最佳段位";
+"intel.stats.peak_points" = "最高积分";
+"intel.stats.best_record" = "最佳战绩";
+"intel.stats.account" = "账号";
+"intel.stats.indicators" = "指标";
+"intel.stats.role" = "角色";
+"intel.item_note" = "来自该玩家已装备的外观。";
 
 /* Wardrobe */
 "tab.wardrobe" = "衣橱";

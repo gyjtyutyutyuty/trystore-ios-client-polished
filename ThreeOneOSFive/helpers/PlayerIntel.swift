@@ -66,12 +66,57 @@ struct PlayerIntelProfile: Identifiable, Hashable, Codable {
     var id: String { uid }
 }
 
+/// One row from the profile page's detail tables (account, indicators). The
+/// label is already localised by the page, so it is shown verbatim.
+struct PlayerStatLine: Identifiable, Codable, Hashable {
+    let label: String
+    let value: String
+
+    var id: String { label }
+}
+
+/// One discipline's rank card: current standing plus its peak.
+struct PlayerRankLine: Codable, Hashable {
+    var rank: String = ""
+    var points: String = ""
+    var bestRank: String = ""
+    var bestValue: String = ""
+}
+
+/// Everything the public profile page publishes about a player: level and
+/// experience, likes, both rank ladders with their peaks, the special role, the
+/// account table and the indicator table.
+struct PlayerGameStats: Codable, Hashable {
+    var level: String = ""
+    var experience: String = ""
+    var likes: String = ""
+    var battleRoyale: PlayerRankLine?
+    var clashSquad: PlayerRankLine?
+    var role: String?
+    var roleGroup: String?
+    var account: [PlayerStatLine] = []
+    var indicators: [PlayerStatLine] = []
+
+    var isEmpty: Bool {
+        level.isEmpty && experience.isEmpty && likes.isEmpty
+            && battleRoyale == nil && clashSquad == nil
+            && account.isEmpty && indicators.isEmpty
+    }
+}
+
+/// One load of the player page: the equipped items and every stat block.
+struct PlayerProfilePage {
+    let items: [PlayerOutfitItem]
+    let stats: PlayerGameStats
+}
+
 /// One row in the player roster. A row exists from the moment an ID is added,
 /// so ten IDs can load independently and one failure never clears the rest.
 struct PlayerIntelEntry: Identifiable, Codable, Equatable {
     let uid: String
     var profile: PlayerIntelProfile?
     var items: [PlayerOutfitItem]
+    var stats: PlayerGameStats?
     var outfitFailed: Bool
     var errorKey: String?
     var isLoading: Bool
@@ -302,7 +347,8 @@ final class PlayerOutfitScraper {
     /// stacking ten pages on the main thread.
     private static let gate = AsyncGate(value: 2)
 
-    func outfit(uid: String, timeout: TimeInterval = 35) async throws -> [PlayerOutfitItem] {
+    /// Items and every stat block from one page load.
+    func page(uid: String, timeout: TimeInterval = 45) async throws -> PlayerProfilePage {
         guard let url = URL(string: "https://freefirejornal.com/en/profile/\(uid)/") else {
             throw PlayerIntelError.invalidID
         }
@@ -338,17 +384,21 @@ final class PlayerOutfitScraper {
                   let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else { continue }
 
-            let state = root["state"] as? String
-            if state == "ready" {
+            if (root["state"] as? String) == "ready" {
                 let cards = root["cards"] as? [[String: Any]] ?? []
-                return Self.items(from: cards)
-            }
-            if state == "empty" {
-                return []
+                return PlayerProfilePage(
+                    items: Self.items(from: cards),
+                    stats: Self.stats(from: root)
+                )
             }
         }
 
         throw PlayerIntelError.outfitUnavailable
+    }
+
+    /// Items only, for callers that do not need the stat blocks.
+    func outfit(uid: String, timeout: TimeInterval = 35) async throws -> [PlayerOutfitItem] {
+        try await page(uid: uid, timeout: timeout).items
     }
 
     private func attach(_ view: WKWebView) {
@@ -365,30 +415,122 @@ final class PlayerOutfitScraper {
         view.removeFromSuperview()
     }
 
+    /// Reads the whole profile in one probe: the two detail tables, the summary
+    /// cards, both rank cards, the role panel and the equipped items. The page is
+    /// rendered by the site itself, so the labels come back in English.
     private static let probeScript = """
     (function () {
-      var cards = Array.prototype.slice.call(document.querySelectorAll('.ffp-equipment-card'));
-      if (cards.length) {
-        return JSON.stringify({
-          state: 'ready',
-          cards: cards.map(function (card) {
-            var image = card.querySelector('img');
-            return {
-              name: (card.getAttribute('title') || '').replace(/^View\\s+/i, ''),
-              href: card.href || '',
-              text: (card.innerText || '').replace(/\\s+/g, ' ').trim(),
-              icon: (image && image.src) || ''
-            };
-          })
+      function clean(value) {
+        return String(value || '').replace(/\\s+/g, ' ').trim();
+      }
+
+      function lines(el) {
+        if (!el) { return []; }
+        return (el.innerText || '').split('\\n')
+          .map(function (line) { return line.trim(); })
+          .filter(function (line) { return line.length > 0; });
+      }
+
+      var tables = Array.prototype.slice.call(document.querySelectorAll('dl.ffp-details-grid'));
+      if (!tables.length) {
+        return JSON.stringify({ state: 'waiting' });
+      }
+
+      var details = tables.map(function (dl) {
+        var labels = Array.prototype.slice.call(dl.querySelectorAll('dt'));
+        var values = Array.prototype.slice.call(dl.querySelectorAll('dd'));
+        return labels.map(function (dt, index) {
+          return {
+            label: clean(dt.textContent),
+            value: values[index] ? clean(values[index].textContent) : ''
+          };
         });
-      }
-      var body = (document.body && document.body.innerText) || '';
-      if (/no public items|no items equipped/i.test(body)) {
-        return JSON.stringify({ state: 'empty', cards: [] });
-      }
-      return JSON.stringify({ state: 'waiting', cards: [] });
+      });
+
+      var summary = {};
+      Array.prototype.slice.call(document.querySelectorAll('.ffp-summary-card')).forEach(function (card) {
+        var rows = lines(card);
+        if (rows.length > 1) { summary[rows[0]] = rows.slice(1); }
+      });
+
+      var ranks = {};
+      Array.prototype.slice.call(document.querySelectorAll('.ffp-rank-card')).forEach(function (card) {
+        var rows = lines(card);
+        if (rows.length > 1) { ranks[rows[0]] = rows.slice(1); }
+      });
+
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.ffp-equipment-card')).map(function (card) {
+        var image = card.querySelector('img');
+        return {
+          name: (card.getAttribute('title') || '').replace(/^View\\s+/i, ''),
+          href: card.href || '',
+          text: clean(card.innerText),
+          icon: (image && image.src) || ''
+        };
+      });
+
+      return JSON.stringify({
+        state: 'ready',
+        summary: summary,
+        ranks: ranks,
+        details: details,
+        role: lines(document.querySelector('.ffp-role-panel .ffp-role-copy')),
+        cards: cards
+      });
     })()
     """
+
+    /// The summary and rank cards are read positionally — label, then value —
+    /// so the parse does not depend on which language the page rendered in.
+    private static func stats(from root: [String: Any]) -> PlayerGameStats {
+        var stats = PlayerGameStats()
+
+        let summary = root["summary"] as? [String: [String]] ?? [:]
+        let ranks = root["ranks"] as? [String: [String]] ?? [:]
+
+        func card(_ table: [String: [String]], _ needle: String) -> [String]? {
+            table.first { $0.key.uppercased().contains(needle) }?.value
+        }
+
+        if let level = card(summary, "LEVEL") {
+            stats.level = level.first ?? ""
+            stats.experience = level.count > 1 ? level[1] : ""
+        }
+        let likes = card(summary, "LIKE")
+        stats.likes = likes?.first ?? ""
+        stats.battleRoyale = rankLine(card(ranks, "BATTLE"))
+        stats.clashSquad = rankLine(card(ranks, "CLASH"))
+
+        let tables = root["details"] as? [[[String: String]]] ?? []
+        let parsed = tables.map { rows in
+            rows.compactMap { row -> PlayerStatLine? in
+                let label = (row["label"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !label.isEmpty else { return nil }
+                return PlayerStatLine(label: label, value: row["value"] ?? "")
+            }
+        }
+        stats.account = parsed.first ?? []
+        stats.indicators = parsed.count > 1 ? parsed[1] : []
+
+        if let role = root["role"] as? [String], role.count >= 2 {
+            stats.role = role[1]
+            stats.roleGroup = role.count > 2 ? role[2] : nil
+        }
+
+        return stats
+    }
+
+    /// `[rank, points, "Best rank", best, "Peak points", peak]`, in whichever
+    /// language the page used.
+    private static func rankLine(_ lines: [String]?) -> PlayerRankLine? {
+        guard let lines, lines.count >= 2 else { return nil }
+        var line = PlayerRankLine()
+        line.rank = lines[0]
+        line.points = lines[1]
+        if lines.count >= 4 { line.bestRank = lines[3] }
+        if lines.count >= 6 { line.bestValue = lines[5] }
+        return line
+    }
 
     private static func items(from cards: [[String: Any]]) -> [PlayerOutfitItem] {
         var seen = Set<String>()
