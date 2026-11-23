@@ -616,7 +616,11 @@ enum GLBSceneLoader {
             // current SDK; the `boundingBox` property reports the same box in
             // the node's local space.
             let (low, high) = child.boundingBox
-            guard low != high else { return }
+
+            // `SCNVector3` has no `Equatable` conformance in Swift, so the
+            // degenerate (empty) box is detected component by component.
+            let isEmpty = low.x == high.x && low.y == high.y && low.z == high.z
+            guard !isEmpty else { return }
 
             for corner in corners(low, high) {
                 let point = child.convertPosition(corner, to: root)
