@@ -611,9 +611,12 @@ enum GLBSceneLoader {
 
         root.enumerateChildNodes { child, _ in
             guard child.geometry != nil else { return }
-            var low = SCNVector3Zero
-            var high = SCNVector3Zero
-            guard child.getBoundingBoxMin(&low, max: &high) else { return }
+
+            // `getBoundingBoxMin(_:max:)` is no longer exposed to Swift on the
+            // current SDK; the `boundingBox` property reports the same box in
+            // the node's local space.
+            let (low, high) = child.boundingBox
+            guard low != high else { return }
 
             for corner in corners(low, high) {
                 let point = child.convertPosition(corner, to: root)
