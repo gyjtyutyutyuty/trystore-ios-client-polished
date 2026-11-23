@@ -44,7 +44,7 @@ jobs:
   swift-build:
     # A compile, not an archive: the Swift changes in this repo were only ever
     # checked by eye before, and a typo should fail the push, not the release.
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 40
     steps:
       - name: Check out source
@@ -124,9 +124,10 @@ jobs:
   build:
     # Pushes run the Rust check and the Swift compile; the IPA needs a manual dispatch.
     if: github.event_name == 'workflow_dispatch'
-    # macos-15 was terminating before checkout with no steps or logs.
-    # macos-14 is the stable hosted image used for this unsigned build.
-    runs-on: macos-14
+    # GitHub rejects the pinned macos-14 image for this account
+    # ('configuration macos-14-arm64-us-default is not supported'), so the
+    # macOS jobs follow the default hosted image instead.
+    runs-on: macos-latest
     timeout-minutes: 60
     steps:
       - name: Check out source
