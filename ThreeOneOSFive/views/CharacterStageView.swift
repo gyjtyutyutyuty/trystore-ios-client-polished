@@ -72,6 +72,19 @@ struct CharacterStageView: UIViewRepresentable {
     }
 }
 
+/// A parsed character plus the submeshes that carry its baked-in outfit. The
+/// bundled OBJ exports keep skin, torso, legs, shoes, head and hair as separate
+/// objects, so a downloaded garment can replace the clothing layer for its slot
+/// instead of being drawn on top of the old clothes.
+private final class CharacterBody {
+    let root: SCNNode
+    var layers: [(node: SCNNode, slot: PlayerOutfitSlot)] = []
+
+    init(root: SCNNode) {
+        self.root = root
+    }
+}
+
 final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     private let stageScene = SCNScene()
     private let cameraNode = SCNNode()
@@ -80,8 +93,13 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     /// turns them together. The body root is swapped on model change; this
     /// node survives the swap.
     private let garmentContainer = SCNNode()
-    private var bodyRoot: SCNNode?
-    private var modelCache: [HeroCharacterModel: SCNNode] = [:]
+    private var bodyRoot: CharacterBody?
+    private var modelCache: [HeroCharacterModel: CharacterBody] = [:]
+    /// Clothing submeshes of the body currently on screen, and the slots whose
+    /// replacement mesh actually arrived. A layer is only hidden once its slot
+    /// has a garment, so a failed download never leaves the character bare.
+    private var bodyLayers: [(node: SCNNode, slot: PlayerOutfitSlot)] = []
+    private var wornSlots: Set<PlayerOutfitSlot> = []
 
     private var requestedModel: HeroCharacterModel?
     private var loadToken = UUID()
@@ -253,6 +271,8 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     /// is already animating.
     private func rebuildGarments() {
         garmentContainer.childNodes.forEach { $0.removeFromParentNode() }
+        wornSlots.removeAll()
+        applyBodyLayers()
 
         let wanted = appliedGarments
         guard !wanted.isEmpty else {
@@ -281,17 +301,33 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     }
 
     private func attach(_ model: GarmentModel, slot: PlayerOutfitSlot, id: String) {
-        guard let fit = slot.garmentFit else { return }
-        let span = max(model.width, model.height)
-        guard span > 0 else { return }
+        guard let fit = slot.garmentFit, model.height > 0.001 else { return }
 
-        let scale = fit.span / span
+        // Height-driven, not longest-side-driven: a jacket is wider across the
+        // sleeves than it is tall, so dividing by its arm span made every
+        // sleeved item come out short and lose the body.
+        let scale = fit.height / model.height
         let holder = SCNNode()
         holder.name = "garment-\(id)"
         holder.addChildNode(model.node)
-        holder.scale = SCNVector3(Float(scale), Float(scale), Float(scale))
+        holder.scale = SCNVector3(
+            Float(scale * fit.grow),
+            Float(scale),
+            Float(scale * fit.grow)
+        )
         holder.position = SCNVector3(0, Float(fit.centerY), Float(fit.z))
         garmentContainer.addChildNode(holder)
+
+        wornSlots.insert(slot)
+        applyBodyLayers()
+    }
+
+    /// Hides the body's own top, trousers or shoes for every slot that is now
+    /// covered by a downloaded mesh.
+    private func applyBodyLayers() {
+        for layer in bodyLayers {
+            layer.node.isHidden = wornSlots.contains(layer.slot)
+        }
     }
 
     override func didMoveToWindow() {
@@ -367,14 +403,16 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
                     log("hero: \(model.objectFile) produced no renderable nodes")
                     return
                 }
-                self.prepare(root)
-                self.modelCache[model] = root
-                self.install(root)
+                let body = CharacterBody(root: root)
+                self.prepare(body)
+                self.modelCache[model] = body
+                self.install(body)
             }
         }
     }
 
-    private func prepare(_ root: SCNNode) {
+    private func prepare(_ body: CharacterBody) {
+        let root = body.root
         let constrained = AppPerformance.isConstrained
         root.enumerateHierarchy { node, _ in
             guard let geometry = node.geometry else { return }
@@ -387,7 +425,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             }
         }
 
-        guard let (minimum, maximum) = geometryBounds(of: root) else {
+        guard let (minimum, maximum) = Self.geometryBounds(of: root, in: root) else {
             log("hero: character geometry has no bounds")
             return
         }
@@ -403,13 +441,52 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             -(minimum.y + maximum.y) * 0.5 * scale,
             -(minimum.z + maximum.z) * 0.5 * scale
         )
+
+        body.layers = Self.clothingLayers(in: root, minimum: minimum, height: height)
+    }
+
+    /// The torso, trouser and shoe submeshes, found by their vertical band. The
+    /// bands are fractions of the normalised body height, so they hold for both
+    /// bundled characters. Head, hair and the skin mesh are never classified:
+    /// hiding those would remove body, not clothes.
+    private static func clothingLayers(
+        in root: SCNNode,
+        minimum: SCNVector3,
+        height: Float
+    ) -> [(node: SCNNode, slot: PlayerOutfitSlot)] {
+        guard height > 0 else { return [] }
+
+        var layers: [(node: SCNNode, slot: PlayerOutfitSlot)] = []
+        for child in root.childNodes {
+            guard child.geometry != nil || !child.childNodes.isEmpty else { continue }
+            guard let bounds = geometryBounds(of: child, in: root) else { continue }
+
+            let low = CGFloat((bounds.minimum.y - minimum.y) / height)
+            let high = CGFloat((bounds.maximum.y - minimum.y) / height)
+            guard let slot = clothingSlot(lowY: low, highY: high) else { continue }
+            layers.append((child, slot))
+        }
+        return layers
+    }
+
+    private static func clothingSlot(lowY: CGFloat, highY: CGFloat) -> PlayerOutfitSlot? {
+        // One unit of body height. A mesh covering nearly all of it is the skin.
+        if highY - lowY > 0.85 { return nil }
+        // Soft feet layer at ground level.
+        if highY <= 0.15 { return .shoes }
+        // Waist to ankle: the trousers. Rouk 0.02...0.59, Sakura 0.07...0.57.
+        if lowY <= 0.22, (0.40...0.75).contains(highY) { return .pants }
+        // Waist to shoulders: the top. Rouk 0.54...0.86, Sakura 0.51...0.85.
+        if (0.45..<0.62).contains(lowY), (0.75...0.92).contains(highY) { return .top }
+        return nil
     }
 
     /// `SCNNode.boundingBox` only covers the node's own geometry, so the union
     /// is built from every mesh and mapped into the root's space. The OBJ
     /// exports keep the body parts in sibling nodes, not one merged mesh.
-    private func geometryBounds(
-        of root: SCNNode
+    private static func geometryBounds(
+        of subtree: SCNNode,
+        in space: SCNNode
     ) -> (minimum: SCNVector3, maximum: SCNVector3)? {
         var minimum = SCNVector3(Float.greatestFiniteMagnitude,
                                  Float.greatestFiniteMagnitude,
@@ -419,7 +496,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
                                  -Float.greatestFiniteMagnitude)
         var found = false
 
-        root.enumerateHierarchy { node, _ in
+        subtree.enumerateHierarchy { node, _ in
             guard node.geometry != nil else { return }
             let (localMin, localMax) = node.boundingBox
             let corners = [
@@ -433,7 +510,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
                 SCNVector3(localMax.x, localMax.y, localMax.z)
             ]
             for corner in corners {
-                let point = node.convertPosition(corner, to: root)
+                let point = node.convertPosition(corner, to: space)
                 minimum.x = min(minimum.x, point.x)
                 minimum.y = min(minimum.y, point.y)
                 minimum.z = min(minimum.z, point.z)
@@ -447,9 +524,11 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         return found ? (minimum, maximum) : nil
     }
 
-    private func install(_ root: SCNNode) {
-        bodyRoot?.removeFromParentNode()
-        bodyRoot = root
+    private func install(_ body: CharacterBody) {
+        bodyRoot?.root.removeFromParentNode()
+        bodyRoot = body
+        bodyLayers = body.layers
+        let root = body.root
         baseYaw = turntable ? -0.20 : 0
         dragYaw = 0
         idleYaw = 0
@@ -463,6 +542,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         // the display link is actually running.
         root.opacity = 1
         modelContainer.addChildNode(root)
+        applyBodyLayers()
         if displayLink != nil {
             root.opacity = 0
             SCNTransaction.begin()
