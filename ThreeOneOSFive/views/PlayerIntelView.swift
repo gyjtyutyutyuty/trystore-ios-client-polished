@@ -1,9 +1,9 @@
 import SwiftUI
-import WebKit
 
-/// Player lookup for Free Fire IDs. Each added ID loads its public profile and
-/// equipped set, and every player keeps its own row. The ID that was last put
-/// in, and the row it opened, survive a relaunch.
+/// Player lookup for Free Fire IDs. One ID is kept at a time: it loads the
+/// public profile, every published stat block and the equipped items, and it
+/// reopens unchanged on the next launch. Removing it frees the slot for
+/// another.
 struct PlayerIntelView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -18,8 +18,6 @@ struct PlayerIntelView: View {
     @State private var activeItem: PlayerOutfitItem?
     @State private var tasks: [String: Task<Void, Never>] = [:]
     @FocusState private var searchFocused: Bool
-
-    private var isBusy: Bool { roster.contains(where: \.isLoading) }
 
     private var selectedEntry: PlayerIntelEntry? {
         if let selectedUID,
@@ -38,10 +36,6 @@ struct PlayerIntelView: View {
                     VStack(spacing: AppSpacing.l) {
                         topBar.appCinematicReveal(delay: 0.02)
                         addPanel.appCinematicReveal(delay: 0.08)
-
-                        if !roster.isEmpty {
-                            rosterPanel.appCinematicReveal(delay: 0.10)
-                        }
 
                         content.appCinematicReveal(delay: 0.14)
 
@@ -82,7 +76,7 @@ struct PlayerIntelView: View {
             PlayerRosterStore.save(updated)
         }
         .sheet(item: $activeItem) { item in
-            PlayerItemWebSheet(item: item)
+            PlayerItemDetailSheet(item: item)
         }
     }
 
@@ -127,54 +121,70 @@ struct PlayerIntelView: View {
     private var addPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
             HStack(spacing: AppSpacing.s) {
-                Image(systemName: "number")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppPalette.textTertiary)
-                    .accessibilityHidden(true)
+                HStack(spacing: AppSpacing.s) {
+                    Image(systemName: "number")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .accessibilityHidden(true)
 
-                TextField(language.text("intel.search_prompt"), text: $query)
-                    .font(AppType.body())
-                    .keyboardType(.numberPad)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($searchFocused)
-                    .submitLabel(.done)
-                    .onSubmit(addPlayers)
-                    .accessibilityLabel(language.text("intel.search_prompt"))
+                    TextField(language.text("intel.search_prompt"), text: $query)
+                        .font(AppType.body())
+                        .keyboardType(.numberPad)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($searchFocused)
+                        .submitLabel(.done)
+                        .onSubmit(addPlayers)
+                        .accessibilityLabel(language.text("intel.search_prompt"))
 
-                if !query.isEmpty {
-                    Button {
-                        query = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.tertiary)
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(language.text("common.clear"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(language.text("common.clear"))
                 }
+                .padding(.horizontal, AppSpacing.m)
+                .frame(minHeight: 48)
+                .background(
+                    AppPalette.canvas,
+                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                )
+
+                Button(action: addPlayers) {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AppPalette.canvas)
+                        .frame(width: 48, height: 48)
+                        .background(
+                            LinearGradient(
+                                colors: [AppTheme.accent, AppTheme.accent.opacity(0.82)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                        )
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .disabled(trimmedQuery.isEmpty)
+                .opacity(trimmedQuery.isEmpty ? 0.4 : 1)
+                .accessibilityLabel(language.text("intel.add_player"))
             }
-            .padding(.horizontal, AppSpacing.m)
-            .frame(minHeight: 46)
-            .background(
-                AppPalette.canvas,
-                in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-            )
 
-            AppActionButton(
-                title: language.text("intel.add_player"),
-                icon: "person.badge.plus",
-                isEnabled: !trimmedQuery.isEmpty,
-                action: addPlayers
-            )
-
-            Text(language.text("intel.add_hint"))
-                .font(AppType.meta())
-                .foregroundStyle(AppPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+            if roster.isEmpty {
+                Text(language.text("intel.add_hint"))
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if let addErrorKey {
-                Text(language.text(addErrorKey))
+                Label(language.text(addErrorKey), systemImage: "exclamationmark.triangle.fill")
                     .font(AppType.meta())
                     .foregroundStyle(AppPalette.amber)
                     .fixedSize(horizontal: false, vertical: true)
@@ -186,159 +196,11 @@ struct PlayerIntelView: View {
 
     // MARK: - Roster
 
-    private var rosterPanel: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.s) {
-            HStack(alignment: .center, spacing: AppSpacing.s) {
-                AppSectionHeader(
-                    icon: "person.2.fill",
-                    title: language.text("intel.roster"),
-                    subtitle: language.text("intel.roster_count", roster.count)
-                )
 
-                Spacer(minLength: 0)
-
-                Button {
-                    AppHaptics.tap()
-                    refreshAll()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(isBusy ? AppPalette.textTertiary : AppTheme.accent)
-                        .frame(width: 34, height: 34)
-                        .background(AppPalette.canvas, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .disabled(isBusy)
-                .accessibilityLabel(language.text("intel.refresh_all"))
-            }
-
-            ForEach(roster) { entry in
-                rosterRow(entry)
-            }
-        }
-        .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
-    }
-
-    private func rosterRow(_ entry: PlayerIntelEntry) -> some View {
-        let isSelected = selectedEntry?.uid == entry.uid
-
-        return HStack(spacing: AppSpacing.s) {
-            Button {
-                if entry.profile == nil, entry.errorKey != nil {
-                    startLoad(entry.uid)
-                } else {
-                    AppHaptics.select()
-                    selectedUID = entry.uid
-                }
-            } label: {
-                HStack(spacing: AppSpacing.s) {
-                    rosterAvatar(entry)
-                        .frame(width: 36, height: 36)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.profile?.nickname ?? entry.uid)
-                            .font(AppType.body().weight(.semibold))
-                            .foregroundStyle(AppPalette.textPrimary)
-                            .lineLimit(1)
-
-                        Text(rosterDetail(entry))
-                            .font(AppType.meta())
-                            .foregroundStyle(entry.errorKey == nil ? AppPalette.textTertiary : AppPalette.amber)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    if entry.isLoading {
-                        ProgressView()
-                            .tint(AppTheme.accent)
-                    } else if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppTheme.accent)
-                    } else if entry.errorKey != nil {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(AppPalette.amber)
-                    }
-                }
-                .padding(AppSpacing.s)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    isSelected ? AppPalette.raised : AppPalette.canvas,
-                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(entry.profile?.nickname ?? entry.uid), \(rosterDetail(entry))")
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
-
-            Button {
-                AppHaptics.tap()
-                remove(entry.uid)
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(AppPalette.textTertiary)
-                    .frame(width: 32, height: 32)
-                    .background(AppPalette.canvas, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(language.text("intel.remove_player"))
-        }
-    }
 
     @ViewBuilder
-    private func rosterAvatar(_ entry: PlayerIntelEntry) -> some View {
-        let shape = Circle()
 
-        if let url = entry.profile?.avatarURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    initialAvatar(entry)
-                }
-            }
-            .clipShape(shape)
-            .overlay(shape.strokeBorder(AppTheme.accent.opacity(0.3), lineWidth: 1))
-            .accessibilityHidden(true)
-        } else {
-            initialAvatar(entry)
-                .clipShape(shape)
-                .accessibilityHidden(true)
-        }
-    }
 
-    private func initialAvatar(_ entry: PlayerIntelEntry) -> some View {
-        ZStack {
-            Circle().fill(AppPalette.canvas)
-            Text(String(entry.profile?.nickname.prefix(1) ?? entry.uid.prefix(1)))
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(AppPalette.textSecondary)
-        }
-    }
-
-    private func rosterDetail(_ entry: PlayerIntelEntry) -> String {
-        if let key = entry.errorKey {
-            return language.text(key)
-        }
-        if entry.isLoading, entry.profile == nil {
-            return language.text("intel.loading_player")
-        }
-        guard let profile = entry.profile else {
-            return language.text("intel.loading_player")
-        }
-
-        var parts: [String] = []
-        if !profile.region.isEmpty { parts.append(profile.region) }
-        parts.append("\(language.text("intel.level")) \(profile.level)")
-        parts.append(language.text("intel.outfit_count", entry.items.count))
-        return parts.joined(separator: " · ")
-    }
 
     // MARK: - Content
 
@@ -348,6 +210,7 @@ struct PlayerIntelView: View {
             if let profile = entry.profile {
                 VStack(spacing: AppSpacing.l) {
                     profilePanel(profile)
+                    statsPanel(entry)
                     outfitPanel(entry)
                 }
             } else if entry.isLoading {
@@ -363,9 +226,17 @@ struct PlayerIntelView: View {
     // MARK: - Profile
 
     private func profilePanel(_ profile: PlayerIntelProfile) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.l) {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
             HStack(alignment: .top, spacing: AppSpacing.m) {
-                VStack(alignment: .leading, spacing: 6) {
+                avatar(profile, size: 72)
+                    .padding(3)
+                    .background(AppPalette.canvas, in: Circle())
+                    .overlay(
+                        Circle().strokeBorder(AppTheme.accent.opacity(0.45), lineWidth: 1.5)
+                    )
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: AppSpacing.s) {
                     Text(profile.nickname)
                         .font(AppType.display())
                         .foregroundStyle(AppPalette.textPrimary)
@@ -383,24 +254,35 @@ struct PlayerIntelView: View {
 
                 Spacer(minLength: 0)
 
-                avatar(profile)
+                VStack(spacing: AppSpacing.xs) {
+                    cardButton(icon: "arrow.clockwise", label: language.text("intel.retry")) {
+                        startLoad(profile.uid)
+                    }
+                    cardButton(icon: "xmark", label: language.text("intel.remove_player")) {
+                        AppHaptics.tap()
+                        remove(profile.uid)
+                    }
+                }
             }
 
             HStack(spacing: AppSpacing.s) {
                 AppMetricTile(
                     icon: "arrow.up.forward",
                     label: language.text("intel.level"),
-                    value: "\(profile.level)"
+                    value: "\(profile.level)",
+                    minHeight: 72
                 )
                 AppMetricTile(
                     icon: "heart.fill",
                     label: language.text("intel.likes"),
-                    value: profile.likes.formatted()
+                    value: profile.likes.formatted(),
+                    minHeight: 72
                 )
                 AppMetricTile(
                     icon: "trophy.fill",
                     label: language.text("intel.rank"),
-                    value: rankValue(profile)
+                    value: rankValue(profile),
+                    minHeight: 72
                 )
             }
         }
@@ -408,8 +290,216 @@ struct PlayerIntelView: View {
         .appPanel(radius: AppRadius.panel)
     }
 
+    private func cardButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppPalette.textSecondary)
+                .frame(width: 44, height: 44)
+                .background(AppPalette.canvas, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    // MARK: - Stats
+
     @ViewBuilder
-    private func avatar(_ profile: PlayerIntelProfile) -> some View {
+    private func statsPanel(_ entry: PlayerIntelEntry) -> some View {
+        if let stats = entry.stats, !stats.isEmpty {
+            VStack(alignment: .leading, spacing: AppSpacing.m) {
+                AppSectionHeader(
+                    icon: "chart.bar.xaxis",
+                    title: language.text("intel.stats.title"),
+                    subtitle: language.text("intel.stats.subtitle")
+                )
+
+                HStack(spacing: AppSpacing.s) {
+                    AppMetricTile(
+                        icon: "arrow.up.forward",
+                        label: language.text("intel.stats.level"),
+                        value: stats.level.isEmpty ? "—" : stats.level,
+                        minHeight: 72
+                    )
+                    AppMetricTile(
+                        icon: "sparkles",
+                        label: language.text("intel.stats.exp"),
+                        value: stats.experience.isEmpty ? "—" : stats.experience,
+                        minHeight: 72
+                    )
+                    AppMetricTile(
+                        icon: "heart.fill",
+                        label: language.text("intel.stats.likes"),
+                        value: stats.likes.isEmpty ? "—" : stats.likes,
+                        minHeight: 72
+                    )
+                }
+
+                if let line = stats.battleRoyale {
+                    rankCard(
+                        title: language.text("intel.stats.battle_royale"),
+                        icon: "scope",
+                        line: line,
+                        pointsKey: "intel.stats.points",
+                        peakKey: "intel.stats.peak_points"
+                    )
+                }
+
+                if let line = stats.clashSquad {
+                    rankCard(
+                        title: language.text("intel.stats.clash_squad"),
+                        icon: "person.3.fill",
+                        line: line,
+                        pointsKey: "intel.stats.stars",
+                        peakKey: "intel.stats.best_record"
+                    )
+                }
+
+                if let role = stats.role, !role.isEmpty {
+                    HStack(spacing: AppSpacing.s) {
+                        AppIconBadge(systemName: "shield.lefthalf.filled", size: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(language.text("intel.stats.role"))
+                                .font(AppType.label())
+                                .foregroundStyle(AppPalette.textTertiary)
+                            Text(stats.roleGroup.map { "\(role) · \($0)" } ?? role)
+                                .font(AppType.body().weight(.semibold))
+                                .foregroundStyle(AppPalette.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(AppSpacing.m)
+                    .background(
+                        AppPalette.canvas,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    )
+                }
+
+                if !stats.account.isEmpty {
+                    detailBlock(
+                        title: language.text("intel.stats.account"),
+                        icon: "person.text.rectangle",
+                        lines: stats.account
+                    )
+                }
+
+                if !stats.indicators.isEmpty {
+                    detailBlock(
+                        title: language.text("intel.stats.indicators"),
+                        icon: "checkmark.shield",
+                        lines: stats.indicators
+                    )
+                }
+            }
+            .padding(AppSpacing.l)
+            .appPanel(radius: AppRadius.panel)
+        }
+    }
+
+    private func rankCard(
+        title: String,
+        icon: String,
+        line: PlayerRankLine,
+        pointsKey: String,
+        peakKey: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                Text(title)
+                    .font(AppType.label())
+                    .foregroundStyle(AppPalette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Spacer(minLength: 0)
+            }
+
+            Text(line.rank.isEmpty ? "—" : line.rank)
+                .font(AppType.value())
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            VStack(spacing: 4) {
+                statRow(key: pointsKey, value: line.points)
+                statRow(key: "intel.stats.best_rank", value: line.bestRank)
+                statRow(key: peakKey, value: line.bestValue)
+            }
+        }
+        .padding(AppSpacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            AppPalette.canvas,
+            in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private func statRow(key: String, value: String) -> some View {
+        HStack(spacing: AppSpacing.s) {
+            Text(language.text(key))
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textTertiary)
+                .lineLimit(1)
+            Spacer(minLength: AppSpacing.xs)
+            Text(value.isEmpty ? "—" : value)
+                .font(AppType.meta().weight(.semibold))
+                .foregroundStyle(AppPalette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private func detailBlock(
+        title: String,
+        icon: String,
+        lines: [PlayerStatLine]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                Text(title)
+                    .font(AppType.label())
+                    .foregroundStyle(AppPalette.textSecondary)
+                Spacer(minLength: 0)
+            }
+
+            VStack(spacing: 0) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    if index > 0 { AppHairline() }
+
+                    HStack(alignment: .firstTextBaseline, spacing: AppSpacing.s) {
+                        Text(line.label)
+                            .font(AppType.meta())
+                            .foregroundStyle(AppPalette.textTertiary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text(line.value.isEmpty ? "—" : line.value)
+                            .font(AppType.meta().weight(.semibold))
+                            .foregroundStyle(AppPalette.textPrimary)
+                            .multilineTextAlignment(.trailing)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, AppSpacing.s)
+                }
+            }
+            .padding(.horizontal, AppSpacing.m)
+            .background(
+                AppPalette.canvas,
+                in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func avatar(_ profile: PlayerIntelProfile, size: CGFloat) -> some View {
         let shape = Circle()
 
         if let url = profile.avatarURL {
@@ -421,13 +511,12 @@ struct PlayerIntelView: View {
                     avatarPlaceholder
                 }
             }
-            .frame(width: 64, height: 64)
+            .frame(width: size, height: size)
             .clipShape(shape)
-            .overlay(shape.strokeBorder(AppTheme.accent.opacity(0.35), lineWidth: 1))
             .accessibilityHidden(true)
         } else {
             avatarPlaceholder
-                .frame(width: 64, height: 64)
+                .frame(width: size, height: size)
         }
     }
 
@@ -452,7 +541,7 @@ struct PlayerIntelView: View {
     private func outfitPanel(_ entry: PlayerIntelEntry) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             AppSectionHeader(
-                icon: "tshirt.fill",
+                icon: "hanger",
                 title: language.text("intel.outfit"),
                 subtitle: entry.items.isEmpty
                     ? nil
@@ -470,7 +559,7 @@ struct PlayerIntelView: View {
                 )
             } else {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 152), spacing: AppSpacing.s)],
+                    columns: [GridItem(.adaptive(minimum: 104), spacing: AppSpacing.s)],
                     spacing: AppSpacing.s
                 ) {
                     ForEach(entry.items) { item in
@@ -481,7 +570,7 @@ struct PlayerIntelView: View {
                             itemCard(item)
                         }
                         .buttonStyle(AppPressButtonStyle())
-                        .disabled(item.pageURL == nil)
+                        .accessibilityLabel("\(item.name), \(itemDetail(item))")
                     }
                 }
             }
@@ -491,25 +580,25 @@ struct PlayerIntelView: View {
     }
 
     private func itemCard(_ item: PlayerOutfitItem) -> some View {
-        HStack(spacing: AppSpacing.s) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(AppPalette.canvas)
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .fill(AppPalette.raised)
 
-                if let url = item.iconURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFit().padding(3)
-                        default:
-                            itemGlyph
-                        }
-                    }
-                } else {
-                    itemGlyph
+                itemIcon(item)
+                    .padding(AppSpacing.m)
+
+                if item.has3D {
+                    Image(systemName: "cube.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(AppPalette.canvas)
+                        .padding(4)
+                        .background(AppTheme.accent, in: Circle())
+                        .padding(6)
+                        .accessibilityHidden(true)
                 }
             }
-            .frame(width: 44, height: 44)
+            .frame(height: 84)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
@@ -521,25 +610,31 @@ struct PlayerIntelView: View {
                     .foregroundStyle(AppPalette.textTertiary)
                     .lineLimit(1)
             }
-
-            Spacer(minLength: 0)
-
-            if item.has3D {
-                Image(systemName: "cube")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(AppTheme.accent)
-                    .accessibilityHidden(true)
-            }
         }
         .padding(AppSpacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             AppPalette.canvas,
-            in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+            in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
         )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityHint(item.has3D ? language.text("intel.open_3d") : "")
+    }
+
+    @ViewBuilder
+    private func itemIcon(_ item: PlayerOutfitItem) -> some View {
+        if let url = item.iconURL {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFit()
+                default:
+                    itemGlyph
+                }
+            }
+        } else {
+            itemGlyph
+        }
     }
 
     private var itemGlyph: some View {
@@ -607,13 +702,7 @@ struct PlayerIntelView: View {
                 Text(updated)
                     .font(AppType.meta())
                     .foregroundStyle(AppPalette.textTertiary)
-            }
-            if let url = selectedEntry?.profile?.profileURL {
-                Link(destination: url) {
-                    Label(language.text("intel.open_profile"), systemImage: "arrow.up.right.square")
-                        .font(AppType.label())
-                        .foregroundStyle(AppTheme.accent)
-                }
+                    .multilineTextAlignment(.center)
             }
         }
         .frame(maxWidth: .infinity)
@@ -654,27 +743,22 @@ struct PlayerIntelView: View {
         query = ""
         searchFocused = false
 
-        var added: [String] = []
-        for uid in uids where !roster.contains(where: { $0.uid == uid }) {
-            roster.append(
-                PlayerIntelEntry(
-                    uid: uid,
-                    profile: nil,
-                    items: [],
-                    outfitFailed: false,
-                    errorKey: nil,
-                    isLoading: true
-                )
+        // One ID is kept at a time. Adding another replaces the stored one, so
+        // the key never accumulates players.
+        let uid = uids[0]
+        roster = [
+            PlayerIntelEntry(
+                uid: uid,
+                profile: nil,
+                items: [],
+                stats: nil,
+                outfitFailed: false,
+                errorKey: nil,
+                isLoading: true
             )
-            added.append(uid)
-        }
-
-        // Select the ID that was just typed, even when the row already
-        // existed: that is the row the tab reopens on next launch.
-        selectedUID = uids[0]
-        for uid in added {
-            startLoad(uid)
-        }
+        ]
+        selectedUID = uid
+        startLoad(uid)
     }
 
     private func startLoad(_ uid: String) {
@@ -698,10 +782,11 @@ struct PlayerIntelView: View {
             update(uid) { $0.profile = profile }
 
             do {
-                let outfit = try await PlayerOutfitScraper.shared.outfit(uid: uid)
+                let page = try await PlayerOutfitScraper.shared.page(uid: uid)
                 guard !Task.isCancelled else { return }
                 update(uid) { entry in
-                    entry.items = outfit
+                    entry.items = page.items
+                    entry.stats = page.stats
                     entry.outfitFailed = false
                     entry.isLoading = false
                 }
@@ -728,11 +813,6 @@ struct PlayerIntelView: View {
         change(&roster[index])
     }
 
-    private func refreshAll() {
-        for entry in roster {
-            startLoad(entry.uid)
-        }
-    }
 
     private func remove(_ uid: String) {
         tasks[uid]?.cancel()
@@ -755,11 +835,11 @@ struct PlayerIntelView: View {
     }
 }
 
-// MARK: - Item 3D viewer
+// MARK: - Item detail
 
-/// The catalogue page owns the garment model. The app cannot bundle every
-/// outfit, so the item's own 3D viewer opens here, inside the app.
-struct PlayerItemWebSheet: View {
+/// Every item opens natively. Nothing on this screen hands the player off to a
+/// website, so the sheet shows only what the public profile already published.
+struct PlayerItemDetailSheet: View {
     let item: PlayerOutfitItem
 
     @Environment(\.dismiss) private var dismiss
@@ -767,19 +847,47 @@ struct PlayerItemWebSheet: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let url = item.pageURL {
-                    PlayerItemWebView(url: url)
-                } else {
-                    AppEmptyState(
-                        icon: "cube.transparent",
-                        title: item.name,
-                        message: language.text("intel.error_outfit")
-                    )
-                    .padding(AppSpacing.l)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: AppSpacing.l) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+                            .fill(AppPalette.raised)
+                        preview
+                            .padding(AppSpacing.xl)
+                    }
+                    .frame(height: 200)
+
+                    VStack(alignment: .leading, spacing: AppSpacing.s) {
+                        Text(item.name)
+                            .font(AppType.display())
+                            .foregroundStyle(AppPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        HStack(spacing: AppSpacing.s) {
+                            AppStatChip(
+                                icon: "square.grid.2x2",
+                                text: language.text(item.slot.localizationKey)
+                            )
+                            if !item.rarity.isEmpty {
+                                AppStatChip(icon: "sparkles", text: item.rarity)
+                            }
+                            if item.likes > 0 {
+                                AppStatChip(icon: "heart.fill", text: item.likes.formatted())
+                            }
+                        }
+                    }
+
+                    Text(language.text("intel.item_note"))
+                        .font(AppType.meta())
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 0)
                 }
+                .padding(AppSpacing.l)
             }
-            .navigationTitle(item.name)
+            .background(AppPalette.canvas)
+            .navigationTitle(language.text("intel.outfit"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -788,37 +896,27 @@ struct PlayerItemWebSheet: View {
             }
         }
     }
-}
 
-private struct PlayerItemWebView: UIViewRepresentable {
-    let url: URL
-
-    func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
-        webView.allowsBackForwardNavigationGestures = true
-        _ = webView.load(URLRequest(url: url))
-        return webView
+    @ViewBuilder
+    private var preview: some View {
+        if let url = item.iconURL {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFit()
+                default:
+                    placeholder
+                }
+            }
+        } else {
+            placeholder
+        }
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            let script = """
-            (function () {
-              var section = document.getElementById('modelo-3d');
-              if (section) { section.scrollIntoView({ block: 'start' }); }
-              var open = document.querySelector('[data-ffwiki-model-open]');
-              if (open && !open.disabled) { open.click(); }
-            })();
-            """
-            webView.evaluateJavaScript(script, completionHandler: nil)
-        }
+    private var placeholder: some View {
+        Image(systemName: "sparkles")
+            .font(.system(size: 44, weight: .regular))
+            .foregroundStyle(AppPalette.textTertiary)
+            .accessibilityHidden(true)
     }
 }
