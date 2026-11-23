@@ -194,14 +194,6 @@ struct PlayerIntelView: View {
         .appPanel(radius: AppRadius.panel)
     }
 
-    // MARK: - Roster
-
-
-
-    @ViewBuilder
-
-
-
     // MARK: - Content
 
     @ViewBuilder
