@@ -60,6 +60,11 @@ struct ContentView: View {
                     Label(language.text("tab.intel"), systemImage: "person.text.rectangle")
                 }
                 .tag(3)
+            PlayerWardrobeView()
+                .tabItem {
+                    Label(language.text("tab.wardrobe"), systemImage: "tshirt.fill")
+                }
+                .tag(4)
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)

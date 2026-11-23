@@ -810,3 +810,21 @@
 "intel.models_progress" = "Loading 3D models %d/%d";
 "intel.models_partial" = "%d of %d 3D items could not load";
 "intel.models_ready" = "3D models ready";
+
+/* Wardrobe */
+"tab.wardrobe" = "Wardrobe";
+"wardrobe.title" = "Player wardrobe";
+"wardrobe.kicker" = "ON THE CHARACTER";
+"wardrobe.prompt" = "Free Fire ID";
+"wardrobe.load" = "Dress the character";
+"wardrobe.hint" = "The ID is read inside the app: the profile, the equipped items and every 3D mesh are downloaded without opening a browser.";
+"wardrobe.stage_profile" = "Reading the public profile…";
+"wardrobe.stage_outfit" = "Listing equipped items…";
+"wardrobe.stage_meshes" = "Downloading 3D items %d/%d";
+"wardrobe.stage_ready" = "Everything is downloaded.";
+"wardrobe.idle_message" = "Enter a Free Fire ID and the character wears that player's equipped set.";
+"wardrobe.worn" = "Worn on the character";
+"wardrobe.pending" = "Not on the body yet";
+"wardrobe.no_model" = "No 3D mesh for this item";
+"wardrobe.tap_item" = "See details";
+"wardrobe.note" = "Everything stays in the app: no page and no browser opens.";

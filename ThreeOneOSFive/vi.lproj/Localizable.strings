@@ -804,3 +804,21 @@
 "intel.models_progress" = "Đang tải mô hình 3D %d/%d";
 "intel.models_partial" = "%d trong %d mục 3D không tải được";
 "intel.models_ready" = "Mô hình 3D đã sẵn sàng";
+
+/* Wardrobe */
+"tab.wardrobe" = "Tủ đồ";
+"wardrobe.title" = "Tủ đồ người chơi";
+"wardrobe.kicker" = "TRÊN NHÂN VẬT";
+"wardrobe.prompt" = "ID Free Fire";
+"wardrobe.load" = "Mặc cho nhân vật";
+"wardrobe.hint" = "ID được đọc ngay trong ứng dụng: hồ sơ, trang bị và từng lưới 3D được tải mà không mở trình duyệt.";
+"wardrobe.stage_profile" = "Đang đọc hồ sơ công khai…";
+"wardrobe.stage_outfit" = "Đang liệt kê trang bị…";
+"wardrobe.stage_meshes" = "Đang tải mục 3D %d/%d";
+"wardrobe.stage_ready" = "Mọi thứ đã được tải.";
+"wardrobe.idle_message" = "Nhập ID Free Fire và nhân vật sẽ mặc bộ trang bị của người chơi đó.";
+"wardrobe.worn" = "Đã mặc trên nhân vật";
+"wardrobe.pending" = "Chưa có trên nhân vật";
+"wardrobe.no_model" = "Mục này không có lưới 3D";
+"wardrobe.tap_item" = "Xem chi tiết";
+"wardrobe.note" = "Mọi thứ diễn ra trong ứng dụng: không mở trang hay trình duyệt nào.";

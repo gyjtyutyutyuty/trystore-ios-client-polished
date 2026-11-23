@@ -808,3 +808,21 @@
 "intel.models_progress" = "正在加载 3D 模型 %d/%d";
 "intel.models_partial" = "%d 个（共 %d 个）3D 物品加载失败";
 "intel.models_ready" = "3D 模型已就绪";
+
+/* Wardrobe */
+"tab.wardrobe" = "衣橱";
+"wardrobe.title" = "玩家衣橱";
+"wardrobe.kicker" = "穿在角色身上";
+"wardrobe.prompt" = "Free Fire ID";
+"wardrobe.load" = "给角色换装";
+"wardrobe.hint" = "ID 在应用内读取：资料、已装备物品和每个 3D 网格都会下载，不会打开浏览器。";
+"wardrobe.stage_profile" = "正在读取公开资料…";
+"wardrobe.stage_outfit" = "正在列出已装备物品…";
+"wardrobe.stage_meshes" = "正在下载 3D 物品 %d/%d";
+"wardrobe.stage_ready" = "全部已下载。";
+"wardrobe.idle_message" = "输入 Free Fire ID，角色就会穿上该玩家的已装备套装。";
+"wardrobe.worn" = "已穿在角色身上";
+"wardrobe.pending" = "尚未穿戴";
+"wardrobe.no_model" = "该物品没有 3D 网格";
+"wardrobe.tap_item" = "查看详情";
+"wardrobe.note" = "全部在应用内完成：不会打开任何页面或浏览器。";

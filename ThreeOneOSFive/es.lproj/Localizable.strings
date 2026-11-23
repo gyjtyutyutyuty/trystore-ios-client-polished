@@ -799,3 +799,21 @@
 "intel.models_progress" = "Cargando modelos 3D %d/%d";
 "intel.models_partial" = "%d de %d objetos 3D no se pudieron cargar";
 "intel.models_ready" = "Modelos 3D listos";
+
+/* Wardrobe */
+"tab.wardrobe" = "Vestuario";
+"wardrobe.title" = "Vestuario del jugador";
+"wardrobe.kicker" = "EN EL PERSONAJE";
+"wardrobe.prompt" = "ID de Free Fire";
+"wardrobe.load" = "Vestir al personaje";
+"wardrobe.hint" = "El ID se lee dentro de la app: el perfil, los objetos equipados y cada malla 3D se descargan sin abrir un navegador.";
+"wardrobe.stage_profile" = "Leyendo el perfil público…";
+"wardrobe.stage_outfit" = "Listando los objetos equipados…";
+"wardrobe.stage_meshes" = "Descargando objetos 3D %d/%d";
+"wardrobe.stage_ready" = "Todo está descargado.";
+"wardrobe.idle_message" = "Escribe un ID de Free Fire y el personaje llevará el conjunto equipado de ese jugador.";
+"wardrobe.worn" = "Puesto en el personaje";
+"wardrobe.pending" = "Aún no está en el cuerpo";
+"wardrobe.no_model" = "Este objeto no tiene malla 3D";
+"wardrobe.tap_item" = "Ver detalles";
+"wardrobe.note" = "Todo ocurre dentro de la app: no se abre ninguna página ni ningún navegador.";
