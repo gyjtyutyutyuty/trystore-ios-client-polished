@@ -56,6 +56,15 @@ jobs:
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           xcodebuild -version
 
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rebuild the Airlift FFI
+        # The committed XCFramework can lag the Rust surface
+        # (al_exploit_read_file was added after the checked-in archive), and
+        # linking against it fails with an undefined symbol.
+        run: REBUILD_AIRLIFT=1 bash ./ThreeOneOSFive/build-airlift-ffi.sh
+
       # The log is published to the ci-logs branch because the repository is
       # private and its run logs are not reachable from a cloud agent.
       - name: Compile the app
