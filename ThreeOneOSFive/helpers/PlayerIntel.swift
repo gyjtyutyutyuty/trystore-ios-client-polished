@@ -129,6 +129,10 @@ enum PlayerIntelError: Error {
 actor PlayerIntelService {
     static let shared = PlayerIntelService()
 
+    /// The relay boots one preview per UID. Three at a time keeps a ten-ID
+    /// roster from tripping its rate limit while still filling quickly.
+    private static let gate = AsyncGate(value: 3)
+
     private let baseURL = URL(string: "https://freefirejornal.com")!
     private let session: URLSession
 
@@ -156,6 +160,9 @@ actor PlayerIntelService {
         guard (8...20).contains(uid.count), uid.allSatisfy({ $0.isNumber }) else {
             throw PlayerIntelError.invalidID
         }
+
+        await Self.gate.wait()
+        defer { Task { await Self.gate.signal() } }
 
         let bootstrap: BootstrapResponse = try await post(
             "/api/freefire/profile-preview/bootstrap",
