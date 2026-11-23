@@ -46,15 +46,29 @@ struct CharacterStageView: UIViewRepresentable {
     /// The home hero turns on its own. The patch body map needs a fixed pose so
     /// a callout always points at the same anatomy, so it passes `false`.
     var turntable: Bool = true
+    /// Downloaded garment meshes that follow the body. Empty on the home hero.
+    var garments: [PlayerGarment] = []
 
     func makeUIView(context: Context) -> CharacterSceneView {
         let view = CharacterSceneView(frame: .zero)
-        view.apply(model: model, reduceMotion: reduceMotion, isActive: isActive, turntable: turntable)
+        view.apply(
+            model: model,
+            reduceMotion: reduceMotion,
+            isActive: isActive,
+            turntable: turntable,
+            garments: garments
+        )
         return view
     }
 
     func updateUIView(_ uiView: CharacterSceneView, context: Context) {
-        uiView.apply(model: model, reduceMotion: reduceMotion, isActive: isActive, turntable: turntable)
+        uiView.apply(
+            model: model,
+            reduceMotion: reduceMotion,
+            isActive: isActive,
+            turntable: turntable,
+            garments: garments
+        )
     }
 }
 
@@ -62,10 +76,18 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     private let stageScene = SCNScene()
     private let cameraNode = SCNNode()
     private let modelContainer = SCNNode()
+    /// Garments hang off the same container as the body, so the turntable
+    /// turns them together. The body root is swapped on model change; this
+    /// node survives the swap.
+    private let garmentContainer = SCNNode()
+    private var bodyRoot: SCNNode?
     private var modelCache: [HeroCharacterModel: SCNNode] = [:]
 
     private var requestedModel: HeroCharacterModel?
     private var loadToken = UUID()
+
+    private var appliedGarments: [PlayerGarment] = []
+    private var garmentToken = UUID()
 
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval = 0
@@ -117,6 +139,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         stageScene.lightingEnvironment.intensity = 0.72
         stageScene.rootNode.addChildNode(cameraNode)
         stageScene.rootNode.addChildNode(modelContainer)
+        modelContainer.addChildNode(garmentContainer)
 
         let camera = SCNCamera()
         camera.fieldOfView = 30
@@ -195,7 +218,13 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         stageScene.rootNode.addChildNode(node)
     }
 
-    func apply(model: HeroCharacterModel, reduceMotion: Bool, isActive: Bool, turntable: Bool = true) {
+    func apply(
+        model: HeroCharacterModel,
+        reduceMotion: Bool,
+        isActive: Bool,
+        turntable: Bool = true,
+        garments: [PlayerGarment] = []
+    ) {
         self.reduceMotion = reduceMotion
         self.isActive = isActive
         self.turntable = turntable
@@ -205,11 +234,64 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             load(model)
         }
 
+        if garments != appliedGarments {
+            appliedGarments = garments
+            rebuildGarments()
+        }
+
         if reduceMotion || !turntable {
             idleYaw = 0
             idleSpeed = 0
         }
         updateDisplayLink()
+    }
+
+    // MARK: Garments
+
+    /// Parses each cached GLB off the main thread, then hangs the meshes on the
+    /// body. The loader is cheap but ten outfits still add up, and the stage
+    /// is already animating.
+    private func rebuildGarments() {
+        garmentContainer.childNodes.forEach { $0.removeFromParentNode() }
+
+        let wanted = appliedGarments
+        guard !wanted.isEmpty else {
+            setNeedsDisplay()
+            return
+        }
+
+        let token = UUID()
+        garmentToken = token
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var loaded: [(PlayerGarment, GarmentModel)] = []
+            for garment in wanted {
+                guard let model = try? GLBSceneLoader.model(from: garment.url) else { continue }
+                loaded.append((garment, model))
+            }
+
+            DispatchQueue.main.async {
+                guard let self, self.garmentToken == token else { return }
+                for (garment, model) in loaded {
+                    self.attach(model, slot: garment.slot, id: garment.id)
+                }
+                self.setNeedsDisplay()
+            }
+        }
+    }
+
+    private func attach(_ model: GarmentModel, slot: PlayerOutfitSlot, id: String) {
+        guard let fit = slot.garmentFit else { return }
+        let span = max(model.width, model.height)
+        guard span > 0 else { return }
+
+        let scale = fit.span / span
+        let holder = SCNNode()
+        holder.name = "garment-\(id)"
+        holder.addChildNode(model.node)
+        holder.scale = SCNVector3(Float(scale), Float(scale), Float(scale))
+        holder.position = SCNVector3(0, Float(fit.centerY), Float(fit.z))
+        garmentContainer.addChildNode(holder)
     }
 
     override func didMoveToWindow() {
@@ -366,7 +448,8 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     }
 
     private func install(_ root: SCNNode) {
-        modelContainer.childNodes.forEach { $0.removeFromParentNode() }
+        bodyRoot?.removeFromParentNode()
+        bodyRoot = root
         baseYaw = turntable ? -0.20 : 0
         dragYaw = 0
         idleYaw = 0

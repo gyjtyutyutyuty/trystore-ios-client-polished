@@ -55,6 +55,11 @@ struct ContentView: View {
                     Label(language.text("tab.clean"), systemImage: "sparkles")
                 }
                 .tag(2)
+            PlayerIntelView()
+                .tabItem {
+                    Label(language.text("tab.intel"), systemImage: "person.text.rectangle")
+                }
+                .tag(3)
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
