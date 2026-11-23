@@ -2,20 +2,20 @@ import SwiftUI
 import WebKit
 
 /// Player lookup for Free Fire IDs. Each added ID loads its public profile and
-/// equipped set; every player keeps its own row, and the selected player's
-/// garments are downloaded onto the 3D character.
+/// equipped set, and every player keeps its own row. The ID that was last put
+/// in, and the row it opened, survive a relaunch.
 struct PlayerIntelView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @AppStorage("hero_character_model") private var heroModelRaw = HeroCharacterModel.rouk.rawValue
-
     @State private var roster: [PlayerIntelEntry] = PlayerRosterStore.load()
     @State private var selectedUID: String?
-    @State private var query = ""
+    /// The last ID that was entered, so the tab opens on the same player next
+    /// launch instead of the top of the roster.
+    @AppStorage("intel_last_uid") private var lastUID = ""
+    @AppStorage("intel_query_draft") private var query = ""
     @State private var addErrorKey: String?
     @State private var activeItem: PlayerOutfitItem?
-    @State private var isVisible = false
     @State private var tasks: [String: Task<Void, Never>] = [:]
     @FocusState private var searchFocused: Bool
 
@@ -27,13 +27,6 @@ struct PlayerIntelView: View {
             return match
         }
         return roster.first
-    }
-
-    private var modelBinding: Binding<HeroCharacterModel> {
-        Binding(
-            get: { HeroCharacterModel(rawValue: heroModelRaw) ?? .rouk },
-            set: { heroModelRaw = $0.rawValue }
-        )
     }
 
     var body: some View {
@@ -72,13 +65,16 @@ struct PlayerIntelView: View {
             .tint(AppTheme.accent)
         }
         .onAppear {
-            isVisible = true
             if selectedUID == nil || !roster.contains(where: { $0.uid == selectedUID }) {
-                selectedUID = roster.first?.uid
+                let remembered = roster.first(where: { $0.uid == lastUID })?.uid
+                selectedUID = remembered ?? roster.first?.uid
             }
         }
+        .onChange(of: selectedUID) { uid in
+            guard let uid else { return }
+            lastUID = uid
+        }
         .onDisappear {
-            isVisible = false
             tasks.values.forEach { $0.cancel() }
             tasks.removeAll()
         }
@@ -352,12 +348,6 @@ struct PlayerIntelView: View {
             if let profile = entry.profile {
                 VStack(spacing: AppSpacing.l) {
                     profilePanel(profile)
-                    PlayerOutfitStage(
-                        items: entry.items,
-                        model: modelBinding,
-                        isActive: isVisible,
-                        onOpenItem: { activeItem = $0 }
-                    )
                     outfitPanel(entry)
                 }
             } else if entry.isLoading {
@@ -660,6 +650,7 @@ struct PlayerIntelView: View {
         }
 
         addErrorKey = nil
+        lastUID = uids[0]
         query = ""
         searchFocused = false
 
@@ -678,10 +669,9 @@ struct PlayerIntelView: View {
             added.append(uid)
         }
 
-        guard !added.isEmpty else { return }
-        if selectedUID == nil {
-            selectedUID = added[0]
-        }
+        // Select the ID that was just typed, even when the row already
+        // existed: that is the row the tab reopens on next launch.
+        selectedUID = uids[0]
         for uid in added {
             startLoad(uid)
         }
@@ -750,6 +740,9 @@ struct PlayerIntelView: View {
         roster.removeAll { $0.uid == uid }
         if selectedUID == uid {
             selectedUID = roster.first?.uid
+        }
+        if lastUID == uid, selectedUID == nil {
+            lastUID = ""
         }
     }
 
