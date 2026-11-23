@@ -48,7 +48,7 @@ jobs:
     # second queued macOS job is cancelled rather than deferred, which killed
     # the IPA build whenever this check held the slot.
     if: github.event_name == 'push'
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     timeout-minutes: 40
     steps:
       - name: Check out source
@@ -137,10 +137,10 @@ jobs:
   build:
     # Pushes run the Rust check and the Swift compile; the IPA needs a manual dispatch.
     if: github.event_name == 'workflow_dispatch'
-    # GitHub rejects the pinned macos-14 image for this account
-    # ('configuration macos-14-arm64-us-default is not supported'), so the
-    # macOS jobs follow the default hosted image instead.
-    runs-on: macos-latest
+    # GitHub rejects the pinned macos-14 image for this account, and the arm64
+    # hosted pool runs out of capacity (queued jobs are cancelled with 'not
+    # acquired by Runner of type hosted'), so the Intel image is used.
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - name: Check out source
