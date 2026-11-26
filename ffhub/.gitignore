@@ -4,5 +4,7 @@ __pycache__/
 data/
 *.pyc
 env
+# Local secret files handed to the deploy tools; never committed, never shipped.
+.secrets/
 # Build output: scripts/sync_catalog.py regenerates it before every deploy.
 panel/public/catalog/
