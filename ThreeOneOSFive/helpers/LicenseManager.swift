@@ -46,6 +46,17 @@ final class LicenseManager: ObservableObject {
 
     var hasSavedKey: Bool { keychainString(for: keyAccount) != nil }
 
+    /// Token that opens the FFHub panel. It is minted by the licence Worker
+    /// after a fresh App Attest assertion, so the panel stays private even if
+    /// someone reads its URL out of a cracked build.
+    func panelSessionToken() async -> String? {
+        guard let credentials = patchFeedCredentials() else { return nil }
+        return try? await PatchBundleKeyStore.panelSessionToken(
+            licenseKey: credentials.licenseKey,
+            deviceID: credentials.deviceID
+        )
+    }
+
     func patchFeedCredentials() -> PatchFeedCredentials? {
         guard isActive,
               Hardening.firstIssue() == nil,

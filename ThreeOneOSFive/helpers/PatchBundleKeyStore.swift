@@ -33,6 +33,7 @@ enum PatchBundleKeyStore {
     private static let deviceChallengePath = "/api/patches/trystore/device-challenge"
     private static let challengePath = "/api/patches/trystore/app-attest/challenge"
     private static let registrationPath = "/api/patches/trystore/app-attest/register"
+    private static let panelTokenPath = "/api/patches/trystore/panel-token"
     private static let appAttestService = DCAppAttestService.shared
 
     private static let lock = NSLock()
@@ -216,6 +217,63 @@ enum PatchBundleKeyStore {
             extraHeaders: headers
         )
         try acceptKeyResponse(data)
+    }
+
+    /// Opens the FFHub panel without shipping its signing key.
+    ///
+    /// The licence Worker mints a ten-minute token only after a fresh App Attest
+    /// assertion from this device, so a re-signed or cracked build cannot get
+    /// one. The token travels in the URL fragment, which browsers never send to
+    /// a server or put in a log; the panel exchanges it for an HttpOnly cookie.
+    static func panelSessionToken(licenseKey: String, deviceID: String) async throws -> String {
+        guard appAttestService.isSupported else { throw PatchBundleKeyError.attestationUnavailable }
+        guard let baseURL = feedBaseURL() else { throw PatchBundleKeyError.configuration }
+        guard let keyID = readStringKeychain(account: appAttestAccount), !keyID.isEmpty else {
+            throw PatchBundleKeyError.attestationUnavailable
+        }
+
+        let challenge = try await requestChallenge(
+            baseURL: baseURL,
+            licenseKey: licenseKey,
+            deviceID: deviceID,
+            keyID: keyID
+        )
+        guard challenge.mode == "assertion" else { throw PatchBundleKeyError.attestationRejected }
+
+        // Byte for byte what the licence Worker rebuilds server-side: method and
+        // path are part of the signed data, so a bundle-key assertion cannot be
+        // replayed here.
+        let clientData = Data([
+            "TryStore App Attest v1",
+            challenge.challengeId,
+            challenge.challenge,
+            "POST",
+            panelTokenPath,
+            deviceID
+        ].joined(separator: "\n").utf8)
+        let assertion = try await generateAssertion(
+            keyID: keyID,
+            clientDataHash: Data(SHA256.hash(data: clientData))
+        )
+        let data = try await postJSON(
+            baseURL: baseURL,
+            path: panelTokenPath,
+            payload: [
+                "challengeID": challenge.challengeId,
+                "challenge": challenge.challenge,
+                "keyId": keyID,
+                "assertion": assertion.base64EncodedString()
+            ],
+            licenseKey: licenseKey,
+            deviceID: deviceID
+        )
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let token = object["token"] as? String,
+              token.hasPrefix("v1."),
+              token.count <= 4096 else {
+            throw PatchBundleKeyError.unavailable
+        }
+        return token
     }
 
     private static func deviceProof(
