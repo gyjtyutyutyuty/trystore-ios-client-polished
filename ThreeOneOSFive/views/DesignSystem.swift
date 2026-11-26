@@ -36,6 +36,9 @@ enum AppSpacing {
     static let xl: CGFloat = 24
     static let xxl: CGFloat = 32
     static let screenInset: CGFloat = 20
+    /// iOS 26 draws the tab bar over scroll content; this is the clearance
+    /// that keeps the last card above it.
+    static let tabBarClearance: CGFloat = 88
 }
 
 /// The tier below "everything animates". A 2–3 GB or low-core phone spends its

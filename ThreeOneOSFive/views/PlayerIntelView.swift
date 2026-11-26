@@ -45,7 +45,7 @@ struct PlayerIntelView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
-                    .padding(.bottom, AppSpacing.xxl)
+                    .padding(.bottom, AppSpacing.tabBarClearance)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

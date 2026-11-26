@@ -103,7 +103,7 @@ struct PlayerWardrobeView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.screenInset)
                     .padding(.top, AppSpacing.m)
-                    .padding(.bottom, AppSpacing.xxl)
+                    .padding(.bottom, AppSpacing.tabBarClearance)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -323,16 +323,35 @@ struct PlayerWardrobeView: View {
 
     // MARK: - Stage
 
-    private var stagePanel: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.m) {
+    private var stageHeader: some View {
+        AppSectionHeader(
+            icon: "cube.transparent",
+            title: language.text("intel.character")
+        )
+    }
+
+    private var stageHeaderRow: some View {
+        ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.m) {
-                AppSectionHeader(
-                    icon: "cube.transparent",
-                    title: language.text("intel.character")
-                )
+                stageHeader
+                    .fixedSize(horizontal: true, vertical: false)
                 Spacer(minLength: AppSpacing.s)
                 HeroCharacterSwitcher(selection: modelBinding)
+                    .fixedSize(horizontal: true, vertical: false)
             }
+            VStack(alignment: .leading, spacing: AppSpacing.s) {
+                stageHeader
+                HStack {
+                    Spacer(minLength: 0)
+                    HeroCharacterSwitcher(selection: modelBinding)
+                }
+            }
+        }
+    }
+
+    private var stagePanel: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            stageHeaderRow
 
             ZStack {
                 if hasMesh {
@@ -526,7 +545,8 @@ struct PlayerWardrobeView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(AppPalette.textTertiary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
                         .background(AppPalette.canvas, in: Circle())
                 }
                 .buttonStyle(.plain)

@@ -814,6 +814,8 @@ struct HeroCharacterSwitcher: View {
                     Text(model.shortName)
                         .font(AppType.label().weight(.semibold))
                         .tracking(0.7)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(selection == model ? AppPalette.canvas : AppPalette.textSecondary)
                         .padding(.horizontal, 10)
                         .frame(height: 38)
