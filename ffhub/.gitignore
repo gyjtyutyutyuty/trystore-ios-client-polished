@@ -4,3 +4,5 @@ __pycache__/
 data/
 *.pyc
 env
+# Build output: scripts/sync_catalog.py regenerates it before every deploy.
+panel/public/catalog/

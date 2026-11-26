@@ -1,16 +1,22 @@
 # FFHub — outfit 3D desde un UID
 
-Panel en Sites, backend y worker en el VPS. El jugador escribe un UID, ve las
-prendas que lleva y descarga un GLB con el personaje vestido y las texturas
-integradas.
+El jugador escribe un UID, ve las prendas que lleva y descarga un GLB con el
+personaje vestido y las texturas integradas.
+
+Todo corre en Cloudflare, sin VPS: el Worker del panel llama al proveedor, fusiona
+los GLB del catálogo y sirve el resultado.
 
 ```
-panel (Sites Worker)  ──/api/*──▶  API (FastAPI, 127.0.0.1:8890)  ──▶  Free Fire API Hub
-                                        │
-                                   cola SQLite
-                                        │
-                                   worker (GLB)  ──▶  /var/lib/ffhub/files/<reuse>.glb
+panel + backend (Workers)  ──▶  Free Fire API Hub
+        │
+   catálogo como assets (GLB con textura)  ──▶  fusión en memoria ──▶  /api/outfits/<avatar>/<ids>.glb
 ```
+
+La descarga no se guarda: la URL lleva el outfit completo (`avatar` + ids), así
+que el Worker lo reconstruye igual en cada petición y el enlace compartido no
+caduca. `app/` sigue siendo la implementación FastAPI (cola SQLite, worker en
+systemd) para el VPS y para los scripts de línea de comandos; `deploy/` la
+despliega.
 
 ## Arranque rápido
 

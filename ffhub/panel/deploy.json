@@ -1,7 +1,12 @@
 {
   "entrypoint": "worker.js",
   "compatibilityDate": "2026-11-26",
-  "modules": [{ "name": "worker.js", "type": "esm", "path": "./worker.js" }],
+  "modules": [
+    { "name": "worker.js", "type": "esm", "path": "./worker.js" },
+    { "name": "lib/glb.js", "type": "esm", "path": "./lib/glb.js" },
+    { "name": "lib/provider.js", "type": "esm", "path": "./lib/provider.js" },
+    { "name": "lib/assemble.js", "type": "esm", "path": "./lib/assemble.js" }
+  ],
   "assetsDirectory": "./public",
   "spa": false
 }
