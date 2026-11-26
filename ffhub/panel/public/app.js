@@ -45,10 +45,10 @@ function describe(error) {
       return "El proveedor está limitando las consultas. Intenta en un momento.";
     case "provider_auth":
       return "La clave del proveedor fue rechazada.";
-    case "backend_not_configured":
-      return "El panel está publicado, pero su backend todavía no está configurado.";
-    case "backend_unreachable":
-      return "El backend del panel no responde en este momento.";
+    case "provider_not_configured":
+      return "El panel está publicado, pero todavía no tiene la clave del proveedor.";
+    case "rate_limited":
+      return "Demasiadas consultas seguidas. Espera un minuto.";
     default:
       return `No se pudo completar (${error.code}).`;
   }
