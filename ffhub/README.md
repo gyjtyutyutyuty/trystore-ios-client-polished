@@ -61,6 +61,7 @@ El camino por defecto (Worker) lee estos secretos de Sites:
 | `FREE_FIRE_API_KEY` | sí | Clave del proveedor. Vive en Sites → Secrets; el navegador nunca la ve. |
 | `PANEL_TOKEN_KEY` | sí | Firma las sesiones del panel. El mismo valor en el licence Worker (`wrangler secret put`). Sin ella el panel no deja entrar a nadie. |
 | `PANEL_ADMIN_PASSWORD` | no | Acceso del dueño, 12 caracteres mínimo. Sin ella el formulario de administrador no aparece. |
+| `PANEL_ADMIN_SESSION_MINUTES` | no | Duración de la sesión de administrador, en minutos. Por defecto 60; nunca más de 240. |
 | `FIRE_API_BASE` | no | Base del proveedor. Por defecto `https://developers.freefirecommunity.com/api/v1`. |
 | `JOBS_PER_CLIENT_HOUR` | no | Tope por cliente en `/api/jobs`. Por defecto 12. |
 | `JOBS_PER_DAY` | no | Tope global diario de trabajos. Por defecto 400. |
@@ -82,14 +83,45 @@ Dos formas de entrar:
    desafío de un solo uso y contador de firmas, y devuelve un token de diez
    minutos. La app abre `https://<panel>/#t=<token>`; el fragmento no viaja al
    servidor ni queda en logs, y la página lo canjea por la cookie y lo borra de
-   la barra de direcciones.
-2. **Administrador** (tú). `PANEL_ADMIN_PASSWORD` en `/login`, sesión de ocho
-   horas. Cinco intentos por minuto y cliente: el resto, 429.
+   la barra de direcciones. Como el Worker no puede ver un fragmento, la
+   pantalla de acceso sirve `/redeem.js`, que hace el canje y recarga el panel;
+   si el token no vale, muestra el aviso y deja el formulario.
+2. **Administrador** (tú). `PANEL_ADMIN_PASSWORD` en `/login`, sesión de una
+   hora (`PANEL_ADMIN_SESSION_MINUTES`, máximo 240). Cinco intentos por minuto
+   y cliente: el resto, 429.
 
 El formato del token está duplicado a propósito en
 `panel/lib/session.js` (verifica) y `cloudflare/panel-token-format.js` (firma);
 `cloudflare/test/panel-token.test.mjs` alimenta uno con el otro para que no se
 separen.
+
+### Cerrar sesión y revocar
+
+Una firma no se puede retirar, así que cada sesión se registra en D1
+(`panel_sessions`) bajo el SHA-256 del token, nunca el token en claro. Cerrar
+sesión (`DELETE /api/session`) revoca esa fila y sólo entonces borra la cookie;
+volver a presentar el mismo token tampoco la reabre. El administrador ve cuántas
+sesiones de la app hay abiertas y puede cerrarlas todas con el botón del panel
+(`POST /api/session/revoke`), sin cerrar la suya.
+
+Si D1 no responde, el panel falla cerrado con `503 session_store_unavailable`
+en vez de aceptar un token que ya no puede revocar.
+
+### Probar la cadena sin desplegar
+
+`panel/test/local-chain.mjs` levanta `wrangler dev` con una D1 local y un
+proveedor de mentira, y recorre token → cookie → panel → API → cierre de sesión
+→ revocación, incluida la duración de una hora del administrador:
+
+```bash
+cd ffhub/panel
+node test/local-chain.mjs
+```
+
+No toca Cloudflare ni necesita cuenta. Requiere `wrangler` (`npx wrangler@4
+--version` lo deja en la caché); el estado de D1 va a un directorio temporal que
+se borra al terminar. Los tests unitarios son
+`node --test panel/test/*.test.mjs`.
 
 ### Cuotas reales
 
@@ -124,8 +156,9 @@ guarda aparte y es la que se muestra.
 Errores con nombre del Worker: `provider_not_configured`, `invalid_uid`,
 `invalid_region`, `invalid_avatar_id`, `invalid_item_id`, `avatar_not_in_catalog`,
 `profile_not_found`, `provider_rate_limited` (con `Retry-After`), `provider_auth`,
-`provider_bad_response`, `rate_limited`, `forbidden_origin`, `body_too_large`,
-`method_not_allowed`, `not_found`, `internal_error`.
+`provider_bad_response`, `rate_limited`, `forbidden_origin`, `admin_required`,
+`session_store_unavailable`, `body_too_large`, `method_not_allowed`, `not_found`,
+`internal_error`.
 
 Un `clothes` ausente y un `clothes: []` son respuestas distintas: la primera es
 `unavailable`, la segunda `empty`.
@@ -192,7 +225,7 @@ el catálogo no esté enlazado; ya enlazado, usa los ids del perfil.
    `panel/public/catalog/` es salida de build (git-ignored). Hay que regenerarla
    antes de cada despliegue, también después de `bind_profile.py`.
 
-2. Despliega con `panel/deploy.json`: el Worker, sus cinco módulos de `lib/` y
+2. Despliega con `panel/deploy.json`: el Worker, sus seis módulos de `lib/` y
    `public/` como assets. La base `DB` (D1) tiene que existir para que las
    cuotas sean compartidas; el despliegue la engancha.
 3. Secretos del proyecto en Sites → Secrets: `FREE_FIRE_API_KEY`,
@@ -204,6 +237,8 @@ el catálogo no esté enlazado; ya enlazado, usa los ids del perfil.
 5. Publica el entorno y comprueba: `GET /` sin cookie devuelve la pantalla de
    acceso, `POST /api/profile` sin cookie devuelve `401 session_required`, y
    con sesión `POST /api/jobs` devuelve `ready`/`partial` con `download_url`.
+   Tras `DELETE /api/session` esa cookie ya no vale, y con la sesión de
+   administrador `POST /api/session/revoke` corta las sesiones de la app.
 
 Sin la clave del proveedor, `/api/profile`, `/api/jobs` con UID y
 `/api/thumbnail/*` responden `provider_not_configured`; el ensamblado explícito

@@ -27,6 +27,15 @@ test("the panel accepts a token minted for a device", async () => {
   assert.equal(expiresAt, NOW + 600);
 });
 
+test("two handoffs in the same second are different sessions", async () => {
+  const first = await mintPanelToken({ secret: SECRET, deviceId: "device-abc", nowSeconds: NOW });
+  const second = await mintPanelToken({ secret: SECRET, deviceId: "device-abc", nowSeconds: NOW });
+
+  assert.notEqual(first.token, second.token);
+  assert.ok(await verifySession({ secret: SECRET, token: first.token, nowMs: NOW * 1000 }));
+  assert.ok(await verifySession({ secret: SECRET, token: second.token, nowMs: NOW * 1000 }));
+});
+
 test("the panel refuses a token signed with another key", async () => {
   const { token } = await mintPanelToken({ secret: SECRET, deviceId: "d", nowSeconds: NOW });
 

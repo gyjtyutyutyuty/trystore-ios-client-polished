@@ -50,6 +50,48 @@ h2 {
   font-size: 19px;
 }
 
+.topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 7px 12px;
+}
+
+button.ghost:hover {
+  color: var(--text);
+}
+
+.admin {
+  margin-top: 28px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+}
+
+.admin .actions {
+  margin: 12px 0 4px;
+}
+
+button.danger {
+  background: #b3402c;
+  color: #fff6f2;
+}
+
 .sub,
 .meta {
   color: var(--muted);

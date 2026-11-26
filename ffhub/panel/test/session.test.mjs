@@ -11,6 +11,7 @@ import {
   parseCookies,
   secretIsUsable,
   sessionCookie,
+  sessionId,
   verifySession,
 } from "../lib/session.js";
 
@@ -31,6 +32,22 @@ test("a minted session verifies and carries its role", async () => {
   assert.equal(claims.role, "user");
   assert.equal(claims.subject, "device-1");
   assert.equal(expiresAt, (Math.floor(NOW / 1000) + 900) * 1000);
+});
+
+test("two sessions minted in the same second are distinct", async () => {
+  const options = {
+    secret: SECRET,
+    subject: "device-1",
+    role: "user",
+    ttlSeconds: 900,
+    nowMs: NOW,
+  };
+  const first = await mintSession(options);
+  const second = await mintSession(options);
+
+  assert.notEqual(first.token, second.token);
+  assert.ok(await verifySession({ secret: SECRET, token: first.token, nowMs: NOW }));
+  assert.ok(await verifySession({ secret: SECRET, token: second.token, nowMs: NOW }));
 });
 
 test("an expired token is refused", async () => {
@@ -112,6 +129,17 @@ test("comparison ignores length differences", () => {
   assert.equal(constantTimeEqual("abc", "abd"), false);
   assert.equal(constantTimeEqual("abc", "abcd"), false);
   assert.equal(constantTimeEqual(undefined, ""), true);
+});
+
+test("a session id is a stable hash, never the token", async () => {
+  const one = await sessionId("v1.payload.signature");
+  const two = await sessionId("v1.payload.signature");
+  const other = await sessionId("v1.payload.other");
+
+  assert.match(one, /^[0-9a-f]{64}$/);
+  assert.equal(one, two);
+  assert.notEqual(one, other);
+  assert.notEqual(one, "v1.payload.signature");
 });
 
 test("rate-limit buckets do not carry the address", async () => {

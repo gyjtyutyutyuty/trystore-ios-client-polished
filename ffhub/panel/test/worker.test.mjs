@@ -9,7 +9,7 @@ import { afterEach, test } from "node:test";
 
 import worker from "../worker.js";
 import { buildGlb, parseGlb } from "../lib/glb.js";
-import { mintSession, SESSION_COOKIE } from "../lib/session.js";
+import { mintSession } from "../lib/session.js";
 
 const ORIGIN = "https://panel.example";
 const realFetch = globalThis.fetch;
@@ -18,17 +18,56 @@ const realFetch = globalThis.fetch;
 // the test is specifically about the gate (`omitSession`).
 const PANEL_KEY = "test-panel-key-0123456789abcdef0123456789";
 const ADMIN_PASSWORD = "admin-password-123456";
-const SESSION = await mintSession({
-  secret: PANEL_KEY,
-  subject: "test-device",
-  role: "user",
-  ttlSeconds: 900,
-});
-const COOKIE = `${SESSION_COOKIE}=${SESSION.token}`;
 const fetchWithSession = worker.fetch.bind(worker);
-worker.fetch = (request, environment = {}) => {
+const sessionCookies = new WeakMap();
+
+// Sessions are now recorded server-side, so a test cannot just invent a
+// cookie: it logs in through the Worker once per environment. That exercises
+// the same registry path the panel uses.
+async function adminCookie(environment) {
+  const response = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, {
+      method: "POST",
+      headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ admin: ADMIN_PASSWORD }).toString(),
+    }),
+    environment,
+  );
+  assert.equal(response.status, 303, "admin login for a test session");
+  const cookie = response.headers.get("set-cookie");
+  assert.ok(cookie, "admin login sets a cookie");
+  return cookie.split(";")[0];
+}
+
+async function redeem(environment, token) {
+  const response = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, {
+      method: "POST",
+      headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token }).toString(),
+    }),
+    environment,
+  );
+  return { response, cookie: response.headers.get("set-cookie")?.split(";")[0] };
+}
+
+async function sessionRequest(environment, cookie) {
+  return await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, { headers: { cookie } }),
+    environment,
+  );
+}
+
+worker.fetch = async (request, environment = {}) => {
   const headers = new Headers(request.headers);
-  if (!headers.has("cookie") && !environment.omitSession) headers.set("cookie", COOKIE);
+  if (!headers.has("cookie") && !environment.omitSession) {
+    let cookie = sessionCookies.get(environment);
+    if (!cookie) {
+      cookie = await adminCookie(environment);
+      sessionCookies.set(environment, cookie);
+    }
+    headers.set("cookie", cookie);
+  }
   return fetchWithSession(new Request(request, { headers }), environment);
 };
 
@@ -76,6 +115,9 @@ function assets() {
       if (path === "" || path === "index.html") {
         return new Response("<!doctype html>", { headers: { "content-type": "text/html" } });
       }
+      if (path === "redeem.js") {
+        return new Response("if (location.hash) {}", { headers: { "content-type": "text/javascript" } });
+      }
       return new Response("missing", { status: 404 });
     },
   };
@@ -114,6 +156,9 @@ test("static assets carry the security headers", async () => {
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("x-frame-options"), "DENY");
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  // Auth-dependent shell: never leave it in a shared cache.
+  assert.equal(response.headers.get("cache-control"), "private, max-age=0, must-revalidate");
+  assert.match(response.headers.get("vary") || "", /Cookie/);
 });
 
 test("a route outside the allowlist is a 404", async () => {
@@ -233,6 +278,7 @@ test("a job merges the outfit and serves the file back", async () => {
   const file = await worker.fetch(new Request(`${ORIGIN}/api${job.download_url}`), env());
   assert.equal(file.status, 200);
   assert.equal(file.headers.get("content-type"), "model/gltf-binary");
+  assert.equal(file.headers.get("cache-control"), "private, max-age=86400");
   const merged = new Uint8Array(await file.arrayBuffer());
   assert.equal(parseGlb(merged).json.meshes.length, 2);
 });
@@ -332,7 +378,8 @@ test("a thumbnail is proxied with its real content type", async () => {
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "image/png");
-  assert.equal(response.headers.get("cache-control"), "public, max-age=86400");
+  assert.equal(response.headers.get("cache-control"), "private, max-age=86400");
+  assert.match(response.headers.get("vary") || "", /Cookie/);
 });
 
 // --- the gate ---------------------------------------------------------------
@@ -344,6 +391,22 @@ test("an anonymous visit gets the login screen, not the panel", async () => {
   const html = await response.text();
   assert.match(html, /Panel privado/);
   assert.doesNotMatch(html, /Escribe un UID/);
+  // The login screen needs the handoff script for /#t= links from the app.
+  assert.match(html, /src="\/redeem.js"/);
+});
+
+test("the handoff script is public while the panel stays gated", async () => {
+  const anonymous = { ...env(), omitSession: true };
+
+  const script = await worker.fetch(new Request(`${ORIGIN}/redeem.js`), anonymous);
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get("content-type"), /javascript/);
+  assert.match(script.headers.get("cache-control"), /max-age=300/);
+  assert.match(await script.text(), /location\.hash/);
+
+  const panel = await worker.fetch(new Request(`${ORIGIN}/`), anonymous);
+  assert.equal(panel.status, 200);
+  assert.match(await panel.text(), /Panel privado/);
 });
 
 test("an anonymous API call is refused before the provider is touched", async () => {
@@ -358,12 +421,18 @@ test("an anonymous API call is refused before the provider is touched", async ()
 });
 
 test("a forged cookie is refused", async () => {
+  const minted = await mintSession({
+    secret: PANEL_KEY,
+    subject: "device-forged",
+    role: "user",
+    ttlSeconds: 600,
+  });
   const request = new Request(`${ORIGIN}/api/profile`, {
     method: "POST",
     headers: {
       origin: ORIGIN,
       "content-type": "application/json",
-      cookie: `ffhub_session=${SESSION.token.slice(0, -6)}AAAAAA`,
+      cookie: `ffhub_session=${minted.token.slice(0, -6)}AAAAAA`,
     },
     body: JSON.stringify({ uid: "11807385", region: "us" }),
   });
@@ -374,7 +443,10 @@ test("a forged cookie is refused", async () => {
 });
 
 test("without a signing key nothing is served, and the page says why", async () => {
-  const response = await worker.fetch(new Request(`${ORIGIN}/login`), env({ PANEL_TOKEN_KEY: "" }));
+  const response = await worker.fetch(new Request(`${ORIGIN}/login`), {
+    ...env({ PANEL_TOKEN_KEY: "" }),
+    omitSession: true,
+  });
 
   assert.equal(response.status, 200);
   assert.match(await response.text(), /PANEL_TOKEN_KEY/);
@@ -396,6 +468,8 @@ test("the admin password buys an HttpOnly session", async () => {
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /Secure/);
   assert.match(cookie, /SameSite=Lax/);
+  // One hour, not the old eight.
+  assert.match(cookie, /Max-Age=3600/);
 });
 
 test("a wrong admin password is refused without a cookie", async () => {
@@ -418,7 +492,8 @@ test("a live session reports its role", async () => {
 
   assert.equal(response.status, 200);
   assert.equal(body.active, true);
-  assert.equal(body.role, "user");
+  assert.equal(body.role, "admin");
+  assert.equal(body.active_sessions, 0);
 });
 
 test("repeated password guesses are throttled", async () => {
@@ -438,6 +513,162 @@ test("repeated password guesses are throttled", async () => {
   assert.equal((await attempt()).status, 401);
   assert.equal((await attempt()).status, 401);
   assert.equal((await attempt()).status, 429);
+});
+
+test("an app token becomes a cookie, and logout revokes it server-side", async () => {
+  const environment = env();
+  const minted = await mintSession({
+    secret: PANEL_KEY,
+    subject: "device-42",
+    role: "user",
+    ttlSeconds: 600,
+  });
+
+  const { response: login, cookie } = await redeem(environment, minted.token);
+  assert.equal(login.status, 303);
+  assert.ok(cookie);
+
+  const live = await sessionRequest(environment, cookie);
+  assert.equal(live.status, 200);
+  assert.equal((await live.json()).role, "user");
+
+  const out = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, { method: "DELETE", headers: { cookie, origin: ORIGIN } }),
+    environment,
+  );
+  assert.equal(out.status, 204);
+  assert.match(out.headers.get("set-cookie"), /Max-Age=0/);
+
+  // The browser no longer has the cookie, and the session is dead on the
+  // server too: a copy of it would not open the panel.
+  assert.equal((await sessionRequest(environment, cookie)).status, 401);
+
+  // Presenting the same still-signed token again must not reopen it.
+  const replay = await redeem(environment, minted.token);
+  assert.equal(replay.response.status, 401);
+  assert.match(await replay.response.text(), /ya se cerró/);
+
+  // The static shell is gated too, not just the API.
+  const page = await fetchWithSession(new Request(`${ORIGIN}/`, { headers: { cookie } }), environment);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Panel privado/);
+});
+
+test("the admin revokes every app session without ending their own", async () => {
+  const environment = env();
+  const admin = await adminCookie(environment);
+  const minted = await mintSession({
+    secret: PANEL_KEY,
+    subject: "device-77",
+    role: "user",
+    ttlSeconds: 600,
+  });
+  const { cookie } = await redeem(environment, minted.token);
+  assert.equal((await sessionRequest(environment, cookie)).status, 200);
+
+  const denied = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session/revoke`, {
+      method: "POST",
+      headers: { cookie, origin: ORIGIN, "content-type": "application/json" },
+      body: "{}",
+    }),
+    environment,
+  );
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json()).error, "admin_required");
+
+  const revoked = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session/revoke`, {
+      method: "POST",
+      headers: { cookie: admin, origin: ORIGIN, "content-type": "application/json" },
+      body: "{}",
+    }),
+    environment,
+  );
+  assert.equal(revoked.status, 200);
+  assert.equal((await revoked.json()).revoked, 1);
+
+  assert.equal((await sessionRequest(environment, cookie)).status, 401);
+  assert.equal((await sessionRequest(environment, admin)).status, 200);
+});
+
+test("two admin logins in the same second are independent sessions", async () => {
+  const environment = env();
+  const realNow = Date.now;
+  const fixed = realNow();
+  Date.now = () => fixed;
+  let first;
+  let second;
+  try {
+    first = await adminCookie(environment);
+    second = await adminCookie(environment);
+  } finally {
+    Date.now = realNow;
+  }
+
+  assert.notEqual(first, second);
+  assert.equal((await sessionRequest(environment, first)).status, 200);
+  assert.equal((await sessionRequest(environment, second)).status, 200);
+
+  // They are separate rows, so ending one leaves the other open. Before the
+  // random session id both logins minted the same token and this was one row.
+  const out = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, { method: "DELETE", headers: { cookie: first, origin: ORIGIN } }),
+    environment,
+  );
+  assert.equal(out.status, 204);
+  assert.equal((await sessionRequest(environment, first)).status, 401);
+  assert.equal((await sessionRequest(environment, second)).status, 200);
+});
+
+test("the admin session is one hour, not eight, and follows the env", async () => {
+  const claimsOf = (cookie) =>
+    JSON.parse(Buffer.from(cookie.slice(cookie.indexOf("=") + 1).split(".")[1], "base64url").toString());
+
+  const standard = claimsOf(await adminCookie(env()));
+  assert.equal(standard.exp - standard.iat, 3600);
+
+  const short = claimsOf(await adminCookie(env({ PANEL_ADMIN_SESSION_MINUTES: 5 })));
+  assert.equal(short.exp - short.iat, 300);
+});
+
+test("a session store that cannot answer fails closed", async () => {
+  const broken = {
+    ...env(),
+    DB: {
+      prepare() {
+        throw new Error("D1 is down");
+      },
+    },
+    omitSession: true,
+  };
+  const minted = await mintSession({
+    secret: PANEL_KEY,
+    subject: "device-9",
+    role: "user",
+    ttlSeconds: 600,
+  });
+
+  const login = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, {
+      method: "POST",
+      headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: minted.token }).toString(),
+    }),
+    broken,
+  );
+  assert.equal(login.status, 503);
+  assert.match(await login.text(), /No se pudo abrir la sesión/);
+
+  // A correctly signed cookie is not trusted when the registry is unavailable.
+  const response = await fetchWithSession(
+    new Request(`${ORIGIN}/api/session`, {
+      headers: { cookie: `ffhub_session=${minted.token}` },
+    }),
+    broken,
+  );
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error, "session_store_unavailable");
 });
 
 test("the hourly job quota is enforced, with retry-after", async () => {

@@ -192,6 +192,86 @@ async function generate() {
   }
 }
 
+/// What the session says about this browser. The admin gets one extra control:
+/// every session opened with an app token can be revoked from here, and that
+/// revocation happens in D1, so it reaches every isolate at once.
+async function refreshSession() {
+  let session;
+  try {
+    const response = await fetch("/api/session", { headers: { accept: "application/json" } });
+    if (response.status === 401) {
+      location.assign("/login");
+      return;
+    }
+    if (!response.ok) return;
+    session = await response.json();
+  } catch {
+    return;
+  }
+
+  $("session-role").textContent = session.role === "admin" ? "Administrador" : "Sesión de la app";
+  if (session.role !== "admin") return;
+
+  $("admin").hidden = false;
+  const count = Number(session.active_sessions || 0);
+  $("admin-meta").textContent =
+    count === 0
+      ? "No hay sesiones de la app abiertas."
+      : `${count} ${count === 1 ? "sesión abierta" : "sesiones abiertas"} con token de la app.`;
+}
+
+async function logout() {
+  $("logout").disabled = true;
+  try {
+    const response = await fetch("/api/session", { method: "DELETE" });
+    if (response.ok) {
+      location.assign("/login?out=1");
+      return;
+    }
+  } catch {
+    // Fall through: a failed logout must say so, not pretend it worked.
+  }
+  $("logout").disabled = false;
+  $("status").textContent = "No se pudo cerrar la sesión. Inténtalo de nuevo.";
+}
+
+async function revokeSessions() {
+  if (
+    !window.confirm(
+      "¿Cerrar todas las sesiones abiertas con token de la app? Los clientes tendrán que abrir el panel de nuevo desde la app.",
+    )
+  ) {
+    return;
+  }
+  $("revoke").disabled = true;
+  $("admin-status").textContent = "Revocando…";
+  try {
+    const response = await fetch("/api/session/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      $("admin-status").textContent =
+        payload.error === "admin_required"
+          ? "Sólo la sesión de administrador puede revocar."
+          : "No se pudo revocar. Inténtalo de nuevo.";
+      return;
+    }
+    const count = Number(payload.revoked || 0);
+    $("admin-status").textContent =
+      count === 0
+        ? "No había sesiones abiertas."
+        : `Se cerraron ${count} ${count === 1 ? "sesión" : "sesiones"}.`;
+    await refreshSession();
+  } catch {
+    $("admin-status").textContent = "No se pudo revocar. Inténtalo de nuevo.";
+  } finally {
+    $("revoke").disabled = false;
+  }
+}
+
 /// The app opens this page as `/#t=<token>`. The fragment never leaves the
 /// browser, so it is not in any log; it is exchanged here for an HttpOnly
 /// cookie and removed from the address bar so it cannot be copied or shared.
@@ -215,8 +295,12 @@ async function redeemTokenFromHash() {
   } catch {
     // A broken token is just a failed login: the form is one click away.
     location.assign("/login");
+    return;
   }
+  await refreshSession();
 })();
 
 $("lookup").addEventListener("submit", lookup);
 $("generate").addEventListener("click", generate);
+$("logout").addEventListener("click", logout);
+$("revoke").addEventListener("click", revokeSessions);

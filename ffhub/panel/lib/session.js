@@ -10,8 +10,10 @@
 //           real app on a licensed device. Short lived.
 //   admin — minted here from PANEL_ADMIN_PASSWORD, for the owner.
 //
-// Everything is stateless on purpose: a session is a claim the Worker can
-// verify with a secret, with no database read on the hot path.
+// The token itself is stateless: anyone holding PANEL_TOKEN_KEY can verify it
+// without a database. The panel still records each session under the SHA-256
+// of the token (sessions-store.js) so logging out or revoking can actually
+// withdraw it: a signature alone cannot be un-signed.
 
 export const SESSION_COOKIE = "ffhub_session";
 export const AUDIENCE = "ffhub-panel";
@@ -80,6 +82,10 @@ export async function mintSession({ secret, subject, role, ttlSeconds, nowMs = D
     aud: AUDIENCE,
     iat: issuedAt,
     exp: issuedAt + Math.max(60, Math.floor(ttlSeconds)),
+    // Without this, two logins in the same second produced identical bytes.
+    // The panel would see one session, and logging out one of them would
+    // revoke a token it never issued. A random id makes every mint distinct.
+    jti: crypto.randomUUID(),
   };
   const payloadText = bytesToBase64Url(encoder.encode(JSON.stringify(claims)));
   const signed = `${VERSION}.${payloadText}`;
@@ -117,6 +123,13 @@ export async function verifySession({ secret, token, nowMs = Date.now() }) {
   if (!Number.isFinite(claims.iat) || claims.iat > nowSeconds + 60) return null;
   if (claims.exp - claims.iat > 60 * 60 * 24) return null;
   return { subject: String(claims.sub || ""), role: claims.role, issuedAt: claims.iat, expiresAt: claims.exp };
+}
+
+/// Stable, non-reversible id for a session token. The registry stores this
+/// instead of the cookie, so a dump of the table is not a set of live sessions.
+export async function sessionId(token) {
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(String(token ?? "")));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export function parseCookies(header) {

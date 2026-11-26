@@ -39,6 +39,9 @@ export async function mintPanelToken({ secret, deviceId, nowSeconds, ttlSeconds 
     aud: PANEL_AUDIENCE,
     iat: issuedAt,
     exp: issuedAt + Math.max(60, Math.floor(ttlSeconds)),
+    // Two handoffs for the same device in the same second must be two
+    // sessions; the panel registers them by hash and revokes one at a time.
+    jti: crypto.randomUUID(),
   };
   const payload = bytesToBase64Url(encoder.encode(JSON.stringify(claims)));
   const signed = `v1.${payload}`;

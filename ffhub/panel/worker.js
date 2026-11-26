@@ -26,9 +26,11 @@ import {
   parseCookies,
   secretIsUsable,
   sessionCookie,
+  sessionId,
   SESSION_COOKIE,
   verifySession,
 } from "./lib/session.js";
+import { sessionStore } from "./lib/sessions-store.js";
 
 const API_ROUTES = [
   { method: "POST", pattern: /^\/api\/profile$/ },
@@ -56,7 +58,11 @@ const THUMBNAIL_PER_CLIENT_MINUTE = 120;
 // The admin password is the only guessable secret here: five tries a minute.
 const LOGIN_PER_CLIENT_MINUTE = 5;
 
-const ADMIN_SESSION_SECONDS = 8 * 60 * 60;
+// The owner's session is short on purpose: a shared screen, a stolen laptop or
+// a copied cookie should buy minutes, not a working day. One hour by default,
+// four at most.
+const ADMIN_SESSION_SECONDS = 60 * 60;
+const ADMIN_SESSION_MAX_SECONDS = 4 * 60 * 60;
 const MAX_SESSION_SECONDS = 15 * 60;
 
 const SECURITY_HEADERS = {
@@ -115,12 +121,28 @@ function panelSecret(env) {
   return secretIsUsable(env.PANEL_TOKEN_KEY) ? String(env.PANEL_TOKEN_KEY) : null;
 }
 
+function nowSeconds() {
+  return Math.floor(Date.now() / 1000);
+}
+
+/// A valid signature is not enough: the registry must still have the session
+/// as live. That is what lets logout and revocation take effect everywhere,
+/// not just in the browser that clicked the button.
 async function currentSession(request, env) {
   const secret = panelSecret(env);
   if (!secret) return null;
   const token = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE);
   if (!token) return null;
-  return await verifySession({ secret, token });
+  const claims = await verifySession({ secret, token });
+  if (!claims) return null;
+  const id = await sessionId(token);
+  const active = await sessionStore(env).isActive({
+    id,
+    subject: claims.subject,
+    role: claims.role,
+    nowSeconds: nowSeconds(),
+  });
+  return active ? { ...claims, id } : null;
 }
 
 function clientAddress(request) {
@@ -152,6 +174,13 @@ function limitFrom(env, name, fallback) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 
+// 60 minutes by default, capped so a typo in the environment cannot undo the
+// short owner session.
+function adminSessionSeconds(env) {
+  const minutes = limitFrom(env, "PANEL_ADMIN_SESSION_MINUTES", ADMIN_SESSION_SECONDS / 60);
+  return Math.min(ADMIN_SESSION_MAX_SECONDS, Math.max(60, minutes * 60));
+}
+
 async function checkLimit(env, request, name, limit, windowSeconds) {
   const who = await hashedClient(panelSecret(env) || "ffhub-rate-limit", clientAddress(request));
   return await limitStore(env).consume({
@@ -165,7 +194,7 @@ function tooMany(result) {
   return deny(429, "rate_limited", { "retry-after": String(result.retryAfter) });
 }
 
-function loginPage(env, { error = "", status = 200 } = {}) {
+function loginPage(env, { error = "", notice = "", status = 200 } = {}) {
   const ready = panelSecret(env)
     ? ""
     : `<p class="warn">Falta PANEL_TOKEN_KEY en los secretos del sitio: nadie puede entrar.</p>`;
@@ -197,6 +226,7 @@ button{width:100%;padding:11px 14px;border:0;border-radius:8px;background:#e6753
 .error{color:#ff9b7a}
 .warn{color:#ff9b7a;font-size:13px}
 .hint{font-size:13px}
+#redeem-status:empty{display:none}
 </style>
 </head>
 <body>
@@ -204,6 +234,8 @@ button{width:100%;padding:11px 14px;border:0;border-radius:8px;background:#e6753
 <h1>FFHub</h1>
 <p>Panel privado. Entra desde la app o con la contraseña de administrador.</p>
 ${error ? `<p class="error">${error}</p>` : ""}
+${notice ? `<p class="hint">${notice}</p>` : ""}
+<p id="redeem-status" class="hint" role="status" aria-live="polite"></p>
 ${ready}
 <form method="post" action="/api/session">
   <label>Token de sesión de la app
@@ -213,6 +245,7 @@ ${ready}
 </form>
 ${admin}
 </main>
+<script src="/redeem.js" type="module"></script>
 </body>
 </html>`;
   return harden(
@@ -247,6 +280,28 @@ async function readFields(request) {
   return fields;
 }
 
+/// Records the token in the registry and reports whether the row is live. A
+/// token whose row was revoked (logout, or "revocar" from the admin) stays dead
+/// even if its signature is still valid and it is presented again.
+async function registerSession(env, token, claims) {
+  const id = await sessionId(token);
+  const store = sessionStore(env);
+  await store.register({
+    id,
+    subject: claims.subject,
+    role: claims.role,
+    issuedAt: claims.issuedAt,
+    expiresAt: claims.expiresAt,
+    nowSeconds: nowSeconds(),
+  });
+  return await store.isActive({
+    id,
+    subject: claims.subject,
+    role: claims.role,
+    nowSeconds: nowSeconds(),
+  });
+}
+
 async function handleSession(request, env) {
   const method = request.method.toUpperCase();
   const secret = panelSecret(env);
@@ -254,16 +309,21 @@ async function handleSession(request, env) {
   if (method === "GET") {
     const claims = await currentSession(request, env);
     if (!claims) return deny(401, "session_required");
+    let activeSessions = null;
+    if (claims.role === "admin") {
+      activeSessions = await sessionStore(env).countRole({ role: "user", nowSeconds: nowSeconds() });
+    }
     return json({
       active: true,
       role: claims.role,
       expires_at: new Date(claims.expiresAt * 1000).toISOString(),
+      active_sessions: activeSessions,
     });
   }
 
-  if (method === "DELETE") {
-    return harden(new Response(null, { status: 204, headers: { "set-cookie": clearedSessionCookie() } }));
-  }
+  if (method === "DELETE") return await endSession(request, env, secret);
+
+  if (method !== "POST") return deny(405, "method_not_allowed");
 
   // POST: the login form and the app's one-shot link both land here.
   if (!secret) {
@@ -288,13 +348,28 @@ async function handleSession(request, env) {
     if (!secretIsUsable(env.PANEL_ADMIN_PASSWORD, 12) || !constantTimeEqual(password, env.PANEL_ADMIN_PASSWORD)) {
       return loginPage(env, { status: 401, error: "Contraseña incorrecta." });
     }
+    const ttlSeconds = adminSessionSeconds(env);
     const session = await mintSession({
       secret,
       subject: "owner",
       role: "admin",
-      ttlSeconds: ADMIN_SESSION_SECONDS,
+      ttlSeconds,
     });
-    return redirectTo("/", sessionCookie(session.token, ADMIN_SESSION_SECONDS));
+    try {
+      const live = await registerSession(env, session.token, {
+        subject: "owner",
+        role: "admin",
+        issuedAt: nowSeconds(),
+        expiresAt: Math.floor(session.expiresAt / 1000),
+      });
+      if (!live) throw new Error("session_not_recorded");
+    } catch {
+      return loginPage(env, {
+        status: 503,
+        error: "No se pudo registrar la sesión. Inténtalo de nuevo.",
+      });
+    }
+    return redirectTo("/", sessionCookie(session.token, ttlSeconds));
   }
 
   const token = String(fields.token || "").trim();
@@ -302,8 +377,55 @@ async function handleSession(request, env) {
   if (!claims) {
     return loginPage(env, { status: 401, error: "Ese token no es válido o ya caducó. Ábrelo de nuevo desde la app." });
   }
-  const ttl = Math.min(MAX_SESSION_SECONDS, Math.max(60, claims.expiresAt - Math.floor(Date.now() / 1000)));
+  try {
+    const live = await registerSession(env, token, claims);
+    if (!live) {
+      return loginPage(env, { status: 401, error: "Esa sesión ya se cerró. Ábrela de nuevo desde la app." });
+    }
+  } catch {
+    return loginPage(env, { status: 503, error: "No se pudo abrir la sesión. Inténtalo de nuevo." });
+  }
+  const ttl = Math.min(MAX_SESSION_SECONDS, Math.max(60, claims.expiresAt - nowSeconds()));
   return redirectTo("/", sessionCookie(token, ttl));
+}
+
+/// Logout must revoke, not just forget. The cookie is only cleared once D1 has
+/// the session marked dead; otherwise the user would think they are out while
+/// a copy of the cookie still opens the panel.
+async function endSession(request, env, secret) {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) return deny(403, "forbidden_origin");
+
+  const token = parseCookies(request.headers.get("cookie")).get(SESSION_COOKIE);
+  if (token && secret) {
+    const claims = await verifySession({ secret, token });
+    if (claims) {
+      try {
+        await sessionStore(env).revoke({ id: await sessionId(token), nowSeconds: nowSeconds() });
+      } catch {
+        return deny(503, "session_store_unavailable");
+      }
+    }
+  }
+  return harden(
+    new Response(null, { status: 204, headers: { "set-cookie": clearedSessionCookie() } }),
+  );
+}
+
+/// Admin-only: end every session opened with an app token. The owner's own
+/// session is left alone, so revoking does not lock the panel's only operator
+/// out. A revoked client can mint a fresh token from the app and come back.
+async function handleRevoke(request, env, claims) {
+  if (request.method.toUpperCase() !== "POST") return deny(405, "method_not_allowed");
+  if (claims.role !== "admin") return deny(403, "admin_required");
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) return deny(403, "forbidden_origin");
+  try {
+    const revoked = await sessionStore(env).revokeRole({ role: "user", nowSeconds: nowSeconds() });
+    return json({ revoked });
+  } catch {
+    return deny(503, "session_store_unavailable");
+  }
 }
 
 function apiBase(env) {
@@ -503,7 +625,9 @@ async function handleThumbnail(itemId, env, origin) {
   if (cacheAvailable()) {
     try {
       const hit = await caches.default.match(request);
-      if (hit) return harden(hit.clone());
+      if (hit) {
+        return harden(hit.clone(), { "cache-control": "private, max-age=86400", vary: "Cookie" });
+      }
     } catch {
       // Same rule as files: an unreadable cache is a miss.
     }
@@ -526,7 +650,9 @@ async function handleThumbnail(itemId, env, origin) {
       // Best effort.
     }
   }
-  return harden(response);
+  // The image is behind the session gate: the browser may keep it privately,
+  // a shared cache may not.
+  return harden(response, { "cache-control": "private, max-age=86400", vary: "Cookie" });
 }
 
 /**
@@ -571,7 +697,8 @@ async function handleOutfit(pathname, env) {
       headers: {
         "content-type": "model/gltf-binary",
         "content-disposition": `attachment; filename="${key}.glb"`,
-        "cache-control": "public, max-age=86400",
+        // Per-UID data behind the gate: keep it out of shared caches.
+        "cache-control": "private, max-age=86400",
       },
     }),
   );
@@ -628,19 +755,62 @@ export default {
     const method = request.method.toUpperCase();
     const path = url.pathname;
 
-    // Public surfaces: the login screen and the session endpoint. Nothing else.
-    if (path === "/login" && method === "GET") return loginPage(env);
-    if (path === "/api/session") return await handleSession(request, env);
+    // The app's token travels in the fragment, which the Worker cannot see;
+    // the login screen needs this one public script to redeem it.
+    if (path === "/redeem.js" && method === "GET") {
+      return harden(await env.ASSETS.fetch(request), {
+        "cache-control": "public, max-age=300",
+        "content-type": "text/javascript; charset=utf-8",
+      });
+    }
 
-    const claims = await currentSession(request, env);
+    // Public surfaces: the login screen and the session endpoint. Nothing else.
+    if (path === "/login" && method === "GET") {
+      const notice =
+        url.searchParams.get("out") === "1"
+          ? "Sesión cerrada. Vuelve a abrir el panel desde la app."
+          : "";
+      return loginPage(env, { notice });
+    }
+    if (path === "/api/session") {
+      try {
+        return await handleSession(request, env);
+      } catch {
+        return deny(503, "session_store_unavailable");
+      }
+    }
+
+    let claims;
+    try {
+      claims = await currentSession(request, env);
+    } catch {
+      // The registry is the only thing that can withdraw a token. Saying
+      // "sesión inválida" would hide an outage, and trusting the signature
+      // would make revocation a lie: fail closed and say why.
+      if (path.startsWith("/api/")) return deny(503, "session_store_unavailable");
+      return loginPage(env, {
+        status: 503,
+        error: "No se pudo comprobar la sesión. Inténtalo de nuevo.",
+      });
+    }
     if (!claims) {
       if (path.startsWith("/api/")) return deny(401, "session_required");
       // A bare link lands on the login screen instead of the catalog.
       return loginPage(env);
     }
 
+    if (path === "/api/session/revoke") return await handleRevoke(request, env, claims);
+
     if (!path.startsWith("/api/")) {
-      return harden(await env.ASSETS.fetch(request));
+      const asset = await env.ASSETS.fetch(request);
+      const existingVary = asset.headers.get("vary");
+      // The shell is gated by a cookie. A browser may keep it, but it has to
+      // revalidate, and a shared cache must never hand one visitor's
+      // authenticated response to another.
+      return harden(asset, {
+        "cache-control": "private, max-age=0, must-revalidate",
+        vary: existingVary ? `${existingVary}, Cookie` : "Cookie",
+      });
     }
 
     const state = routeState(method, path);

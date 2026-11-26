@@ -11,7 +11,13 @@
   <body>
     <main>
       <header>
-        <h1>FFHub</h1>
+        <div class="topline">
+          <h1>FFHub</h1>
+          <div class="session-bar">
+            <span id="session-role" class="meta"></span>
+            <button id="logout" class="ghost" type="button">Cerrar sesión</button>
+          </div>
+        </div>
         <p class="sub">Escribe un UID, mira lo que lleva y descarga el GLB vestido.</p>
         <!-- Quitar cuando el catalogo tenga las mallas de las prendas reales. -->
         <p class="demo-note" role="note">
@@ -63,6 +69,15 @@
       <section id="viewer-wrap" hidden>
         <model-viewer id="viewer" camera-controls auto-rotate shadow-intensity="0.6"
                       exposure="1.0" alt="Personaje con su ropa equipada"></model-viewer>
+      </section>
+
+      <section id="admin" class="admin" hidden>
+        <h2>Sesiones de la app</h2>
+        <p class="meta" id="admin-meta"></p>
+        <div class="actions">
+          <button id="revoke" type="button" class="danger">Revocar todas las sesiones de la app</button>
+        </div>
+        <p class="meta" id="admin-status" role="status" aria-live="polite"></p>
       </section>
     </main>
     <script src="/app.js" type="module"></script>
