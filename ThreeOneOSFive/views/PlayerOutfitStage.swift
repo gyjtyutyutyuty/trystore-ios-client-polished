@@ -19,7 +19,13 @@ struct PlayerOutfitStage: View {
     @State private var modelTotal = 0
     @State private var modelDone = 0
     @State private var modelFailed = 0
+    /// Downloaded garments the stage could not parse or place.
+    @State private var unreadableGarments = 0
     @State private var modelToken = UUID()
+
+    private var failedModels: Int {
+        modelFailed + unreadableGarments
+    }
 
     private var anchoredItems: [PlayerOutfitItem] {
         items.filter { $0.slot.stageAnchor != nil }
@@ -48,7 +54,8 @@ struct PlayerOutfitStage: View {
                         model: model,
                         reduceMotion: reduceMotion,
                         isActive: isActive,
-                        garments: garments
+                        garments: garments,
+                        onGarmentFailures: { unreadableGarments = $0 }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -97,10 +104,10 @@ struct PlayerOutfitStage: View {
                     ProgressView()
                         .tint(AppTheme.accent)
                     Text(language.text("intel.models_progress", modelDone, modelTotal))
-                } else if modelFailed > 0 {
+                } else if failedModels > 0 {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(AppPalette.amber)
-                    Text(language.text("intel.models_partial", modelFailed, modelTotal))
+                    Text(language.text("intel.models_partial", failedModels, modelTotal))
                 } else {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(AppTheme.accent)
@@ -126,6 +133,7 @@ struct PlayerOutfitStage: View {
         modelTotal = targets.count
         modelDone = 0
         modelFailed = 0
+        unreadableGarments = 0
         garments = []
 
         guard !targets.isEmpty else { return }

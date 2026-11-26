@@ -54,6 +54,9 @@ struct CharacterStageView: UIViewRepresentable {
     /// Reports a full-outfit GLB that could not be parsed, so the caller can
     /// say why the bundled body is still on stage.
     var onOutfitFailure: (() -> Void)? = nil
+    /// Reports how many downloaded garments could not be parsed or placed on
+    /// this attempt, so the caller can explain the missing pieces.
+    var onGarmentFailures: ((Int) -> Void)? = nil
 
     func makeUIView(context: Context) -> CharacterSceneView {
         let view = CharacterSceneView(frame: .zero)
@@ -64,7 +67,8 @@ struct CharacterStageView: UIViewRepresentable {
             turntable: turntable,
             garments: garments,
             outfit: outfit,
-            outfitFailure: onOutfitFailure
+            outfitFailure: onOutfitFailure,
+            garmentFailures: onGarmentFailures
         )
         return view
     }
@@ -77,7 +81,8 @@ struct CharacterStageView: UIViewRepresentable {
             turntable: turntable,
             garments: garments,
             outfit: outfit,
-            outfitFailure: onOutfitFailure
+            outfitFailure: onOutfitFailure,
+            garmentFailures: onGarmentFailures
         )
     }
 }
@@ -124,6 +129,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     private var appliedOutfit: WornOutfit?
     private var outfitToken = UUID()
     private var outfitFailureHandler: (() -> Void)?
+    private var garmentFailureHandler: ((Int) -> Void)?
 
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval = 0
@@ -262,12 +268,14 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         turntable: Bool = true,
         garments: [PlayerGarment] = [],
         outfit: WornOutfit? = nil,
-        outfitFailure: (() -> Void)? = nil
+        outfitFailure: (() -> Void)? = nil,
+        garmentFailures: ((Int) -> Void)? = nil
     ) {
         self.reduceMotion = reduceMotion
         self.isActive = isActive
         self.turntable = turntable
         self.outfitFailureHandler = outfitFailure
+        self.garmentFailureHandler = garmentFailures
 
         if requestedModel != model {
             requestedModel = model
@@ -302,35 +310,50 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         applyBodyLayers()
         updateBodyVisibility()
 
+        // Invalidate any in-flight parse before the empty check: clearing the
+        // garments must not let a previous batch land on the stage.
+        let token = UUID()
+        garmentToken = token
+
         let wanted = appliedGarments
         guard !wanted.isEmpty else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.garmentToken == token else { return }
+                self.garmentFailureHandler?(0)
+            }
             setNeedsDisplay()
             return
         }
 
-        let token = UUID()
-        garmentToken = token
-
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var loaded: [(PlayerGarment, GarmentModel)] = []
+            var failures = 0
             for garment in wanted {
-                guard let model = try? GLBSceneLoader.model(from: garment.url) else { continue }
+                guard let model = try? GLBSceneLoader.model(from: garment.url) else {
+                    failures += 1
+                    continue
+                }
                 loaded.append((garment, model))
             }
 
             DispatchQueue.main.async {
                 guard let self, self.garmentToken == token else { return }
+                var missing = failures
                 for (garment, model) in loaded {
-                    self.attach(model, slot: garment.slot, id: garment.id)
+                    if !self.attach(model, slot: garment.slot, id: garment.id) {
+                        missing += 1
+                    }
                 }
                 self.updateBodyVisibility()
                 self.setNeedsDisplay()
+                self.garmentFailureHandler?(missing)
             }
         }
     }
 
-    private func attach(_ model: GarmentModel, slot: PlayerOutfitSlot, id: String) {
-        guard let fit = slot.garmentFit, model.height > 0.001 else { return }
+    @discardableResult
+    private func attach(_ model: GarmentModel, slot: PlayerOutfitSlot, id: String) -> Bool {
+        guard let fit = slot.garmentFit, model.height > 0.001 else { return false }
 
         // Height-driven, not longest-side-driven: a jacket is wider across the
         // sleeves than it is tall, so dividing by its arm span made every
@@ -347,6 +370,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
         wornSlots.insert(slot)
         applyBodyLayers()
+        return true
     }
 
     /// Hides the body's own top, trousers or shoes for every slot that is now

@@ -26,6 +26,9 @@ struct PlayerWardrobeView: View {
     @State private var modelsDone = 0
     @State private var modelsTotal = 0
     @State private var modelsFailed = 0
+    /// Downloaded garments the stage could not parse or place. Kept apart from
+    /// `modelsFailed`, which counts downloads that never arrived.
+    @State private var unreadableGarments = 0
     @State private var loadTask: Task<Void, Never>?
     @State private var isFFHubPresented = false
 
@@ -64,6 +67,12 @@ struct PlayerWardrobeView: View {
 
     private var trimmedInput: String {
         uidInput.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Both download misses and unreadable files leave a slot empty, so the
+    /// stage status reports them together.
+    private var failedModelCount: Int {
+        modelsFailed + unreadableGarments
     }
 
     private var isBusy: Bool {
@@ -359,7 +368,8 @@ struct PlayerWardrobeView: View {
                         model: model,
                         reduceMotion: reduceMotion,
                         isActive: isVisible,
-                        garments: garments
+                        garments: garments,
+                        onGarmentFailures: { unreadableGarments = $0 }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -411,10 +421,10 @@ struct PlayerWardrobeView: View {
             statusRow(language.text("wardrobe.stage_meshes", done, total))
         case .ready:
             HStack(spacing: AppSpacing.s) {
-                Image(systemName: modelsFailed > 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                    .foregroundStyle(modelsFailed > 0 ? AppPalette.amber : AppTheme.accent)
-                Text(modelsFailed > 0
-                    ? language.text("intel.models_partial", modelsFailed, modelsTotal)
+                Image(systemName: failedModelCount > 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(failedModelCount > 0 ? AppPalette.amber : AppTheme.accent)
+                Text(failedModelCount > 0
+                    ? language.text("intel.models_partial", failedModelCount, modelsTotal)
                     : language.text("wardrobe.stage_ready"))
                 Spacer(minLength: 0)
             }
@@ -732,6 +742,7 @@ struct PlayerWardrobeView: View {
         modelsDone = 0
         modelsTotal = 0
         modelsFailed = 0
+        unreadableGarments = 0
         phase = .profile
 
         do {
@@ -770,6 +781,7 @@ struct PlayerWardrobeView: View {
         modelsTotal = targets.count
         modelsDone = 0
         modelsFailed = 0
+        unreadableGarments = 0
 
         guard !targets.isEmpty else {
             phase = .ready
