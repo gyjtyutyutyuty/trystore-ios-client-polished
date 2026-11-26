@@ -42,7 +42,9 @@ const SECURITY_HEADERS = {
     "script-src 'self' https://unpkg.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
-    "connect-src 'self'",
+    // model-viewer hands GLB-embedded textures to GLTFLoader as blob URLs; with
+    // 'self' alone they are refused and the model renders untextured white.
+    "connect-src 'self' blob:",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'none'",

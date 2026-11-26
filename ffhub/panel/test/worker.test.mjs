@@ -88,6 +88,8 @@ test("static assets carry the security headers", async () => {
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "<!doctype html>");
   assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+  // GLB textures reach the viewer as blob URLs; without this the model is white.
+  assert.match(response.headers.get("content-security-policy"), /connect-src 'self' blob:/);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("x-frame-options"), "DENY");
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
