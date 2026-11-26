@@ -13,6 +13,7 @@ import shutil
 import signal
 import sys
 import time
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
 from .assemble import AssemblyError, build_outfit
@@ -78,7 +79,14 @@ def process_job(job: Job, *, config: Config, store: Store, catalog: Catalog | No
     return finished
 
 
-def run_forever(config: Config, store: Store, *, poll_seconds: float = 2.0) -> int:
+def run_forever(
+    config: Config,
+    store: Store,
+    *,
+    poll_seconds: float = 2.0,
+    workers: int = 1,
+) -> int:
+    workers = max(1, int(workers))
     stopping = False
 
     def handle_signal(_signum: int, _frame: object) -> None:
@@ -92,14 +100,58 @@ def run_forever(config: Config, store: Store, *, poll_seconds: float = 2.0) -> i
     if recovered:
         print(f"worker: requeued {recovered} stale job(s)", flush=True)
 
-    while not stopping:
-        job = store.claim_next()
-        if job is None:
-            time.sleep(poll_seconds)
-            continue
-        print(f"worker: job {job.id} start avatar={job.avatar_id} items={len(job.items)}", flush=True)
-        finished = process_job(job, config=config, store=store)
-        print(f"worker: job {finished.id} {finished.state} {finished.detail}", flush=True)
+    if workers == 1:
+        while not stopping:
+            job = store.claim_next()
+            if job is None:
+                time.sleep(poll_seconds)
+                continue
+            print(
+                f"worker: job {job.id} start avatar={job.avatar_id} items={len(job.items)}",
+                flush=True,
+            )
+            finished = process_job(job, config=config, store=store)
+            print(f"worker: job {finished.id} {finished.state} {finished.detail}", flush=True)
+        return 0
+
+    # The export spends most of its time in Pillow's PNG encoder, which releases
+    # the GIL. A bounded pool therefore turns queued outfits into parallel
+    # builds; the default stays 1 so memory use does not jump unless asked. Each
+    # job has its own work directory and claims are atomic, so the shares are
+    # only the SQLite store and the read-only catalog.
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        in_flight: set[Future[Job]] = set()
+        while not stopping:
+            for future in [entry for entry in in_flight if entry.done()]:
+                in_flight.discard(future)
+                finished = future.result()
+                print(
+                    f"worker: job {finished.id} {finished.state} {finished.detail}",
+                    flush=True,
+                )
+
+            while not stopping and len(in_flight) < workers:
+                job = store.claim_next()
+                if job is None:
+                    break
+                print(
+                    f"worker: job {job.id} start avatar={job.avatar_id} items={len(job.items)}",
+                    flush=True,
+                )
+                in_flight.add(pool.submit(process_job, job, config=config, store=store))
+
+            if stopping:
+                break
+            if in_flight:
+                wait(in_flight, timeout=poll_seconds, return_when=FIRST_COMPLETED)
+            else:
+                time.sleep(poll_seconds)
+
+        # Let claimed jobs finish; process_job publishes atomically, so there is
+        # nothing to roll back if the service is asked to stop mid-build.
+        for future in in_flight:
+            finished = future.result()
+            print(f"worker: job {finished.id} {finished.state} {finished.detail}", flush=True)
     return 0
 
 
@@ -107,6 +159,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ffhub-worker")
     parser.add_argument("--once", action="store_true", help="drain one job and exit")
     parser.add_argument("--poll", type=float, default=2.0)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="concurrent exports (default 1; raise only with memory headroom)",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -125,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         finished = process_job(job, config=config, store=store)
         print(f"worker: {finished.state} {finished.detail}", flush=True)
         return 0 if finished.state in ("ready", "partial") else 1
-    return run_forever(config, store, poll_seconds=args.poll)
+    return run_forever(config, store, poll_seconds=args.poll, workers=args.workers)
 
 
 if __name__ == "__main__":

@@ -88,3 +88,30 @@ def test_run_forever_drains_and_stops(tmp_path: Path, catalog_root: Path, monkey
         pass
     rows = store.stats()["jobs"]
     assert rows.get("ready") == 1
+
+
+def test_run_forever_workers_drain_two_jobs(tmp_path: Path, catalog_root: Path, monkeypatch) -> None:
+    config, store, _first = queued_job(tmp_path, catalog_root, ["203000196"])
+    enqueue(
+        store,
+        uid="11807385",
+        region="br",
+        avatar_id="102000015",
+        items=["205000070"],
+        catalog_version="test-1",
+        exporter_version="test",
+    )
+    calls = {"n": 0}
+
+    def fake_sleep(_seconds: float) -> None:
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr("app.worker.time.sleep", fake_sleep)
+    try:
+        run_forever(config, store, poll_seconds=0, workers=2)
+    except KeyboardInterrupt:
+        pass
+    rows = store.stats()["jobs"]
+    assert rows.get("ready") == 2
