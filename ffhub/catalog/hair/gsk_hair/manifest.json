@@ -1,0 +1,15 @@
+{
+  "item_id": "gsk_hair",
+  "type": "hair",
+  "label": "Pelo Golden Sakura",
+  "mesh": "mesh.glb",
+  "catalog_version": "golden-sakura-1",
+  "mount": {
+    "position": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "scale": 1.0
+  }
+}

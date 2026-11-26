@@ -45,3 +45,37 @@ El manifiesto es lo único que el ensamblador conoce. Se valida al cargar, no al
   de imagen sueltos, así que una pieza con textura externa sale sin textura.
 - Las dos piezas de cabeza del ejemplo (211000087 y 211000303) conviven: no hay
   regla de exclusión todavía, se montan ambas en el orden del tipo.
+
+## Primer catálogo real: Golden Sakura
+
+`scripts/import_bundle.py` separa un bundle de la comunidad —una sola escena con
+los nodos `Object_0…`, sin esqueleto ni nombres útiles— en una entrada por pieza,
+cociendo la transformación de mundo en los vértices:
+
+```bash
+.venv/bin/python scripts/import_bundle.py ../.incoming/glb/golden_sakura.glb --dry-run
+.venv/bin/python scripts/import_bundle.py ../.incoming/glb/golden_sakura.glb
+```
+
+El mapeo de este bundle, decidido por altura y por textura:
+
+| Parte | Entrada | Tipo | Altura |
+| --- | --- | --- | --- |
+| `Object_0` (cara y piel) | `body/golden_sakura` | cuerpo | 0.00–2.29 |
+| `Object_1` | `feet/gsk_feet` | botas | -0.02–0.20 |
+| `Object_2` | `legs/gsk_legs` | pantalón | 0.14–1.36 |
+| `Object_3` | `torso/gsk_torso` | kimono | 1.22–2.05 |
+| `Object_4` | `head/gsk_head` | adorno de cabeza | 1.97–2.41 |
+| `Object_5` | `hair/gsk_hair` | pelo | 1.99–2.41 |
+
+Todos comparten `catalog_version: golden-sakura-1`, y cada GLB lleva su propia
+textura embebida (el importador falla si alguna se pierde).
+
+Los ids `gsk_*` son del bundle, **no** ids de item de Free Fire: `/info` devuelve
+ids numéricos, así que hoy estas piezas sólo se montan pasando `--items` a mano.
+Para un UID real, renombra el directorio de cada pieza al `item_id` que devuelva
+el perfil y cambia `item_id` en su manifiesto; para el cuerpo, renombra
+`body/golden_sakura` al `avatar_id` del perfil y cambia `avatar_id`.
+
+Ninguna pieza lleva `hides`: el cuerpo del bundle ya trae la piel completa y las
+prendas se superponen encima, así que no hay nodo del cuerpo que ocultar.

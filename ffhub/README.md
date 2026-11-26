@@ -21,7 +21,7 @@ cp deploy/env.example env && $EDITOR env          # claves, nunca al repo
 set -a && . ./env && set +a
 .venv/bin/uvicorn app.asgi:app --host 127.0.0.1 --port 8890
 .venv/bin/python -m app.worker --poll 2           # en otra terminal
-.venv/bin/python -m pytest                        # 46 tests, sin red
+.venv/bin/python -m pytest                        # 61 tests, sin red
 ```
 
 El worker acepta `--once` para drenar un solo trabajo y salir.
@@ -92,10 +92,16 @@ devuelve al instante.
 ## Catálogo
 
 Ver [`catalog/README.md`](catalog/README.md) y
-[`catalog/manifest.schema.json`](catalog/manifest.schema.json). El catálogo de
-este repo está **vacío**: sin mallas y manifiestos por pieza, `/jobs` responde
-`avatar_not_in_catalog` y el worker no publica nada. Es el único bloqueo que
-queda para el primer GLB real.
+[`catalog/manifest.schema.json`](catalog/manifest.schema.json). Hay un bundle
+real importado: cuerpo `golden_sakura` más cinco piezas `gsk_*` (botas,
+pantalón, kimono, adorno de cabeza, pelo), generadas con
+`scripts/import_bundle.py`.
+
+Esos ids son del bundle, no ids de item de Free Fire. Con un UID real el perfil
+devuelve ids numéricos, así que hasta renombrar directorios y manifiestos a los
+que publique `/info`, `/jobs` responde `avatar_not_in_catalog`; para probar el
+montaje sin proveedor, `scripts/e2e.py --avatar-id golden_sakura --items
+ gsk_feet,gsk_legs,gsk_torso,gsk_head,gsk_hair`.
 
 ## Despliegue
 
