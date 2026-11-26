@@ -54,46 +54,68 @@ Para reconstruir sin llamar al proveedor (los ids que ya conoces):
 
 ## Variables de entorno
 
-| Variable | Obligatoria | Uso |
+El camino por defecto (Worker) lee dos secretos de Sites:
+
+| Secreto de Sites | Obligatoria | Uso |
 | --- | --- | --- |
-| `FREE_FIRE_API_KEY` | sí | Clave del proveedor. Sólo en `/etc/ffhub/env`. |
-| `FFHUB_TOKEN` | sí | Bearer que exige la API; lo tiene el Worker de Sites. |
-| `FFHUB_DATA_DIR` | no | SQLite, GLB publicados y temporales. Por defecto `./data`. |
-| `FFHUB_CATALOG_DIR` | no | Raíz del catálogo 3D. Por defecto `./catalog`. |
-| `FFHUB_EXPORTER_VERSION` | no | Entra en la clave de reutilización. |
-| `FFHUB_MAX_GLB_BYTES` | no | Tope de publicación, 256 MB por defecto. |
+| `FREE_FIRE_API_KEY` | sí | Clave del proveedor. Vive en Sites → Secrets; el navegador nunca la ve. |
+| `FIRE_API_BASE` | no | Base del proveedor. Por defecto `https://developers.freefirecommunity.com/api/v1`. |
+
+No hay `BACKEND_URL` ni `HUB_TOKEN`: el Worker no proxya a ningún servidor.
+
+La variante FastAPI (`app/`, en un VPS) usa además `FFHUB_TOKEN` como bearer,
+`FFHUB_DATA_DIR`, `FFHUB_CATALOG_DIR`, `FFHUB_EXPORTER_VERSION` y
+`FFHUB_MAX_GLB_BYTES`; ver `deploy/env.example`.
 
 ## API
 
-Todas las rutas salvo `/healthz` piden `Authorization: Bearer $FFHUB_TOKEN`.
+### Worker, sin VPS
+
+El navegador no lleva token: el Worker guarda la clave y sólo atiende rutas
+fijas.
 
 | Ruta | Qué hace |
 | --- | --- |
-| `POST /profile` | `{uid, region}` → nombre, región devuelta, avatar, prendas con tipo y URL de miniatura. |
-| `GET /thumbnail/{item_id}` | Miniatura del proveedor, cacheada por ID con su `Content-Type` real. `X-Cache: hit\|miss`. |
-| `POST /jobs` | `{uid, region}` o `{uid, region, avatar_id, items}`. Devuelve `{job, created}`. |
-| `GET /jobs/{id}` | `queued`, `generating`, `ready`, `partial`, `error` + `progress` y `detail`. |
-| `GET /files/{reuse_key}.glb` | El GLB publicado. |
+| `POST /api/profile` | `{uid, region}` → nombre, avatar, prendas con tipo, `in_catalog` y miniatura. |
+| `GET /api/thumbnail/{item_id}` | Miniatura del proveedor, cacheada por ID. |
+| `POST /api/jobs` | `{uid, region}` o `{uid, region, avatar_id, items}` → trabajo ya resuelto (`ready`/`partial`). |
+| `GET /api/outfits/{avatar}/{ids}.glb` | El GLB. La URL nombra el outfit completo, así que se reconstruye igual. |
 
 `region` acepta `us`, `br`, `na`, `latam`, `sg`, `id`, `th`, `vn`, `my`. US, BR,
 NA y LATAM se envían al proveedor como `br`; la región que devuelve el perfil se
 guarda aparte y es la que se muestra.
 
-### Errores con nombre
-
-`invalid_uid`, `invalid_region`, `profile_not_found`, `clothes_unavailable`,
-`clothes_empty`, `avatar_not_in_catalog`, `provider_rate_limited` (con
-`Retry-After`), `provider_auth`, `provider_bad_response`, `file_not_ready`.
+Errores con nombre del Worker: `provider_not_configured`, `invalid_uid`,
+`invalid_region`, `invalid_avatar_id`, `invalid_item_id`, `avatar_not_in_catalog`,
+`profile_not_found`, `provider_rate_limited` (con `Retry-After`), `provider_auth`,
+`provider_bad_response`, `rate_limited`, `forbidden_origin`, `body_too_large`,
+`method_not_allowed`, `not_found`, `internal_error`.
 
 Un `clothes` ausente y un `clothes: []` son respuestas distintas: la primera es
 `unavailable`, la segunda `empty`.
 
+### FastAPI, variante VPS (opcional)
+
+Todas las rutas salvo `/healthz` piden `Authorization: Bearer $FFHUB_TOKEN`.
+
+| Ruta | Qué hace |
+| --- | --- |
+| `POST /profile` | Igual que en el Worker, más `requested_region` y `catalog_problems`. |
+| `GET /thumbnail/{item_id}` | Miniatura cacheada con su `Content-Type` real. `X-Cache: hit\|miss`. |
+| `POST /jobs` | `{uid, region}` o `{uid, region, avatar_id, items}`. Devuelve `{job, created}`. |
+| `GET /jobs/{id}` | `queued`, `generating`, `ready`, `partial`, `error` + `progress` y `detail`. |
+| `GET /files/{reuse_key}.glb` | El GLB publicado. |
+
 ### Reutilización
 
 La clave es `sha256(avatar, prendas ordenadas, versión de catálogo, versión de
-exportador)`. Si ya existe un trabajo en cola o generando con esa clave, el panel
-recibe el mismo trabajo en vez de uno nuevo. Si existe un GLB publicado, se
-devuelve al instante.
+exportador)`.
+
+- Worker: no hay cola ni ficheros. La descarga se pide por
+  `/api/outfits/<avatar>/<ids>.glb` y se regenera en cada petición, byte a byte
+  idéntica; la clave se usa como nombre del archivo.
+- FastAPI: la misma clave identifica el trabajo y el GLB publicado; dos jugadores
+  con el mismo outfit comparten trabajo y archivo.
 
 ## Catálogo
 
@@ -113,13 +135,37 @@ gsk_feet,gsk_legs,gsk_torso,gsk_head,gsk_hair`.
 
 ## Despliegue
 
+### Cloudflare, sin VPS (camino por defecto)
+
+1. Copia el catálogo junto al panel y escribe el índice que lee el Worker:
+
+   ```bash
+   .venv/bin/python scripts/sync_catalog.py
+   ```
+
+   `panel/public/catalog/` es salida de build (git-ignored). Hay que regenerarla
+   antes de cada despliegue, también después de `bind_profile.py`.
+
+2. Despliega con `panel/deploy.json`: el Worker, sus tres módulos de `lib/` y
+   `public/` como assets.
+3. Secretos del proyecto en Sites → Secrets: `FREE_FIRE_API_KEY` (y
+   `FIRE_API_BASE` si tu proveedor no es el de por defecto).
+4. Publica el entorno y comprueba: `GET /` trae la CSP, y `POST /api/jobs` con
+   `avatar_id` + `items` devuelve `ready` con `download_url`.
+
+Sin la clave, `/api/profile`, `/api/jobs` con UID y `/api/thumbnail/*` responden
+`provider_not_configured`; el ensamblado explícito sigue funcionando.
+
+### Variante VPS (opcional)
+
+Sólo hace falta si quieres la cola SQLite y el worker en systemd (`app/`). El
+panel no la necesita.
+
 1. `/opt/ffhub` con el código y `.venv`; `useradd -r -s /usr/sbin/nologin ffhub`.
-2. `/etc/ffhub/env` a 0640 root:ffhub con las dos claves.
-3. `deploy/ffhub-api.service` y `deploy/ffhub-worker.service` en `/etc/systemd/system`, `systemctl enable --now`.
+2. `/etc/ffhub/env` a 0640 root:ffhub con `FREE_FIRE_API_KEY` y `FFHUB_TOKEN`.
+3. `deploy/ffhub-api.service` y `deploy/ffhub-worker.service` en
+   `/etc/systemd/system`, `systemctl enable --now`.
 4. nginx con `deploy/nginx.conf`, TLS de Let's Encrypt.
-5. Panel: `sites_deploy` con `panel/deploy.json` y dos secretos en Sites:
-   `BACKEND_URL` (https://hub.example.com) y `HUB_TOKEN` (el mismo `FFHUB_TOKEN`).
-   El navegador nunca ve ninguno de los dos.
 
 ## Límites conocidos
 
