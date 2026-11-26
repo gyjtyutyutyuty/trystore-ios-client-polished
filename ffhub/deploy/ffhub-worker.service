@@ -1,0 +1,25 @@
+[Unit]
+Description=FFHub GLB worker
+After=network-online.target ffhub-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ffhub
+Group=ffhub
+WorkingDirectory=/opt/ffhub
+EnvironmentFile=/etc/ffhub/env
+ExecStart=/opt/ffhub/.venv/bin/python -m app.worker --poll 2
+Restart=always
+RestartSec=5
+# One worker until memory and build time are measured; raise only with numbers.
+Environment=OMP_NUM_THREADS=1
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/ffhub
+MemoryMax=6G
+
+[Install]
+WantedBy=multi-user.target

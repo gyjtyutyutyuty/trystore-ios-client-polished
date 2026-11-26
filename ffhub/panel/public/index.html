@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FFHub — outfit 3D</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>FFHub</h1>
+        <p class="sub">Escribe un UID, mira lo que lleva y descarga el GLB vestido.</p>
+      </header>
+
+      <form id="lookup" autocomplete="off">
+        <label>
+          UID
+          <input id="uid" name="uid" inputmode="numeric" pattern="[0-9]{5,15}" required
+                 placeholder="11807385" value="11807385" />
+        </label>
+        <label>
+          Región
+          <select id="region" name="region">
+            <option value="us" selected>US</option>
+            <option value="br">BR</option>
+            <option value="na">NA</option>
+            <option value="latam">LATAM</option>
+            <option value="sg">SG</option>
+            <option value="id">ID</option>
+            <option value="th">TH</option>
+            <option value="vn">VN</option>
+            <option value="my">MY</option>
+          </select>
+        </label>
+        <button type="submit">Consultar</button>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+
+      <section id="player" hidden>
+        <div class="who">
+          <h2 id="nickname"></h2>
+          <p class="meta" id="meta"></p>
+        </div>
+        <ul id="clothes" class="grid"></ul>
+        <div class="actions">
+          <button id="generate" type="button">Generar 3D</button>
+          <a id="download" hidden download>Descargar GLB</a>
+        </div>
+        <p id="job-status" class="meta" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="viewer-wrap" hidden>
+        <model-viewer id="viewer" camera-controls auto-rotate shadow-intensity="0.6"
+                      exposure="1.0" alt="Personaje con su ropa equipada"></model-viewer>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

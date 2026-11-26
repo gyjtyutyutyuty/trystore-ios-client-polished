@@ -1,0 +1,163 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d0f12;
+  --raised: #16191e;
+  --line: #262b33;
+  --text: #e8eaed;
+  --muted: #98a1ac;
+  --accent: #e6753a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  margin: 0 0 4px;
+  font-size: 19px;
+}
+
+.sub,
+.meta {
+  color: var(--muted);
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 24px 0 16px;
+  padding: 16px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+input,
+select {
+  background: #0f1216;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  min-width: 140px;
+}
+
+button,
+#download {
+  background: var(--accent);
+  color: #14100d;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#status {
+  min-height: 20px;
+  color: #ff9b7a;
+  font-size: 14px;
+}
+
+.grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 16px 0;
+}
+
+figure {
+  margin: 0;
+  padding: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+figure img,
+.missing {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #0f1216;
+  border-radius: 6px;
+}
+
+.missing {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+
+figcaption {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+
+.who {
+  margin-top: 20px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+#viewer {
+  width: 100%;
+  height: 420px;
+  margin-top: 20px;
+  background: radial-gradient(circle at 50% 35%, #1b2027, #0d0f12 70%);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}

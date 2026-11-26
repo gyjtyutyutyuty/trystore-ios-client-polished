@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FFHub piece manifest",
+  "type": "object",
+  "required": ["item_id", "type", "mesh"],
+  "additionalProperties": true,
+  "properties": {
+    "item_id": { "type": "string", "pattern": "^[0-9]{4,20}$" },
+    "type": {
+      "enum": ["feet", "legs", "torso", "face_paint", "head", "hair", "accessory"]
+    },
+    "label": { "type": "string" },
+    "mesh": { "type": "string", "pattern": "\\.(glb|gltf)$" },
+    "compatible_avatars": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Empty or absent means the piece fits every body."
+    },
+    "mount": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "rotation_euler_deg": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "scale": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "hides": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Body node names this piece covers, as 'body:<node>' or a bare body node name."
+    },
+    "catalog_version": { "type": "string" }
+  }
+}

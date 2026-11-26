@@ -1,0 +1,9 @@
+fastapi==0.165.0
+uvicorn==0.54.0
+httpx==0.28.1
+trimesh==5.2.2
+numpy==2.5.5
+# trimesh discards embedded images without Pillow, which silently drops every
+# texture from the exported GLB.
+pillow==13.0.0
+pytest==9.2.0

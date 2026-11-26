@@ -1,0 +1,14 @@
+{
+  "item_id": "203000196",
+  "type": "torso",
+  "label": "Camiseta superior",
+  "mesh": "mesh.glb",
+  "compatible_avatars": ["102000015"],
+  "mount": {
+    "position": [0.0, 0.92, 0.0],
+    "rotation_euler_deg": [0.0, 0.0, 0.0],
+    "scale": 1.0
+  },
+  "hides": ["body:torso_skin"],
+  "catalog_version": "2026-11-26"
+}

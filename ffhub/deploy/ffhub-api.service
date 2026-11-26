@@ -1,0 +1,23 @@
+[Unit]
+Description=FFHub API (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ffhub
+Group=ffhub
+WorkingDirectory=/opt/ffhub
+EnvironmentFile=/etc/ffhub/env
+ExecStart=/opt/ffhub/.venv/bin/uvicorn app.asgi:app --host 127.0.0.1 --port 8890 --workers 1
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/ffhub
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
