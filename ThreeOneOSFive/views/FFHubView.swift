@@ -688,7 +688,7 @@ struct FFHubControlView: View {
             AppLogo(size: 46)
                 .padding(3)
                 .background(
-                    AppPalette.raised.opacity(0.55),
+                    AppPalette.raised,
                     in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
                 )
                 .overlay(
