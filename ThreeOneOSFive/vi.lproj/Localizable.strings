@@ -838,3 +838,6 @@
 "wardrobe.no_model" = "Mục này không có lưới 3D";
 "wardrobe.tap_item" = "Xem chi tiết";
 "wardrobe.note" = "Mọi thứ diễn ra trong ứng dụng: không mở trang hay trình duyệt nào.";
+"ffhub.section" = "FFHub";
+"ffhub.title" = "FFHub — trang phục 3D";
+"ffhub.subtitle" = "Xem trang phục của người chơi và tải xuống dưới dạng GLB";

@@ -121,6 +121,13 @@ struct SettingsView: View {
                 } footer: {
                     Text(language.text("settings.supported_versions_footer"))
                 }
+                Section(language.text("ffhub.section")) {
+                    creditsRow(
+                        name: language.text("ffhub.title"),
+                        role: language.text("ffhub.subtitle"),
+                        url: "https://ffhub-outfit-panel-nzvoam.freebuff.site"
+                    )
+                }
                 Section(language.text("settings.developer")) {
                     creditsRow(
                         name: language.text("developer.attribution"),

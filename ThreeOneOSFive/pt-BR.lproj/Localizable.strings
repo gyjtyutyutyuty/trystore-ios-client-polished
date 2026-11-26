@@ -831,3 +831,6 @@
 "wardrobe.no_model" = "Este item não tem malha 3D";
 "wardrobe.tap_item" = "Ver detalhes";
 "wardrobe.note" = "Tudo acontece dentro do app: nenhuma página e nenhum navegador são abertos.";
+"ffhub.section" = "FFHub";
+"ffhub.title" = "FFHub — traje 3D";
+"ffhub.subtitle" = "Consulte o traje de um jogador e baixe como GLB";

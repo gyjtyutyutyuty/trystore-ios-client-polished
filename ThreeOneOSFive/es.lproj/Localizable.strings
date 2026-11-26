@@ -833,3 +833,6 @@
 "wardrobe.no_model" = "Este objeto no tiene malla 3D";
 "wardrobe.tap_item" = "Ver detalles";
 "wardrobe.note" = "Todo ocurre dentro de la app: no se abre ninguna página ni ningún navegador.";
+"ffhub.section" = "FFHub";
+"ffhub.title" = "FFHub — outfit 3D";
+"ffhub.subtitle" = "Consulta el outfit de un jugador y descárgalo como GLB";

@@ -844,3 +844,6 @@
 "wardrobe.no_model" = "No 3D mesh for this item";
 "wardrobe.tap_item" = "See details";
 "wardrobe.note" = "Everything stays in the app: no page and no browser opens.";
+"ffhub.section" = "FFHub";
+"ffhub.title" = "FFHub — 3D outfit";
+"ffhub.subtitle" = "Look up a player's outfit and download it as a GLB";

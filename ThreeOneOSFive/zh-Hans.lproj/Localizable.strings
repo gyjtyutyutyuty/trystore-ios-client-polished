@@ -842,3 +842,6 @@
 "wardrobe.no_model" = "该物品没有 3D 网格";
 "wardrobe.tap_item" = "查看详情";
 "wardrobe.note" = "全部在应用内完成：不会打开任何页面或浏览器。";
+"ffhub.section" = "FFHub";
+"ffhub.title" = "FFHub — 3D 装扮";
+"ffhub.subtitle" = "查看玩家的装扮并下载为 GLB";
