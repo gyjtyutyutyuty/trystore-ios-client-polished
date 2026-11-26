@@ -890,6 +890,9 @@
 "ffhub.export.downloading" = "正在下载…";
 "ffhub.export.download_hint" = "你可以将文件存储到“文件”或分享。";
 "ffhub.export.share" = "分享 GLB";
+"ffhub.export.worn_title" = "穿在角色身上";
+"ffhub.export.worn_hint" = "左右拖动可旋转角色。";
+"ffhub.export.worn_note" = "直接渲染下载的 GLB，含自带的身体与贴图。";
 "ffhub.export.need_session" = "请以管理员身份登录后查询和导出。";
 "ffhub.export.demo_note" = "UID 和物品是真实的；3D 网格来自 Golden Sakura 演示包。";
 "ffhub.error.invalid_uid" = "UID 无效：5 到 15 位数字。";

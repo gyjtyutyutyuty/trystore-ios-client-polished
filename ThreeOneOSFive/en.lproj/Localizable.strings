@@ -892,6 +892,9 @@
 "ffhub.export.downloading" = "Downloading…";
 "ffhub.export.download_hint" = "The file can be saved to Files or shared.";
 "ffhub.export.share" = "Share GLB";
+"ffhub.export.worn_title" = "Worn on the avatar";
+"ffhub.export.worn_hint" = "Drag sideways to turn the avatar.";
+"ffhub.export.worn_note" = "Rendered from the downloaded GLB, with its own body and textures.";
 "ffhub.export.need_session" = "Sign in as administrator to look up and export.";
 "ffhub.export.demo_note" = "The UID and the items are real; the 3D meshes are from the Golden Sakura demo bundle.";
 "ffhub.error.invalid_uid" = "Invalid UID: 5 to 15 digits.";

@@ -881,6 +881,9 @@
 "ffhub.export.downloading" = "Descargando…";
 "ffhub.export.download_hint" = "Puedes guardar el archivo en Archivos o compartirlo.";
 "ffhub.export.share" = "Compartir GLB";
+"ffhub.export.worn_title" = "Puesto en el avatar";
+"ffhub.export.worn_hint" = "Arrastra de lado para girar el avatar.";
+"ffhub.export.worn_note" = "Se dibuja desde el GLB descargado, con su propio cuerpo y sus texturas.";
 "ffhub.export.need_session" = "Entra como administrador para consultar y exportar.";
 "ffhub.export.demo_note" = "El UID y las prendas son reales; las mallas 3D son del bundle de demostración Golden Sakura.";
 "ffhub.error.invalid_uid" = "UID inválido: de 5 a 15 dígitos.";

@@ -53,6 +53,14 @@ struct PlayerGarment: Identifiable, Equatable {
     let url: URL
 }
 
+/// A complete outfit exported by FFHub. The GLB carries the avatar body the
+/// pieces were fitted to, so it is worn as one figure instead of being split
+/// into per-slot meshes on top of the bundled character.
+struct WornOutfit: Identifiable, Equatable {
+    let id: String
+    let url: URL
+}
+
 /// Where a slot sits on the character. The body is one unit tall and centred
 /// on the origin, so these values are direct scene coordinates.
 struct GarmentFit {

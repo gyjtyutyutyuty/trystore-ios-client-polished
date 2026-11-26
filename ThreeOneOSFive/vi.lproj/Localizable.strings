@@ -886,6 +886,9 @@
 "ffhub.export.downloading" = "Đang tải…";
 "ffhub.export.download_hint" = "Bạn có thể lưu tệp vào Tệp hoặc chia sẻ.";
 "ffhub.export.share" = "Chia sẻ GLB";
+"ffhub.export.worn_title" = "Mặc trên avatar";
+"ffhub.export.worn_hint" = "Kéo ngang để xoay avatar.";
+"ffhub.export.worn_note" = "Hiển thị từ tệp GLB đã tải, với thân và kết cấu riêng.";
 "ffhub.export.need_session" = "Đăng nhập quản trị để tra cứu và xuất.";
 "ffhub.export.demo_note" = "UID và vật phẩm là thật; lưới 3D thuộc gói demo Golden Sakura.";
 "ffhub.error.invalid_uid" = "UID không hợp lệ: 5 đến 15 chữ số.";

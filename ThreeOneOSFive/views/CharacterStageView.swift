@@ -48,6 +48,9 @@ struct CharacterStageView: UIViewRepresentable {
     var turntable: Bool = true
     /// Downloaded garment meshes that follow the body. Empty on the home hero.
     var garments: [PlayerGarment] = []
+    /// A complete FFHub export. Its GLB carries the body the pieces were
+    /// fitted to, so the stage shows it as the whole figure.
+    var outfit: WornOutfit? = nil
 
     func makeUIView(context: Context) -> CharacterSceneView {
         let view = CharacterSceneView(frame: .zero)
@@ -56,7 +59,8 @@ struct CharacterStageView: UIViewRepresentable {
             reduceMotion: reduceMotion,
             isActive: isActive,
             turntable: turntable,
-            garments: garments
+            garments: garments,
+            outfit: outfit
         )
         return view
     }
@@ -67,7 +71,8 @@ struct CharacterStageView: UIViewRepresentable {
             reduceMotion: reduceMotion,
             isActive: isActive,
             turntable: turntable,
-            garments: garments
+            garments: garments,
+            outfit: outfit
         )
     }
 }
@@ -93,6 +98,10 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     /// turns them together. The body root is swapped on model change; this
     /// node survives the swap.
     private let garmentContainer = SCNNode()
+    /// A complete FFHub export hangs here instead of on the body. Its body is
+    /// already inside the GLB, so the bundled character steps aside while it
+    /// is worn.
+    private let outfitContainer = SCNNode()
     private var bodyRoot: CharacterBody?
     private var modelCache: [HeroCharacterModel: CharacterBody] = [:]
     /// Clothing submeshes of the body currently on screen, and the slots whose
@@ -106,6 +115,9 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
     private var appliedGarments: [PlayerGarment] = []
     private var garmentToken = UUID()
+
+    private var appliedOutfit: WornOutfit?
+    private var outfitToken = UUID()
 
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval = 0
@@ -158,6 +170,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         stageScene.rootNode.addChildNode(cameraNode)
         stageScene.rootNode.addChildNode(modelContainer)
         modelContainer.addChildNode(garmentContainer)
+        modelContainer.addChildNode(outfitContainer)
 
         let camera = SCNCamera()
         camera.fieldOfView = 30
@@ -241,7 +254,8 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         reduceMotion: Bool,
         isActive: Bool,
         turntable: Bool = true,
-        garments: [PlayerGarment] = []
+        garments: [PlayerGarment] = [],
+        outfit: WornOutfit? = nil
     ) {
         self.reduceMotion = reduceMotion
         self.isActive = isActive
@@ -250,6 +264,11 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         if requestedModel != model {
             requestedModel = model
             load(model)
+        }
+
+        if outfit != appliedOutfit {
+            appliedOutfit = outfit
+            rebuildOutfit()
         }
 
         if garments != appliedGarments {
@@ -273,6 +292,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         garmentContainer.childNodes.forEach { $0.removeFromParentNode() }
         wornSlots.removeAll()
         applyBodyLayers()
+        updateBodyVisibility()
 
         let wanted = appliedGarments
         guard !wanted.isEmpty else {
@@ -295,6 +315,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
                 for (garment, model) in loaded {
                     self.attach(model, slot: garment.slot, id: garment.id)
                 }
+                self.updateBodyVisibility()
                 self.setNeedsDisplay()
             }
         }
@@ -326,6 +347,50 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         for layer in bodyLayers {
             layer.node.isHidden = wornSlots.contains(layer.slot)
         }
+    }
+
+    // MARK: Full outfit
+
+    /// Parses an FFHub export off the main thread and stands it in for the
+    /// bundled character. The export is one figure, already aligned to its
+    /// own body, so it is scaled uniformly to the stage's one-unit height.
+    private func rebuildOutfit() {
+        let token = UUID()
+        outfitToken = token
+
+        outfitContainer.childNodes.forEach { $0.removeFromParentNode() }
+        updateBodyVisibility()
+
+        guard let wanted = appliedOutfit else {
+            setNeedsDisplay()
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let model = try? GLBSceneLoader.model(from: wanted.url)
+
+            DispatchQueue.main.async {
+                guard let self, self.outfitToken == token,
+                      let model, model.height > 0.001 else { return }
+
+                let holder = SCNNode()
+                holder.name = "outfit-\(wanted.id)"
+                holder.addChildNode(model.node)
+                let scale = 1 / model.height
+                holder.scale = SCNVector3(Float(scale), Float(scale), Float(scale))
+                self.outfitContainer.addChildNode(holder)
+                self.updateBodyVisibility()
+                self.setNeedsDisplay()
+            }
+        }
+    }
+
+    /// The bundled body and the per-slot garments only make sense while no
+    /// complete outfit is on. Hiding them keeps the stage to one figure.
+    private func updateBodyVisibility() {
+        let fullOutfit = !outfitContainer.childNodes.isEmpty
+        bodyRoot?.root.isHidden = fullOutfit
+        garmentContainer.isHidden = fullOutfit
     }
 
     override func didMoveToWindow() {
@@ -541,6 +606,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         root.opacity = 1
         modelContainer.addChildNode(root)
         applyBodyLayers()
+        updateBodyVisibility()
         if displayLink != nil {
             root.opacity = 0
             SCNTransaction.begin()

@@ -1122,6 +1122,8 @@ struct FFHubControlView: View {
 
             if job.state == "ready" || job.state == "partial" {
                 if let downloaded = model.downloadedURL {
+                    FFHubWornOutfit(url: downloaded)
+
                     ShareLink(item: downloaded) {
                         Label(language.text("ffhub.export.share"), systemImage: "square.and.arrow.up")
                             .font(AppType.label().weight(.semibold))
@@ -1249,6 +1251,62 @@ struct FFHubControlView: View {
         count == 1
             ? language.text("ffhub.export.items_one")
             : language.text("ffhub.export.items_many", count)
+    }
+}
+
+// MARK: - Downloaded outfit on the avatar
+
+/// The downloaded export worn on the same SceneKit stage the wardrobe uses.
+/// The GLB is a complete figure, so the stage swaps its bundled body for it
+/// instead of hanging the pieces on the bundled character.
+private struct FFHubWornOutfit: View {
+    let url: URL
+
+    @Environment(\.appLanguage) private var language
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @State private var isVisible = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: AppSpacing.s) {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .accessibilityHidden(true)
+
+                Text(language.text("ffhub.export.worn_title"))
+                    .font(AppType.label().weight(.semibold))
+                    .foregroundStyle(AppPalette.textSecondary)
+
+                Spacer(minLength: 0)
+            }
+
+            CharacterStageView(
+                model: .sakura,
+                reduceMotion: reduceMotion,
+                isActive: isVisible,
+                outfit: WornOutfit(id: url.lastPathComponent, url: url)
+            )
+            .frame(height: 300)
+            .frame(maxWidth: .infinity)
+            .background(
+                AppPalette.canvas,
+                in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+            )
+            .clipShape(
+                RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(language.text("ffhub.export.worn_title"))
+            .accessibilityHint(language.text("ffhub.export.worn_hint"))
+
+            Text(language.text("ffhub.export.worn_note"))
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
     }
 }
 
