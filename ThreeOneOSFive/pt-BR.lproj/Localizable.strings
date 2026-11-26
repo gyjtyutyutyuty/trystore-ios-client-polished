@@ -882,6 +882,7 @@
 "ffhub.export.worn_title" = "Vestido no avatar";
 "ffhub.export.worn_hint" = "Arraste para os lados para girar o avatar.";
 "ffhub.export.worn_note" = "Renderizado a partir do GLB baixado, com o próprio corpo e as texturas.";
+"ffhub.export.worn_failed" = "Não foi possível ler este GLB. O corpo abaixo é o avatar incluído, não o seu export.";
 "ffhub.export.need_session" = "Entre como administrador para consultar e exportar.";
 "ffhub.export.demo_note" = "O UID e os itens são reais; as malhas 3D são do pacote de demonstração Golden Sakura.";
 "ffhub.error.invalid_uid" = "UID inválido: de 5 a 15 dígitos.";

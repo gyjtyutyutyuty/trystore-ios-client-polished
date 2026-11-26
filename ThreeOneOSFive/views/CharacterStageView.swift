@@ -51,6 +51,9 @@ struct CharacterStageView: UIViewRepresentable {
     /// A complete FFHub export. Its GLB carries the body the pieces were
     /// fitted to, so the stage shows it as the whole figure.
     var outfit: WornOutfit? = nil
+    /// Reports a full-outfit GLB that could not be parsed, so the caller can
+    /// say why the bundled body is still on stage.
+    var onOutfitFailure: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> CharacterSceneView {
         let view = CharacterSceneView(frame: .zero)
@@ -60,7 +63,8 @@ struct CharacterStageView: UIViewRepresentable {
             isActive: isActive,
             turntable: turntable,
             garments: garments,
-            outfit: outfit
+            outfit: outfit,
+            outfitFailure: onOutfitFailure
         )
         return view
     }
@@ -72,7 +76,8 @@ struct CharacterStageView: UIViewRepresentable {
             isActive: isActive,
             turntable: turntable,
             garments: garments,
-            outfit: outfit
+            outfit: outfit,
+            outfitFailure: onOutfitFailure
         )
     }
 }
@@ -118,6 +123,7 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
 
     private var appliedOutfit: WornOutfit?
     private var outfitToken = UUID()
+    private var outfitFailureHandler: (() -> Void)?
 
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval = 0
@@ -255,11 +261,13 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         isActive: Bool,
         turntable: Bool = true,
         garments: [PlayerGarment] = [],
-        outfit: WornOutfit? = nil
+        outfit: WornOutfit? = nil,
+        outfitFailure: (() -> Void)? = nil
     ) {
         self.reduceMotion = reduceMotion
         self.isActive = isActive
         self.turntable = turntable
+        self.outfitFailureHandler = outfitFailure
 
         if requestedModel != model {
             requestedModel = model
@@ -370,8 +378,13 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
             let model = try? GLBSceneLoader.model(from: wanted.url)
 
             DispatchQueue.main.async {
-                guard let self, self.outfitToken == token,
-                      let model, model.height > 0.001 else { return }
+                guard let self, self.outfitToken == token else { return }
+                guard let model, model.height > 0.001 else {
+                    // The stage keeps the bundled body. Tell the caller so the
+                    // panel does not pass that body off as the export.
+                    self.outfitFailureHandler?()
+                    return
+                }
 
                 let holder = SCNNode()
                 holder.name = "outfit-\(wanted.id)"

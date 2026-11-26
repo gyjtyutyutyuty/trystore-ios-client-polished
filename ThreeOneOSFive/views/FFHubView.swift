@@ -1265,6 +1265,7 @@ private struct FFHubWornOutfit: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.appReduceMotion) private var reduceMotion
     @State private var isVisible = false
+    @State private var outfitFailed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
@@ -1281,11 +1282,23 @@ private struct FFHubWornOutfit: View {
                 Spacer(minLength: 0)
             }
 
+            if outfitFailed {
+                Label(
+                    language.text("ffhub.export.worn_failed"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(AppType.meta())
+                .foregroundStyle(AppPalette.amber)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
+            }
+
             CharacterStageView(
                 model: .sakura,
                 reduceMotion: reduceMotion,
                 isActive: isVisible,
-                outfit: WornOutfit(id: url.lastPathComponent, url: url)
+                outfit: WornOutfit(id: url.lastPathComponent, url: url),
+                onOutfitFailure: { outfitFailed = true }
             )
             .frame(height: 300)
             .frame(maxWidth: .infinity)
@@ -1298,13 +1311,20 @@ private struct FFHubWornOutfit: View {
             )
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(language.text("ffhub.export.worn_title"))
-            .accessibilityHint(language.text("ffhub.export.worn_hint"))
+            .accessibilityHint(
+                language.text(
+                    outfitFailed ? "ffhub.export.worn_failed" : "ffhub.export.worn_hint"
+                )
+            )
 
-            Text(language.text("ffhub.export.worn_note"))
-                .font(AppType.meta())
-                .foregroundStyle(AppPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+            if !outfitFailed {
+                Text(language.text("ffhub.export.worn_note"))
+                    .font(AppType.meta())
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .onChange(of: url) { _ in outfitFailed = false }
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
     }

@@ -893,6 +893,7 @@
 "ffhub.export.worn_title" = "穿在角色身上";
 "ffhub.export.worn_hint" = "左右拖动可旋转角色。";
 "ffhub.export.worn_note" = "直接渲染下载的 GLB，含自带的身体与贴图。";
+"ffhub.export.worn_failed" = "无法读取此 GLB。下方是内置角色，并非你导出的装扮。";
 "ffhub.export.need_session" = "请以管理员身份登录后查询和导出。";
 "ffhub.export.demo_note" = "UID 和物品是真实的；3D 网格来自 Golden Sakura 演示包。";
 "ffhub.error.invalid_uid" = "UID 无效：5 到 15 位数字。";
