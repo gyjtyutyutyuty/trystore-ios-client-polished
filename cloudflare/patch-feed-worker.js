@@ -1763,6 +1763,9 @@ export default {
     if (path === "/api/patches/trystore/app-attest/challenge") {
       return proxyAppAttest(request, env, "/api/v1/app-attest/challenge");
     }
+    if (path === "/api/patches/trystore/panel-token") {
+      return proxyAppAttest(request, env, "/api/v1/panel/token");
+    }
     if (path === "/api/patches/trystore/app-attest/register") {
       return proxyAppAttest(request, env, "/api/v1/app-attest/register");
     }
