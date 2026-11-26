@@ -65,9 +65,6 @@ struct GarmentFit {
     let height: CGFloat
     /// Where the mesh sits along the body's depth axis.
     let z: CGFloat
-    /// Slight side/depth growth so the skin underneath never pokes through a
-    /// tight jacket or pair of trousers.
-    var grow: CGFloat = 1.02
 }
 
 extension PlayerOutfitSlot {

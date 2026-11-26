@@ -310,11 +310,9 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
         let holder = SCNNode()
         holder.name = "garment-\(id)"
         holder.addChildNode(model.node)
-        holder.scale = SCNVector3(
-            Float(scale * fit.grow),
-            Float(scale),
-            Float(scale * fit.grow)
-        )
+        // Uniform on every axis: resizing a downloaded garment to its slot must
+        // never stretch it wider or deeper than the scan the player downloaded.
+        holder.scale = SCNVector3(Float(scale), Float(scale), Float(scale))
         holder.position = SCNVector3(0, Float(fit.centerY), Float(fit.z))
         garmentContainer.addChildNode(holder)
 
