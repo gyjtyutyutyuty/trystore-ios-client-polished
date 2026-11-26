@@ -19,6 +19,11 @@ async function api(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = payload?.detail?.error || payload?.error || `http_${response.status}`;
+    // The panel is private now: no session means the login screen, not an error
+    // the visitor cannot act on.
+    if (response.status === 401 && code === "session_required") {
+      location.assign("/login");
+    }
     const error = new Error(code);
     error.code = code;
     error.status = response.status;
@@ -186,6 +191,32 @@ async function generate() {
     $("generate").disabled = false;
   }
 }
+
+/// The app opens this page as `/#t=<token>`. The fragment never leaves the
+/// browser, so it is not in any log; it is exchanged here for an HttpOnly
+/// cookie and removed from the address bar so it cannot be copied or shared.
+async function redeemTokenFromHash() {
+  if (!location.hash.startsWith("#t=")) return false;
+  const token = decodeURIComponent(location.hash.slice(3));
+  history.replaceState(null, "", location.pathname + location.search);
+  if (!token) return false;
+  const response = await fetch("/api/session", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token }).toString(),
+    redirect: "manual",
+  });
+  return response.ok || response.status === 0 || response.type === "opaqueredirect";
+}
+
+(async () => {
+  try {
+    await redeemTokenFromHash();
+  } catch {
+    // A broken token is just a failed login: the form is one click away.
+    location.assign("/login");
+  }
+})();
 
 $("lookup").addEventListener("submit", lookup);
 $("generate").addEventListener("click", generate);

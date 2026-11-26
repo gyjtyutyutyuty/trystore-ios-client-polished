@@ -9,9 +9,28 @@ import { afterEach, test } from "node:test";
 
 import worker from "../worker.js";
 import { buildGlb, parseGlb } from "../lib/glb.js";
+import { mintSession, SESSION_COOKIE } from "../lib/session.js";
 
 const ORIGIN = "https://panel.example";
 const realFetch = globalThis.fetch;
+
+// The panel is private, so every request in this file carries a session unless
+// the test is specifically about the gate (`omitSession`).
+const PANEL_KEY = "test-panel-key-0123456789abcdef0123456789";
+const ADMIN_PASSWORD = "admin-password-123456";
+const SESSION = await mintSession({
+  secret: PANEL_KEY,
+  subject: "test-device",
+  role: "user",
+  ttlSeconds: 900,
+});
+const COOKIE = `${SESSION_COOKIE}=${SESSION.token}`;
+const fetchWithSession = worker.fetch.bind(worker);
+worker.fetch = (request, environment = {}) => {
+  const headers = new Headers(request.headers);
+  if (!headers.has("cookie") && !environment.omitSession) headers.set("cookie", COOKIE);
+  return fetchWithSession(new Request(request, { headers }), environment);
+};
 
 afterEach(() => {
   globalThis.fetch = realFetch;
@@ -65,6 +84,8 @@ function assets() {
 function env(overrides = {}) {
   return {
     FREE_FIRE_API_KEY: "provider-key",
+    PANEL_TOKEN_KEY: PANEL_KEY,
+    PANEL_ADMIN_PASSWORD: ADMIN_PASSWORD,
     ASSETS: assets(),
     ...overrides,
   };
@@ -312,4 +333,130 @@ test("a thumbnail is proxied with its real content type", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "image/png");
   assert.equal(response.headers.get("cache-control"), "public, max-age=86400");
+});
+
+// --- the gate ---------------------------------------------------------------
+
+test("an anonymous visit gets the login screen, not the panel", async () => {
+  const response = await worker.fetch(new Request(`${ORIGIN}/`), { ...env(), omitSession: true });
+
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Panel privado/);
+  assert.doesNotMatch(html, /Escribe un UID/);
+});
+
+test("an anonymous API call is refused before the provider is touched", async () => {
+  globalThis.fetch = async () => {
+    throw new Error("should not be called");
+  };
+
+  const response = await worker.fetch(post("/api/profile"), { ...env(), omitSession: true });
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "session_required");
+});
+
+test("a forged cookie is refused", async () => {
+  const request = new Request(`${ORIGIN}/api/profile`, {
+    method: "POST",
+    headers: {
+      origin: ORIGIN,
+      "content-type": "application/json",
+      cookie: `ffhub_session=${SESSION.token.slice(0, -6)}AAAAAA`,
+    },
+    body: JSON.stringify({ uid: "11807385", region: "us" }),
+  });
+
+  const response = await worker.fetch(request, env());
+
+  assert.equal(response.status, 401);
+});
+
+test("without a signing key nothing is served, and the page says why", async () => {
+  const response = await worker.fetch(new Request(`${ORIGIN}/login`), env({ PANEL_TOKEN_KEY: "" }));
+
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /PANEL_TOKEN_KEY/);
+});
+
+test("the admin password buys an HttpOnly session", async () => {
+  const response = await worker.fetch(
+    new Request(`${ORIGIN}/api/session`, {
+      method: "POST",
+      headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ admin: ADMIN_PASSWORD }).toString(),
+    }),
+    { ...env(), omitSession: true },
+  );
+
+  assert.equal(response.status, 303);
+  const cookie = response.headers.get("set-cookie");
+  assert.match(cookie, /ffhub_session=v1\./);
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /Secure/);
+  assert.match(cookie, /SameSite=Lax/);
+});
+
+test("a wrong admin password is refused without a cookie", async () => {
+  const response = await worker.fetch(
+    new Request(`${ORIGIN}/api/session`, {
+      method: "POST",
+      headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ admin: "not-the-password" }).toString(),
+    }),
+    { ...env(), omitSession: true },
+  );
+
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.get("set-cookie"), null);
+});
+
+test("a live session reports its role", async () => {
+  const response = await worker.fetch(new Request(`${ORIGIN}/api/session`), env());
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.active, true);
+  assert.equal(body.role, "user");
+});
+
+test("repeated password guesses are throttled", async () => {
+  // One environment, so the limiter keeps counting between attempts: that is
+  // what a real isolate does.
+  const throttled = { ...env(), omitSession: true, LOGIN_PER_CLIENT_MINUTE: 2 };
+  const attempt = () =>
+    worker.fetch(
+      new Request(`${ORIGIN}/api/session`, {
+        method: "POST",
+        headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ admin: "wrong" }).toString(),
+      }),
+      throttled,
+    );
+
+  assert.equal((await attempt()).status, 401);
+  assert.equal((await attempt()).status, 401);
+  assert.equal((await attempt()).status, 429);
+});
+
+test("the hourly job quota is enforced, with retry-after", async () => {
+  const limited = env({ JOBS_PER_CLIENT_HOUR: 2 });
+  const job = () =>
+    worker.fetch(
+      post("/api/jobs", {
+        uid: "11807385",
+        region: "us",
+        avatar_id: "102000015",
+        items: ["205000070"],
+      }),
+      limited,
+    );
+
+  assert.equal((await job()).status, 200);
+  assert.equal((await job()).status, 200);
+  const blocked = await job();
+  assert.equal(blocked.status, 429);
+  assert.equal((await blocked.json()).error, "rate_limited");
+  assert.match(blocked.headers.get("retry-after"), /^[0-9]+$/);
 });

@@ -54,14 +54,50 @@ Para reconstruir sin llamar al proveedor (los ids que ya conoces):
 
 ## Variables de entorno
 
-El camino por defecto (Worker) lee dos secretos de Sites:
+El camino por defecto (Worker) lee estos secretos de Sites:
 
 | Secreto de Sites | Obligatoria | Uso |
 | --- | --- | --- |
 | `FREE_FIRE_API_KEY` | sí | Clave del proveedor. Vive en Sites → Secrets; el navegador nunca la ve. |
+| `PANEL_TOKEN_KEY` | sí | Firma las sesiones del panel. El mismo valor en el licence Worker (`wrangler secret put`). Sin ella el panel no deja entrar a nadie. |
+| `PANEL_ADMIN_PASSWORD` | no | Acceso del dueño, 12 caracteres mínimo. Sin ella el formulario de administrador no aparece. |
 | `FIRE_API_BASE` | no | Base del proveedor. Por defecto `https://developers.freefirecommunity.com/api/v1`. |
+| `JOBS_PER_CLIENT_HOUR` | no | Tope por cliente en `/api/jobs`. Por defecto 12. |
+| `JOBS_PER_DAY` | no | Tope global diario de trabajos. Por defecto 400. |
 
 No hay `BACKEND_URL` ni `HUB_TOKEN`: el Worker no proxya a ningún servidor.
+
+## Acceso: el panel es privado
+
+Todo el panel (assets y API) exige una sesión. La sesión es un token
+HMAC-SHA256 en una cookie `HttpOnly; Secure; SameSite=Lax`, de quince minutos
+como máximo, firmado con `PANEL_TOKEN_KEY`. Esa clave no está en la app: quien
+descompile la IPA obtiene la URL y nada con lo que firmar.
+
+Dos formas de entrar:
+
+1. **Desde la app** (clientes con licencia). La app pide
+   `POST /api/v1/panel/token` al licence Worker con una **assertion de App
+   Attest** de ese dispositivo; el Worker comprueba licencia, dispositivo,
+   desafío de un solo uso y contador de firmas, y devuelve un token de diez
+   minutos. La app abre `https://<panel>/#t=<token>`; el fragmento no viaja al
+   servidor ni queda en logs, y la página lo canjea por la cookie y lo borra de
+   la barra de direcciones.
+2. **Administrador** (tú). `PANEL_ADMIN_PASSWORD` en `/login`, sesión de ocho
+   horas. Cinco intentos por minuto y cliente: el resto, 429.
+
+El formato del token está duplicado a propósito en
+`panel/lib/session.js` (verifica) y `cloudflare/panel-token-format.js` (firma);
+`cloudflare/test/panel-token.test.mjs` alimenta uno con el otro para que no se
+separen.
+
+### Cuotas reales
+
+`/api/jobs` gasta la clave del proveedor, así que se limita dos veces: por
+cliente y por día, en D1 (`env.DB`), compartido entre isolates. El resto de
+rutas sólo tienen un tope anti-bucle. Si D1 falla, el limitador cae al contador
+en memoria del isolate y lo avisa por consola: un contador roto no debe
+transformarse en barra libre.
 
 La variante FastAPI (`app/`, en un VPS) usa además `FFHUB_TOKEN` como bearer,
 `FFHUB_DATA_DIR`, `FFHUB_CATALOG_DIR`, `FFHUB_EXPORTER_VERSION` y
@@ -156,15 +192,23 @@ el catálogo no esté enlazado; ya enlazado, usa los ids del perfil.
    `panel/public/catalog/` es salida de build (git-ignored). Hay que regenerarla
    antes de cada despliegue, también después de `bind_profile.py`.
 
-2. Despliega con `panel/deploy.json`: el Worker, sus tres módulos de `lib/` y
-   `public/` como assets.
-3. Secretos del proyecto en Sites → Secrets: `FREE_FIRE_API_KEY` (y
-   `FIRE_API_BASE` si tu proveedor no es el de por defecto).
-4. Publica el entorno y comprueba: `GET /` trae la CSP, y `POST /api/jobs` con
-   `avatar_id` + `items` devuelve `ready` con `download_url`.
+2. Despliega con `panel/deploy.json`: el Worker, sus cinco módulos de `lib/` y
+   `public/` como assets. La base `DB` (D1) tiene que existir para que las
+   cuotas sean compartidas; el despliegue la engancha.
+3. Secretos del proyecto en Sites → Secrets: `FREE_FIRE_API_KEY`,
+   `PANEL_TOKEN_KEY` y `PANEL_ADMIN_PASSWORD` (y `FIRE_API_BASE` si tu
+   proveedor no es el de por defecto).
+4. En el **licence Worker**, el mismo `PANEL_TOKEN_KEY` (`wrangler secret put
+   PANEL_TOKEN_KEY`) y despliégalo junto al feed worker, que ahora reenvía
+   `/api/patches/trystore/panel-token`.
+5. Publica el entorno y comprueba: `GET /` sin cookie devuelve la pantalla de
+   acceso, `POST /api/profile` sin cookie devuelve `401 session_required`, y
+   con sesión `POST /api/jobs` devuelve `ready`/`partial` con `download_url`.
 
-Sin la clave, `/api/profile`, `/api/jobs` con UID y `/api/thumbnail/*` responden
-`provider_not_configured`; el ensamblado explícito sigue funcionando.
+Sin la clave del proveedor, `/api/profile`, `/api/jobs` con UID y
+`/api/thumbnail/*` responden `provider_not_configured`; el ensamblado explícito
+sigue funcionando. Sin `PANEL_TOKEN_KEY`, nadie entra: el panel falla cerrado y
+la pantalla de acceso lo dice.
 
 ### Variante VPS (opcional)
 
