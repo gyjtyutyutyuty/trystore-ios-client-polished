@@ -27,10 +27,14 @@ cp deploy/env.example env && $EDITOR env          # claves, nunca al repo
 set -a && . ./env && set +a
 .venv/bin/uvicorn app.asgi:app --host 127.0.0.1 --port 8890
 .venv/bin/python -m app.worker --poll 2           # en otra terminal
-.venv/bin/python -m pytest                        # 61 tests, sin red
+.venv/bin/python -m pytest                        # 81 tests, sin red
 ```
 
-El worker acepta `--once` para drenar un solo trabajo y salir.
+El worker acepta `--once` para drenar un solo trabajo y salir. `--workers N`
+procesa hasta N trabajos a la vez; por defecto es 1. En el catálogo de ejemplo,
+cuatro outfits distintos tardaron 0.246 s con cuatro workers frente a 0.594 s
+con uno (2.4x), pero la memoria por exportación no está medida: sube N solo con
+margen.
 
 ## Un GLB real, punta a punta
 
@@ -267,5 +271,5 @@ panel no la necesita.
 - Los nodos de una malla exportada desde el juego suelen llamarse `Object_0`,
   `Object_1`… Si el cuerpo no trae nombres estables, `hides` no puede apuntar a
   una parte concreta: conviene renombrar los nodos del cuerpo base una vez.
-- Una exportación a la vez por worker; el techo de memoria está en la unit, no
-  medido todavía con mallas reales.
+- Una exportación a la vez por worker salvo que se pase `--workers N`; el techo
+  de memoria está en la unit y no está medido todavía con mallas reales.

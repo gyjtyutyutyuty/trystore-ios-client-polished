@@ -9,11 +9,13 @@ out of the exported bytes, so a texture-less GLB cannot pass.
 from __future__ import annotations
 
 import io
+import json
+import struct
 from pathlib import Path
 
 import pytest
 import trimesh
-from PIL import Image
+from PIL import Image, ImageChops
 
 from app.assemble import build_outfit, count_resources
 from app.catalog import load_catalog
@@ -24,6 +26,7 @@ from app.worker import process_job
 from conftest import make_config, write_body
 
 TEXTURE_RGB = (200, 60, 30)
+SAMPLE_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "ffhub-example"
 
 
 def write_textured_piece(path: Path, *, colour: tuple[int, int, int] = TEXTURE_RGB) -> Path:
@@ -57,6 +60,72 @@ def textured_catalog(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return root
+
+
+def glb_images(path: Path) -> list[Image.Image]:
+    """Every embedded image in a GLB, decoded but not colour-converted."""
+    data = path.read_bytes()
+    magic, version, total = struct.unpack_from("<III", data, 0)
+    assert magic == 0x46546C67, f"{path} is not a GLB"
+    assert version == 2
+    assert total == len(data), f"{path} has a truncated GLB header"
+
+    document = None
+    binary = None
+    offset = 12
+    while offset < total:
+        size, kind = struct.unpack_from("<II", data, offset)
+        payload = data[offset + 8 : offset + 8 + size]
+        if kind == 0x4E4F534A:
+            document = json.loads(payload.rstrip(b" \t\r\n\x00"))
+        elif kind == 0x004E4942:
+            binary = payload
+        offset += 8 + size
+
+    assert document is not None and binary is not None, f"{path} has no JSON or BIN chunk"
+    images = []
+    for image in document.get("images", []):
+        assert "bufferView" in image, f"{path} has an image outside the GLB"
+        view = document["bufferViews"][image["bufferView"]]
+        start = view.get("byteOffset", 0)
+        raw = binary[start : start + view["byteLength"]]
+        with Image.open(io.BytesIO(raw)) as decoded:
+            decoded.load()
+            images.append(decoded.copy())
+    return images
+
+
+def texture_max_delta(left: Image.Image, right: Image.Image, mode: str) -> int:
+    difference = ImageChops.difference(left.convert(mode), right.convert(mode))
+    return max(channel[1] for channel in difference.getextrema())
+
+
+def test_sample_outfit_keeps_every_texture_pixel() -> None:
+    if not SAMPLE_DIR.is_dir():
+        pytest.skip("sample outfit artifacts are not present in this checkout")
+
+    optimized_path = SAMPLE_DIR / "sample-outfit.glb"
+    original_path = SAMPLE_DIR / "sample-outfit.original.glb"
+    assert original_path.is_file(), "the original GLB backup is missing"
+
+    optimized = glb_images(optimized_path)
+    original = glb_images(original_path)
+    assert optimized, "the optimized sample has no embedded textures"
+    assert len(optimized) == len(original), (
+        f"the optimized sample has {len(optimized)} textures, "
+        f"the original has {len(original)}"
+    )
+
+    for index, (actual, expected) in enumerate(zip(optimized, original)):
+        assert actual.size == expected.size, (
+            f"texture {index} was resized from {expected.size} to {actual.size}"
+        )
+        for mode in ("RGB", "RGBA"):
+            delta = texture_max_delta(actual, expected, mode)
+            assert delta == 0, (
+                f"texture {index} differs from the original in {mode}: "
+                f"max channel delta {delta}; texture optimization must be pixel-lossless"
+            )
 
 
 def textured_materials(glb: bytes) -> list[object]:
