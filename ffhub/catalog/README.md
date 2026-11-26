@@ -73,9 +73,33 @@ textura embebida (el importador falla si alguna se pierde).
 
 Los ids `gsk_*` son del bundle, **no** ids de item de Free Fire: `/info` devuelve
 ids numéricos, así que hoy estas piezas sólo se montan pasando `--items` a mano.
-Para un UID real, renombra el directorio de cada pieza al `item_id` que devuelva
-el perfil y cambia `item_id` en su manifiesto; para el cuerpo, renombra
-`body/golden_sakura` al `avatar_id` del perfil y cambia `avatar_id`.
+
+### Apuntarlo a un perfil real
+
+`scripts/bind_profile.py` hace el renombrado completo a partir de un `/profile`
+guardado — un `mv` por entrada y el manifiesto reescrito dentro:
+
+```bash
+curl -s -H "Authorization: Bearer $FFHUB_TOKEN" -H 'content-type: application/json' \
+     -d '{"uid":"11807385","region":"us"}' https://hub.example.com/profile > profile.json
+.venv/bin/python scripts/bind_profile.py profile.json
+```
+
+Un perfil guardado contra este catálogo no sabe qué prenda es cada id (`type`
+sale `unknown` porque lo rellena el catálogo), así que los slots se pasan a mano
+con `--map`, por tipo o por id actual, repetible:
+
+```bash
+.venv/bin/python scripts/bind_profile.py profile.json \
+  --map feet=205000070 --map legs=204000103 --map gsk_torso=203000196 \
+  --map head=211000087 --map hair=214000053
+```
+
+Antes del primer `mv` se exige: `avatar_id` de 6–20 dígitos, un id de 4–20
+dígitos por cada uno de los cinco slots, ids distintos entre sí y destino libre.
+Si algo falta sale con código 2 (perfil), 3 (el catálogo no parece el bundle sin
+enlazar, por ejemplo porque ya se ejecutó) o 4 (conflicto), y no mueve nada.
+`--dry-run` imprime el plan sin tocar disco.
 
 Ninguna pieza lleva `hides`: el cuerpo del bundle ya trae la piel completa y las
 prendas se superponen encima, así que no hay nodo del cuerpo que ocultar.

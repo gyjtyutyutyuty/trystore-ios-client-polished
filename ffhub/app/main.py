@@ -8,7 +8,6 @@ tell the player what to do.
 
 from __future__ import annotations
 
-import re
 import secrets
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -29,13 +28,9 @@ from .ffapi import (
     ProviderRateLimited,
     provider_region,
 )
+from .ids import AVATAR_PATTERN, FILE_NAME_PATTERN, ITEM_PATTERN, UID_PATTERN
 from .jobs import enqueue
 from .store import Job, Store
-
-UID_PATTERN = re.compile(r"^[0-9]{5,15}$")
-ITEM_PATTERN = re.compile(r"^[0-9]{4,20}$")
-AVATAR_PATTERN = re.compile(r"^[0-9]{6,20}$")
-FILE_NAME_PATTERN = re.compile(r"^[a-f0-9]{64}\.glb$")
 
 
 class ProviderClient(Protocol):
