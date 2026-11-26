@@ -823,6 +823,7 @@
 
 /* Wardrobe */
 "tab.wardrobe" = "Tủ đồ";
+"tab.player" = "NGƯỜI CHƠI";
 "wardrobe.title" = "Tủ đồ người chơi";
 "wardrobe.kicker" = "TRÊN NHÂN VẬT";
 "wardrobe.prompt" = "ID Free Fire";

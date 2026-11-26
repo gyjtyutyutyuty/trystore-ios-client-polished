@@ -142,12 +142,139 @@ enum AppTheme {
     static let selectionIconSize: CGFloat = 18
 }
 
+/// One looping, muted player for the whole app. A `TabView` keeps every tab
+/// alive, so giving each backdrop its own player decoded the same clip several
+/// times at once.
+final class StormLoopVideo {
+    static let shared = StormLoopVideo()
+
+    let player = AVQueuePlayer()
+    private var looper: AVPlayerLooper?
+    private var observers: [NSObjectProtocol] = []
+
+    private init() {
+        player.isMuted = true
+        player.actionAtItemEnd = .none
+        player.preventsDisplaySleepDuringVideoPlayback = false
+
+        guard let url = Self.url else { return }
+        let item = AVPlayerItem(url: url)
+        looper = AVPlayerLooper(player: player, templateItem: item)
+
+        let center = NotificationCenter.default
+        observers.append(
+            center.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.player.play()
+            }
+        )
+        observers.append(
+            center.addObserver(
+                forName: UIApplication.willResignActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.player.pause()
+            }
+        )
+
+        player.play()
+    }
+
+    /// The clip ships as a data set so the Xcode resource phase stays as it is.
+    /// `AVPlayer` needs a file URL, so the bytes are materialised in Caches once
+    /// per install.
+    static var url: URL? {
+        let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let destination = directory.appendingPathComponent("StormLoop-v1.mp4")
+        if FileManager.default.fileExists(atPath: destination.path) {
+            return destination
+        }
+        guard let asset = NSDataAsset(name: "StormLoop") else { return nil }
+        do {
+            try asset.data.write(to: destination, options: .atomic)
+            return destination
+        } catch {
+            return nil
+        }
+    }
+
+    deinit {
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
+}
+
+final class StormLoopLayerView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+
+    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configure()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    private func configure() {
+        isUserInteractionEnabled = false
+        backgroundColor = .clear
+        playerLayer.videoGravity = .resizeAspectFill
+        playerLayer.player = StormLoopVideo.shared.player
+    }
+}
+
+struct StormLoopVideoView: UIViewRepresentable {
+    func makeUIView(context: Context) -> StormLoopLayerView {
+        StormLoopLayerView(frame: .zero)
+    }
+
+    func updateUIView(_ uiView: StormLoopLayerView, context: Context) {}
+}
+
+/// The app-wide backdrop. The storm loop is screen-blended over the canvas so
+/// its near-black frames turn into moving glow, then a scrim keeps text
+/// readable. Reduce Motion and the constrained tier keep a still glow instead.
 struct AppPremiumBackdrop: View {
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
+
     var body: some View {
-        AppPalette.canvas
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        ZStack {
+            AppPalette.canvas
+
+            if reduceMotion || performanceMode {
+                RadialGradient(
+                    colors: [AppTheme.accent.opacity(0.20), .clear],
+                    center: .topTrailing,
+                    startRadius: 12,
+                    endRadius: 620
+                )
+            } else {
+                StormLoopVideoView()
+                    .blendMode(.screen)
+                    .opacity(0.92)
+            }
+
+            LinearGradient(
+                colors: [
+                    AppPalette.canvas.opacity(0.22),
+                    AppPalette.canvas.opacity(0.58),
+                    AppPalette.canvas.opacity(0.90)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -434,6 +561,25 @@ struct AppLogo: View {
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
         .accessibilityHidden(true)
+    }
+}
+
+/// The real Free Fire MAX artwork already bundled for the player tools. It
+/// stands in for the app glyph on screens that are about the game itself.
+struct FreeFireLogo: View {
+    var size: CGFloat = 44
+
+    var body: some View {
+        Image("FreeFireMax")
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+                    .strokeBorder(AppTheme.accent.opacity(0.32), lineWidth: 1)
+            )
+            .accessibilityHidden(true)
     }
 }
 

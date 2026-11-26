@@ -84,36 +84,57 @@ struct PlayerIntelView: View {
 
     private var topBar: some View {
         HStack(spacing: AppSpacing.m) {
-            AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
-                .padding(3)
-                .background(
-                    AppPalette.raised.opacity(0.55),
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(AppTheme.accent.opacity(0.32), lineWidth: 1)
-                )
+            FreeFireLogo(size: horizontalSizeClass == .compact ? 38 : 46)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(language.text("intel.title"))
-                    .font(.system(
-                        size: horizontalSizeClass == .compact ? 17 : 20,
-                        weight: .black,
-                        design: .rounded
-                    ))
-                    .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
-                    .foregroundStyle(AppPalette.textPrimary)
-                Text(language.text("intel.kicker"))
-                    .font(AppType.label())
-                    .tracking(0.7)
-                    .foregroundStyle(AppTheme.accent.opacity(0.85))
+            VStack(alignment: .leading, spacing: 4) {
+                if let profile = selectedEntry?.profile {
+                    headerStats(profile)
+                } else {
+                    Text(language.text("intel.title"))
+                        .font(.system(
+                            size: horizontalSizeClass == .compact ? 17 : 20,
+                            weight: .black,
+                            design: .rounded
+                        ))
+                        .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
+                        .foregroundStyle(AppPalette.textPrimary)
+                    Text(language.text("intel.kicker"))
+                        .font(AppType.label())
+                        .tracking(0.7)
+                        .foregroundStyle(AppTheme.accent.opacity(0.85))
+                }
             }
 
             Spacer(minLength: AppSpacing.xs)
         }
         .padding(AppSpacing.m)
         .appPanel(radius: AppRadius.panel)
+    }
+
+    /// Stats replace the screen name in the header, matching the wardrobe half
+    /// of the shared player tab.
+    private func headerStats(_ profile: PlayerIntelProfile) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.m) {
+            headerStat("\(profile.level)", language.text("intel.level"))
+            headerStat(profile.likes.formatted(), language.text("intel.likes"))
+            headerStat(rankValue(profile), language.text("intel.rank"))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func headerStat(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(value)
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label.uppercased())
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .tracking(0.6)
+                .foregroundStyle(AppPalette.textTertiary)
+                .lineLimit(1)
+        }
     }
 
     // MARK: - Add players

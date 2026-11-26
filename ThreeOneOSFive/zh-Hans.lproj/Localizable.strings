@@ -827,6 +827,7 @@
 
 /* Wardrobe */
 "tab.wardrobe" = "衣橱";
+"tab.player" = "玩家";
 "wardrobe.title" = "玩家衣橱";
 "wardrobe.kicker" = "穿在角色身上";
 "wardrobe.prompt" = "Free Fire ID";

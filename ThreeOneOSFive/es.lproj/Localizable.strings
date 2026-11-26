@@ -818,6 +818,7 @@
 
 /* Wardrobe */
 "tab.wardrobe" = "Vestuario";
+"tab.player" = "JUGADOR";
 "wardrobe.title" = "Vestuario del jugador";
 "wardrobe.kicker" = "EN EL PERSONAJE";
 "wardrobe.prompt" = "ID de Free Fire";
