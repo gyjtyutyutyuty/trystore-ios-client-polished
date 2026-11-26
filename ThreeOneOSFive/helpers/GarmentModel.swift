@@ -472,6 +472,14 @@ enum GLBSceneLoader {
                     dataStride: 12
                 )
             )
+        } else if let generated = generatedNormals(
+            for: primitive,
+            positions: positionData,
+            positionCount: position.count,
+            gltf: gltf,
+            binary: binary
+        ) {
+            sources.append(generated)
         }
 
         if let uvIndex = primitive.attributes["TEXCOORD_0"],
@@ -515,6 +523,88 @@ enum GLBSceneLoader {
         let geometry = SCNGeometry(sources: sources, elements: [element])
         geometry.materials = [material(index: primitive.material, gltf: gltf, binary: binary)]
         return geometry
+    }
+
+    /// SceneKit renders a lit material black when the geometry has no normal
+    /// source. The catalogue exporter omits normals, so derive smooth
+    /// per-vertex normals from the triangle winding instead of rejecting a
+    /// textured GLB that is otherwise valid.
+    private static func generatedNormals(
+        for primitive: GLTF.Primitive,
+        positions: Data,
+        positionCount: Int,
+        gltf: GLTF,
+        binary: Data
+    ) -> SCNGeometrySource? {
+        guard positionCount > 0, positions.count >= positionCount * 12 else { return nil }
+
+        var indices: [UInt32] = []
+        if let index = primitive.indices,
+           let accessors = gltf.accessors,
+           index < accessors.count {
+            let accessor = accessors[index]
+            let bytes = componentSize(accessor.componentType)
+            guard bytes == 2 || bytes == 4,
+                  let raw = try? data(for: index, gltf: gltf, binary: binary),
+                  raw.count >= accessor.count * bytes else { return nil }
+            indices.reserveCapacity(accessor.count)
+            for item in 0..<accessor.count {
+                let offset = item * bytes
+                if bytes == 2 {
+                    indices.append(UInt32(raw[offset]) | UInt32(raw[offset + 1]) << 8)
+                } else {
+                    indices.append(
+                        UInt32(raw[offset])
+                            | UInt32(raw[offset + 1]) << 8
+                            | UInt32(raw[offset + 2]) << 16
+                            | UInt32(raw[offset + 3]) << 24
+                    )
+                }
+            }
+        } else {
+            indices = (0..<UInt32(positionCount)).map { $0 }
+        }
+        guard indices.count >= 3, indices.count % 3 == 0 else { return nil }
+
+        var points: [SIMD3<Float>] = []
+        points.reserveCapacity(positionCount)
+        positions.withUnsafeBytes { buffer in
+            let values = buffer.bindMemory(to: Float.self)
+            for index in 0..<positionCount {
+                let offset = index * 3
+                points.append(SIMD3(values[offset], values[offset + 1], values[offset + 2]))
+            }
+        }
+
+        var normals = [SIMD3<Float>](repeating: .zero, count: positionCount)
+        for first in stride(from: 0, to: indices.count, by: 3) {
+            let i0 = Int(indices[first])
+            let i1 = Int(indices[first + 1])
+            let i2 = Int(indices[first + 2])
+            guard i0 < positionCount, i1 < positionCount, i2 < positionCount else { return nil }
+
+            let edge1 = points[i1] - points[i0]
+            let edge2 = points[i2] - points[i0]
+            let face = SIMD3(
+                edge1.y * edge2.z - edge1.z * edge2.y,
+                edge1.z * edge2.x - edge1.x * edge2.z,
+                edge1.x * edge2.y - edge1.y * edge2.x
+            )
+            let length = (face.x * face.x + face.y * face.y + face.z * face.z).squareRoot()
+            guard length > 0 else { continue }
+            let unit = face / length
+            normals[i0] += unit
+            normals[i1] += unit
+            normals[i2] += unit
+        }
+
+        let vectors = normals.map { normal -> SCNVector3 in
+            let length = (normal.x * normal.x + normal.y * normal.y + normal.z * normal.z).squareRoot()
+            guard length > 0 else { return SCNVector3(0, 1, 0) }
+            let unit = normal / length
+            return SCNVector3(unit.x, unit.y, unit.z)
+        }
+        return SCNGeometrySource(normals: vectors)
     }
 
     private static func material(index: Int?, gltf: GLTF, binary: Data) -> SCNMaterial {
