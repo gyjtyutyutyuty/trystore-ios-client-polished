@@ -53,6 +53,9 @@ cloudflare/.manifest-signing-key.pub
 # wrangler local state
 .wrangler/
 cloudflare/.wrangler/
+# Local panel integration fixture (throwaway D1 id and test-only passwords)
+ffhub/panel/wrangler.local.jsonc
+ffhub/panel/test/local-chain.mjs
 
 # node modules for worker bundling
 node_modules/
