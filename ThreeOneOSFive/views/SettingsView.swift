@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @AppStorage("settings_reduce_motion_enabled") private var reduceMotionEnabled = false
     @State private var isLicenseForgetConfirmationPresented = false
+    @State private var isFFHubPresented = false
 
     var body: some View {
         NavigationStack {
@@ -122,10 +123,33 @@ struct SettingsView: View {
                     Text(language.text("settings.supported_versions_footer"))
                 }
                 Section(language.text("ffhub.section")) {
-                    panelRow(
-                        name: language.text("ffhub.title"),
-                        role: language.text("ffhub.subtitle")
-                    )
+                    Button {
+                        AppHaptics.tap()
+                        isFFHubPresented = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            AppIconBadge(systemName: "lock.shield.fill", size: 30)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(language.text("ffhub.title"))
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text(language.text("ffhub.settings_subtitle"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(language.text("ffhub.title"))
+                    .accessibilityHint(language.text("ffhub.settings_subtitle"))
                 }
                 Section(language.text("settings.developer")) {
                     creditsRow(
@@ -165,6 +189,9 @@ struct SettingsView: View {
             } message: {
                 Text(language.text("license.forget_message"))
             }
+            .sheet(isPresented: $isFFHubPresented) {
+                FFHubControlView()
+            }
         }
     }
 
@@ -179,49 +206,6 @@ struct SettingsView: View {
     }
 
 
-
-    @ViewBuilder
-    private static let panelURL = URL(string: "https://ffhub-outfit-panel-nzvoam.freebuff.site")!
-
-    /// The panel is private, so it is opened with a one-shot token minted for
-    /// this device. Without one there is nothing to open but the login screen,
-    /// which is where a broken attestation lands instead of a dead row.
-    private func panelRow(name: String, role: String) -> some View {
-        Button {
-            Task { await openPanel() }
-        } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(role)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(AppTheme.accent)
-                    .frame(width: 28, height: 28)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(language.text("accessibility.open_profile", name))
-    }
-
-    @MainActor
-    private func openPanel() async {
-        let fallback = Self.panelURL.appendingPathComponent("login")
-        guard let token = await licenseManager.panelSessionToken(),
-              var components = URLComponents(url: Self.panelURL, resolvingAgainstBaseURL: false) else {
-            UIApplication.shared.open(fallback)
-            return
-        }
-        components.fragment = "t=\(token)"
-        UIApplication.shared.open(components.url ?? fallback)
-    }
 
     private func creditsRow(name: String, role: String, url: String) -> some View {
         if let destination = URL(string: url) {

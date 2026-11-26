@@ -44,6 +44,7 @@
 		3105P202 /* PlayerOutfitStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105P102; };
 		3105P203 /* GarmentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105P103; };
 		3105W200 /* PlayerWardrobeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105W100; };
+		3105Q200 /* FFHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105Q100; };
 		3105A241 /* SupportPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A113; };
 		3105B214 /* PatchProjectModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B114; };
 		3105B215 /* PatchPackageCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105B115; };
@@ -149,6 +150,7 @@
 		3105P102 /* PlayerOutfitStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerOutfitStage.swift; sourceTree = "<group>"; };
 		3105P103 /* GarmentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GarmentModel.swift; sourceTree = "<group>"; };
 		3105W100 /* PlayerWardrobeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWardrobeView.swift; sourceTree = "<group>"; };
+		3105Q100 /* FFHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FFHubView.swift; sourceTree = "<group>"; };
 		3105A113 /* SupportPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPolicy.swift; sourceTree = "<group>"; };
 		B71300000000000000000003 /* LicenseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseManager.swift; sourceTree = "<group>"; };
 		B71300000000000000000004 /* LicenseGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseGateView.swift; sourceTree = "<group>"; };
@@ -284,6 +286,7 @@
 					3105P101 /* PlayerIntelView.swift */,
 					3105P102 /* PlayerOutfitStage.swift */,
 					3105W100 /* PlayerWardrobeView.swift */,
+					3105Q100 /* FFHubView.swift */,
 					B71300000000000000000004 /* LicenseGateView.swift */,
 					3105I100 /* FilesTabControls.swift */,
 				3105I101 /* FilesTabSwitcherView.swift */,
@@ -465,7 +468,7 @@
 			buildActionMask = 2147483647;
 				files = (
 				3105A200, 3105A201, 3105A203, 3105A204, 3105A242,
-				3105P200, 3105P201, 3105P202, 3105P203, 3105W200,
+				3105P200, 3105P201, 3105P202, 3105P203, 3105W200, 3105Q200,
 				B71300000000000000000001,
 				B71300000000000000000002,
 								3105K200,

@@ -27,6 +27,7 @@ struct PlayerWardrobeView: View {
     @State private var modelsTotal = 0
     @State private var modelsFailed = 0
     @State private var loadTask: Task<Void, Never>?
+    @State private var isFFHubPresented = false
 
     @FocusState private var fieldFocused: Bool
 
@@ -121,6 +122,9 @@ struct PlayerWardrobeView: View {
             loadTask?.cancel()
             loadTask = nil
         }
+        .sheet(isPresented: $isFFHubPresented) {
+            FFHubControlView()
+        }
     }
 
     // MARK: - Header
@@ -154,6 +158,22 @@ struct PlayerWardrobeView: View {
             }
 
             Spacer(minLength: AppSpacing.xs)
+
+            Button {
+                AppHaptics.tap()
+                isFFHubPresented = true
+            } label: {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 44, height: 44)
+                    .background(AppPalette.canvas, in: Circle())
+                    .overlay(
+                        Circle().strokeBorder(AppTheme.accent.opacity(0.28), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(language.text("ffhub.control"))
         }
         .padding(AppSpacing.m)
         .appPanel(radius: AppRadius.panel)
