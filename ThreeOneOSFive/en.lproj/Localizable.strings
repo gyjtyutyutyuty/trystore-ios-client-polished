@@ -837,7 +837,7 @@
 "wardrobe.stage_profile" = "Reading the public profile…";
 "wardrobe.stage_outfit" = "Listing equipped items…";
 "wardrobe.stage_meshes" = "Downloading 3D items %d/%d";
-"wardrobe.stage_ready" = "Everything is downloaded.";
+"wardrobe.stage_ready" = "All 3D meshes are downloaded.";
 "wardrobe.idle_message" = "Enter a Free Fire ID and the character wears that player's equipped set.";
 "wardrobe.worn" = "Worn on the character";
 "wardrobe.pending" = "Not on the body yet";

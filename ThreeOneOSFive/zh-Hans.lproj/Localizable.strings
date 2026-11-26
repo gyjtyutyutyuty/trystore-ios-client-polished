@@ -835,7 +835,7 @@
 "wardrobe.stage_profile" = "正在读取公开资料…";
 "wardrobe.stage_outfit" = "正在列出已装备物品…";
 "wardrobe.stage_meshes" = "正在下载 3D 物品 %d/%d";
-"wardrobe.stage_ready" = "全部已下载。";
+"wardrobe.stage_ready" = "所有 3D 网格均已下载。";
 "wardrobe.idle_message" = "输入 Free Fire ID，角色就会穿上该玩家的已装备套装。";
 "wardrobe.worn" = "已穿在角色身上";
 "wardrobe.pending" = "尚未穿戴";

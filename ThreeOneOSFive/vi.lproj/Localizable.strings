@@ -831,7 +831,7 @@
 "wardrobe.stage_profile" = "Đang đọc hồ sơ công khai…";
 "wardrobe.stage_outfit" = "Đang liệt kê trang bị…";
 "wardrobe.stage_meshes" = "Đang tải mục 3D %d/%d";
-"wardrobe.stage_ready" = "Mọi thứ đã được tải.";
+"wardrobe.stage_ready" = "Tất cả lưới 3D đã được tải xuống.";
 "wardrobe.idle_message" = "Nhập ID Free Fire và nhân vật sẽ mặc bộ trang bị của người chơi đó.";
 "wardrobe.worn" = "Đã mặc trên nhân vật";
 "wardrobe.pending" = "Chưa có trên nhân vật";

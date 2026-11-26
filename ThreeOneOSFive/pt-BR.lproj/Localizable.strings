@@ -824,7 +824,7 @@
 "wardrobe.stage_profile" = "Lendo o perfil público…";
 "wardrobe.stage_outfit" = "Listando os itens equipados…";
 "wardrobe.stage_meshes" = "Baixando itens 3D %d/%d";
-"wardrobe.stage_ready" = "Tudo foi baixado.";
+"wardrobe.stage_ready" = "Todas as malhas 3D foram baixadas.";
 "wardrobe.idle_message" = "Digite um ID do Free Fire e o personagem veste o conjunto equipado desse jogador.";
 "wardrobe.worn" = "Vestido no personagem";
 "wardrobe.pending" = "Ainda não está no corpo";
