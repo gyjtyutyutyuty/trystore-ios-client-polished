@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import json
+import struct
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +22,20 @@ def node_names(glb: bytes) -> list[str]:
     scene = trimesh.load(io.BytesIO(glb), file_type="glb", force="scene", process=False)
     assert isinstance(scene, trimesh.Scene)
     return list(scene.geometry.keys())
+
+
+def glb_document(data: bytes) -> dict:
+    magic, version, total = struct.unpack_from("<III", data, 0)
+    assert magic == 0x46546C67
+    assert version == 2
+    assert total == len(data)
+    offset = 12
+    while offset < total:
+        size, kind = struct.unpack_from("<II", data, offset)
+        if kind == 0x4E4F534A:
+            return json.loads(data[offset + 8 : offset + 8 + size].rstrip(b" \t\r\n\x00"))
+        offset += 8 + size
+    raise AssertionError("GLB has no JSON chunk")
 
 
 def canonical_triangles(mesh: trimesh.Trimesh) -> list[tuple[tuple[float, float, float], ...]]:
@@ -195,6 +211,33 @@ def test_items_can_change_without_rebuilding_the_body() -> None:
         np.sort(np.asarray(swapped_scene.geometry["body"].vertices), axis=0),
         atol=1e-5,
     )
+
+
+def test_real_outfit_never_stretches_a_garment() -> None:
+    catalog = load_catalog(REAL_CATALOG)
+    result = build_outfit(
+        avatar_id="102000015",
+        items=["205000070", "204000103", "203000196", "211000303", "214000000"],
+        catalog=catalog,
+    )
+    assert result.status == "ready"
+
+    document = glb_document(result.glb)
+    for node in document.get("nodes", []):
+        scale = node.get("scale")
+        if scale:
+            assert max(scale) - min(scale) < 1e-6, (
+                f"node {node.get('name')} has a non-uniform scale {scale}"
+            )
+        matrix = node.get("matrix")
+        if matrix:
+            lengths = [
+                sum(matrix[column * 4 + row] ** 2 for row in range(3)) ** 0.5
+                for column in range(3)
+            ]
+            assert max(lengths) - min(lengths) < 1e-6, (
+                f"node {node.get('name')} has a non-uniform matrix scale {lengths}"
+            )
 
 
 def test_sample_outfit_geometry_matches_the_original_backup() -> None:

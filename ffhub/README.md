@@ -27,7 +27,7 @@ cp deploy/env.example env && $EDITOR env          # claves, nunca al repo
 set -a && . ./env && set +a
 .venv/bin/uvicorn app.asgi:app --host 127.0.0.1 --port 8890
 .venv/bin/python -m app.worker --poll 2           # en otra terminal
-.venv/bin/python -m pytest                        # 81 tests, sin red
+.venv/bin/python -m pytest                        # 82 tests, sin red
 ```
 
 El worker acepta `--once` para drenar un solo trabajo y salir. `--workers N`
