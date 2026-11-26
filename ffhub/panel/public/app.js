@@ -81,7 +81,9 @@ function renderClothes(items) {
       }));
     });
     const caption = document.createElement("figcaption");
-    caption.textContent = `${item.type} · ${item.item_id}`;
+    // Un enlazado a medias deja el tipo en "unknown": mejor el id solo que
+    // enseñar una palabra en inglés que además no informa de nada.
+    caption.textContent = item.label ? `${item.label} · ${item.item_id}` : item.item_id;
     figure.append(img, caption);
     li.append(figure);
     list.append(li);
