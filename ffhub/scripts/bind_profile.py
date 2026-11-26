@@ -20,6 +20,11 @@ Pass the slots yourself, one `--map` each, keyed by type or by the current
 entry id:
 
     ... bind_profile.py profile.json --map feet=205000070 --map gsk_torso=203000196
+
+A player who wears nothing in a slot (no hair, no head accessory) says so with
+`--skip hair`; the placeholder entry stays in the catalog, unmatched and
+harmless. Every slot must be either mapped or skipped, so a profile can never
+be half-read by omission.
 """
 
 from __future__ import annotations
@@ -141,12 +146,33 @@ def parse_map(raw: str) -> tuple[str, str]:
     )
 
 
+def parse_skip(raw: str) -> str:
+    key = raw.strip()
+    if key in PIECE_TYPES:
+        return key
+    for piece_type, source in SOURCE_PIECES.items():
+        if key == source:
+            return piece_type
+    if key == SOURCE_BODY:
+        raise Refusal(EXIT_BAD_PROFILE, "the body is required; --skip only takes a garment slot")
+    raise Refusal(
+        EXIT_BAD_PROFILE,
+        f"unknown --skip value {key!r}; use one of {', '.join(PIECE_TYPES)} "
+        f"or {', '.join(SOURCE_PIECES.values())}",
+    )
+
+
 def collect(
-    pairs: list[tuple[str | None, str]], overrides: list[tuple[str, str]]
+    pairs: list[tuple[str | None, str]],
+    overrides: list[tuple[str, str]],
+    skipped: set[str],
 ) -> dict[str, str]:
     targets: dict[str, str] = {}
     for piece_type, item_id in pairs:
-        if piece_type is None:
+        if piece_type is None or piece_type in skipped:
+            # An explicit --skip beats what the profile implies, so a player
+            # wearing a garment we have no mesh for is not silently bound to
+            # the wrong slot.
             continue
         if piece_type in targets and targets[piece_type] != item_id:
             raise Refusal(
@@ -155,15 +181,25 @@ def collect(
             )
         targets[piece_type] = item_id
     for piece_type, item_id in overrides:
+        if piece_type in skipped:
+            raise Refusal(
+                EXIT_BAD_PROFILE, f"{piece_type} is both mapped and skipped; pick one"
+            )
         targets[piece_type] = item_id
 
-    missing = [piece_type for piece_type in PIECE_TYPES if piece_type not in targets]
+    missing = [
+        piece_type
+        for piece_type in PIECE_TYPES
+        if piece_type not in targets and piece_type not in skipped
+    ]
     if missing:
         flags = " ".join(f"--map {piece_type}=<item_id>" for piece_type in missing)
+        skips = " ".join(f"--skip {piece_type}" for piece_type in missing)
         raise Refusal(
             EXIT_BAD_PROFILE,
             f"no item id for {', '.join(missing)}; the profile only carries ids, "
-            f"so tell the script which slot is which: {flags}",
+            f"so say what each slot is ({flags}), or that the player wears "
+            f"nothing there ({skips})",
         )
     return targets
 
@@ -185,7 +221,9 @@ def validate(avatar: str, targets: dict[str, str]) -> None:
         )
     claimed: dict[str, str] = {}
     for piece_type in PIECE_TYPES:
-        item_id = targets[piece_type]
+        item_id = targets.get(piece_type)
+        if item_id is None:
+            continue
         if item_id in claimed:
             raise Refusal(
                 EXIT_CONFLICT,
@@ -194,12 +232,18 @@ def validate(avatar: str, targets: dict[str, str]) -> None:
         claimed[item_id] = piece_type
 
 
-def plan(root: Path, avatar: str, targets: dict[str, str]) -> tuple[list[Binding], Path, Path]:
+def plan(
+    root: Path, avatar: str, targets: dict[str, str], skipped: set[str]
+) -> tuple[list[Binding], Path, Path]:
     if not root.is_dir():
         raise Refusal(EXIT_NOT_A_BUNDLE, f"no catalog at {root}")
 
     bindings: list[Binding] = []
     for piece_type in PIECE_TYPES:
+        if piece_type in skipped:
+            # The placeholder entry stays as it ships: no profile matches its
+            # id, and deleting it would throw away the mesh for a later import.
+            continue
         source = root / piece_type / SOURCE_PIECES[piece_type]
         if not (source / "manifest.json").is_file() or not (source / "mesh.glb").is_file():
             raise Refusal(
@@ -255,22 +299,35 @@ def main(argv: list[str] | None = None) -> int:
         metavar="TYPE=ITEM_ID",
         help="slot for one item id, e.g. feet=205000070 or gsk_feet=205000070; repeatable",
     )
+    parser.add_argument(
+        "--skip",
+        action="append",
+        default=[],
+        metavar="TYPE",
+        help="slot the player wears nothing in, e.g. hair; repeatable",
+    )
     parser.add_argument("--dry-run", action="store_true", help="print the renames and stop")
     args = parser.parse_args(argv)
 
     try:
         avatar, pairs = read_profile(args.profile)
         overrides = [parse_map(value) for value in args.map]
-        targets = collect(pairs, overrides)
+        skipped = {parse_skip(value) for value in args.skip}
+        targets = collect(pairs, overrides, skipped)
         validate(avatar, targets)
-        bindings, body_source, body_target = plan(args.catalog, avatar, targets)
+        bindings, body_source, body_target = plan(args.catalog, avatar, targets, skipped)
     except Refusal as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return exc.code
 
     print(f"body    {body_source.name} -> {avatar}")
-    for binding in bindings:
-        print(f"{binding.piece_type:<7} {binding.source.name} -> {binding.item_id}")
+    bound_by_type = {binding.piece_type: binding for binding in bindings}
+    for piece_type in PIECE_TYPES:
+        binding = bound_by_type.get(piece_type)
+        if binding is None:
+            print(f"{piece_type:<7} {SOURCE_PIECES[piece_type]} -> unbound (nothing worn here)")
+        else:
+            print(f"{piece_type:<7} {binding.source.name} -> {binding.item_id}")
     if args.dry_run:
         return EXIT_OK
 
@@ -286,7 +343,11 @@ def main(argv: list[str] | None = None) -> int:
     if catalog.problems:
         print(f"catalog is invalid after binding: {catalog.problems[0]}", file=sys.stderr)
         return EXIT_BROKEN
-    unresolved = [targets[name] for name in PIECE_TYPES if catalog.piece(targets[name]) is None]
+    unresolved = [
+        item_id
+        for name in PIECE_TYPES
+        if (item_id := targets.get(name)) is not None and catalog.piece(item_id) is None
+    ]
     if unresolved or catalog.body(avatar) is None:
         print(
             f"catalog did not reload with avatar {avatar} and {', '.join(unresolved) or 'all pieces'}",
@@ -294,7 +355,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         return EXIT_BROKEN
 
-    print(f"bound 1 body and {len(bindings)} pieces to avatar {avatar}")
+    left = f", {', '.join(sorted(skipped))} left unbound" if skipped else ""
+    print(f"bound 1 body and {len(bindings)} pieces to avatar {avatar}{left}")
     return EXIT_OK
 
 

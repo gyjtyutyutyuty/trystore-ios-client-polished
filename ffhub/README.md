@@ -99,8 +99,8 @@ pantalón, kimono, adorno de cabeza, pelo), generadas con
 
 Esos ids son del bundle, no ids de item de Free Fire. Con un UID real el perfil
 devuelve ids numéricos, así que hasta enlazarlo con
-`scripts/bind_profile.py profile.json` (`--map` por slot, ver
-[`catalog/README.md`](catalog/README.md)) `/jobs` responde
+`scripts/bind_profile.py profile.json` (`--map` por slot y `--skip` para un
+hueco vacío, ver [`catalog/README.md`](catalog/README.md)) `/jobs` responde
 `avatar_not_in_catalog`. Para probar el montaje sin proveedor:
 `scripts/e2e.py --avatar-id golden_sakura --items
 gsk_feet,gsk_legs,gsk_torso,gsk_head,gsk_hair`.

@@ -95,8 +95,24 @@ con `--map`, por tipo o por id actual, repetible:
   --map head=211000087 --map hair=214000053
 ```
 
+Un jugador que no lleva nada en un slot (sin pelo, sin adorno) lo declara con
+`--skip`, y el placeholder se queda en el catálogo ocupando su tipo pero con un
+id que ningún perfil devuelve:
+
+```bash
+.venv/bin/python scripts/bind_profile.py profile.json \
+  --map feet=205000070 --map legs=204000103 --map torso=203000196 \
+  --map head=211000087 --skip hair
+```
+
+Cada slot tiene que estar **enlazado o saltado**: uno del que no se dice nada
+sigue siendo un rechazo (código 2), y `--map` junto a `--skip` para el mismo
+slot también (son contradictorios). Saltar un slot que el perfil sí lleva es
+válido — es el caso de una prenda cuya malla todavía no tienes —: gana el flag
+explícito y el hueco queda como placeholder.
+
 Antes del primer `mv` se exige: `avatar_id` de 6–20 dígitos, un id de 4–20
-dígitos por cada uno de los cinco slots, ids distintos entre sí y destino libre.
+dígitos por cada slot enlazado, ids distintos entre sí y destino libre.
 Si algo falta sale con código 2 (perfil), 3 (el catálogo no parece el bundle sin
 enlazar, por ejemplo porque ya se ejecutó) o 4 (conflicto), y no mueve nada.
 `--dry-run` imprime el plan sin tocar disco.

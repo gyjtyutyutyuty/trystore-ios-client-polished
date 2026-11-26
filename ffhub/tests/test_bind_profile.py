@@ -183,6 +183,73 @@ def test_dry_run_prints_the_plan_and_moves_nothing(tmp_path: Path) -> None:
     assert untouched(root)
 
 
+NO_HAIR_PROFILE = {
+    **PANEL_PROFILE,
+    "clothes": [entry for entry in PANEL_PROFILE["clothes"] if entry["type"] != "hair"],
+}
+
+
+def test_a_slot_the_player_wears_nothing_in_can_be_left_unbound(tmp_path: Path) -> None:
+    root = unbound_catalog(tmp_path / "catalog")
+
+    result = bind(tmp_path, save(tmp_path, NO_HAIR_PROFILE), "--skip", "hair")
+
+    assert result.returncode == 0, result.stderr
+    assert "gsk_hair -> unbound" in result.stdout
+    catalog = load_catalog(root)
+    assert catalog.problems == ()
+    for item_id in ("205000070", "204000103", "203000196", "211000087"):
+        assert catalog.piece(item_id) is not None, item_id
+    # The placeholder stays so the mesh is not lost, and no profile matches it.
+    assert catalog.piece("214000053") is None
+    assert catalog.piece("gsk_hair") is not None
+    assert (root / "hair" / "gsk_hair" / "manifest.json").is_file()
+
+
+def test_a_slot_that_is_neither_mapped_nor_skipped_is_refused(tmp_path: Path) -> None:
+    root = unbound_catalog(tmp_path / "catalog")
+
+    result = bind(tmp_path, save(tmp_path, NO_HAIR_PROFILE))
+
+    assert result.returncode == 2
+    assert "--map hair=<item_id>" in result.stderr
+    assert "--skip hair" in result.stderr
+    assert untouched(root)
+
+
+def test_one_slot_cannot_be_both_mapped_and_skipped(tmp_path: Path) -> None:
+    root = unbound_catalog(tmp_path / "catalog")
+
+    result = bind(
+        tmp_path, save(tmp_path, NO_HAIR_PROFILE), "--map", "hair=214000053", "--skip", "hair"
+    )
+
+    assert result.returncode == 2
+    assert "both mapped and skipped" in result.stderr
+    assert untouched(root)
+
+
+def test_skipping_a_slot_that_is_not_a_garment_is_refused(tmp_path: Path) -> None:
+    root = unbound_catalog(tmp_path / "catalog")
+
+    result = bind(tmp_path, save(tmp_path, NO_HAIR_PROFILE), "--skip", "torso_skin")
+
+    assert result.returncode == 2
+    assert "unknown --skip value" in result.stderr
+    assert untouched(root)
+
+
+def test_skipping_a_slot_the_profile_does_wear_leaves_the_placeholder(tmp_path: Path) -> None:
+    root = unbound_catalog(tmp_path / "catalog")
+
+    result = bind(tmp_path, save(tmp_path, PANEL_PROFILE), "--skip", "hair")
+
+    assert result.returncode == 0, result.stderr
+    catalog = load_catalog(root)
+    assert catalog.piece("214000053") is None
+    assert catalog.piece("gsk_hair") is not None
+
+
 @pytest.mark.parametrize("avatar", ["", "golden-sakura", "123"])
 def test_a_profile_without_a_numeric_avatar_is_refused(tmp_path: Path, avatar: str) -> None:
     root = unbound_catalog(tmp_path / "catalog")
