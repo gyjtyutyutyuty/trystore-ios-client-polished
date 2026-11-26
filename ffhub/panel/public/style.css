@@ -12,6 +12,20 @@
   box-sizing: border-box;
 }
 
+.demo-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.demo-note strong {
+  color: var(--text);
+}
+
 body {
   margin: 0;
   background: var(--bg);

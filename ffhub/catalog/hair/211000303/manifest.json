@@ -1,7 +1,7 @@
 {
-  "item_id": "gsk_torso",
-  "type": "torso",
-  "label": "Kimono Golden Sakura",
+  "item_id": "211000303",
+  "type": "hair",
+  "label": "Pelo Golden Sakura",
   "mesh": "mesh.glb",
   "catalog_version": "golden-sakura-1",
   "mount": {

@@ -1,7 +1,7 @@
 {
-  "item_id": "gsk_legs",
-  "type": "legs",
-  "label": "Pantalón Golden Sakura",
+  "item_id": "205000070",
+  "type": "feet",
+  "label": "Botas Golden Sakura",
   "mesh": "mesh.glb",
   "catalog_version": "golden-sakura-1",
   "mount": {

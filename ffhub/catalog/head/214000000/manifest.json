@@ -1,7 +1,7 @@
 {
-  "item_id": "gsk_feet",
-  "type": "feet",
-  "label": "Botas Golden Sakura",
+  "item_id": "214000000",
+  "type": "head",
+  "label": "Adorno de cabeza Golden Sakura",
   "mesh": "mesh.glb",
   "catalog_version": "golden-sakura-1",
   "mount": {

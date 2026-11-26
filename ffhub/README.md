@@ -126,12 +126,22 @@ pantalón, kimono, adorno de cabeza, pelo), generadas con
 `scripts/import_bundle.py`.
 
 Esos ids son del bundle, no ids de item de Free Fire. Con un UID real el perfil
-devuelve ids numéricos, así que hasta enlazarlo con
+devuelve ids numéricos, así que hay que enlazarlo con
 `scripts/bind_profile.py profile.json` (`--map` por slot y `--skip` para un
-hueco vacío, ver [`catalog/README.md`](catalog/README.md)) `/jobs` responde
-`avatar_not_in_catalog`. Para probar el montaje sin proveedor:
-`scripts/e2e.py --avatar-id golden_sakura --items
-gsk_feet,gsk_legs,gsk_torso,gsk_head,gsk_hair`.
+hueco vacío, ver [`catalog/README.md`](catalog/README.md)); sin ese enlace
+`/jobs` responde `avatar_not_in_catalog`.
+
+**Estado actual: demostración.** El catálogo está enlazado al perfil del UID
+`11807385` (avatar `102000015`, prendas `205000070`, `204000103`, `203000196`,
+`214000000`, `211000303`) pero las mallas siguen siendo las de Golden Sakura, y
+el panel lo dice en cabecera. `211000087` (máscara) no tiene malla y no se
+dibuja. Para sustituirla de verdad hace falta un GLB del look real (cuerpo más
+prendas equipadas, texturas incrustadas): `import_bundle.py` → tabla de partes
+→ `bind_profile.py` con estos mismos ids → `sync_catalog.py` → deploy.
+
+Para probar el montaje sin proveedor: `scripts/e2e.py --avatar-id golden_sakura
+--items gsk_feet,gsk_legs,gsk_torso,gsk_head,gsk_hair` sigue valiendo mientras
+el catálogo no esté enlazado; ya enlazado, usa los ids del perfil.
 
 ## Despliegue
 

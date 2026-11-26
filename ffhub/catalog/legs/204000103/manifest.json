@@ -1,7 +1,7 @@
 {
-  "item_id": "gsk_head",
-  "type": "head",
-  "label": "Adorno de cabeza Golden Sakura",
+  "item_id": "204000103",
+  "type": "legs",
+  "label": "Pantalón Golden Sakura",
   "mesh": "mesh.glb",
   "catalog_version": "golden-sakura-1",
   "mount": {
