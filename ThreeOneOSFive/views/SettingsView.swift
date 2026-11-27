@@ -220,6 +220,7 @@ struct SettingsView: View {
         await UIApplication.shared.open(components.url ?? fallback)
     }
 
+    @ViewBuilder
     private func creditsRow(name: String, role: String, url: String) -> some View {
         if let destination = URL(string: url) {
             Link(destination: destination) {
