@@ -178,6 +178,9 @@ struct SettingsView: View {
             ?? "1.0"
     }
 
+
+
+    @ViewBuilder
     private static let panelURL = URL(string: "https://ffhub-outfit-panel-nzvoam.freebuff.site")!
 
     /// The panel is private, so it is opened with a one-shot token minted for
@@ -213,11 +216,11 @@ struct SettingsView: View {
         let fallback = Self.panelURL.appendingPathComponent("login")
         guard let token = await licenseManager.panelSessionToken(),
               var components = URLComponents(url: Self.panelURL, resolvingAgainstBaseURL: false) else {
-            await UIApplication.shared.open(fallback)
+            UIApplication.shared.open(fallback)
             return
         }
         components.fragment = "t=\(token)"
-        await UIApplication.shared.open(components.url ?? fallback)
+        UIApplication.shared.open(components.url ?? fallback)
     }
 
     private func creditsRow(name: String, role: String, url: String) -> some View {
