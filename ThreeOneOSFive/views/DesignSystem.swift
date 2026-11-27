@@ -142,9 +142,9 @@ enum AppTheme {
     static let selectionIconSize: CGFloat = 18
 }
 
-/// One looping, muted player for the whole app. A `TabView` keeps every tab
-/// alive, so giving each backdrop its own player decoded the same clip several
-/// times at once.
+/// One looping player for the whole app. A `TabView` keeps every tab alive, so
+/// giving each backdrop its own player decoded the same clip several times at
+/// once. The storm carries its own ambience and mixes with the user's audio.
 final class StormLoopVideo {
     static let shared = StormLoopVideo()
 
@@ -153,9 +153,14 @@ final class StormLoopVideo {
     private var observers: [NSObjectProtocol] = []
 
     private init() {
-        player.isMuted = true
+        player.isMuted = false
+        player.volume = 0.85
         player.actionAtItemEnd = .none
         player.preventsDisplaySleepDuringVideoPlayback = false
+
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers])
+        try? session.setActive(true)
 
         guard let url = Self.url else { return }
         let item = AVPlayerItem(url: url)
@@ -168,6 +173,7 @@ final class StormLoopVideo {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
+                try? AVAudioSession.sharedInstance().setActive(true)
                 self?.player.play()
             }
         )
@@ -189,7 +195,7 @@ final class StormLoopVideo {
     /// per install.
     static var url: URL? {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let destination = directory.appendingPathComponent("StormLoop-v3.mp4")
+        let destination = directory.appendingPathComponent("StormLoop-v4.mp4")
         if FileManager.default.fileExists(atPath: destination.path) {
             return destination
         }
