@@ -75,17 +75,38 @@ struct PlayerStatLine: Identifiable, Codable, Hashable {
     var id: String { label }
 }
 
-/// One discipline's rank card: current standing plus its peak.
+/// One discipline's rank card: current standing plus its peak. `iconURL` is the
+/// real game emblem the profile page renders for that rank.
 struct PlayerRankLine: Codable, Hashable {
     var rank: String = ""
     var points: String = ""
     var bestRank: String = ""
     var bestValue: String = ""
+    var iconURL: URL?
+}
+
+/// One titled `dl` block from the profile page: account, clan, extra data.
+struct PlayerStatSection: Identifiable, Codable, Hashable {
+    var title: String
+    var rows: [PlayerStatLine]
+
+    var id: String { title }
+}
+
+/// One game mode's performance block (Solo, Duo, Squad): headline win rate,
+/// three highlights and every published row beneath them.
+struct PlayerModeStats: Identifiable, Codable, Hashable {
+    var mode: String
+    var headline: String
+    var highlights: [PlayerStatLine]
+    var rows: [PlayerStatLine]
+
+    var id: String { mode }
 }
 
 /// Everything the public profile page publishes about a player: level and
 /// experience, likes, both rank ladders with their peaks, the special role, the
-/// account table and the indicator table.
+/// match totals, every mode block and every titled detail table.
 struct PlayerGameStats: Codable, Hashable {
     var level: String = ""
     var experience: String = ""
@@ -96,11 +117,18 @@ struct PlayerGameStats: Codable, Hashable {
     var roleGroup: String?
     var account: [PlayerStatLine] = []
     var indicators: [PlayerStatLine] = []
+    /// Optional so rosters saved by the earlier parser still decode.
+    var sections: [PlayerStatSection]?
+    var modes: [PlayerModeStats]?
+    var totals: [PlayerStatLine]?
 
     var isEmpty: Bool {
         level.isEmpty && experience.isEmpty && likes.isEmpty
             && battleRoyale == nil && clashSquad == nil
             && account.isEmpty && indicators.isEmpty
+            && (sections?.isEmpty ?? true)
+            && (modes?.isEmpty ?? true)
+            && (totals?.isEmpty ?? true)
     }
 }
 
@@ -436,15 +464,24 @@ final class PlayerOutfitScraper {
         return JSON.stringify({ state: 'waiting' });
       }
 
+      function sectionTitle(el) {
+        var panel = el.closest('.ffp-panel');
+        var heading = panel ? panel.querySelector('.ffp-section-heading h2, h2, h3') : null;
+        return clean(heading ? heading.textContent : '');
+      }
+
       var details = tables.map(function (dl) {
         var labels = Array.prototype.slice.call(dl.querySelectorAll('dt'));
         var values = Array.prototype.slice.call(dl.querySelectorAll('dd'));
-        return labels.map(function (dt, index) {
-          return {
-            label: clean(dt.textContent),
-            value: values[index] ? clean(values[index].textContent) : ''
-          };
-        });
+        return {
+          title: sectionTitle(dl),
+          rows: labels.map(function (dt, index) {
+            return {
+              label: clean(dt.textContent),
+              value: values[index] ? clean(values[index].textContent) : ''
+            };
+          })
+        };
       });
 
       var summary = {};
@@ -453,10 +490,59 @@ final class PlayerOutfitScraper {
         if (rows.length > 1) { summary[rows[0]] = rows.slice(1); }
       });
 
-      var ranks = {};
+      var ranks = [];
       Array.prototype.slice.call(document.querySelectorAll('.ffp-rank-card')).forEach(function (card) {
         var rows = lines(card);
-        if (rows.length > 1) { ranks[rows[0]] = rows.slice(1); }
+        var image = card.querySelector('.ffp-rank-main-icon') || card.querySelector('img');
+        if (rows.length > 1) {
+          ranks.push({
+            title: rows[0],
+            rows: rows.slice(1),
+            icon: (image && image.src) || ''
+          });
+        }
+      });
+
+      var modes = [];
+      Array.prototype.slice.call(document.querySelectorAll('.ffp-mode-card')).forEach(function (card) {
+        var head = card.querySelector('.ffp-mode-card-head');
+        var modeName = head && head.querySelector('span') ? clean(head.querySelector('span').textContent) : '';
+        var modeHeadline = head && head.querySelector('strong') ? clean(head.querySelector('strong').textContent) : '';
+        var highlights = [];
+        Array.prototype.slice.call(card.querySelectorAll('.ffp-mode-highlights > div')).forEach(function (cell) {
+          var label = cell.querySelector('small');
+          var value = cell.querySelector('b');
+          highlights.push({
+            label: clean(label ? label.textContent : ''),
+            value: clean(value ? value.textContent : '')
+          });
+        });
+        var rows = [];
+        Array.prototype.slice.call(card.querySelectorAll('dl.ffp-stat-list > div')).forEach(function (row) {
+          var label = row.querySelector('dt');
+          var value = row.querySelector('dd');
+          rows.push({
+            label: clean(label ? label.textContent : ''),
+            value: clean(value ? value.textContent : '')
+          });
+        });
+        modes.push({
+          mode: modeName,
+          headline: modeHeadline,
+          highlights: highlights,
+          rows: rows
+        });
+      });
+
+      var totals = [];
+      Array.prototype.slice.call(document.querySelectorAll('.ffp-total-stats > span')).forEach(function (stat) {
+        var text = clean(stat.textContent);
+        var parts = text.match(/^([\\d.,]+)\\s+(.*)$/);
+        if (parts) {
+          totals.push({ label: parts[2], value: parts[1] });
+        } else if (text) {
+          totals.push({ label: text, value: '' });
+        }
       });
 
       var cards = Array.prototype.slice.call(document.querySelectorAll('.ffp-equipment-card')).map(function (card) {
@@ -474,6 +560,8 @@ final class PlayerOutfitScraper {
         summary: summary,
         ranks: ranks,
         details: details,
+        modes: modes,
+        totals: totals,
         role: lines(document.querySelector('.ffp-role-panel .ffp-role-copy')),
         cards: cards
       });
@@ -486,38 +574,77 @@ final class PlayerOutfitScraper {
         var stats = PlayerGameStats()
 
         let summary = root["summary"] as? [String: [String]] ?? [:]
-        let ranks = root["ranks"] as? [String: [String]] ?? [:]
 
-        func card(_ table: [String: [String]], _ needle: String) -> [String]? {
-            table.first { $0.key.uppercased().contains(needle) }?.value
+        func summaryCard(_ needle: String) -> [String]? {
+            summary.first { $0.key.uppercased().contains(needle) }?.value
         }
 
-        if let level = card(summary, "LEVEL") {
+        if let level = summaryCard("LEVEL") {
             stats.level = level.first ?? ""
             stats.experience = level.count > 1 ? level[1] : ""
         }
-        let likes = card(summary, "LIKE")
-        stats.likes = likes?.first ?? ""
-        stats.battleRoyale = rankLine(card(ranks, "BATTLE"))
-        stats.clashSquad = rankLine(card(ranks, "CLASH"))
+        stats.likes = summaryCard("LIKE")?.first ?? ""
 
-        let tables = root["details"] as? [[[String: String]]] ?? []
-        let parsed = tables.map { rows in
-            rows.compactMap { row -> PlayerStatLine? in
-                let label = (row["label"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !label.isEmpty else { return nil }
-                return PlayerStatLine(label: label, value: row["value"] ?? "")
-            }
+        let ranks = root["ranks"] as? [[String: Any]] ?? []
+        stats.battleRoyale = rankCard(ranks, "BATTLE")
+        stats.clashSquad = rankCard(ranks, "CLASH")
+
+        let details = root["details"] as? [[String: Any]] ?? []
+        stats.sections = details.compactMap { block in
+            let rows = statRows(block["rows"])
+            guard !rows.isEmpty else { return nil }
+            let title = (block["title"] as? String ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return PlayerStatSection(title: title, rows: rows)
         }
-        stats.account = parsed.first ?? []
-        stats.indicators = parsed.count > 1 ? parsed[1] : []
+        stats.account = stats.sections?.first?.rows ?? []
+        stats.indicators = stats.sections?.dropFirst().first?.rows ?? []
+
+        stats.totals = statRows(root["totals"])
+
+        let modes = root["modes"] as? [[String: Any]] ?? []
+        stats.modes = modes.compactMap { block in
+            let mode = (block["mode"] as? String ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let rows = statRows(block["rows"])
+            guard !mode.isEmpty || !rows.isEmpty else { return nil }
+            return PlayerModeStats(
+                mode: mode,
+                headline: block["headline"] as? String ?? "",
+                highlights: statRows(block["highlights"]),
+                rows: rows
+            )
+        }
 
         if let role = root["role"] as? [String], role.count >= 2 {
             stats.role = role[1]
-            stats.roleGroup = role.count > 2 ? role[2] : nil
+            // The page repeats the role name in its group line; don't render
+            // "Influencer · Influencer".
+            stats.roleGroup = role.count > 2 && role[2] != role[1] ? role[2] : nil
         }
 
         return stats
+    }
+
+    private static func statRows(_ value: Any?) -> [PlayerStatLine] {
+        let rows = value as? [[String: Any]] ?? []
+        return rows.compactMap { row in
+            let label = (row["label"] as? String ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !label.isEmpty else { return nil }
+            return PlayerStatLine(label: label, value: row["value"] as? String ?? "")
+        }
+    }
+
+    private static func rankCard(_ cards: [[String: Any]], _ needle: String) -> PlayerRankLine? {
+        guard let card = cards.first(where: {
+            (($0["title"] as? String) ?? "").uppercased().contains(needle)
+        }), var line = rankLine(card["rows"] as? [String]) else { return nil }
+
+        if let icon = card["icon"] as? String, let url = URL(string: icon) {
+            line.iconURL = url
+        }
+        return line
     }
 
     /// `[rank, points, "Best rank", best, "Peak points", peak]`, in whichever

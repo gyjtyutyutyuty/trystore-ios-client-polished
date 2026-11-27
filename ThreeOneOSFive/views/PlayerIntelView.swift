@@ -30,6 +30,10 @@ struct PlayerIntelView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                // Inside the stack, not behind it: a NavigationStack paints its
+                // own background, so an outside backdrop is never visible.
+                AppPremiumBackdrop()
+
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppSpacing.l) {
                         topBar.appCinematicReveal(delay: 0.02)
@@ -57,6 +61,27 @@ struct PlayerIntelView: View {
             .tint(AppTheme.accent)
         }
         .onAppear {
+            if roster.isEmpty,
+               (8...20).contains(lastUID.count),
+               lastUID.allSatisfy({ $0.isNumber }) {
+                // The roster store only appeared after the wardrobe merge, so a
+                // remembered ID from an older install is reloaded once here.
+                roster = [
+                    PlayerIntelEntry(
+                        uid: lastUID,
+                        profile: nil,
+                        items: [],
+                        stats: nil,
+                        outfitFailed: false,
+                        errorKey: nil,
+                        isLoading: true
+                    )
+                ]
+                selectedUID = lastUID
+                startLoad(lastUID)
+                return
+            }
+
             if selectedUID == nil || !roster.contains(where: { $0.uid == selectedUID }) {
                 let remembered = roster.first(where: { $0.uid == lastUID })?.uid
                 selectedUID = remembered ?? roster.first?.uid
@@ -239,11 +264,11 @@ struct PlayerIntelView: View {
     private func profilePanel(_ profile: PlayerIntelProfile) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             HStack(alignment: .top, spacing: AppSpacing.m) {
-                avatar(profile, size: 72)
+                avatar(profile, size: 76)
                     .padding(3)
-                    .background(AppPalette.canvas, in: Circle())
+                    .background(AppPalette.canvas.opacity(0.72), in: Circle())
                     .overlay(
-                        Circle().strokeBorder(AppTheme.accent.opacity(0.45), lineWidth: 1.5)
+                        Circle().strokeBorder(AppTheme.accent.opacity(0.55), lineWidth: 1.5)
                     )
                     .accessibilityHidden(true)
 
@@ -254,6 +279,7 @@ struct PlayerIntelView: View {
                         .lineLimit(2)
                         .minimumScaleFactor(0.7)
                         .fixedSize(horizontal: false, vertical: true)
+                        .shadow(color: AppPalette.canvas.opacity(0.7), radius: 8, y: 2)
 
                     HStack(spacing: AppSpacing.s) {
                         if !profile.region.isEmpty {
@@ -275,6 +301,8 @@ struct PlayerIntelView: View {
                     }
                 }
             }
+
+            Spacer(minLength: AppSpacing.xl)
 
             HStack(spacing: AppSpacing.s) {
                 AppMetricTile(
@@ -298,7 +326,44 @@ struct PlayerIntelView: View {
             }
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .frame(maxWidth: .infinity, minHeight: 236, alignment: .leading)
+        .background { profileBannerArt }
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
+                .strokeBorder(AppPalette.hairline.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    /// The real Free Fire MAX key art, shown rather than hinted at: a directional
+    /// scrim keeps the nickname readable on the left while the art stays visible
+    /// on the right, and a bottom fade seats the stat tiles.
+    private var profileBannerArt: some View {
+        ZStack {
+            Image("FFMaxBanner")
+                .resizable()
+                .scaledToFill()
+
+            LinearGradient(
+                stops: [
+                    .init(color: AppPalette.canvas.opacity(0.92), location: 0.0),
+                    .init(color: AppPalette.canvas.opacity(0.66), location: 0.46),
+                    .init(color: AppPalette.canvas.opacity(0.28), location: 1.0)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+
+            LinearGradient(
+                colors: [
+                    AppPalette.canvas.opacity(0.10),
+                    AppPalette.canvas.opacity(0.88)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .accessibilityHidden(true)
     }
 
     private func cardButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
@@ -349,7 +414,6 @@ struct PlayerIntelView: View {
                 if let line = stats.battleRoyale {
                     rankCard(
                         title: language.text("intel.stats.battle_royale"),
-                        icon: "scope",
                         line: line,
                         pointsKey: "intel.stats.points",
                         peakKey: "intel.stats.peak_points"
@@ -359,11 +423,20 @@ struct PlayerIntelView: View {
                 if let line = stats.clashSquad {
                     rankCard(
                         title: language.text("intel.stats.clash_squad"),
-                        icon: "person.3.fill",
                         line: line,
                         pointsKey: "intel.stats.stars",
                         peakKey: "intel.stats.best_record"
                     )
+                }
+
+                if let totals = stats.totals, !totals.isEmpty {
+                    totalGrid(totals)
+                }
+
+                if let modes = stats.modes, !modes.isEmpty {
+                    ForEach(modes) { mode in
+                        modeCard(mode)
+                    }
                 }
 
                 if let role = stats.role, !role.isEmpty {
@@ -389,20 +462,30 @@ struct PlayerIntelView: View {
                     )
                 }
 
-                if !stats.account.isEmpty {
-                    detailBlock(
-                        title: language.text("intel.stats.account"),
-                        icon: "person.text.rectangle",
-                        lines: stats.account
-                    )
-                }
+                if let sections = stats.sections, !sections.isEmpty {
+                    ForEach(sections) { section in
+                        detailBlock(
+                            title: section.title,
+                            icon: "list.bullet.rectangle",
+                            lines: section.rows
+                        )
+                    }
+                } else {
+                    if !stats.account.isEmpty {
+                        detailBlock(
+                            title: language.text("intel.stats.account"),
+                            icon: "person.text.rectangle",
+                            lines: stats.account
+                        )
+                    }
 
-                if !stats.indicators.isEmpty {
-                    detailBlock(
-                        title: language.text("intel.stats.indicators"),
-                        icon: "checkmark.shield",
-                        lines: stats.indicators
-                    )
+                    if !stats.indicators.isEmpty {
+                        detailBlock(
+                            title: language.text("intel.stats.indicators"),
+                            icon: "checkmark.shield",
+                            lines: stats.indicators
+                        )
+                    }
                 }
             }
             .padding(AppSpacing.l)
@@ -410,31 +493,137 @@ struct PlayerIntelView: View {
         }
     }
 
+    /// Every match total the page publishes, as a compact scoreboard strip.
+    private func totalGrid(_ totals: [PlayerStatLine]) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 102), spacing: AppSpacing.s)],
+            spacing: AppSpacing.s
+        ) {
+            ForEach(Array(totals.enumerated()), id: \.offset) { _, total in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(total.value.isEmpty ? "—" : total.value)
+                        .font(AppType.value())
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(total.label.uppercased())
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .tracking(0.5)
+                        .foregroundStyle(AppPalette.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(AppSpacing.m)
+                .background(
+                    AppPalette.canvas,
+                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                )
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// One mode block: win-rate headline, three highlights, then every published
+    /// row in a two-column grid so the whole profile stays scannable.
+    private func modeCard(_ mode: PlayerModeStats) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: AppSpacing.s) {
+                Text(mode.mode.uppercased())
+                    .font(AppType.label().weight(.bold))
+                    .tracking(0.8)
+                    .foregroundStyle(AppPalette.textPrimary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if !mode.headline.isEmpty {
+                    Text(mode.headline)
+                        .font(AppType.label().weight(.semibold))
+                        .foregroundStyle(AppTheme.accent)
+                        .lineLimit(1)
+                }
+            }
+
+            if !mode.highlights.isEmpty {
+                HStack(spacing: AppSpacing.s) {
+                    ForEach(Array(mode.highlights.enumerated()), id: \.offset) { _, highlight in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(highlight.value.isEmpty ? "—" : highlight.value)
+                                .font(AppType.value())
+                                .foregroundStyle(AppPalette.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Text(highlight.label.uppercased())
+                                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                .tracking(0.5)
+                                .foregroundStyle(AppPalette.textTertiary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(AppSpacing.m)
+                .background(
+                    AppPalette.canvas,
+                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                )
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 148), spacing: AppSpacing.m)],
+                alignment: .leading,
+                spacing: 0
+            ) {
+                ForEach(Array(mode.rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: AppSpacing.s) {
+                        Text(row.label)
+                            .font(AppType.meta())
+                            .foregroundStyle(AppPalette.textTertiary)
+                            .lineLimit(1)
+                        Spacer(minLength: AppSpacing.xs)
+                        Text(row.value.isEmpty ? "—" : row.value)
+                            .font(AppType.meta().weight(.semibold))
+                            .foregroundStyle(AppPalette.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .padding(.vertical, AppSpacing.s)
+                }
+            }
+        }
+        .padding(AppSpacing.m)
+        .background(
+            AppPalette.raised,
+            in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
     private func rankCard(
         title: String,
-        icon: String,
         line: PlayerRankLine,
         pointsKey: String,
         peakKey: String
     ) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(AppTheme.accent)
-                Text(title)
-                    .font(AppType.label())
-                    .foregroundStyle(AppPalette.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+            HStack(spacing: AppSpacing.m) {
+                rankEmblem(line)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(AppType.label())
+                        .foregroundStyle(AppPalette.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Text(line.rank.isEmpty ? "—" : line.rank)
+                        .font(AppType.value())
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+
                 Spacer(minLength: 0)
             }
-
-            Text(line.rank.isEmpty ? "—" : line.rank)
-                .font(AppType.value())
-                .foregroundStyle(AppPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
 
             VStack(spacing: 4) {
                 statRow(key: pointsKey, value: line.points)
@@ -449,6 +638,36 @@ struct PlayerIntelView: View {
             in: RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
         )
         .accessibilityElement(children: .combine)
+    }
+
+    /// The real in-game emblem the profile page serves for this rank.
+    @ViewBuilder
+    private func rankEmblem(_ line: PlayerRankLine) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(AppPalette.canvas)
+
+            if let url = line.iconURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFit().padding(4)
+                    default:
+                        emblemPlaceholder
+                    }
+                }
+            } else {
+                emblemPlaceholder
+            }
+        }
+        .frame(width: 58, height: 58)
+        .accessibilityHidden(true)
+    }
+
+    private var emblemPlaceholder: some View {
+        Image(systemName: "shield.lefthalf.filled")
+            .font(.system(size: 24, weight: .semibold))
+            .foregroundStyle(AppTheme.accent)
     }
 
     private func statRow(key: String, value: String) -> some View {
@@ -472,14 +691,16 @@ struct PlayerIntelView: View {
         lines: [PlayerStatLine]
     ) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.s) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(AppTheme.accent)
-                Text(title)
-                    .font(AppType.label())
-                    .foregroundStyle(AppPalette.textSecondary)
-                Spacer(minLength: 0)
+            if !title.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: icon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                    Text(title)
+                        .font(AppType.label())
+                        .foregroundStyle(AppPalette.textSecondary)
+                    Spacer(minLength: 0)
+                }
             }
 
             VStack(spacing: 0) {
@@ -769,6 +990,7 @@ struct PlayerIntelView: View {
             )
         ]
         selectedUID = uid
+        PlayerRosterStore.save(roster)
         startLoad(uid)
     }
 
@@ -822,6 +1044,9 @@ struct PlayerIntelView: View {
     private func update(_ uid: String, _ change: (inout PlayerIntelEntry) -> Void) {
         guard let index = roster.firstIndex(where: { $0.uid == uid }) else { return }
         change(&roster[index])
+        // Persist after every fetch phase, not only when the view happens to
+        // observe the array change, so a kill mid-load keeps the last result.
+        PlayerRosterStore.save(roster)
     }
 
 
@@ -835,6 +1060,7 @@ struct PlayerIntelView: View {
         if lastUID == uid, selectedUID == nil {
             lastUID = ""
         }
+        PlayerRosterStore.save(roster)
     }
 
     private static func parseUIDs(_ raw: String) -> [String] {
