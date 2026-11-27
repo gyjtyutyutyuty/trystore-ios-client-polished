@@ -93,7 +93,6 @@ struct HomeView: View {
     @State private var isPairingImporting = false
     @State private var isPairingDeleteConfirmationPresented = false
     @State private var pairingImportErrorKey: String?
-    @AppStorage("hero_character_model") private var heroCharacterRaw = HeroCharacterModel.rouk.rawValue
 
     var body: some View {
         NavigationStack {
@@ -239,21 +238,8 @@ struct HomeView: View {
 
     // MARK: - Hero
 
-    private var heroCharacter: HeroCharacterModel {
-        HeroCharacterModel(rawValue: heroCharacterRaw) ?? .rouk
-    }
-
-    private var heroCharacterSelection: Binding<HeroCharacterModel> {
-        Binding(
-            get: { HeroCharacterModel(rawValue: heroCharacterRaw) ?? .rouk },
-            set: { heroCharacterRaw = $0.rawValue }
-        )
-    }
-
-    /// The stage carries no copy: the figure is the whole point of the panel, and
-    /// the captions that used to sit on it pushed the modules further down the
-    /// screen. The stage itself is decorative, but the character switcher stays
-    /// interactive and accessible above it.
+    /// The hero is a cinematic gameplay loop; the dashboard controls sit on a
+    /// scrim over it so the clip stays the first thing on screen.
     private func heroSide(for viewportWidth: CGFloat) -> CGFloat {
         let horizontalInsets = AppSpacing.screenInset * 2
         let availableWidth = max(0, viewportWidth - horizontalInsets)
@@ -264,27 +250,19 @@ struct HomeView: View {
     private func heroSize(for viewport: CGSize) -> CGSize {
         let width = heroSide(for: viewport.width)
         guard horizontalSizeClass == .compact else {
-            return CGSize(width: width, height: width)
+            return CGSize(width: width, height: width * 0.70)
         }
 
-        // Keep the hero wide enough for its switcher and control deck, but avoid
-        // a full square consuming most of an iPhone's first screenful.
+        // The clip is landscape, so the hero keeps a wide aspect on phones too.
         let height = min(width * 0.84, max(220, viewport.height * 0.38))
         return CGSize(width: width, height: height)
     }
 
     private func heroHome(size: CGSize) -> some View {
-        ZStack(alignment: .topTrailing) {
-            BrandCharacterBackdrop(model: heroCharacter, reduceMotion: reduceMotion)
-                .accessibilityHidden(true)
+        ZStack(alignment: .bottom) {
+            HologramaHeroBackdrop()
 
-            HeroCharacterSwitcher(selection: heroCharacterSelection)
-                .padding(AppSpacing.m)
-
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                heroControlDeck
-            }
+            heroControlDeck
         }
         .frame(width: size.width, height: size.height)
         .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
@@ -1040,6 +1018,10 @@ private struct DashboardPatchOption: Identifiable {
     ]
 
     static let visuals = [
+        DashboardPatchOption(projectName: "HOLOGRAMA COMETA", title: "HOLOGRAMA COMETA", icon: "sparkles", color: .purple, group: .location),
+        DashboardPatchOption(projectName: "HOLOGRAMA COSMICO", title: "HOLOGRAMA COSMICO", icon: "sparkles", color: .cyan, group: .location),
+        DashboardPatchOption(projectName: "HOLOGRAMA THANKSGIVING", title: "HOLOGRAMA THANKSGIVING", icon: "sparkles", color: .orange, group: .location),
+        DashboardPatchOption(projectName: "HOLOGRAMA SANTA", title: "HOLOGRAMA SANTA", icon: "sparkles", color: .pink, group: .location),
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO", title: "HOLOGRAMA EXCLUSIVO", icon: "sparkles", color: .purple, group: .location, packageID: UUID(uuidString: "238F5D33-18AB-448C-9687-9C43D52EB047")!),
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", icon: "sparkles", color: .green, group: .location, packageID: UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!),
         DashboardPatchOption(projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", icon: "sparkles", color: .pink, group: .location, packageID: UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!)

@@ -238,6 +238,144 @@ struct StormLoopVideoView: UIViewRepresentable {
     func updateUIView(_ uiView: StormLoopLayerView, context: Context) {}
 }
 
+/// Home's hero clip. It uses the same data-set materialisation as the storm
+/// loop but its own player, so it can pause as soon as Home leaves the screen.
+final class HologramaHeroVideo {
+    static let shared = HologramaHeroVideo()
+
+    let player = AVQueuePlayer()
+    private var looper: AVPlayerLooper?
+    private var observers: [NSObjectProtocol] = []
+    private var isVisible = false
+
+    private init() {
+        player.isMuted = true
+        player.actionAtItemEnd = .none
+        player.preventsDisplaySleepDuringVideoPlayback = false
+
+        guard let url = Self.url else { return }
+        let item = AVPlayerItem(url: url)
+        looper = AVPlayerLooper(player: player, templateItem: item)
+
+        let center = NotificationCenter.default
+        observers.append(
+            center.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self, self.isVisible else { return }
+                self.player.play()
+            }
+        )
+        observers.append(
+            center.addObserver(
+                forName: UIApplication.willResignActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.player.pause()
+            }
+        )
+    }
+
+    func setVisible(_ visible: Bool) {
+        isVisible = visible
+        if visible {
+            player.play()
+        } else {
+            player.pause()
+        }
+    }
+
+    /// The clip ships as a data set so the Xcode resource phase stays as it is.
+    /// `AVPlayer` needs a file URL, so the bytes are materialised in Caches once
+    /// per install.
+    static var url: URL? {
+        let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let destination = directory.appendingPathComponent("HologramaHero-v1.mp4")
+        if FileManager.default.fileExists(atPath: destination.path) {
+            return destination
+        }
+        guard let asset = NSDataAsset(name: "HologramaHero") else { return nil }
+        do {
+            try asset.data.write(to: destination, options: .atomic)
+            return destination
+        } catch {
+            return nil
+        }
+    }
+
+    deinit {
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
+}
+
+final class HologramaHeroLayerView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+
+    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configure()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    private func configure() {
+        isUserInteractionEnabled = false
+        backgroundColor = .clear
+        playerLayer.videoGravity = .resizeAspectFill
+        playerLayer.player = HologramaHeroVideo.shared.player
+    }
+}
+
+struct HologramaHeroVideoView: UIViewRepresentable {
+    func makeUIView(context: Context) -> HologramaHeroLayerView {
+        HologramaHeroLayerView(frame: .zero)
+    }
+
+    func updateUIView(_ uiView: HologramaHeroLayerView, context: Context) {}
+}
+
+/// A cinematic gameplay backdrop for Home. The grade keeps the HUD crop dark
+/// enough for the control deck while leaving the hologram effects readable.
+struct HologramaHeroBackdrop: View {
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
+
+    var body: some View {
+        ZStack {
+            AppPalette.canvas
+            if reduceMotion || performanceMode {
+                Image("HologramaHeroStill")
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                HologramaHeroVideoView()
+                    .onAppear { HologramaHeroVideo.shared.setVisible(true) }
+                    .onDisappear { HologramaHeroVideo.shared.setVisible(false) }
+            }
+            LinearGradient(
+                stops: [
+                    .init(color: AppPalette.canvas.opacity(0.45), location: 0),
+                    .init(color: .clear, location: 0.26),
+                    .init(color: .clear, location: 0.58),
+                    .init(color: AppPalette.canvas.opacity(0.35), location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .clipped()
+        .accessibilityHidden(true)
+    }
+}
+
 /// The app-wide backdrop. The loop is pre-graded hard (average luma ~105) so the
 /// storm reads on a phone screen, and a slow accent aurora is added over it with
 /// `plusLighter`: the moving glow guarantees a living background even where the

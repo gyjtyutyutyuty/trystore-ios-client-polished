@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import UIKit
 
 struct PatchStoreAlert: Identifiable {
     let id = UUID()
@@ -34,8 +35,23 @@ struct BundledPatch {
     let password: String?
 }
 
+struct LocalBundledPatch {
+    let resourceName: String
+    let projectName: String
+    let sourceProjectName: String
+}
+
 enum FreeFireGame: Hashable {
     case max
+
+    var localBundledPatches: [LocalBundledPatch] {
+        [
+            LocalBundledPatch(resourceName: "HoloCometa", projectName: "HOLOGRAMA COMETA", sourceProjectName: "COMETA"),
+            LocalBundledPatch(resourceName: "HoloCosmico", projectName: "HOLOGRAMA COSMICO", sourceProjectName: "COSMICO"),
+            LocalBundledPatch(resourceName: "HoloThanksgiving", projectName: "HOLOGRAMA THANKSGIVING", sourceProjectName: "THANKSGIVING"),
+            LocalBundledPatch(resourceName: "HoloSanta", projectName: "HOLOGRAMA SANTA", sourceProjectName: "SANTA")
+        ]
+    }
 
     var bundledPatches: [BundledPatch] {
         [
@@ -79,7 +95,28 @@ final class PatchProjectStore: ObservableObject {
 
     init(game: FreeFireGame = .max) {
         self.game = game
+        installLocalBundledResourcesIfNeeded()
         reload()
+    }
+
+    /// The Visuals pack is stored in the asset catalog rather than fetched from
+    /// the feed. It is installed once, re-encoded under its own project ID, and
+    /// then behaves exactly like a delivered package.
+    private func installLocalBundledResourcesIfNeeded() {
+        for patch in game.localBundledPatches {
+            guard let asset = NSDataAsset(name: patch.resourceName) else {
+                log("patch: local visual asset missing: \(patch.resourceName)")
+                continue
+            }
+            let installed = PatchProjectLibrary.installBundledPackageDataIfNeeded(
+                asset.data,
+                projectName: patch.projectName,
+                sourceProjectName: patch.sourceProjectName
+            )
+            if !installed {
+                log("patch: local visual install failed: \(patch.projectName)")
+            }
+        }
     }
 
     func installBundledResources(credentials: PatchFeedCredentials?) {
@@ -414,7 +451,8 @@ final class PatchProjectStore: ObservableObject {
             return .aim
         case "TryStore", "Balas Magicas", "Drag con Cuello", "Aimbot Pecho", "Pecho3105", "CUELLO3105":
             return .antena
-        case "HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL":
+        case "HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO", "ARMAS", "EXCLUSIVO AZUL",
+             "HOLOGRAMA COMETA", "HOLOGRAMA COSMICO", "HOLOGRAMA THANKSGIVING", "HOLOGRAMA SANTA":
             return .location
         default:
             return nil

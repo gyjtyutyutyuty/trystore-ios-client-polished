@@ -22,12 +22,17 @@ struct PatchPasswordRequest: Identifiable {
 enum PatchProjectLibrary {
     private static let bundledProjectIDs: [String: UUID] = [
         "HOLOGRAMA EXCLUSIVO VERDE": UUID(uuidString: "B1672AC3-AE42-4A0A-9A11-02A54C2C8F10")!,
-        "HOLOGRAMA EXCLUSIVO ROSADO": UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!
+        "HOLOGRAMA EXCLUSIVO ROSADO": UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!,
+        "HOLOGRAMA COMETA": UUID(uuidString: "A7C1E4D2-6B3F-4C8A-9D51-2E7F0B6A1C34")!,
+        "HOLOGRAMA COSMICO": UUID(uuidString: "B8D2F5E3-7C4A-4D9B-8E62-3F8A1C7B2D45")!,
+        "HOLOGRAMA THANKSGIVING": UUID(uuidString: "C9E3A6F4-8D5B-4EAC-9F73-4A9B2D8C3E56")!,
+        "HOLOGRAMA SANTA": UUID(uuidString: "DAF4B7A5-9E6C-4FBD-A084-5BAC3E9D4F67")!
     ]
     private static let supportedPackageExtensions: Set<String> = ["trystore", "3105"]
     private static let bundledProjectNames: Set<String> = [
         "HEAD", "NECK", "HS PESSCOSO", "HS SLA PECHO", "EXCLUSIVO AZUL", "TryStore", "Balas Magicas",
         "HOLOGRAMA EXCLUSIVO", "HOLOGRAMA EXCLUSIVO VERDE", "HOLOGRAMA EXCLUSIVO ROSADO",
+        "HOLOGRAMA COMETA", "HOLOGRAMA COSMICO", "HOLOGRAMA THANKSGIVING", "HOLOGRAMA SANTA",
         "Drag con Cuello", "Pecho3105", "CUELLO3105"
     ]
     /// Payload fingerprints for the canonical packages. They are not secret:
@@ -46,7 +51,11 @@ enum PatchProjectLibrary {
         UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!: "9a3692209ec509547dff9f642416fd329ad46478ed47f54f2b9d91b484c0dead",
         UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!: "326b4f3c99fdcb8968aef964db942ef557a3ac070c26fe91111416c524754291",
         UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!: "e8fa800ae6ed75ceb8b3c13aa234775017c30a28d7ed025910d0a9423f0cba47",
-        UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!: "d6545ed17594911430e378a28d6c81c07057517c6a2f5f682355e2e62aeb11e2"
+        UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!: "d6545ed17594911430e378a28d6c81c07057517c6a2f5f682355e2e62aeb11e2",
+        UUID(uuidString: "A7C1E4D2-6B3F-4C8A-9D51-2E7F0B6A1C34")!: "2c1f96b3925bfeffd9d12c9d1b6a2d92d0900333753ce3f6c653809f49a1adc2",
+        UUID(uuidString: "B8D2F5E3-7C4A-4D9B-8E62-3F8A1C7B2D45")!: "1d6e941e0a625a715a0d91d55d1357ba54941764545a0d5d5d4985ffd4452a0c",
+        UUID(uuidString: "C9E3A6F4-8D5B-4EAC-9F73-4A9B2D8C3E56")!: "f5b2a69c50ff0ee49bf95f894bcbcdea44ac98e2da2549690b02e173d7482ec8",
+        UUID(uuidString: "DAF4B7A5-9E6C-4FBD-A084-5BAC3E9D4F67")!: "1ece455ac14fa6dbcf1ba7846148c5aef9c47bdbce38b05b7882b882a1ea8a2b"
     ]
 
     private static let canonicalBundledPackageFilenames: [UUID: String] = [
@@ -61,7 +70,11 @@ enum PatchProjectLibrary {
         UUID(uuidString: "2E5D8A71-3C4B-4F92-8D6A-7715C8E34B20")!: "HOLOGRAMA EXCLUSIVO ROSADO.TRYSTORE",
         UUID(uuidString: "730F4929-EAF2-47D8-8EC1-39210322E46F")!: "Drag con Cuello.TRYSTORE",
         UUID(uuidString: "68F2ACB2-2464-4CC3-ABFA-30D29077A81B")!: "Pecho3105.TRYSTORE",
-        UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!: "CUELLO3105.TRYSTORE"
+        UUID(uuidString: "0F13736C-D7A2-4E02-AC21-40DFC8463F89")!: "CUELLO3105.TRYSTORE",
+        UUID(uuidString: "A7C1E4D2-6B3F-4C8A-9D51-2E7F0B6A1C34")!: "HOLOGRAMA COMETA.TRYSTORE",
+        UUID(uuidString: "B8D2F5E3-7C4A-4D9B-8E62-3F8A1C7B2D45")!: "HOLOGRAMA COSMICO.TRYSTORE",
+        UUID(uuidString: "C9E3A6F4-8D5B-4EAC-9F73-4A9B2D8C3E56")!: "HOLOGRAMA THANKSGIVING.TRYSTORE",
+        UUID(uuidString: "DAF4B7A5-9E6C-4FBD-A084-5BAC3E9D4F67")!: "HOLOGRAMA SANTA.TRYSTORE"
     ]
 
     private static let legacyRemoteProjectNames: [String: String] = [
@@ -285,15 +298,22 @@ enum PatchProjectLibrary {
     static func installBundledPackageDataIfNeeded(
         _ sourceData: Data,
         projectName: String,
+        sourceProjectName: String? = nil,
         password: String? = nil,
         fileManager: FileManager = .default
     ) -> Bool {
-        guard let source = try? PatchPackageCodec.decodeBundledResource(sourceData) else {
+        let sourceProject: PatchProject
+        if let bundled = try? PatchPackageCodec.decodeBundledResource(sourceData) {
+            sourceProject = bundled.decoded.project
+        } else if let plain = try? PatchPackageCodec.decode(sourceData, password: nil) {
+            sourceProject = plain.project
+        } else {
             log("patch: bundled package decode failed: \(projectName)")
             return false
         }
-        guard projectNameMatches(expected: projectName, actual: source.decoded.project.name) else {
-            log("patch: bundled package identity mismatch: expected \(projectName), payload \(source.decoded.project.name)")
+        let expectedSourceName = sourceProjectName ?? projectName
+        guard projectNameMatches(expected: expectedSourceName, actual: sourceProject.name) else {
+            log("patch: bundled package identity mismatch: expected \(expectedSourceName), payload \(sourceProject.name)")
             return false
         }
         guard let root = try? packageRootURL(fileManager: fileManager) else {
@@ -312,7 +332,7 @@ enum PatchProjectLibrary {
                let key = try? PatchKeyStore.load(for: existingSummary),
                let existingDecoded = try? PatchPackageCodec.decode(existingData, contentKey: key),
                existingDecoded.project.name == projectName {
-                let expectedID = bundledProjectIDs[projectName] ?? source.decoded.project.id
+                let expectedID = bundledProjectIDs[projectName] ?? sourceProject.id
                 if existingDecoded.project.id == expectedID,
                    UserDefaults.standard.string(forKey: revisionKey) == sourceRevision {
                     return true
@@ -329,7 +349,7 @@ enum PatchProjectLibrary {
         }
 
         do {
-            var normalizedProject = source.decoded.project
+            var normalizedProject = sourceProject
             normalizedProject.name = projectName
             if let bundledProjectID = bundledProjectIDs[projectName] {
                 normalizedProject.id = bundledProjectID
