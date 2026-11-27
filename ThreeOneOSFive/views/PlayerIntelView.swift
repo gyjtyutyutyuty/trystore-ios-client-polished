@@ -30,8 +30,6 @@ struct PlayerIntelView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppPremiumBackdrop()
-
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppSpacing.l) {
                         topBar.appCinematicReveal(delay: 0.02)

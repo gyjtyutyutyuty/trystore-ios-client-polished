@@ -85,8 +85,6 @@ struct PlayerWardrobeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppPremiumBackdrop()
-
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppSpacing.l) {
                         topBar.appCinematicReveal(delay: 0.02)
@@ -881,14 +879,21 @@ struct PlayerHubView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            switcher
-            Group {
-                switch mode {
-                case .wardrobe:
-                    PlayerWardrobeView()
-                case .intel:
-                    PlayerIntelView()
+        ZStack {
+            // One backdrop for the whole tab, including the switcher strip.
+            // The wardrobe and intel children used to own it separately, which
+            // left the top bar over the window's black background.
+            AppPremiumBackdrop()
+
+            VStack(spacing: 0) {
+                switcher
+                Group {
+                    switch mode {
+                    case .wardrobe:
+                        PlayerWardrobeView()
+                    case .intel:
+                        PlayerIntelView()
+                    }
                 }
             }
         }
