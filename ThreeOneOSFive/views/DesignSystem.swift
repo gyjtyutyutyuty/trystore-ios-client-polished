@@ -293,7 +293,7 @@ final class HologramaHeroVideo {
     /// per install.
     static var url: URL? {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let destination = directory.appendingPathComponent("HologramaHero-v1.mp4")
+        let destination = directory.appendingPathComponent("HologramaHero-v2.mp4")
         if FileManager.default.fileExists(atPath: destination.path) {
             return destination
         }
@@ -349,27 +349,33 @@ struct HologramaHeroBackdrop: View {
     @Environment(\.appPerformanceMode) private var performanceMode
 
     var body: some View {
-        ZStack {
-            AppPalette.canvas
-            if reduceMotion || performanceMode {
-                Image("HologramaHeroStill")
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                HologramaHeroVideoView()
-                    .onAppear { HologramaHeroVideo.shared.setVisible(true) }
-                    .onDisappear { HologramaHeroVideo.shared.setVisible(false) }
+        GeometryReader { geometry in
+            ZStack {
+                AppPalette.canvas
+                if reduceMotion || performanceMode {
+                    Image("HologramaHeroStill")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                } else {
+                    HologramaHeroVideoView()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .onAppear { HologramaHeroVideo.shared.setVisible(true) }
+                        .onDisappear { HologramaHeroVideo.shared.setVisible(false) }
+                }
+                LinearGradient(
+                    stops: [
+                        .init(color: AppPalette.canvas.opacity(0.45), location: 0),
+                        .init(color: .clear, location: 0.26),
+                        .init(color: .clear, location: 0.58),
+                        .init(color: AppPalette.canvas.opacity(0.35), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             }
-            LinearGradient(
-                stops: [
-                    .init(color: AppPalette.canvas.opacity(0.45), location: 0),
-                    .init(color: .clear, location: 0.26),
-                    .init(color: .clear, location: 0.58),
-                    .init(color: AppPalette.canvas.opacity(0.35), location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
         }
         .clipped()
         .accessibilityHidden(true)

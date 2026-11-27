@@ -261,8 +261,11 @@ struct HomeView: View {
     private func heroHome(size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
             HologramaHeroBackdrop()
+                .frame(width: size.width, height: size.height)
+                .clipped()
 
             heroControlDeck
+                .frame(width: size.width)
         }
         .frame(width: size.width, height: size.height)
         .background(AppPalette.canvas, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
@@ -2530,8 +2533,9 @@ private struct PatchModuleCardView: View {
             Text(title)
                 .font(AppType.value().weight(.semibold))
                 .foregroundStyle(AppPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+                .lineLimit(2)
+                .minimumScaleFactor(0.80)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             HStack(spacing: AppSpacing.s) {
                 statusRow
@@ -3375,8 +3379,9 @@ private struct PatchesView: View {
                         Text(option.title)
                             .font(AppType.value())
                             .foregroundStyle(AppPalette.textPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.80)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                     if selectedPatchIsActive {
