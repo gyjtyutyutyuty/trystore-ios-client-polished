@@ -392,32 +392,45 @@ struct AppPremiumBackdrop: View {
     @Environment(\.appPerformanceMode) private var performanceMode
 
     var body: some View {
-        ZStack {
-            AppPalette.canvas
+        GeometryReader { proxy in
+            ZStack {
+                AppPalette.canvas
 
-            if reduceMotion || performanceMode {
-                RadialGradient(
-                    colors: [AppTheme.accent.opacity(0.20), .clear],
-                    center: .topTrailing,
-                    startRadius: 12,
-                    endRadius: 620
+                if reduceMotion || performanceMode {
+                    Image("StormLoopStill")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                    RadialGradient(
+                        colors: [AppTheme.accent.opacity(0.20), .clear],
+                        center: .topTrailing,
+                        startRadius: 12,
+                        endRadius: 620
+                    )
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                } else {
+                    StormLoopVideoView()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                    StormAuroraView()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .blendMode(.plusLighter)
+                        .opacity(0.8)
+                }
+
+                LinearGradient(
+                    colors: [
+                        AppPalette.canvas.opacity(0.06),
+                        AppPalette.canvas.opacity(0.24),
+                        AppPalette.canvas.opacity(0.66)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-            } else {
-                StormLoopVideoView()
-                StormAuroraView()
-                    .blendMode(.plusLighter)
-                    .opacity(0.8)
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
-
-            LinearGradient(
-                colors: [
-                    AppPalette.canvas.opacity(0.06),
-                    AppPalette.canvas.opacity(0.24),
-                    AppPalette.canvas.opacity(0.66)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
