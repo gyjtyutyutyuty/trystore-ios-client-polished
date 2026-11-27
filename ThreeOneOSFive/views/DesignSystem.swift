@@ -195,7 +195,7 @@ final class StormLoopVideo {
     /// per install.
     static var url: URL? {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let destination = directory.appendingPathComponent("StormLoop-v4.mp4")
+        let destination = directory.appendingPathComponent("StormLoop-v5.mp4")
         if FileManager.default.fileExists(atPath: destination.path) {
             return destination
         }
@@ -388,11 +388,15 @@ struct HologramaHeroBackdrop: View {
     }
 }
 
-/// The app-wide backdrop. The loop is pre-graded hard (average luma ~105) so the
-/// storm reads on a phone screen, and a slow accent aurora is added over it with
-/// `plusLighter`: the moving glow guarantees a living background even where the
-/// clip itself is near-black. Reduce Motion and the constrained tier keep a
-/// still glow instead.
+private enum StormBackdropTone {
+    static let deep = Color(red: 0.010, green: 0.043, blue: 0.098)
+    static let mid = Color(red: 0.016, green: 0.118, blue: 0.255)
+    static let horizon = Color(red: 0.024, green: 0.267, blue: 0.475)
+}
+
+/// The app-wide backdrop: the blue lightning film plays full-screen, with the
+/// logo-blue grade, vignette and chrome scrims keeping the panels readable. The
+/// film carries its own real thunder and rain; Reduce Motion swaps in a still.
 struct AppPremiumBackdrop: View {
     @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.appPerformanceMode) private var performanceMode
@@ -400,43 +404,70 @@ struct AppPremiumBackdrop: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                AppPalette.canvas
+                LinearGradient(
+                    stops: [
+                        .init(color: StormBackdropTone.deep, location: 0),
+                        .init(color: StormBackdropTone.mid, location: 0.52),
+                        .init(color: StormBackdropTone.horizon, location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
-                if reduceMotion || performanceMode {
+                RadialGradient(
+                    colors: [AppPalette.brand.opacity(0.22), .clear],
+                    center: .topTrailing,
+                    startRadius: 8,
+                    endRadius: proxy.size.width * 1.15
+                )
+
+                if reduceMotion {
                     Image("StormLoopStill")
                         .resizable()
                         .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
-                    RadialGradient(
-                        colors: [AppTheme.accent.opacity(0.20), .clear],
-                        center: .topTrailing,
-                        startRadius: 12,
-                        endRadius: 620
-                    )
-                    .frame(width: proxy.size.width, height: proxy.size.height)
                 } else {
                     StormLoopVideoView()
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
+                        .opacity(0.94)
+                }
+
+                if !reduceMotion && !performanceMode {
                     StormAuroraView()
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .blendMode(.plusLighter)
-                        .opacity(0.8)
+                        .opacity(0.30)
+                } else {
+                    RadialGradient(
+                        colors: [AppPalette.brand.opacity(0.16), .clear],
+                        center: .topTrailing,
+                        startRadius: 0,
+                        endRadius: proxy.size.width * 0.95
+                    )
                 }
 
+                RadialGradient(
+                    colors: [.clear, StormBackdropTone.deep.opacity(0.58)],
+                    center: .center,
+                    startRadius: min(proxy.size.width, proxy.size.height) * 0.24,
+                    endRadius: max(proxy.size.width, proxy.size.height) * 0.78
+                )
+
                 LinearGradient(
-                    colors: [
-                        AppPalette.canvas.opacity(0.06),
-                        AppPalette.canvas.opacity(0.24),
-                        AppPalette.canvas.opacity(0.66)
+                    stops: [
+                        .init(color: StormBackdropTone.deep.opacity(0.62), location: 0),
+                        .init(color: .clear, location: 0.22),
+                        .init(color: .clear, location: 0.64),
+                        .init(color: StormBackdropTone.deep.opacity(0.58), location: 1)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .frame(width: proxy.size.width, height: proxy.size.height)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
