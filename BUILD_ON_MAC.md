@@ -22,7 +22,7 @@ On success, the script creates `build/SupportPatch.xcarchive` and `build/Support
 
 ## Remote patches
 
-The approved source packages remain in `ThreeOneOSFive/Patches/` for review and publishing, but they are not Xcode resources and must not be copied into the IPA. After a successful license check, the app fetches the TryStore manifest and packages over HTTPS. It verifies the server host, package size and SHA-256, then checks the canonical package UUID and identity before installation. The Cloudflare Worker must be deployed with the license check enabled before distributing this client build; use the rollout checklist in [PATCH_CDN_SETUP.md](docs/PATCH_CDN_SETUP.md). The live feed currently contains the app's 11 expected catalog packages.
+The approved source packages remain in `ThreeOneOSFive/Patches/` for review and publishing, but they are not Xcode resources and must not be copied into the IPA. After a successful license check, the app fetches the TryStore manifest and packages over HTTPS. It verifies the server host, package size and SHA-256, then checks the canonical package UUID and identity before installation. The Cloudflare Worker must be deployed with the license check enabled before distributing this client build; use the rollout checklist in [PATCH_CDN_SETUP.md](docs/PATCH_CDN_SETUP.md). The live feed currently contains the app's 15 expected catalog packages.
 
 A first successful patch sync requires internet access. The validated package is then cached in protected app storage, and ongoing license checks gate the app. This raises the cost of unauthorized distribution but cannot prevent an authorized device owner from extracting a package after download.
 

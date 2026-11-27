@@ -35,23 +35,8 @@ struct BundledPatch {
     let password: String?
 }
 
-struct LocalBundledPatch {
-    let resourceName: String
-    let projectName: String
-    let sourceProjectName: String
-}
-
 enum FreeFireGame: Hashable {
     case max
-
-    var localBundledPatches: [LocalBundledPatch] {
-        [
-            LocalBundledPatch(resourceName: "HoloCometa", projectName: "HOLOGRAMA COMETA", sourceProjectName: "COMETA"),
-            LocalBundledPatch(resourceName: "HoloCosmico", projectName: "HOLOGRAMA COSMICO", sourceProjectName: "COSMICO"),
-            LocalBundledPatch(resourceName: "HoloThanksgiving", projectName: "HOLOGRAMA THANKSGIVING", sourceProjectName: "THANKSGIVING"),
-            LocalBundledPatch(resourceName: "HoloSanta", projectName: "HOLOGRAMA SANTA", sourceProjectName: "SANTA")
-        ]
-    }
 
     var bundledPatches: [BundledPatch] {
         [
@@ -63,6 +48,10 @@ enum FreeFireGame: Hashable {
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO.3105", projectName: "HOLOGRAMA EXCLUSIVO", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(4).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", password: nil),
             BundledPatch(resourceName: "HOLOGRAMAEXCLUSIVO(5).TRYSTORE", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMA COMETA.TRYSTORE", projectName: "HOLOGRAMA COMETA", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMA COSMICO.TRYSTORE", projectName: "HOLOGRAMA COSMICO", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMA THANKSGIVING.TRYSTORE", projectName: "HOLOGRAMA THANKSGIVING", password: nil),
+            BundledPatch(resourceName: "HOLOGRAMA SANTA.TRYSTORE", projectName: "HOLOGRAMA SANTA", password: nil),
             BundledPatch(resourceName: "Cuello y Drag.TRYSTORE", projectName: "Drag con Cuello", password: nil),
             BundledPatch(resourceName: "Pecho3105.TRYSTORE", projectName: "Pecho3105", password: nil),
             BundledPatch(resourceName: "CUELLO3105.TRYSTORE", projectName: "CUELLO3105", password: nil)
@@ -95,28 +84,7 @@ final class PatchProjectStore: ObservableObject {
 
     init(game: FreeFireGame = .max) {
         self.game = game
-        installLocalBundledResourcesIfNeeded()
         reload()
-    }
-
-    /// The Visuals pack is stored in the asset catalog rather than fetched from
-    /// the feed. It is installed once, re-encoded under its own project ID, and
-    /// then behaves exactly like a delivered package.
-    private func installLocalBundledResourcesIfNeeded() {
-        for patch in game.localBundledPatches {
-            guard let asset = NSDataAsset(name: patch.resourceName) else {
-                log("patch: local visual asset missing: \(patch.resourceName)")
-                continue
-            }
-            let installed = PatchProjectLibrary.installBundledPackageDataIfNeeded(
-                asset.data,
-                projectName: patch.projectName,
-                sourceProjectName: patch.sourceProjectName
-            )
-            if !installed {
-                log("patch: local visual install failed: \(patch.projectName)")
-            }
-        }
     }
 
     func installBundledResources(credentials: PatchFeedCredentials?) {
