@@ -189,7 +189,7 @@ final class StormLoopVideo {
     /// per install.
     static var url: URL? {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let destination = directory.appendingPathComponent("StormLoop-v2.mp4")
+        let destination = directory.appendingPathComponent("StormLoop-v3.mp4")
         if FileManager.default.fileExists(atPath: destination.path) {
             return destination
         }
@@ -238,10 +238,11 @@ struct StormLoopVideoView: UIViewRepresentable {
     func updateUIView(_ uiView: StormLoopLayerView, context: Context) {}
 }
 
-/// The app-wide backdrop. The loop is pre-graded (lifted and saturated) so the
-/// storm actually reads on a phone screen; the scrim stays light at the top and
-/// only strengthens behind the lower content. Reduce Motion and the constrained
-/// tier keep a still glow instead.
+/// The app-wide backdrop. The loop is pre-graded hard (average luma ~105) so the
+/// storm reads on a phone screen, and a slow accent aurora is added over it with
+/// `plusLighter`: the moving glow guarantees a living background even where the
+/// clip itself is near-black. Reduce Motion and the constrained tier keep a
+/// still glow instead.
 struct AppPremiumBackdrop: View {
     @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.appPerformanceMode) private var performanceMode
@@ -259,19 +260,57 @@ struct AppPremiumBackdrop: View {
                 )
             } else {
                 StormLoopVideoView()
+                StormAuroraView()
+                    .blendMode(.plusLighter)
+                    .opacity(0.8)
             }
 
             LinearGradient(
                 colors: [
-                    AppPalette.canvas.opacity(0.10),
-                    AppPalette.canvas.opacity(0.30),
-                    AppPalette.canvas.opacity(0.72)
+                    AppPalette.canvas.opacity(0.06),
+                    AppPalette.canvas.opacity(0.24),
+                    AppPalette.canvas.opacity(0.66)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Slow, two-lobe accent glow. It sits above the loop and adds light rather than
+/// covering it, so the storm keeps its texture while the screen never goes flat
+/// black between lightning beats.
+private struct StormAuroraView: View {
+    @State private var drift = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                RadialGradient(
+                    colors: [AppTheme.accent.opacity(0.26), AppTheme.accent.opacity(0.06), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: proxy.size.width * 1.05
+                )
+                .scaleEffect(drift ? 1.10 : 0.88, anchor: .topTrailing)
+                .offset(x: drift ? -24 : 30, y: drift ? 18 : -20)
+
+                RadialGradient(
+                    colors: [AppTheme.accent.opacity(0.16), .clear],
+                    center: .bottomLeading,
+                    startRadius: 0,
+                    endRadius: proxy.size.width * 0.9
+                )
+                .scaleEffect(drift ? 0.92 : 1.08, anchor: .bottomLeading)
+            }
+            .blur(radius: 36)
+            .animation(.easeInOut(duration: 15).repeatForever(autoreverses: true), value: drift)
+            .onAppear { drift = true }
+        }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
