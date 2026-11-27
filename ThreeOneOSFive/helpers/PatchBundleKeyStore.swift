@@ -77,18 +77,6 @@ enum PatchBundleKeyStore {
         guard let token = readStringKeychain(account: feedTokenAccount), !token.isEmpty else {
             return nil
         }
-        // Never send a token after its server-provided expiry. Sending an old
-        // token is worse than omitting it: the Worker rejects the request
-        // before it can fall back to the licence-bound Authorization header,
-        // which used to surface as the misleading generic "secure download"
-        // error. The next bundle-key refresh will mint a fresh token.
-        guard let rawExpiry = readStringKeychain(account: feedTokenExpiryAccount),
-              let expiry = Double(rawExpiry),
-              expiry > Date().timeIntervalSince1970 else {
-            deleteKeychainItem(account: feedTokenAccount)
-            deleteKeychainItem(account: feedTokenExpiryAccount)
-            return nil
-        }
         return token
     }
 
