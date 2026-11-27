@@ -64,13 +64,17 @@ struct WornOutfit: Identifiable, Equatable {
 /// Where a slot sits on the character. The body is one unit tall and centred
 /// on the origin, so these values are direct scene coordinates.
 struct GarmentFit {
-    /// Vertical centre of the garment, in body space.
+    /// Vertical centre of the garment, in body space. Shoes ignore this and sit
+    /// on the ground instead, because a boot's cuff must not lift it.
     let centerY: CGFloat
-    /// How tall the garment is drawn. The catalogue hands over standalone
-    /// scans normalised by their longest side, so the height is what sizes a
-    /// piece to the body; normalising the arm span instead shrinks every
-    /// sleeved item.
+    /// Tallest the garment may be drawn. The catalogue hands over standalone
+    /// scans normalised by their longest side, so sizing by height alone blew
+    /// trainers up to three times the foot length. A piece is now fitted inside
+    /// a box and keeps its own proportions.
     let height: CGFloat
+    /// Widest the garment may be drawn, in body space. This is the constraint
+    /// that keeps both shoes, a mask or a waistband from swallowing the body.
+    let width: CGFloat
     /// Where the mesh sits along the body's depth axis.
     let z: CGFloat
 }
@@ -78,17 +82,17 @@ struct GarmentFit {
 extension PlayerOutfitSlot {
     /// The catalogue exports each item as a standalone scan with its own
     /// origin, so the only reliable placement is a per-slot box: centre the
-    /// mesh on the body region and give it the slot's real height. Values are
-    /// matched to the bundled meshes, whose torso band is y 0.04...0.36 and
-    /// whose trousers run from the waist down to the ankle.
+    /// mesh on the body region and let it fit inside the slot's real width and
+    /// height. Boxes are measured from the bundled body: head y 0.91...1.00 and
+    /// 0.12 wide, torso 0.04...0.36, trousers 0.02...0.59, feet 0.00...0.03.
     var garmentFit: GarmentFit? {
         switch self {
-        case .hair: return GarmentFit(centerY: 0.435, height: 0.17, z: 0.00)
-        case .face: return GarmentFit(centerY: 0.42, height: 0.10, z: 0.06)
-        case .mask: return GarmentFit(centerY: 0.405, height: 0.12, z: 0.08)
-        case .top: return GarmentFit(centerY: 0.17, height: 0.35, z: 0.01)
-        case .pants: return GarmentFit(centerY: -0.19, height: 0.52, z: 0.01)
-        case .shoes: return GarmentFit(centerY: -0.43, height: 0.14, z: 0.02)
+        case .hair: return GarmentFit(centerY: 0.462, height: 0.13, width: 0.145, z: 0.00)
+        case .face: return GarmentFit(centerY: 0.455, height: 0.09, width: 0.105, z: 0.055)
+        case .mask: return GarmentFit(centerY: 0.452, height: 0.115, width: 0.13, z: 0.075)
+        case .top: return GarmentFit(centerY: 0.20, height: 0.35, width: 0.66, z: 0.01)
+        case .pants: return GarmentFit(centerY: -0.19, height: 0.52, width: 0.30, z: 0.01)
+        case .shoes: return GarmentFit(centerY: -0.453, height: 0.14, width: 0.301, z: 0.02)
         case .pin, .title, .other: return nil
         }
     }

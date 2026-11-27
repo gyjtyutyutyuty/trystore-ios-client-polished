@@ -355,17 +355,25 @@ final class CharacterSceneView: SCNView, UIGestureRecognizerDelegate {
     private func attach(_ model: GarmentModel, slot: PlayerOutfitSlot, id: String) -> Bool {
         guard let fit = slot.garmentFit, model.height > 0.001 else { return false }
 
-        // Height-driven, not longest-side-driven: a jacket is wider across the
-        // sleeves than it is tall, so dividing by its arm span made every
-        // sleeved item come out short and lose the body.
-        let scale = fit.height / model.height
+        // Fit inside the slot box instead of scaling by height alone. A shoe
+        // scan is three times longer than it is tall, so height sizing made
+        // trainers wider than the character; the width cap fixes that while a
+        // sleeved jacket still uses its full torso height.
+        let heightScale = fit.height / model.height
+        let widthScale = model.width > 0.001 ? fit.width / model.width : heightScale
+        let scale = min(heightScale, widthScale)
         let holder = SCNNode()
         holder.name = "garment-\(id)"
         holder.addChildNode(model.node)
         // Uniform on every axis: resizing a downloaded garment to its slot must
         // never stretch it wider or deeper than the scan the player downloaded.
         holder.scale = SCNVector3(Float(scale), Float(scale), Float(scale))
-        holder.position = SCNVector3(0, Float(fit.centerY), Float(fit.z))
+        // Boots are ground-anchored: the cuff may be tall, but the sole must
+        // meet the feet instead of hovering with the old centre value.
+        let centerY = slot == .shoes
+            ? -0.5 + model.height * scale * 0.5
+            : fit.centerY
+        holder.position = SCNVector3(0, Float(centerY), Float(fit.z))
         garmentContainer.addChildNode(holder)
 
         wornSlots.insert(slot)

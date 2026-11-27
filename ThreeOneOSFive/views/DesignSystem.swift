@@ -189,7 +189,7 @@ final class StormLoopVideo {
     /// per install.
     static var url: URL? {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let destination = directory.appendingPathComponent("StormLoop-v1.mp4")
+        let destination = directory.appendingPathComponent("StormLoop-v2.mp4")
         if FileManager.default.fileExists(atPath: destination.path) {
             return destination
         }
@@ -238,9 +238,10 @@ struct StormLoopVideoView: UIViewRepresentable {
     func updateUIView(_ uiView: StormLoopLayerView, context: Context) {}
 }
 
-/// The app-wide backdrop. The storm loop is screen-blended over the canvas so
-/// its near-black frames turn into moving glow, then a scrim keeps text
-/// readable. Reduce Motion and the constrained tier keep a still glow instead.
+/// The app-wide backdrop. The loop is pre-graded (lifted and saturated) so the
+/// storm actually reads on a phone screen; the scrim stays light at the top and
+/// only strengthens behind the lower content. Reduce Motion and the constrained
+/// tier keep a still glow instead.
 struct AppPremiumBackdrop: View {
     @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.appPerformanceMode) private var performanceMode
@@ -258,15 +259,13 @@ struct AppPremiumBackdrop: View {
                 )
             } else {
                 StormLoopVideoView()
-                    .blendMode(.screen)
-                    .opacity(0.92)
             }
 
             LinearGradient(
                 colors: [
-                    AppPalette.canvas.opacity(0.22),
-                    AppPalette.canvas.opacity(0.58),
-                    AppPalette.canvas.opacity(0.90)
+                    AppPalette.canvas.opacity(0.10),
+                    AppPalette.canvas.opacity(0.30),
+                    AppPalette.canvas.opacity(0.72)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
