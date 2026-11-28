@@ -133,7 +133,7 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.l)
                     .padding(.top, AppSpacing.s)
-                    .padding(.bottom, AppSpacing.l)
+                    .padding(.bottom, AppSpacing.tabBarClearance)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -372,9 +372,10 @@ struct HomeView: View {
                 .tracking(0.9)
                 .foregroundStyle(AppPalette.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.5)
             Spacer(minLength: AppSpacing.xs)
             characterSwitch
+                .layoutPriority(1)
         }
         .padding(.horizontal, AppSpacing.m)
         .padding(.top, AppSpacing.m)
@@ -397,7 +398,7 @@ struct HomeView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(heroModel == model ? AppPalette.canvas : AppPalette.textSecondary)
-                        .padding(.horizontal, 13)
+                        .padding(.horizontal, 10)
                         .frame(height: 44)
                         .background {
                             if heroModel == model {
@@ -498,10 +499,10 @@ struct HomeView: View {
 
     private func stageCallouts(in size: CGSize) -> some View {
         ZStack {
-            stageCallout(.aboveHead, at: UnitPoint(x: 0.27, y: 0.29), in: size)
-            stageCallout(.head, at: UnitPoint(x: 0.21, y: 0.45), in: size)
-            stageCallout(.chest, at: UnitPoint(x: 0.20, y: 0.61), in: size)
-            stageCallout(.neck, at: UnitPoint(x: 0.79, y: 0.47), in: size)
+            stageCallout(.aboveHead, at: UnitPoint(x: 0.21, y: 0.14), in: size)
+            stageCallout(.head, at: UnitPoint(x: 0.17, y: 0.37), in: size)
+            stageCallout(.chest, at: UnitPoint(x: 0.17, y: 0.59), in: size)
+            stageCallout(.neck, at: UnitPoint(x: 0.83, y: 0.41), in: size)
         }
         .frame(width: size.width, height: size.height)
     }
@@ -2283,7 +2284,7 @@ private struct DashboardView: View {
             PatchCategoryNotice(
                 title: language.text("patch.safety.antena_label"),
                 detail: language.text("patch.safety.antena_detail"),
-                tint: AppTheme.accent,
+                tint: AppPalette.brand,
                 icon: "antenna.radiowaves.left.and.right"
             )
         }
@@ -2291,7 +2292,7 @@ private struct DashboardView: View {
 
     private var visualPatchPreview: some View {
         ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+            AppChamferShape(cut: 14)
                 .fill(AppPalette.canvas)
             Image("CleanCharacter")
                 .resizable()
@@ -3082,8 +3083,8 @@ private struct PatchModuleCardView: View {
                     .padding(AppSpacing.m)
                     .background(fill)
                     .overlay(border)
-                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+                    .clipShape(AppChamferShape(cut: 14))
+                    .contentShape(AppChamferShape(cut: 14))
             }
             .buttonStyle(AppPressButtonStyle())
             .disabled(isBusy)
@@ -3157,13 +3158,21 @@ private struct PatchModuleCardView: View {
     }
 
     private var fill: some View {
-        RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
-            .fill(isSelected ? AppPalette.raised : AppPalette.surface)
+        AppChamferShape(cut: 14)
+            .fill(
+                LinearGradient(
+                    colors: isSelected
+                        ? [AppPalette.brand.opacity(0.18), AppHUD.deep]
+                        : [AppHUD.panelLift, AppHUD.deep],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
     }
 
     private var border: some View {
-        RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
-            .strokeBorder(isSelected ? AppPalette.brand : AppPalette.hairline.opacity(0.35), lineWidth: 1)
+        AppChamferShape(cut: 14)
+            .stroke(isSelected ? AppPalette.brand : AppPalette.brand.opacity(0.22), lineWidth: 1)
             .allowsHitTesting(false)
     }
 }
@@ -3205,18 +3214,26 @@ private struct PatchesView: View {
         NavigationStack {
             ZStack {
                 AppPremiumBackdrop()
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: AppSpacing.l) {
-                        topBarPatches.appCinematicReveal(delay: 0.02)
-                        patchZoneControlCard.appCinematicReveal(delay: 0.06)
-                        patchCategoriesView.appCinematicReveal(delay: 0.09)
-                        activePatchesView.appCinematicReveal(delay: 0.16)
+                VStack(spacing: 0) {
+                    // The studio bar is chrome, not content: pinning it stops the
+                    // page from sliding under the status bar while you scroll.
+                    topBarPatches
+                        .appCinematicReveal(delay: 0.02)
+                        .padding(.horizontal, AppSpacing.screenInset)
+                        .padding(.top, AppSpacing.s)
+                        .padding(.bottom, AppSpacing.s)
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: AppSpacing.l) {
+                            patchZoneControlCard.appCinematicReveal(delay: 0.06)
+                            patchCategoriesView.appCinematicReveal(delay: 0.09)
+                            activePatchesView.appCinematicReveal(delay: 0.16)
+                        }
+                        .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 1040)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, AppSpacing.screenInset)
+                        .padding(.top, AppSpacing.xs)
+                        .padding(.bottom, AppSpacing.xxl)
                     }
-                    .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 1040)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, AppSpacing.screenInset)
-                    .padding(.top, AppSpacing.m)
-                    .padding(.bottom, AppSpacing.xxl)
                 }
 
                 if showPatchProgress {
@@ -3235,7 +3252,7 @@ private struct PatchesView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            .tint(AppTheme.accent)
+            .tint(AppPalette.brand)
         }
         .task {
             patchStore.installBundledResources(credentials: licenseManager.patchFeedCredentials())
@@ -3267,54 +3284,91 @@ private struct PatchesView: View {
     }
 
     private var topBarPatches: some View {
-        HStack(spacing: horizontalSizeClass == .compact ? 4 : AppSpacing.m) {
-            if horizontalSizeClass == .compact {
-                patchHeaderButton(
-                    symbol: "xmark",
-                    label: language.text("common.close"),
-                    identifier: "patches.close",
-                    action: onClose
-                )
-            } else {
-                AppLogo(size: 46)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("PATCH STUDIO")
-                    .font(.system(size: horizontalSizeClass == .compact ? 15 : 21, weight: .semibold))
-                    .foregroundStyle(AppPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text("FREE FIRE MAX  •  MODULE CONTROL")
-                    .font(AppType.label())
-                    .foregroundStyle(AppPalette.textTertiary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: horizontalSizeClass == .compact ? 115 : 280, alignment: .leading)
+        VStack(spacing: AppSpacing.s) {
+            HStack(spacing: AppSpacing.s) {
+                if horizontalSizeClass == .compact {
+                    patchHeaderButton(
+                        symbol: "xmark",
+                        label: language.text("common.close"),
+                        identifier: "patches.close",
+                        action: onClose
+                    )
+                } else {
+                    AppLogo(size: 46)
+                        .clipShape(AppChamferShape(cut: 12))
+                        .overlay(
+                            AppChamferShape(cut: 12)
+                                .stroke(AppPalette.brand.opacity(0.45), lineWidth: 1)
+                        )
+                }
 
-            Spacer(minLength: horizontalSizeClass == .compact ? 2 : AppSpacing.xs)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("PATCH STUDIO")
+                        .font(AppType.hudWordmark(compact: horizontalSizeClass == .compact))
+                        .tracking(1.2)
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .shadow(color: AppPalette.brand.opacity(0.5), radius: 10)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text("FREE FIRE MAX  /  MODULE CONTROL")
+                        .font(AppType.hudTagline())
+                        .tracking(1.0)
+                        .foregroundStyle(AppPalette.brand.opacity(0.82))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                }
 
-            patchHeaderStatus
-            patchHeaderButton(
-                symbol: "apple.terminal",
-                label: language.text("accessibility.open_logs"),
-                identifier: "patches.open-logs",
-                action: onOpenLogs
-            )
-            patchHeaderButton(
-                symbol: "slider.horizontal.3",
-                label: language.text("accessibility.open_settings"),
-                identifier: "patches.open-settings",
-                action: onOpenSettings
-            )
-            if horizontalSizeClass != .compact {
+                Spacer(minLength: AppSpacing.xs)
+
+                patchHeaderStatus
                 patchHeaderButton(
-                    symbol: "xmark",
-                    label: language.text("common.close"),
-                    identifier: "patches.close",
-                    action: onClose
+                    symbol: "apple.terminal",
+                    label: language.text("accessibility.open_logs"),
+                    identifier: "patches.open-logs",
+                    action: onOpenLogs
                 )
+                patchHeaderButton(
+                    symbol: "slider.horizontal.3",
+                    label: language.text("accessibility.open_settings"),
+                    identifier: "patches.open-settings",
+                    action: onOpenSettings
+                )
+                if horizontalSizeClass != .compact {
+                    patchHeaderButton(
+                        symbol: "xmark",
+                        label: language.text("common.close"),
+                        identifier: "patches.close",
+                        action: onClose
+                    )
+                }
             }
+
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, AppPalette.brand.opacity(0.65)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+                Rectangle()
+                    .fill(AppPalette.brand)
+                    .frame(width: 5, height: 5)
+                    .rotationEffect(.degrees(45))
+                    .shadow(color: AppPalette.brand, radius: 4)
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.brand.opacity(0.65), .clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+            }
+            .accessibilityHidden(true)
         }
     }
 
@@ -3325,7 +3379,7 @@ private struct PatchesView: View {
                 .fill(appState.isSupported ? AppPalette.mint : AppPalette.amber)
                 .frame(width: 8, height: 8)
                 .padding(8)
-                .background(AppPalette.raised, in: Capsule())
+                .background(AppHUD.deep.opacity(0.92), in: Capsule())
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(appState.isSupported ? language.text("patch.compat.ready") : language.text("patch.compat.review"))
         } else {
@@ -3354,14 +3408,22 @@ private struct PatchesView: View {
             action()
         } label: {
             ZStack {
-                Circle().fill(AppPalette.raised)
-                Circle().strokeBorder(AppPalette.hairline.opacity(0.55), lineWidth: 1)
+                AppChamferShape(cut: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppHUD.panelLift, AppHUD.deep],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                AppChamferShape(cut: 12)
+                    .stroke(AppPalette.brand.opacity(0.45), lineWidth: 1)
                 Image(systemName: symbol)
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(AppPalette.textPrimary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppPalette.brand)
             }
             .frame(width: 44, height: 44)
-            .contentShape(Circle())
+            .contentShape(AppChamferShape(cut: 12))
         }
         .buttonStyle(AppPressButtonStyle())
         .accessibilityLabel(label)
@@ -3388,17 +3450,21 @@ private struct PatchesView: View {
     private var patchZoneControlCard: some View {
         VStack(spacing: 0) {
             HStack(spacing: AppSpacing.s) {
-                Circle()
-                    .fill(AppPalette.brand)
-                    .frame(width: 6, height: 6)
+                Text("01")
+                    .font(AppType.hudKicker().weight(.black))
+                    .foregroundStyle(AppPalette.canvas)
+                    .frame(width: 26, height: 26)
+                    .background(AppPalette.brand, in: AppChamferShape(cut: 8))
                 Text(language.text("patch.control.title"))
-                    .font(AppType.label().weight(.bold))
-                    .tracking(1.1)
+                    .font(AppType.hudStageTitle())
+                    .tracking(0.9)
                     .foregroundStyle(AppPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Spacer(minLength: AppSpacing.s)
                 HeroCharacterSwitcher(selection: patchCharacterSelection)
             }
-            .padding(.horizontal, AppSpacing.l)
+            .padding(.horizontal, AppSpacing.m)
             .padding(.top, AppSpacing.m)
             .padding(.bottom, AppSpacing.s)
 
@@ -3407,7 +3473,7 @@ private struct PatchesView: View {
                 zone: selectedPatchZone,
                 onSelect: selectPatchZone
             )
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+            .clipShape(AppChamferShape(cut: 14))
             .overlay(alignment: .bottomTrailing) {
                 HologramaCarousel(
                     patches: Self.hologramaPatches,
@@ -3438,12 +3504,8 @@ private struct PatchesView: View {
             .padding(.bottom, AppSpacing.m)
         }
         .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 540)
-        .background(AppPalette.surface, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
-                .strokeBorder(AppPalette.hairline.opacity(0.5), lineWidth: 1)
-        }
-        .appDepthLayer(.card)
+        .clipShape(AppChamferShape(cut: 22))
+        .appHUDPanel(cut: 22)
     }
 
     private func selectPatchZone(_ zone: PatchAimZone?) {
@@ -3489,13 +3551,13 @@ private struct PatchesView: View {
         }
     }
 
-    private func panelHeader(title: String, subtitle: String, icon: String) -> some View {
-        AppSectionHeader(icon: icon, title: title, subtitle: subtitle)
+    private func panelHeader(index: String, title: String, subtitle: String, icon: String) -> some View {
+        HUDSectionHeader(index: index, icon: icon, title: title, subtitle: subtitle)
     }
 
     private var patchCategoriesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            panelHeader(title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
+            panelHeader(index: "02", title: language.text("patch.categories"), subtitle: language.text("patch.categories.subtitle"), icon: "square.grid.2x2.fill")
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppSpacing.s) {
@@ -3506,7 +3568,7 @@ private struct PatchesView: View {
                 }
                 .padding(5)
             }
-            .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .background(AppHUD.deep.opacity(0.92), in: AppChamferShape(cut: 14))
         }
     }
 
@@ -3526,7 +3588,7 @@ private struct PatchesView: View {
                     .foregroundStyle(isSelected ? AppPalette.brand : AppPalette.textSecondary)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
-            .clipShape(Capsule())
+            .clipShape(AppChamferShape(cut: 10))
             .overlay(patchCategoryButtonOutline(isSelected: isSelected))
         }
         .buttonStyle(AppPressButtonStyle())
@@ -3534,18 +3596,18 @@ private struct PatchesView: View {
     }
 
     private func patchCategoryButtonBackground(isSelected: Bool) -> some View {
-        Capsule()
-            .fill(isSelected ? AppPalette.canvas : Color.clear)
+        AppChamferShape(cut: 10)
+            .fill(isSelected ? AppPalette.brand.opacity(0.16) : Color.clear)
     }
 
     private func patchCategoryButtonOutline(isSelected: Bool) -> some View {
-        Capsule()
-            .strokeBorder(isSelected ? AppPalette.brand : AppPalette.hairline.opacity(0.45), lineWidth: 1)
+        AppChamferShape(cut: 10)
+            .stroke(isSelected ? AppPalette.brand : AppPalette.hairline.opacity(0.45), lineWidth: 1)
     }
 
     private var activePatchesView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            panelHeader(title: language.text("patch.library"), subtitle: language.text("patch.library.subtitle"), icon: "checkmark.shield")
+            panelHeader(index: "03", title: language.text("patch.library"), subtitle: language.text("patch.library.subtitle"), icon: "checkmark.shield")
             patchConsole
             patchStudioCategoryNotice
 
@@ -3583,8 +3645,8 @@ private struct PatchesView: View {
             selectedPatchActionView
         }
         .padding(AppSpacing.l)
-        .background(AppPalette.raised, in: RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .clipShape(AppChamferShape(cut: 22))
+        .appHUDPanel(cut: 22)
     }
 
     private var patchStudioCategoryNotice: some View {
@@ -3607,7 +3669,7 @@ private struct PatchesView: View {
             PatchCategoryNotice(
                 title: language.text("patch.safety.antena_label"),
                 detail: language.text("patch.safety.antena_detail"),
-                tint: AppTheme.accent,
+                tint: AppPalette.brand,
                 icon: "antenna.radiowaves.left.and.right"
             )
         }
@@ -3615,7 +3677,7 @@ private struct PatchesView: View {
 
     private var visualPatchPreview: some View {
         ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
+            AppChamferShape(cut: 14)
                 .fill(AppPalette.canvas)
             Image("CleanCharacter")
                 .resizable()
@@ -3628,7 +3690,7 @@ private struct PatchesView: View {
                 .padding(10)
         }
         .frame(height: 158)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+        .clipShape(AppChamferShape(cut: 14))
     }
 
     private var patchConsole: some View {
@@ -3648,7 +3710,7 @@ private struct PatchesView: View {
                 }
                 Spacer(minLength: AppSpacing.s)
                 if patchStore.isBusy {
-                    ProgressView().tint(AppTheme.accent)
+                    ProgressView().tint(AppPalette.brand)
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text("\(activeLegacyPatchCount)")
@@ -3668,11 +3730,8 @@ private struct PatchesView: View {
             busStrip
         }
         .padding(AppSpacing.m)
-        .background(
-            RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous)
-                .fill(AppPalette.canvas)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+        .background(AppHUD.deep.opacity(0.9), in: AppChamferShape(cut: 14))
+        .clipShape(AppChamferShape(cut: 14))
     }
 
     /// One segment per module, using logo blue only for modules active on device.
@@ -4016,7 +4075,7 @@ private struct PatchesView: View {
         VStack(alignment: .leading, spacing: 12) {
             if let option = selectedPatchOption {
                 HStack(spacing: AppSpacing.m) {
-                    AppIconBadge(systemName: option.icon, tint: AppTheme.accent, size: 46)
+                    AppIconBadge(systemName: option.icon, tint: AppPalette.brand, size: 46)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(language.text("patch.selected_patch"))
                             .font(AppType.label())
@@ -4049,7 +4108,7 @@ private struct PatchesView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "hand.tap.fill")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(AppTheme.accent)
+                        .foregroundStyle(AppPalette.brand)
                     Text(language.text("patch.detail.empty_hint"))
                         .font(AppType.body())
                         .foregroundStyle(AppPalette.textSecondary)
