@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "hologram-weapon-rosado.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
