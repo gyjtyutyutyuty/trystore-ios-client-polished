@@ -43,8 +43,8 @@ struct CharacterStageView: UIViewRepresentable {
     let model: HeroCharacterModel
     let reduceMotion: Bool
     let isActive: Bool
-    /// The home hero turns on its own. The patch body map needs a fixed pose so
-    /// a callout always points at the same anatomy, so it passes `false`.
+    /// The home hero and the patch body map turn on their own. A caller that
+    /// needs a fixed pose can pass `false`.
     var turntable: Bool = true
     /// Downloaded garment meshes that follow the body. Empty on the home hero.
     var garments: [PlayerGarment] = []

@@ -42,26 +42,43 @@ struct ContentView: View {
                     Label(language.text("tab.home"), systemImage: "house.fill")
                 }
                 .tag(0)
+                .toolbar(.hidden, for: .tabBar)
             PatchesView(
                 onOpenLogs: { activeSupportSheet = .logs },
-                onOpenSettings: { activeSupportSheet = .settings }
+                onOpenSettings: { activeSupportSheet = .settings },
+                onClose: { selectedTab = 0 }
             )
                 .tabItem {
                     Label(language.text("tab.patches"), systemImage: "square.grid.2x2")
                 }
                 .tag(1)
+                .toolbar(.hidden, for: .tabBar)
             CleanerView()
                 .tabItem {
                     Label(language.text("tab.clean"), systemImage: "sparkles")
                 }
                 .tag(2)
+                .toolbar(.hidden, for: .tabBar)
             PlayerHubView()
                 .tabItem {
-                    Label(language.text("tab.player"), systemImage: "person.crop.circle.fill")
+                    Label(language.text("tab.intel"), systemImage: "person.crop.circle.fill")
                 }
                 .tag(3)
+                .toolbar(.hidden, for: .tabBar)
         }
-        .tint(AppTheme.accent)
+        .tint(AppPalette.brand)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if selectedTab != 1 {
+                AppHUDTabBar(
+                    selection: $selectedTab,
+                    items: [
+                        AppHUDTabItem(id: 0, icon: "house.fill", title: language.text("tab.home")),
+                        AppHUDTabItem(id: 2, icon: "sparkles", title: language.text("tab.clean")),
+                        AppHUDTabItem(id: 3, icon: "person.crop.rectangle.fill", title: language.text("tab.intel"))
+                    ]
+                )
+            }
+        }
         .preferredColorScheme(.dark)
         .appSelectionFeedback(trigger: selectedTab)
         .environmentObject(patchStore)
@@ -82,6 +99,8 @@ struct HomeView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.scenePhase) private var scenePhase
     var onOpenPatches: () -> Void = {}
     var onOpenLogs: () -> Void = {}
     var onOpenSettings: () -> Void = {}
@@ -93,35 +112,33 @@ struct HomeView: View {
     @State private var isPairingImporting = false
     @State private var isPairingDeleteConfirmationPresented = false
     @State private var pairingImportErrorKey: String?
+    @State private var heroModel: HeroCharacterModel = .sakura
+    @State private var stagePulse = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 AppPremiumBackdrop()
-                GeometryReader { viewport in
-                    let heroDimensions = heroSize(for: viewport.size)
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: AppSpacing.l) {
-                            topBarHome.appCinematicReveal(delay: 0.02)
-                            heroHome(size: heroDimensions).appCinematicReveal(delay: 0.08)
-                            pipelineHome.appCinematicReveal(delay: 0.13)
-                            if requiresPairingTunnel {
-                                connectionPanelHome.appCinematicReveal(delay: 0.16)
-                            }
-                            deviceSectionHome.appCinematicReveal(delay: 0.20)
-                            footerHome.appCinematicReveal(delay: 0.30)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: AppSpacing.m) {
+                        hudHeader.appCinematicReveal(delay: 0.02)
+                        patchControlStage.appCinematicReveal(delay: 0.08)
+                        systemStatusPanel.appCinematicReveal(delay: 0.14)
+                        patchHintBanner.appCinematicReveal(delay: 0.20)
+                        if requiresPairingTunnel {
+                            connectionPanelHome.appCinematicReveal(delay: 0.24)
                         }
-                        .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 860)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, AppSpacing.screenInset)
-                        .padding(.top, AppSpacing.m)
-                        .padding(.bottom, AppSpacing.xxl)
                     }
+                    .frame(maxWidth: horizontalSizeClass == .compact ? .infinity : 620)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, AppSpacing.l)
+                    .padding(.top, AppSpacing.s)
+                    .padding(.bottom, AppSpacing.l)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            .tint(AppTheme.accent)
+            .tint(AppPalette.brand)
         }
         .sheet(isPresented: $isPairingImporterPresented) {
             PairingDocumentPicker { url in
@@ -178,6 +195,569 @@ struct HomeView: View {
                 isTunnelConnected = LocalDevTunnelProbe.isConnected
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
+        }
+    }
+
+    // MARK: - HUD control deck
+
+    private enum HomeMetricAccessory {
+        case apple
+        case bars
+        case check(Bool)
+    }
+
+    private var stageHeight: CGFloat {
+        horizontalSizeClass == .compact ? 352 : 430
+    }
+
+    private var stageIsGlowing: Bool {
+        stagePulse && !reduceMotion
+    }
+
+    private var hudHeader: some View {
+        VStack(spacing: AppSpacing.s) {
+            HStack(spacing: AppSpacing.s) {
+                hudLogo
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TRY STORE")
+                        .font(AppType.hudWordmark(compact: horizontalSizeClass == .compact))
+                        .tracking(1.4)
+                        .italic()
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .shadow(color: AppPalette.brand.opacity(0.55), radius: 10)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text("MAX CONTROL  /  VISUAL LAB")
+                        .font(AppType.hudTagline())
+                        .tracking(1.1)
+                        .foregroundStyle(AppPalette.brand.opacity(0.82))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.62)
+                }
+
+                Spacer(minLength: 0)
+
+                AppHUDIconButton(
+                    icon: "apple.terminal",
+                    label: language.text("accessibility.open_logs"),
+                    identifier: "home.open-logs",
+                    action: onOpenLogs
+                )
+                AppHUDIconButton(
+                    icon: "slider.horizontal.3",
+                    label: language.text("accessibility.open_settings"),
+                    identifier: "home.open-settings",
+                    action: onOpenSettings
+                )
+            }
+
+            hudRule
+        }
+    }
+
+    private var hudLogo: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [AppPalette.brand.opacity(0.30), AppHUD.deep],
+                        center: .center,
+                        startRadius: 2,
+                        endRadius: 34
+                    )
+                )
+            Circle()
+                .strokeBorder(AppPalette.brand.opacity(0.62), lineWidth: 1)
+            Circle()
+                .trim(from: 0.04, to: 0.42)
+                .stroke(
+                    AppPalette.brand,
+                    style: StrokeStyle(lineWidth: 2.4, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-30))
+                .shadow(color: AppPalette.brand.opacity(0.9), radius: 4)
+            AppLogo(size: 44)
+                .clipShape(Circle())
+        }
+        .frame(width: 58, height: 58)
+        .shadow(color: AppPalette.brand.opacity(0.45), radius: 12)
+        .accessibilityHidden(true)
+    }
+
+    private var hudRule: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [.clear, AppPalette.brand.opacity(0.65)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+            Rectangle()
+                .fill(AppPalette.brand)
+                .frame(width: 5, height: 5)
+                .rotationEffect(.degrees(45))
+                .shadow(color: AppPalette.brand, radius: 4)
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [AppPalette.brand.opacity(0.65), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// The first screen is a cockpit: the character, what can be aimed at, and
+    /// how many patches are live. Everything below is telemetry.
+    private var patchControlStage: some View {
+        VStack(spacing: 0) {
+            stageHeader
+
+            GeometryReader { proxy in
+                let size = proxy.size
+                ZStack {
+                    stageAtmosphere
+                    HUDShardField(isActive: scenePhase == .active)
+                        .frame(width: size.width, height: size.height)
+                    stageRings(in: size)
+                    stageWatermark
+                    CharacterStageView(
+                        model: heroModel,
+                        reduceMotion: reduceMotion,
+                        isActive: scenePhase == .active,
+                        turntable: false
+                    )
+                    .zIndex(1)
+                    HUDShardField(
+                        isActive: scenePhase == .active,
+                        intensity: 0.34,
+                        showsCore: false
+                    )
+                    .frame(width: size.width, height: size.height)
+                    .zIndex(2)
+                    stageCallouts(in: size)
+                        .zIndex(3)
+                    stageBadges
+                        .zIndex(4)
+                }
+            }
+            .frame(height: stageHeight)
+        }
+        .clipShape(AppChamferShape(cut: 22))
+        .appHUDPanel(cut: 22)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true)) {
+                stagePulse = true
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var stageHeader: some View {
+        HStack(spacing: AppSpacing.s) {
+            Circle()
+                .fill(AppPalette.brand)
+                .frame(width: 7, height: 7)
+                .shadow(color: AppPalette.brand, radius: 5)
+            Text(language.text("patch.control.title"))
+                .font(AppType.hudStageTitle())
+                .tracking(0.9)
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: AppSpacing.xs)
+            characterSwitch
+        }
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.top, AppSpacing.m)
+        .padding(.bottom, AppSpacing.xs)
+    }
+
+    private var characterSwitch: some View {
+        HStack(spacing: 0) {
+            ForEach(HeroCharacterModel.allCases) { model in
+                Button {
+                    guard heroModel != model else { return }
+                    AppHaptics.select()
+                    withAnimation(reduceMotion ? nil : AppMotion.surface) {
+                        heroModel = model
+                    }
+                } label: {
+                    Text(model.shortName)
+                        .font(AppType.hudSegment())
+                        .tracking(0.5)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(heroModel == model ? AppPalette.canvas : AppPalette.textSecondary)
+                        .padding(.horizontal, 13)
+                        .frame(height: 44)
+                        .background {
+                            if heroModel == model {
+                                Capsule().fill(AppPalette.brand)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .accessibilityLabel(model.displayName)
+                .accessibilityAddTraits(
+                    heroModel == model ? AccessibilityTraits.isSelected : AccessibilityTraits()
+                )
+            }
+        }
+        .padding(3)
+        .background(AppHUD.deep.opacity(0.92), in: Capsule())
+        .overlay(Capsule().strokeBorder(AppHUD.strokeSoft, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(language.text("home.character_picker"))
+        .accessibilityValue(heroModel.displayName)
+    }
+
+    private var stageAtmosphere: some View {
+        ZStack {
+            LinearGradient(
+                stops: [
+                    .init(color: AppHUD.panelLift.opacity(reduceTransparency ? 1 : 0.76), location: 0),
+                    .init(color: AppHUD.panel.opacity(reduceTransparency ? 1 : 0.84), location: 0.45),
+                    .init(color: AppHUD.deep.opacity(reduceTransparency ? 1 : 0.94), location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            RadialGradient(
+                colors: [
+                    AppPalette.brand.opacity(stageIsGlowing ? 0.32 : 0.22),
+                    .clear
+                ],
+                center: UnitPoint(x: 0.5, y: 0.54),
+                startRadius: 10,
+                endRadius: 230
+            )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func stageRings(in size: CGSize) -> some View {
+        let baseline = size.height * 0.84
+        return ZStack {
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [AppPalette.brand.opacity(0.20), .clear],
+                        center: .center,
+                        startRadius: 2,
+                        endRadius: size.width * 0.36
+                    )
+                )
+                .frame(width: size.width * 0.82, height: size.height * 0.20)
+                .position(x: size.width * 0.5, y: baseline)
+
+            Ellipse()
+                .stroke(AppPalette.brand.opacity(0.30), lineWidth: 1)
+                .frame(width: size.width * 0.84, height: size.height * 0.17)
+                .position(x: size.width * 0.5, y: baseline)
+
+            Ellipse()
+                .stroke(AppPalette.brand.opacity(0.62), lineWidth: 1.2)
+                .frame(width: size.width * 0.62, height: size.height * 0.12)
+                .position(x: size.width * 0.5, y: baseline)
+                .shadow(color: AppPalette.brand.opacity(0.65), radius: 6)
+
+            Ellipse()
+                .stroke(AppPalette.brand.opacity(0.22), lineWidth: 1)
+                .frame(width: size.width * 0.44, height: size.height * 0.085)
+                .position(x: size.width * 0.5, y: baseline)
+        }
+        .opacity(stageIsGlowing ? 1 : 0.72)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var stageWatermark: some View {
+        Image("TryStoreTheme")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 190)
+            .opacity(0.13)
+            .rotationEffect(.degrees(-7))
+            .blendMode(.plusLighter)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .offset(x: 44, y: 16)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private func stageCallouts(in size: CGSize) -> some View {
+        ZStack {
+            stageCallout(.aboveHead, at: UnitPoint(x: 0.27, y: 0.29), in: size)
+            stageCallout(.head, at: UnitPoint(x: 0.21, y: 0.45), in: size)
+            stageCallout(.chest, at: UnitPoint(x: 0.20, y: 0.61), in: size)
+            stageCallout(.neck, at: UnitPoint(x: 0.79, y: 0.47), in: size)
+        }
+        .frame(width: size.width, height: size.height)
+    }
+
+    private func stageCallout(_ zone: PatchAimZone, at point: UnitPoint, in size: CGSize) -> some View {
+        Button {
+            AppHaptics.tap()
+            onOpenPatches()
+        } label: {
+            AppHUDCallout(icon: zone.icon, title: language.text(zone.titleKey))
+        }
+        .buttonStyle(AppPressButtonStyle())
+        .accessibilityLabel(language.text(zone.titleKey))
+        .position(x: point.x * size.width, y: point.y * size.height)
+    }
+
+    private var stageBadges: some View {
+        HStack(spacing: AppSpacing.s) {
+            statusChip(
+                icon: "circle.dashed",
+                text: "\(activeModuleCountHome) / \(patchStore.items.count)",
+                tint: AppPalette.textPrimary
+            )
+            statusChip(
+                icon: appState.isSupported ? "checkmark.seal.fill" : "exclamationmark.triangle.fill",
+                text: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
+                tint: appState.isSupported ? AppPalette.brand : AppPalette.amber
+            )
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.bottom, AppSpacing.m)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .accessibilityElement(children: .combine)
+        .allowsHitTesting(false)
+    }
+
+    private func statusChip(icon: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+            Text(text)
+                .font(AppType.hudChip())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 10)
+        .frame(height: 34)
+        .background(Capsule().fill(AppHUD.deep.opacity(0.94)))
+        .overlay(Capsule().strokeBorder(tint.opacity(0.5), lineWidth: 1))
+    }
+
+    private var patchHintBanner: some View {
+        Button {
+            AppHaptics.tap()
+            onOpenPatches()
+        } label: {
+            HStack(spacing: AppSpacing.m) {
+                ZStack {
+                    Circle()
+                        .fill(AppPalette.brand.opacity(0.12))
+                    Circle()
+                        .strokeBorder(AppPalette.brand.opacity(0.50), lineWidth: 1)
+                    Image(systemName: "rocket.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppPalette.brand)
+                }
+                .frame(width: 40, height: 40)
+
+                Text(language.text("patch.detail.empty_hint"))
+                    .font(AppType.hudHint())
+                    .foregroundStyle(AppPalette.textPrimary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: AppSpacing.xs)
+
+                Image(systemName: "chevron.right.2")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(AppPalette.brand)
+            }
+            .padding(.horizontal, AppSpacing.m)
+            .padding(.vertical, AppSpacing.s)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(AppPressButtonStyle())
+        .appHUDPanel(cut: 18)
+        .accessibilityLabel(language.text("patch.detail.empty_hint"))
+    }
+
+    private var systemStatusPanel: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.m) {
+            HStack(alignment: .top, spacing: AppSpacing.s) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(language.text("home.snapshot.title"))
+                        .font(AppType.hudTitle())
+                        .tracking(0.7)
+                        .foregroundStyle(AppPalette.textPrimary)
+                    Text(language.text("home.snapshot.subtitle"))
+                        .font(AppType.hudKicker())
+                        .tracking(1.1)
+                        .foregroundStyle(AppPalette.brand.opacity(0.72))
+                }
+                Spacer(minLength: AppSpacing.xs)
+                AppHUDECGLine()
+                    .stroke(
+                        AppPalette.brand,
+                        style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round)
+                    )
+                    .frame(width: 96, height: 30)
+                    .shadow(color: AppPalette.brand.opacity(0.8), radius: 5)
+                    .accessibilityHidden(true)
+            }
+
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: AppSpacing.s),
+                    count: horizontalSizeClass == .regular ? 4 : 2
+                ),
+                spacing: AppSpacing.s
+            ) {
+                hudMetric(
+                    icon: "iphone.gen3",
+                    label: language.text("dashboard.hardware_model"),
+                    value: AppInfo.displayMachineName,
+                    tint: AppPalette.brand,
+                    accessory: .apple
+                )
+                hudMetric(
+                    icon: "gearshape.2.fill",
+                    label: language.text("settings.ios_version"),
+                    value: "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))",
+                    tint: AppPalette.brand,
+                    accessory: .apple
+                )
+                hudMetric(
+                    icon: "thermometer.medium",
+                    label: language.text("home.snapshot.thermal"),
+                    value: appState.thermalStateLabel,
+                    tint: thermalTint,
+                    accessory: .bars
+                )
+                hudMetric(
+                    icon: "checkmark.shield.fill",
+                    label: language.text("settings.exploit_compatibility"),
+                    value: language.text(appState.isSupported ? "settings.supported" : "settings.exploit_unverified"),
+                    tint: appState.isSupported ? AppPalette.brand : AppPalette.amber,
+                    accessory: .check(appState.isSupported)
+                )
+            }
+
+            if appState.kernelExploitApplicable && AppInfo.versionTuple.major < 26 {
+                HStack(spacing: AppSpacing.s) {
+                    Text(language.text("dashboard.kernel_status"))
+                        .font(AppType.hudMetricLabel())
+                        .foregroundStyle(AppPalette.textTertiary)
+                    Spacer(minLength: AppSpacing.s)
+                    Text(
+                        appState.kernelExploitRunning
+                            ? language.text("dashboard.kernel_running")
+                            : language.text(appState.exploitStatus.isSuccess ? "dashboard.kernel_active" : "dashboard.kernel_inactive")
+                    )
+                    .font(AppType.hudChip())
+                    .foregroundStyle(AppPalette.textSecondary)
+                }
+            }
+        }
+        .padding(AppSpacing.l)
+        .appHUDPanel(cut: 20)
+    }
+
+    private func hudMetric(
+        icon: String,
+        label: String,
+        value: String,
+        tint: Color,
+        accessory: HomeMetricAccessory
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 24, height: 24)
+                    .background(tint.opacity(0.12), in: Circle())
+                    .overlay(Circle().strokeBorder(tint.opacity(0.28), lineWidth: 1))
+                Text(label)
+                    .font(AppType.hudMetricLabel())
+                    .foregroundStyle(AppPalette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+            }
+
+            Spacer(minLength: 2)
+
+            HStack(alignment: .center, spacing: AppSpacing.xs) {
+                Text(value)
+                    .font(AppType.hudMetricValue())
+                    .foregroundStyle(AppPalette.textPrimary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                metricAccessory(accessory, tint: tint)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .background {
+            AppChamferShape(cut: 13)
+                .fill(
+                    LinearGradient(
+                        colors: [AppHUD.panelLift.opacity(0.55), AppHUD.deep.opacity(0.92)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .overlay {
+            AppChamferShape(cut: 13)
+                .stroke(AppPalette.brand.opacity(0.26), lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value)")
+    }
+
+    @ViewBuilder
+    private func metricAccessory(_ accessory: HomeMetricAccessory, tint: Color) -> some View {
+        switch accessory {
+        case .apple:
+            Image(systemName: "apple.logo")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(AppPalette.textPrimary)
+                .frame(width: 24, height: 26)
+        case .bars:
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(0..<4, id: \.self) { index in
+                    Capsule()
+                        .fill(tint.opacity(0.45 + Double(index) * 0.15))
+                        .frame(width: 3, height: CGFloat(8 + index * 5))
+                }
+            }
+            .frame(height: 26, alignment: .bottom)
+        case .check(let supported):
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.16))
+                Circle()
+                    .strokeBorder(tint.opacity(0.70), lineWidth: 1)
+                Image(systemName: supported ? "checkmark" : "exclamationmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 24, height: 24)
         }
     }
 
@@ -2598,6 +3178,7 @@ private struct PatchesView: View {
     @EnvironmentObject private var patchStore: PatchProjectStore
     var onOpenLogs: () -> Void = {}
     var onOpenSettings: () -> Void = {}
+    var onClose: () -> Void = {}
     @State private var selectedPatchProjectName: String?
     @State private var patchProgress: Double = 0
     @State private var patchProgressStage = ""
@@ -2608,6 +3189,17 @@ private struct PatchesView: View {
     @State private var patchOperationFinished = false
     @State private var patchOperationSucceeded = true
     @AppStorage("hero_character_model") private var patchCharacterRaw = HeroCharacterModel.rouk.rawValue
+    @State private var hologramaIndex = 0
+
+    private static let hologramaPatches: [HologramaPatch] = [
+        HologramaPatch(id: "HOLOGRAMA EXCLUSIVO", projectName: "HOLOGRAMA EXCLUSIVO", title: "HOLOGRAMA EXCLUSIVO", imageName: "HologramWeaponExclusivo"),
+        HologramaPatch(id: "HOLOGRAMA EXCLUSIVO VERDE", projectName: "HOLOGRAMA EXCLUSIVO VERDE", title: "EXCLUSIVO VERDE", imageName: "HologramWeaponVerde"),
+        HologramaPatch(id: "HOLOGRAMA EXCLUSIVO ROSADO", projectName: "HOLOGRAMA EXCLUSIVO ROSADO", title: "EXCLUSIVO ROSADO", imageName: "HologramWeaponRosado"),
+        HologramaPatch(id: "HOLOGRAMA COMETA", projectName: "HOLOGRAMA COMETA", title: "HOLOGRAMA COMETA", imageName: "HologramWeaponCometa"),
+        HologramaPatch(id: "HOLOGRAMA COSMICO", projectName: "HOLOGRAMA COSMICO", title: "HOLOGRAMA COSMICO", imageName: "HologramWeaponCosmico"),
+        HologramaPatch(id: "HOLOGRAMA THANKSGIVING", projectName: "HOLOGRAMA THANKSGIVING", title: "HOLOGRAMA THANKSGIVING", imageName: "HologramWeaponThanksgiving"),
+        HologramaPatch(id: "HOLOGRAMA SANTA", projectName: "HOLOGRAMA SANTA", title: "HOLOGRAMA SANTA", imageName: "HologramWeaponSanta")
+    ]
 
     var body: some View {
         NavigationStack {
@@ -2676,7 +3268,16 @@ private struct PatchesView: View {
 
     private var topBarPatches: some View {
         HStack(spacing: horizontalSizeClass == .compact ? 4 : AppSpacing.m) {
-            AppLogo(size: horizontalSizeClass == .compact ? 34 : 46)
+            if horizontalSizeClass == .compact {
+                patchHeaderButton(
+                    symbol: "xmark",
+                    label: language.text("common.close"),
+                    identifier: "patches.close",
+                    action: onClose
+                )
+            } else {
+                AppLogo(size: 46)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text("PATCH STUDIO")
                     .font(.system(size: horizontalSizeClass == .compact ? 15 : 21, weight: .semibold))
@@ -2706,6 +3307,14 @@ private struct PatchesView: View {
                 identifier: "patches.open-settings",
                 action: onOpenSettings
             )
+            if horizontalSizeClass != .compact {
+                patchHeaderButton(
+                    symbol: "xmark",
+                    label: language.text("common.close"),
+                    identifier: "patches.close",
+                    action: onClose
+                )
+            }
         }
     }
 
@@ -2799,6 +3408,17 @@ private struct PatchesView: View {
                 onSelect: selectPatchZone
             )
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.tile, style: .continuous))
+            .overlay(alignment: .bottomTrailing) {
+                HologramaCarousel(
+                    patches: Self.hologramaPatches,
+                    index: $hologramaIndex,
+                    isActive: hologramaPatchIsActive,
+                    onSelect: selectHolograma,
+                    onActivate: activateHolograma
+                )
+                .padding(.trailing, AppSpacing.s + AppSpacing.xxs)
+                .padding(.bottom, AppSpacing.xxl * 2)
+            }
             .padding(.horizontal, AppSpacing.s)
 
             HStack(spacing: AppSpacing.s) {
@@ -3168,12 +3788,17 @@ private struct PatchesView: View {
 
     private func activateSelectedPatch() {
         guard let option = selectedPatchOption else { return }
-        guard let item = selectedPatchItem else {
+        activatePatch(option)
+    }
+
+    private func activatePatch(_ option: DashboardPatchOption) {
+        guard let item = patchItem(for: option) else {
             log("patch: activation refused — no unique package identity matched UI key \(option.projectName)")
             patchStore.reportMissingPackage()
             return
         }
-        let shouldEnable = !selectedPatchIsActive
+        let isActive = DevicePatchService.latestReceipt(projectID: item.id) != nil
+        let shouldEnable = !isActive
         guard !shouldEnable || item.project != nil else {
             log("patch: activation refused — package payload is not trusted for \(item.packageURL.lastPathComponent)")
             patchStore.reportMissingPackage()
@@ -3200,6 +3825,26 @@ private struct PatchesView: View {
             showPatchProgress = false
             patchProgress = 0
         }
+    }
+
+    private func hologramaPatchIsActive(_ patch: HologramaPatch) -> Bool {
+        guard let option = DashboardPatchOption.visuals.first(where: { $0.projectName == patch.projectName }),
+              let item = patchItem(for: option) else { return false }
+        return DevicePatchService.latestReceipt(projectID: item.id) != nil
+    }
+
+    private func selectHolograma(_ patch: HologramaPatch) {
+        guard let option = DashboardPatchOption.visuals.first(where: { $0.projectName == patch.projectName }) else { return }
+        withAnimation(reduceMotion ? nil : AppMotion.tile) {
+            selectedPatchCategory = .visuals
+            selectedPatchProjectName = option.id
+        }
+    }
+
+    private func activateHolograma(_ patch: HologramaPatch) {
+        guard let option = DashboardPatchOption.visuals.first(where: { $0.projectName == patch.projectName }) else { return }
+        selectHolograma(patch)
+        activatePatch(option)
     }
 
     // MARK: - Patch progress
@@ -3468,6 +4113,194 @@ private struct PatchesView: View {
     // Navigation namespace for tab matching
     @Namespace private var patchTabNamespace
     @State private var selectedPatchCategory: PatchCategory = .loadout
+}
+
+// MARK: - HOLOGRAMA patch carousel
+
+private struct HologramaPatch: Identifiable {
+    let id: String
+    let projectName: String
+    let title: String
+    let imageName: String
+}
+
+/// The weapon card from the hologram patch screenshot: one cutout at a time,
+/// swipe for the next, double-tap to run the same activation transaction as the
+/// library card below.
+private struct HologramaCarousel: View {
+    let patches: [HologramaPatch]
+    @Binding var index: Int
+    let isActive: (HologramaPatch) -> Bool
+    let onSelect: (HologramaPatch) -> Void
+    let onActivate: (HologramaPatch) -> Void
+
+    @Environment(\.appLanguage) private var language
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    private var safeIndex: Int {
+        guard !patches.isEmpty else { return 0 }
+        return min(max(index, 0), patches.count - 1)
+    }
+
+    private var current: HologramaPatch? {
+        patches.indices.contains(safeIndex) ? patches[safeIndex] : nil
+    }
+
+    var body: some View {
+        if let current {
+            VStack(spacing: AppSpacing.xs) {
+                ZStack {
+                    card(current)
+                        .id(current.id)
+                        .transition(
+                            .asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            )
+                        )
+                }
+                .frame(width: 132)
+                .animation(reduceMotion ? nil : AppMotion.surface, value: safeIndex)
+                .contentShape(Rectangle())
+                .highPriorityGesture(
+                    TapGesture(count: 2).onEnded {
+                        AppHaptics.tap()
+                        onActivate(current)
+                    }
+                )
+                .gesture(
+                    DragGesture(minimumDistance: 18)
+                        .onEnded { value in
+                            guard abs(value.translation.width) > 26 else { return }
+                            move(by: value.translation.width < 0 ? 1 : -1)
+                        }
+                )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    "\(current.title), \(language.text(isActive(current) ? "patch.status.active" : "patch.status.ready"))"
+                )
+                .accessibilityValue("\(safeIndex + 1) / \(patches.count)")
+                .accessibilityHint(language.text(isActive(current) ? "patch.action.restore" : "patch.action.activate"))
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction {
+                    onActivate(current)
+                }
+                .accessibilityAdjustableAction { direction in
+                    switch direction {
+                    case .increment: move(by: 1)
+                    case .decrement: move(by: -1)
+                    @unknown default: break
+                    }
+                }
+
+                HStack(spacing: AppSpacing.xs) {
+                    ForEach(patches.indices, id: \.self) { dot in
+                        Capsule()
+                            .fill(dot == safeIndex ? AppPalette.brand : AppPalette.hairline.opacity(0.65))
+                            .frame(width: dot == safeIndex ? 12 : 4, height: 3)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+            .padding(AppSpacing.s)
+            .background {
+                AppChamferShape(cut: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppHUD.panelLift.opacity(0.98), AppHUD.deep.opacity(0.98)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+            .overlay {
+                AppChamferShape(cut: 12)
+                    .stroke(AppPalette.brand.opacity(0.45), lineWidth: 1)
+            }
+            .shadow(color: AppPalette.brand.opacity(0.24), radius: 12)
+            .onAppear {
+                guard let active = patches.firstIndex(where: isActive) else { return }
+                index = active
+            }
+        }
+    }
+
+    private func card(_ patch: HologramaPatch) -> some View {
+        let active = isActive(patch)
+        return VStack(spacing: AppSpacing.xxs) {
+            HStack(spacing: AppSpacing.xs) {
+                Text("\(safeIndex + 1)/\(patches.count)")
+                    .font(AppType.hudChip().weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(AppPalette.textTertiary)
+                Spacer(minLength: 0)
+                Image(systemName: active ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(active ? AppPalette.mint : AppPalette.brand.opacity(0.5))
+            }
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.brand.opacity(0.18), AppHUD.deep.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                RadialGradient(
+                    colors: [AppPalette.brand.opacity(0.18), .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 64
+                )
+                Image(patch.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(2)
+                    .frame(maxWidth: .infinity, maxHeight: 58)
+                    .clipped()
+                    .shadow(color: AppPalette.brand.opacity(0.55), radius: 8)
+            }
+            .frame(height: 58)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+            HStack(spacing: AppSpacing.xxs) {
+                Image(systemName: "hand.tap.fill")
+                    .font(.system(size: 8, weight: .semibold))
+                Text("2×")
+                Text(language.text(active ? "patch.action.restore" : "patch.action.activate"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .font(AppType.hudChip().weight(.semibold))
+            .foregroundStyle(active ? AppPalette.mint : AppPalette.brand)
+        }
+        .padding(AppSpacing.xs)
+        .frame(width: 132)
+        .background {
+            RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous)
+                .fill(AppPalette.canvas.opacity(reduceTransparency ? 1 : 0.84))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous)
+                .strokeBorder(
+                    active ? AppPalette.mint.opacity(0.55) : AppPalette.brand.opacity(0.28),
+                    lineWidth: 1
+                )
+        }
+    }
+
+    private func move(by step: Int) {
+        guard !patches.isEmpty else { return }
+        let next = (safeIndex + step + patches.count) % patches.count
+        AppHaptics.select()
+        withAnimation(reduceMotion ? nil : AppMotion.surface) {
+            index = next
+        }
+        onSelect(patches[next])
+    }
 }
 
 private struct ParticleFieldView: View {

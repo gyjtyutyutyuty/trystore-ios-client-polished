@@ -91,8 +91,8 @@ enum PatchAimZone: String, CaseIterable, Identifiable {
     }
 }
 
-/// The patch tab's body map: the same SceneKit character used by Home, held on
-/// a fixed three-quarter turn so a callout always points at the same anatomy.
+/// The patch tab's body map: the same SceneKit character used by Home, turning
+/// continuously under the HUD callouts.
 struct PatchBodyStageView: View {
     let model: HeroCharacterModel
     let zone: PatchAimZone?
@@ -113,7 +113,7 @@ struct PatchBodyStageView: View {
                     model: model,
                     reduceMotion: reduceMotion,
                     isActive: isVisible,
-                    turntable: false
+                    turntable: true
                 )
                 anchorMarkers(in: size)
                 calloutLines(in: size)

@@ -93,6 +93,7 @@ struct CleanerView: View {
         NavigationStack {
             ZStack {
                 AppPremiumBackdrop()
+                HUDConsoleBackdrop(intensity: 0.9)
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppSpacing.l) {
                         topBar.appCinematicReveal(delay: 0.02)
@@ -125,51 +126,69 @@ struct CleanerView: View {
     // MARK: - Header
 
     private var topBar: some View {
-        HStack(spacing: AppSpacing.m) {
-            AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
-                .padding(3)
-                .background(AppPalette.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(AppTheme.accent.opacity(0.32), lineWidth: 1)
-                )
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(AppPalette.brand)
+                    .frame(width: 5, height: 5)
+                    .shadow(color: AppPalette.brand.opacity(0.9), radius: 5)
+                Text(language.text("cleaner.console.subtitle"))
+                    .font(AppType.hudKicker())
+                    .tracking(0.9)
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: AppSpacing.xs)
+            }
 
-            VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: AppSpacing.m) {
+                AppLogo(size: horizontalSizeClass == .compact ? 38 : 46)
+                    .padding(3)
+                    .background(AppPalette.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppTheme.accent.opacity(0.32), lineWidth: 1)
+                    )
+
                 Text(language.text("cleaner.console.title"))
                     .font(.system(size: horizontalSizeClass == .compact ? 17 : 20, weight: .black, design: .rounded))
                     .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
                     .foregroundStyle(AppPalette.textPrimary)
-                Text(language.text("cleaner.console.subtitle"))
-                    .font(AppType.label())
-                    .tracking(0.7)
-                    .foregroundStyle(AppTheme.accent.opacity(0.85))
-            }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
 
-            Spacer(minLength: AppSpacing.xs)
+                Spacer(minLength: AppSpacing.xs)
 
-            Button(action: reload) {
-                ZStack {
-                    Circle()
-                        .fill(AppPalette.raised.opacity(0.55))
-                    Circle()
-                        .stroke(AppPalette.hairline.opacity(0.65), lineWidth: 1)
-                    if isScanning {
-                        ProgressView()
-                            .tint(AppTheme.accent)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(AppPalette.textPrimary)
+                Button(action: reload) {
+                    ZStack {
+                        AppChamferShape(cut: 12)
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppHUD.panelLift, AppHUD.deep],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        AppChamferShape(cut: 12)
+                            .stroke(AppPalette.brand.opacity(0.55), lineWidth: 1)
+                        if isScanning {
+                            ProgressView()
+                                .tint(AppTheme.accent)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(AppPalette.brand)
+                        }
                     }
+                    .frame(width: 46, height: 46)
                 }
-                .frame(width: 44, height: 44)
+                .buttonStyle(AppPressButtonStyle())
+                .disabled(isBusy)
+                .accessibilityLabel(language.text("cleaner.rescan"))
             }
-            .buttonStyle(AppPressButtonStyle())
-            .disabled(isBusy)
-            .accessibilityLabel(language.text("cleaner.rescan"))
         }
         .padding(AppSpacing.m)
-        .appPanel(radius: AppRadius.panel, tint: AppTheme.accent)
+        .appHUDPanel(cut: 20)
     }
 
     // MARK: - Composition
@@ -204,7 +223,7 @@ struct CleanerView: View {
             }
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 16)
         .accessibilityElement(children: .combine)
     }
 
@@ -228,6 +247,12 @@ struct CleanerView: View {
 
     private var heroPanel: some View {
         VStack(spacing: AppSpacing.l) {
+            HUDSectionHeader(
+                index: "01",
+                icon: "sparkles",
+                title: language.text("cleaner.reclaimable")
+            )
+
             HStack(alignment: .center, spacing: AppSpacing.l) {
                 AppRingGauge(
                     progress: reclaimRatio,
@@ -254,9 +279,10 @@ struct CleanerView: View {
                 action: beginClean
             )
         }
-        .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+                .padding(AppSpacing.l)
+        .appHUDPanel(cut: 22)
     }
+
 
     private func metricRow(icon: String, label: String, value: String) -> some View {
         HStack(spacing: AppSpacing.s) {
@@ -280,7 +306,7 @@ struct CleanerView: View {
 
     private var breakdownPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            AppSectionHeader(icon: "chart.bar.fill", title: language.text("cleaner.section.breakdown"), subtitle: language.text("cleaner.section.breakdown_sub"))
+            HUDSectionHeader(index: "02", icon: "chart.bar.fill", title: language.text("cleaner.section.breakdown"), subtitle: language.text("cleaner.section.breakdown_sub"))
 
             breakdownBar(label: language.text("cleaner.label.cache"), bytes: cacheBytes, tint: AppPalette.mint)
             breakdownBar(label: language.text("cleaner.label.temporary"), bytes: temporaryBytes, tint: AppPalette.blue)
@@ -292,7 +318,7 @@ struct CleanerView: View {
             }
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 22)
     }
 
     private func breakdownBar(label: String, bytes: Int64, tint: Color) -> some View {
@@ -340,7 +366,7 @@ struct CleanerView: View {
     private var appsPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
             HStack(spacing: AppSpacing.s) {
-                AppSectionHeader(icon: "square.grid.2x2.fill", title: language.text("cleaner.section.apps"), subtitle: isScanning ? language.text("cleaner.apps.scanned", Int64(scannedAppCount)) : language.text("cleaner.apps.with_cache", Int64(records.count)))
+                HUDSectionHeader(index: "03", icon: "square.grid.2x2.fill", title: language.text("cleaner.section.apps"), subtitle: isScanning ? language.text("cleaner.apps.scanned", Int64(scannedAppCount)) : language.text("cleaner.apps.with_cache", Int64(records.count)))
                 Spacer(minLength: 0)
             }
 
@@ -398,7 +424,7 @@ struct CleanerView: View {
             }
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 22)
     }
 
     private func selectionChip(title: String, isOn: Bool, action: @escaping () -> Void) -> some View {

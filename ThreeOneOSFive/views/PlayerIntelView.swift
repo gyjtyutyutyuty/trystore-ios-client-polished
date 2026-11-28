@@ -33,6 +33,7 @@ struct PlayerIntelView: View {
                 // Inside the stack, not behind it: a NavigationStack paints its
                 // own background, so an outside backdrop is never visible.
                 AppPremiumBackdrop()
+                HUDConsoleBackdrop(intensity: 0.9)
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppSpacing.l) {
@@ -106,32 +107,50 @@ struct PlayerIntelView: View {
     // MARK: - Header
 
     private var topBar: some View {
-        HStack(spacing: AppSpacing.m) {
-            FreeFireLogo(size: horizontalSizeClass == .compact ? 38 : 46)
-
-            VStack(alignment: .leading, spacing: 4) {
-                if let profile = selectedEntry?.profile {
-                    headerStats(profile)
-                } else {
-                    Text(language.text("intel.title"))
-                        .font(.system(
-                            size: horizontalSizeClass == .compact ? 17 : 20,
-                            weight: .black,
-                            design: .rounded
-                        ))
-                        .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
-                        .foregroundStyle(AppPalette.textPrimary)
-                    Text(language.text("intel.kicker"))
-                        .font(AppType.label())
-                        .tracking(0.7)
-                        .foregroundStyle(AppTheme.accent.opacity(0.85))
-                }
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(AppPalette.brand)
+                    .frame(width: 5, height: 5)
+                    .shadow(color: AppPalette.brand.opacity(0.9), radius: 5)
+                Text(language.text("intel.kicker"))
+                    .font(AppType.hudKicker())
+                    .tracking(0.9)
+                    .foregroundStyle(AppPalette.textTertiary)
+                    .lineLimit(1)
+                Spacer(minLength: AppSpacing.xs)
+                Text(language.text("tab.intel"))
+                    .font(AppType.hudKicker().weight(.black))
+                    .foregroundStyle(AppPalette.brand)
+                    .padding(.horizontal, 7)
+                    .frame(height: 18)
+                    .background(AppPalette.brand.opacity(0.10), in: Capsule())
+                    .overlay(Capsule().stroke(AppPalette.brand.opacity(0.30), lineWidth: 0.8))
             }
 
-            Spacer(minLength: AppSpacing.xs)
+            HStack(spacing: AppSpacing.m) {
+                FreeFireLogo(size: horizontalSizeClass == .compact ? 38 : 46)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    if let profile = selectedEntry?.profile {
+                        headerStats(profile)
+                    } else {
+                        Text(language.text("intel.title"))
+                            .font(.system(
+                                size: horizontalSizeClass == .compact ? 17 : 20,
+                                weight: .black,
+                                design: .rounded
+                            ))
+                            .tracking(horizontalSizeClass == .compact ? 1.0 : 1.5)
+                            .foregroundStyle(AppPalette.textPrimary)
+                    }
+                }
+
+                Spacer(minLength: AppSpacing.xs)
+            }
         }
         .padding(AppSpacing.m)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 20)
     }
 
     /// Stats replace the screen name in the header, matching the wardrobe half
@@ -196,8 +215,12 @@ struct PlayerIntelView: View {
                 .padding(.horizontal, AppSpacing.m)
                 .frame(minHeight: 48)
                 .background(
-                    AppPalette.canvas,
-                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    AppHUD.deep,
+                    in: AppChamferShape(cut: 10)
+                )
+                .overlay(
+                    AppChamferShape(cut: 10)
+                        .stroke(AppPalette.brand.opacity(0.22), lineWidth: 0.8)
                 )
 
                 Button(action: addPlayers) {
@@ -211,7 +234,7 @@ struct PlayerIntelView: View {
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
-                            in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                            in: AppChamferShape(cut: 10)
                         )
                 }
                 .buttonStyle(AppPressButtonStyle())
@@ -235,7 +258,7 @@ struct PlayerIntelView: View {
             }
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 18)
     }
 
     // MARK: - Content
@@ -245,6 +268,12 @@ struct PlayerIntelView: View {
         if let entry = selectedEntry {
             if let profile = entry.profile {
                 VStack(spacing: AppSpacing.l) {
+                    HUDSectionHeader(
+                        index: "01",
+                        icon: "person.crop.rectangle.fill",
+                        title: language.text("intel.title"),
+                        subtitle: language.text("intel.kicker")
+                    )
                     profilePanel(profile)
                     statsPanel(entry)
                     outfitPanel(entry)
@@ -328,11 +357,12 @@ struct PlayerIntelView: View {
         .padding(AppSpacing.l)
         .frame(maxWidth: .infinity, minHeight: 236, alignment: .leading)
         .background { profileBannerArt }
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .clipShape(AppChamferShape(cut: 22))
         .overlay(
-            RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous)
-                .strokeBorder(AppPalette.hairline.opacity(0.35), lineWidth: 1)
+            AppChamferShape(cut: 22)
+                .stroke(AppPalette.brand.opacity(0.34), lineWidth: 1)
         )
+        .shadow(color: AppPalette.brand.opacity(0.18), radius: 18, y: 8)
     }
 
     /// The real Free Fire MAX key art, shown rather than hinted at: a directional
@@ -384,7 +414,8 @@ struct PlayerIntelView: View {
     private func statsPanel(_ entry: PlayerIntelEntry) -> some View {
         if let stats = entry.stats, !stats.isEmpty {
             VStack(alignment: .leading, spacing: AppSpacing.m) {
-                AppSectionHeader(
+                HUDSectionHeader(
+                    index: "02",
                     icon: "chart.bar.xaxis",
                     title: language.text("intel.stats.title"),
                     subtitle: language.text("intel.stats.subtitle")
@@ -489,7 +520,7 @@ struct PlayerIntelView: View {
                 }
             }
             .padding(AppSpacing.l)
-            .appPanel(radius: AppRadius.panel)
+            .appHUDPanel(cut: 22)
         }
     }
 
@@ -772,7 +803,8 @@ struct PlayerIntelView: View {
 
     private func outfitPanel(_ entry: PlayerIntelEntry) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.m) {
-            AppSectionHeader(
+            HUDSectionHeader(
+                index: "03",
                 icon: "hanger",
                 title: language.text("intel.outfit"),
                 subtitle: entry.items.isEmpty
@@ -808,7 +840,7 @@ struct PlayerIntelView: View {
             }
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 22)
     }
 
     private func itemCard(_ item: PlayerOutfitItem) -> some View {
@@ -894,7 +926,7 @@ struct PlayerIntelView: View {
             Spacer(minLength: 0)
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 18)
         .accessibilityElement(children: .combine)
     }
 
@@ -905,7 +937,7 @@ struct PlayerIntelView: View {
             message: language.text("intel.empty_message")
         )
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 18)
     }
 
     private func errorPanel(_ key: String, uid: String) -> some View {
@@ -925,7 +957,7 @@ struct PlayerIntelView: View {
             )
         }
         .padding(AppSpacing.l)
-        .appPanel(radius: AppRadius.panel)
+        .appHUDPanel(cut: 18)
     }
 
     private var footer: some View {

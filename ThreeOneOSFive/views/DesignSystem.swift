@@ -95,6 +95,23 @@ enum AppType {
         scaled(compact ? 34 : 44, weight: .semibold, textStyle: .largeTitle)
     }
     static func display() -> Font { scaled(28, weight: .semibold, textStyle: .title2) }
+
+    /// HUD chrome keeps the mock's compact geometry but is still routed through
+    /// UIFontMetrics, so the control deck follows the user's text size.
+    static func hudWordmark(compact: Bool) -> Font {
+        scaled(compact ? 25 : 31, weight: .heavy, textStyle: .title2)
+    }
+    static func hudTagline() -> Font { scaled(9, weight: .bold, textStyle: .caption2) }
+    static func hudStageTitle() -> Font { scaled(11, weight: .heavy, textStyle: .caption1) }
+    static func hudSegment() -> Font { scaled(10, weight: .heavy, textStyle: .caption2) }
+    static func hudCallout() -> Font { scaled(10, weight: .heavy, textStyle: .caption2) }
+    static func hudTitle() -> Font { scaled(19, weight: .heavy, textStyle: .headline) }
+    static func hudKicker() -> Font { scaled(10, weight: .bold, textStyle: .caption2) }
+    static func hudMetricLabel() -> Font { scaled(10, weight: .semibold, textStyle: .caption2) }
+    static func hudMetricValue() -> Font { scaled(15, weight: .bold, textStyle: .subheadline) }
+    static func hudChip() -> Font { scaled(11, weight: .heavy, textStyle: .caption1) }
+    static func hudHint() -> Font { scaled(12, weight: .medium, textStyle: .footnote) }
+    static func hudTab() -> Font { scaled(9, weight: .bold, textStyle: .caption2) }
     static func section() -> Font { scaled(19, weight: .semibold, textStyle: .headline) }
     static func label() -> Font { scaled(12, weight: .regular, textStyle: .caption1) }
     static func body() -> Font { scaled(14, weight: .regular, textStyle: .body) }
@@ -1226,6 +1243,703 @@ struct AppEmptyState: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, AppSpacing.l)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - HUD chrome
+
+/// The control deck's blue-black glass. Every tone is the logo blue laid over
+/// the canvas, so the HUD stays inside the same palette as the rest of the app
+/// instead of becoming a second theme.
+enum AppHUD {
+    static let deep = Color(red: 0.004, green: 0.020, blue: 0.043)
+    static let panel = Color(red: 0.012, green: 0.047, blue: 0.094)
+    static let panelLift = Color(red: 0.020, green: 0.086, blue: 0.157)
+    static let tile = Color(red: 0.008, green: 0.035, blue: 0.071)
+    static let strokeSoft = AppPalette.brand.opacity(0.26)
+}
+
+/// One silhouette for every HUD surface. Panels, tiles and the tab bar use cut
+/// corners so the deck reads as machined chrome rather than rounded cards.
+struct AppChamferShape: Shape {
+    var cut: CGFloat = 16
+
+    func path(in rect: CGRect) -> Path {
+        let inset = min(cut, min(rect.width, rect.height) * 0.5)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + inset, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - inset, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + inset))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - inset))
+        path.addLine(to: CGPoint(x: rect.maxX - inset, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + inset, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - inset))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + inset))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Body callouts point at the anatomy they describe. The right edge is the
+/// pointer, the left edge is cut, and the same shape is used for every chip.
+struct AppPointerShape: Shape {
+    var point: CGFloat = 15
+    var cut: CGFloat = 9
+
+    func path(in rect: CGRect) -> Path {
+        let bevel = min(cut, rect.height * 0.5)
+        let tip = min(point, rect.width * 0.35)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + bevel, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - tip, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX - tip, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + bevel, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - bevel))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + bevel))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// The dock silhouette: cut top corners, square bottom so it can run into the
+/// home-indicator area without a visible seam.
+struct AppHUDTabBarShape: Shape {
+    var cut: CGFloat = 20
+
+    func path(in rect: CGRect) -> Path {
+        let bevel = min(cut, min(rect.width, rect.height) * 0.5)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + bevel))
+        path.addLine(to: CGPoint(x: rect.minX + bevel, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - bevel, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + bevel))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A single heartbeat trace, used as the system panel's ornament.
+struct AppHUDECGLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        let mid = rect.midY
+        let width = rect.width
+        let height = rect.height
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: mid))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.18, y: mid))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.24, y: mid - height * 0.32))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.30, y: mid + height * 0.26))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.35, y: mid))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.52, y: mid))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.57, y: mid - height * 0.44))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.62, y: mid + height * 0.34))
+        path.addLine(to: CGPoint(x: rect.minX + width * 0.68, y: mid))
+        path.addLine(to: CGPoint(x: rect.maxX, y: mid))
+        return path
+    }
+}
+
+private struct AppHUDPanelSurface: ViewModifier {
+    var cut: CGFloat
+    var tint: Color
+
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        let shape = AppChamferShape(cut: cut)
+        content
+            .background {
+                shape
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: AppHUD.panelLift.opacity(reduceTransparency ? 1 : 0.92), location: 0),
+                                .init(color: AppHUD.panel.opacity(reduceTransparency ? 1 : 0.88), location: 0.55),
+                                .init(color: AppHUD.deep, location: 1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        RadialGradient(
+                            colors: [tint.opacity(0.14), .clear],
+                            center: .topTrailing,
+                            startRadius: 0,
+                            endRadius: 320
+                        )
+                        .clipShape(shape)
+                    }
+            }
+            .overlay {
+                shape.stroke(
+                    LinearGradient(
+                        colors: [
+                            tint.opacity(0.72),
+                            tint.opacity(0.20),
+                            tint.opacity(0.48)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+            }
+            .shadow(color: tint.opacity(0.16), radius: 16, y: 6)
+    }
+}
+
+extension View {
+    /// Machined panel for the HUD deck. The radius scale does not apply here:
+    /// the silhouette is cut, not rounded.
+    func appHUDPanel(cut: CGFloat = 18, tint: Color = AppPalette.brand) -> some View {
+        modifier(AppHUDPanelSurface(cut: cut, tint: tint))
+    }
+}
+
+struct AppHUDIconButton: View {
+    let icon: String
+    let label: String
+    var identifier: String? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppPalette.brand)
+                .frame(width: 46, height: 46)
+                .background {
+                    AppChamferShape(cut: 13)
+                        .fill(
+                            LinearGradient(
+                                colors: [AppHUD.panelLift, AppHUD.deep],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+                .overlay {
+                    AppChamferShape(cut: 13)
+                        .stroke(AppPalette.brand.opacity(0.55), lineWidth: 1)
+                }
+                .shadow(color: AppPalette.brand.opacity(0.25), radius: 8)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(AppPressButtonStyle())
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier ?? icon)
+    }
+}
+
+struct AppHUDCallout: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.white.opacity(0.5), AppPalette.brand.opacity(0.26), .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 9
+                        )
+                    )
+                Circle()
+                    .strokeBorder(AppPalette.brand.opacity(0.55), lineWidth: 0.8)
+                Image(systemName: icon)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(AppPalette.textPrimary)
+            }
+            .frame(width: 18, height: 18)
+            .shadow(color: AppPalette.brand.opacity(0.8), radius: 4)
+            Text(title)
+                .font(AppType.hudCallout())
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(AppPalette.textPrimary)
+                .lineLimit(1)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .black))
+                .foregroundStyle(AppPalette.brand.opacity(0.85))
+        }
+        .padding(.leading, 11)
+        .padding(.trailing, 9)
+        .frame(minHeight: 44)
+        .background {
+            AppPointerShape()
+                .fill(
+                    LinearGradient(
+                        colors: [AppHUD.panelLift.opacity(0.98), AppHUD.deep.opacity(0.96)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        }
+        .overlay {
+            AppPointerShape()
+                .stroke(AppPalette.brand.opacity(0.60), lineWidth: 1)
+        }
+        .shadow(color: AppPalette.brand.opacity(0.25), radius: 8)
+    }
+}
+
+struct AppHUDTabItem: Identifiable {
+    let id: Int
+    let icon: String
+    let title: String
+}
+
+struct AppHUDTabBar: View {
+    @Binding var selection: Int
+    let items: [AppHUDTabItem]
+
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(items) { item in
+                Button {
+                    guard selection != item.id else { return }
+                    AppHaptics.select()
+                    withAnimation(reduceMotion ? nil : AppMotion.surface) {
+                        selection = item.id
+                    }
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: item.icon)
+                            .font(.system(size: 19, weight: .semibold))
+                            .frame(height: 22)
+                        Text(item.title)
+                            .font(AppType.hudTab())
+                            .tracking(0.2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                    }
+                    .foregroundStyle(selection == item.id ? AppPalette.brand : AppPalette.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 60)
+                    .background {
+                        if selection == item.id {
+                            AppChamferShape(cut: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            AppPalette.brand.opacity(0.24),
+                                            AppPalette.brand.opacity(0.04)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                    }
+                    .overlay {
+                        if selection == item.id {
+                            AppChamferShape(cut: 12)
+                                .stroke(AppPalette.brand.opacity(0.52), lineWidth: 1)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(AppPressButtonStyle())
+                .accessibilityLabel(item.title)
+                .accessibilityAddTraits(
+                    selection == item.id ? AccessibilityTraits.isSelected : AccessibilityTraits()
+                )
+            }
+        }
+        .padding(6)
+        .background {
+            AppHUDTabBarShape()
+                .fill(
+                    LinearGradient(
+                        colors: reduceTransparency
+                            ? [AppHUD.panel, AppHUD.deep]
+                            : [AppHUD.panel.opacity(0.98), AppHUD.deep.opacity(0.99)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, AppPalette.brand.opacity(0.65), .clear],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 1)
+                        .padding(.horizontal, 16)
+                }
+                .overlay {
+                    AppHUDTabBarShape()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    AppPalette.brand.opacity(0.55),
+                                    AppPalette.brand.opacity(0.18)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1
+                        )
+                }
+                .shadow(color: AppPalette.brand.opacity(0.22), radius: 18, y: -2)
+                .ignoresSafeArea(edges: .bottom)
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 4)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// Cyan shard debris and short electrical arcs inspired by the effect plates.
+/// Vector-only, so it scales on every phone; Reduce Motion and the lean
+/// performance path drop it to a single static frame.
+struct HUDShardField: View {
+    var isActive: Bool = true
+    var intensity: Double = 1
+    var showsCore: Bool = true
+
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @Environment(\.appPerformanceMode) private var performanceMode
+
+    private var isPaused: Bool { !isActive || reduceMotion || performanceMode }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: isPaused)) { timeline in
+            Canvas { context, size in
+                let time = isPaused ? 2.4 : timeline.date.timeIntervalSinceReferenceDate
+                draw(in: &context, size: size, time: time)
+            }
+        }
+        .blendMode(.plusLighter)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func draw(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        let width = size.width
+        let height = size.height
+        guard width > 20, height > 20 else { return }
+        let center = CGPoint(x: width * 0.5, y: height * 0.48)
+        let base = min(width, height)
+        let t = time
+
+        if showsCore {
+            var glow = context
+            glow.addFilter(.blur(radius: base * 0.12))
+            let rect = CGRect(
+                x: center.x - base * 0.38,
+                y: center.y - base * 0.30,
+                width: base * 0.76,
+                height: base * 0.60
+            )
+            glow.fill(
+                Path(ellipseIn: rect),
+                with: .radialGradient(
+                    Gradient(colors: [
+                        AppPalette.brand.opacity(0.34 * intensity),
+                        AppPalette.brand.opacity(0.05 * intensity),
+                        .clear
+                    ]),
+                    center: center,
+                    startRadius: 0,
+                    endRadius: base * 0.42
+                )
+            )
+        }
+
+        for index in 0..<30 {
+            let phase = Double(index) * 0.37
+            let wobble = CGFloat(sin(t * 0.55 + phase))
+            let angle = (Double(index) / 30.0) * .pi * 2 + phase * 0.11
+            let radius = base * CGFloat(0.26 + 0.10 * (0.5 + 0.5 * sin(phase * 2.1))) + wobble * base * 0.018
+            let point = CGPoint(
+                x: center.x + CGFloat(cos(angle)) * radius * 1.22,
+                y: center.y + CGFloat(sin(angle)) * radius * 0.78
+            )
+            let shardSize = base * CGFloat(index % 7 == 0 ? 0.052 : 0.026)
+                * CGFloat(0.8 + 0.35 * (0.5 + 0.5 * sin(t * 0.8 + phase)))
+            let rotation = angle * 1.7 + t * 0.12 + phase
+            let path = triangle(at: point, radius: shardSize, rotation: rotation)
+            let hot = index % 6 == 0
+            let alpha = (hot ? 0.50 : 0.20) * intensity
+                * (0.72 + 0.28 * (0.5 + 0.5 * sin(t * 1.4 + phase)))
+
+            context.fill(
+                path,
+                with: .color(hot ? AppPalette.textPrimary.opacity(alpha) : AppPalette.brand.opacity(alpha))
+            )
+            context.stroke(
+                path,
+                with: .color(AppPalette.brand.opacity(min(0.8, alpha + 0.18))),
+                lineWidth: 0.7
+            )
+        }
+
+        for index in 0..<3 {
+            let seed = Double(index) * 1.9
+            var path = Path()
+            let start = CGPoint(x: width * (0.18 + 0.10 * CGFloat(index)), y: height * 0.16)
+            path.move(to: start)
+            var point = start
+            for step in 1...5 {
+                let fraction = CGFloat(step) / 5
+                point = CGPoint(
+                    x: start.x + width * 0.16 * fraction + CGFloat(sin(t * 1.7 + seed + Double(step))) * 10,
+                    y: start.y + height * 0.14 * fraction
+                )
+                path.addLine(to: point)
+            }
+            context.stroke(
+                path,
+                with: .color(AppPalette.brand.opacity(0.20 * intensity)),
+                lineWidth: 0.9
+            )
+            path.move(to: point)
+            path.addLine(to: CGPoint(x: point.x + 22, y: point.y + 18))
+            path.addLine(to: CGPoint(x: point.x + 12, y: point.y + 36))
+            context.stroke(
+                path,
+                with: .color(AppPalette.textPrimary.opacity(0.10 * intensity)),
+                lineWidth: 0.7
+            )
+        }
+    }
+
+    private func triangle(at point: CGPoint, radius: CGFloat, rotation: Double) -> Path {
+        var path = Path()
+        for index in 0..<3 {
+            let angle = rotation + Double(index) * (2 * .pi / 3)
+            let vertex = CGPoint(
+                x: point.x + CGFloat(cos(angle)) * radius,
+                y: point.y + CGFloat(sin(angle)) * radius
+            )
+            if index == 0 {
+                path.move(to: vertex)
+            } else {
+                path.addLine(to: vertex)
+            }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - HUD console chrome
+
+/// A static machined grid with corner brackets. It gives the Intel and Cleaner
+/// consoles the same drawn-in-the-dark deck as Home without adding another
+/// animation loop; the moving layer is the shared shard field underneath.
+struct HUDGridField: View {
+    var intensity: Double = 1
+
+    var body: some View {
+        Canvas { context, size in
+            guard size.width > 40, size.height > 40 else { return }
+            let spacing: CGFloat = 34
+            var grid = Path()
+
+            var x = spacing
+            while x < size.width {
+                grid.move(to: CGPoint(x: x, y: 0))
+                grid.addLine(to: CGPoint(x: x, y: size.height))
+                x += spacing
+            }
+            var y = spacing
+            while y < size.height {
+                grid.move(to: CGPoint(x: 0, y: y))
+                grid.addLine(to: CGPoint(x: size.width, y: y))
+                y += spacing
+            }
+            context.stroke(
+                grid,
+                with: .color(AppPalette.brand.opacity(0.10 * intensity)),
+                lineWidth: 0.6
+            )
+
+            var horizon = Path()
+            horizon.move(to: CGPoint(x: 0, y: size.height * 0.34))
+            horizon.addLine(to: CGPoint(x: size.width, y: size.height * 0.34))
+            context.stroke(
+                horizon,
+                with: .color(AppPalette.brand.opacity(0.18 * intensity)),
+                lineWidth: 0.8
+            )
+
+            let inset: CGFloat = 12
+            let arm: CGFloat = 18
+            var brackets = Path()
+            brackets.move(to: CGPoint(x: inset, y: inset + arm))
+            brackets.addLine(to: CGPoint(x: inset, y: inset))
+            brackets.addLine(to: CGPoint(x: inset + arm, y: inset))
+            brackets.move(to: CGPoint(x: size.width - inset - arm, y: inset))
+            brackets.addLine(to: CGPoint(x: size.width - inset, y: inset))
+            brackets.addLine(to: CGPoint(x: size.width - inset, y: inset + arm))
+            brackets.move(to: CGPoint(x: inset, y: size.height - inset - arm))
+            brackets.addLine(to: CGPoint(x: inset, y: size.height - inset))
+            brackets.addLine(to: CGPoint(x: inset + arm, y: size.height - inset))
+            brackets.move(to: CGPoint(x: size.width - inset - arm, y: size.height - inset))
+            brackets.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
+            brackets.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset - arm))
+            context.stroke(
+                brackets,
+                with: .color(AppPalette.brand.opacity(0.42 * intensity)),
+                lineWidth: 1
+            )
+
+            var ticks = Path()
+            let tickY = size.height * 0.34
+            for index in 0..<7 {
+                let tickX = size.width * 0.5 + CGFloat(index - 3) * 16
+                ticks.move(to: CGPoint(x: tickX, y: tickY - 3))
+                ticks.addLine(to: CGPoint(x: tickX, y: tickY + 3))
+            }
+            context.stroke(
+                ticks,
+                with: .color(AppPalette.brand.opacity(0.34 * intensity)),
+                lineWidth: 1
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .mask(
+            RadialGradient(
+                colors: [.black, .black.opacity(0.72), .clear],
+                center: .center,
+                startRadius: 0,
+                endRadius: 560
+            )
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Grid, shard debris and a quiet top/bottom scrim for the secondary consoles.
+/// Everything is decorative and non-interactive; Reduce Motion and the lean
+/// performance path stop the shards through `HUDShardField`.
+struct HUDConsoleBackdrop: View {
+    var intensity: Double = 1
+
+    var body: some View {
+        ZStack {
+            HUDGridField(intensity: intensity)
+
+            HUDShardField(isActive: true, intensity: 0.45 * intensity, showsCore: false)
+                .opacity(0.55)
+
+            LinearGradient(
+                colors: [
+                    AppHUD.deep.opacity(0.30),
+                    .clear,
+                    AppHUD.deep.opacity(0.42)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Numbered console section heading: cut index block, compact HUD title, LED
+/// rule and a symbol badge. Callers pass localized strings; the index is the
+/// only literal, so the console reads as one ordered deck.
+struct HUDSectionHeader: View {
+    let index: String
+    let icon: String
+    let title: String
+    var subtitle: String? = nil
+    var trailing: String? = nil
+
+    var body: some View {
+        VStack(spacing: AppSpacing.xs) {
+            HStack(spacing: AppSpacing.s) {
+                Text(index)
+                    .font(AppType.hudKicker().weight(.black))
+                    .foregroundStyle(AppPalette.canvas)
+                    .frame(width: 26, height: 26)
+                    .background(AppPalette.brand, in: AppChamferShape(cut: 8))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(AppType.hudStageTitle())
+                        .tracking(0.8)
+                        .foregroundStyle(AppPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(AppType.hudKicker())
+                            .tracking(0.6)
+                            .foregroundStyle(AppPalette.textTertiary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                }
+
+                Spacer(minLength: AppSpacing.s)
+
+                if let trailing {
+                    Text(trailing)
+                        .font(AppType.hudKicker())
+                        .tracking(0.8)
+                        .foregroundStyle(AppPalette.brand)
+                        .padding(.horizontal, 7)
+                        .frame(height: 20)
+                        .background(AppPalette.brand.opacity(0.10), in: Capsule())
+                        .overlay(Capsule().stroke(AppPalette.brand.opacity(0.32), lineWidth: 0.8))
+                }
+
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(AppPalette.brand)
+                    .frame(width: 26, height: 26)
+                    .background(AppPalette.brand.opacity(0.08), in: AppChamferShape(cut: 7))
+                    .overlay(AppChamferShape(cut: 7).stroke(AppPalette.brand.opacity(0.24), lineWidth: 0.8))
+            }
+
+            HStack(spacing: 3) {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.brand.opacity(0.52), AppPalette.brand.opacity(0.05)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+                Rectangle()
+                    .fill(AppPalette.brand.opacity(0.72))
+                    .frame(width: 4, height: 4)
+                    .rotationEffect(.degrees(45))
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppPalette.brand.opacity(0.05), AppPalette.brand.opacity(0.52)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+            }
+            .accessibilityHidden(true)
+        }
         .accessibilityElement(children: .combine)
     }
 }
